@@ -1,0 +1,48 @@
+{
+  "_nota": "Forma DOCUMENTADA de GET /api/transactions/ de Belvo (developers.belvo.com). NO es una respuesta grabada de una cuenta real: cuando exista la primera corrida en vivo, este archivo se reemplaza por la respuesta real (redactada). Hasta entonces, la señal en el producto es 'pendiente de verificar en vivo'.",
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "3a2fc566-0a19-4c53-99d9-8b2b1e6f9f01",
+      "account": {
+        "id": "d4617561-1c01-4b2f-83b6-b0f1f2f3a401",
+        "name": "Cuenta de cheques MXN",
+        "category": "CHECKING_ACCOUNT"
+      },
+      "amount": 17073.6,
+      "balance": 250040.2,
+      "collected_at": "2026-06-08T21:01:12.312Z",
+      "created_at": "2026-06-08T21:01:12.312Z",
+      "currency": "MXN",
+      "description": "SPEI RECIBIDO PAPELERIA BIC SA DE CV",
+      "merchant": null,
+      "observations": null,
+      "reference": "M-104",
+      "status": "PROCESSED",
+      "type": "INFLOW",
+      "value_date": "2026-06-08"
+    },
+    {
+      "id": "8c1d9a02-55e4-4b1b-9a51-77e0c2d4be02",
+      "account": {
+        "id": "d4617561-1c01-4b2f-83b6-b0f1f2f3a401",
+        "name": "Cuenta de cheques MXN",
+        "category": "CHECKING_ACCOUNT"
+      },
+      "amount": 4000.0,
+      "balance": 254040.2,
+      "collected_at": "2026-06-09T15:22:03.001Z",
+      "created_at": "2026-06-09T15:22:03.001Z",
+      "currency": "MXN",
+      "description": "TRANSFERENCIA FERRETERIA EL MARTILLO",
+      "merchant": null,
+      "observations": null,
+      "reference": "0071234",
+      "status": "PROCESSED",
+      "type": "INFLOW",
+      "value_date": "2026-06-09"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Banca Empresarial - Acceso</title>
+<!-- Portal de PRUEBA local para misiones CUA: simula una banca en linea simple
+     (login + tabla de depositos). Datos ficticios; credenciales de prueba:
+     usuario "demo", clave "aiuda123". Estatico: funciona por file:// o HTTP local. -->
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #eef2f6; color: #1a2530; }
+  header { background: #143a5a; color: #fff; padding: 14px 28px; display: flex; align-items: center; gap: 12px; }
+  header .logo { width: 26px; height: 26px; border-radius: 6px; background: #2f7fb8; }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  .demo-tag { margin-left: auto; font-size: 11px; background: #f4c95d; color: #3a2f00; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+  main { max-width: 860px; margin: 24px auto; padding: 0 20px; }
+  .card { background: #fff; border: 1px solid #d7e0e8; border-radius: 10px; overflow: hidden; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #5a6b7a; margin: 0; padding: 14px 18px; border-bottom: 1px solid #eef2f6; }
+  form { padding: 22px 18px; max-width: 380px; }
+  label { display: block; font-size: 12.5px; font-weight: 600; color: #43525f; margin: 12px 0 5px; }
+  input { width: 100%; box-sizing: border-box; font-size: 14px; padding: 9px 10px; border: 1px solid #c3cfda; border-radius: 6px; }
+  button { margin-top: 16px; font-size: 14px; font-weight: 600; color: #fff; background: #143a5a; border: 0; border-radius: 6px; padding: 10px 22px; cursor: pointer; }
+  .error { display: none; margin-top: 12px; font-size: 12.5px; color: #a3261f; background: #fbeae9; border: 1px solid #eec7c4; border-radius: 6px; padding: 8px 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 11px 18px; border-bottom: 1px solid #eef2f6; }
+  th { color: #7a8794; font-weight: 600; font-size: 12px; }
+  td.monto { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #146c43; }
+  tr:last-child td { border-bottom: 0; }
+  .sub { color: #7a8794; font-size: 12px; margin: 8px 2px 16px; }
+  #movimientos { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"></div>
+  <h1>Banca Empresarial · La Bonita S.A. de C.V.</h1>
+  <span class="demo-tag">Portal de prueba local · datos ficticios</span>
+</header>
+<main>
+  <section id="login" class="card">
+    <h2>Acceso a banca en linea</h2>
+    <form id="form-login">
+      <label for="usuario">Usuario</label>
+      <input id="usuario" name="usuario" autocomplete="off" autofocus />
+      <label for="clave">Contrasena</label>
+      <input id="clave" name="clave" type="password" autocomplete="off" />
+      <button type="submit">Entrar</button>
+      <p id="err" class="error">Usuario o contrasena incorrectos.</p>
+    </form>
+  </section>
+
+  <section id="movimientos">
+    <p class="sub">Cuenta ****4821 · Depositos recibidos (ultimos 7 dias)</p>
+    <div class="card">
+      <h2>Movimientos</h2>
+      <table>
+        <thead>
+          <tr><th>Fecha</th><th>Concepto</th><th style="text-align:right">Monto (MXN)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>2026-06-28</td><td>SPEI recibido - Joyeria Aurora</td><td class="monto">$12,500.00</td></tr>
+          <tr><td>2026-06-29</td><td>Deposito ventanilla - Ferreteria del Valle</td><td class="monto">$4,800.00</td></tr>
+          <tr><td>2026-07-01</td><td>SPEI recibido - Taqueria El Sol</td><td class="monto">$2,150.50</td></tr>
+          <tr><td>2026-07-02</td><td>Transferencia - Cliente 88213</td><td class="monto">$9,300.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+  // Foco determinista: el autofocus del parser puede perderse en arranques
+  // frios de headless; al terminar de cargar se reafirma.
+  window.addEventListener("load", function () { document.getElementById("usuario").focus(); });
+  document.getElementById("form-login").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var ok = document.getElementById("usuario").value === "demo" &&
+             document.getElementById("clave").value === "aiuda123";
+    document.getElementById("err").style.display = ok ? "none" : "block";
+    if (ok) {
+      document.getElementById("login").style.display = "none";
+      document.getElementById("movimientos").style.display = "block";
+      document.title = "Banca Empresarial - Movimientos";
+    }
+  });
+</script>
+</body>
+</html>

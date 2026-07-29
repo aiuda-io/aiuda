@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Preguntas y dudas
+    url: https://github.com/aiuda-io/aiuda/discussions
+    about: Para preguntas de uso, ideas abiertas o pedir ayuda, usa Discussions. Los issues son para errores y propuestas concretas.
+  - name: Reportar una vulnerabilidad de seguridad
+    url: https://github.com/aiuda-io/aiuda/security/advisories/new
+    about: NO abras un issue público. Escribe en privado a consulting@hanova.mx (ver SECURITY.md).

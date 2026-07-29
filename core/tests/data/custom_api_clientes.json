@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "data": {
+    "clientes": [
+      {
+        "id": 501,
+        "razon_social": "Ferretería El Tornillo SA",
+        "contacto": {"celular": "55 1234 5678", "correo": "pagos@eltornillo.mx"}
+      },
+      {
+        "id": 502,
+        "razon_social": "Constructora Regia",
+        "contacto": {"celular": "+52 81 8356 1122", "correo": ""}
+      },
+      {
+        "id": 503,
+        "razon_social": "Abarrotes Doña Mary",
+        "contacto": {"celular": "", "correo": "mary@abarrotes.mx"}
+      }
+    ]
+  }
+}

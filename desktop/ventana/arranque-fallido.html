@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8" />
+    <title>aiuda no pudo arrancar</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #fbfcfd;
+        color: #16232b;
+        font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        padding: 2rem;
+      }
+      main { max-width: 34rem; }
+      h1 { font-size: 1.25rem; margin: 0 0 0.6rem; }
+      p { margin: 0 0 0.9rem; color: #46606e; }
+      code {
+        background: #eef2f5;
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.88em;
+      }
+      ul { margin: 0.2rem 0 0; padding-left: 1.1rem; color: #46606e; }
+      li { margin-bottom: 0.35rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>aiuda no pudo arrancar</h1>
+      <p>
+        El motor local no respondió a tiempo. No se perdió nada: tus datos viven
+        en <code>~/.aiuda</code> y siguen ahí.
+      </p>
+      <p>Lo más común:</p>
+      <ul>
+        <li>Otra copia de aiuda ya está usando el puerto 4747. Ciérrala y vuelve a abrir.</li>
+        <li>El primer arranque tardó de más creando la base. Vuelve a abrir la app.</li>
+        <li>Si sigue igual, corre <code>aiuda doctor</code> en la terminal: dice qué falta.</li>
+      </ul>
+    </main>
+  </body>
+</html>

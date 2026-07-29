@@ -1,0 +1,16 @@
+{
+  "name": "aiuda-desktop",
+  "version": "0.1.0",
+  "description": "Aplicación de escritorio local-first de aiuda",
+  "private": true,
+  "scripts": {
+    "build": "tauri build",
+    "dev": "tauri dev"
+  },
+  "author": "Hanova Consulting",
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}

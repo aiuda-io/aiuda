@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Factura Electronica - Acceso</title>
+<!-- Portal de PRUEBA local para misiones CUA: simula la consulta de CFDI recibidos
+     (login RFC + clave y tabla de facturas). Datos ficticios; credenciales de prueba:
+     RFC "LABO860415XY1", clave "aiuda123". Estatico: file:// o HTTP local. -->
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #f3f1ec; color: #232323; }
+  header { background: #611232; color: #fff; padding: 14px 28px; display: flex; align-items: center; gap: 12px; }
+  header .logo { width: 26px; height: 26px; border-radius: 50%; background: #b38e5d; }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  .demo-tag { margin-left: auto; font-size: 11px; background: #f4c95d; color: #3a2f00; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+  main { max-width: 920px; margin: 24px auto; padding: 0 20px; }
+  .card { background: #fff; border: 1px solid #ddd6c9; border-radius: 8px; overflow: hidden; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #6c6353; margin: 0; padding: 14px 18px; border-bottom: 1px solid #f0ece2; }
+  form { padding: 22px 18px; max-width: 400px; }
+  label { display: block; font-size: 12.5px; font-weight: 600; color: #4c463b; margin: 12px 0 5px; }
+  input { width: 100%; box-sizing: border-box; font-size: 14px; padding: 9px 10px; border: 1px solid #c9c1b1; border-radius: 6px; }
+  button { margin-top: 16px; font-size: 14px; font-weight: 600; color: #fff; background: #611232; border: 0; border-radius: 6px; padding: 10px 22px; cursor: pointer; }
+  .error { display: none; margin-top: 12px; font-size: 12.5px; color: #a3261f; background: #fbeae9; border: 1px solid #eec7c4; border-radius: 6px; padding: 8px 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid #f0ece2; }
+  th { color: #857b67; font-weight: 600; font-size: 12px; }
+  td.monto { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  td.folio { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  tr:last-child td { border-bottom: 0; }
+  .sub { color: #857b67; font-size: 12px; margin: 8px 2px 16px; }
+  #cfdis { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"></div>
+  <h1>Factura Electronica · Consulta de CFDI recibidos</h1>
+  <span class="demo-tag">Portal de prueba local · datos ficticios</span>
+</header>
+<main>
+  <section id="login" class="card">
+    <h2>Acceso con contrasena</h2>
+    <form id="form-login">
+      <label for="rfc">RFC</label>
+      <input id="rfc" name="rfc" autocomplete="off" autofocus />
+      <label for="clave">Contrasena</label>
+      <input id="clave" name="clave" type="password" autocomplete="off" />
+      <button type="submit">Enviar</button>
+      <p id="err" class="error">RFC o contrasena incorrectos.</p>
+    </form>
+  </section>
+
+  <section id="cfdis">
+    <p class="sub">RFC LABO860415XY1 · CFDI recibidos del mes en curso (julio 2026)</p>
+    <div class="card">
+      <h2>Facturas recibidas</h2>
+      <table>
+        <thead>
+          <tr><th>Folio fiscal</th><th>Emisor</th><th style="text-align:right">Monto (MXN)</th><th>Fecha</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="folio">A1B2-4411</td><td>Papeleria Central SA de CV</td><td class="monto">$1,860.00</td><td>2026-07-01</td></tr>
+          <tr><td class="folio">C3D4-8032</td><td>Transportes Norte SA de CV</td><td class="monto">$7,540.00</td><td>2026-07-02</td></tr>
+          <tr><td class="folio">E5F6-1290</td><td>Servicios TI Cumbre SC</td><td class="monto">$11,600.00</td><td>2026-07-04</td></tr>
+          <tr><td class="folio">G7H8-5567</td><td>Comercializadora Rio SA de CV</td><td class="monto">$3,220.00</td><td>2026-07-06</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script>
+  // Foco determinista: el autofocus del parser puede perderse en arranques
+  // frios de headless; al terminar de cargar se reafirma.
+  window.addEventListener("load", function () { document.getElementById("rfc").focus(); });
+  document.getElementById("form-login").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var ok = document.getElementById("rfc").value.trim().toUpperCase() === "LABO860415XY1" &&
+             document.getElementById("clave").value === "aiuda123";
+    document.getElementById("err").style.display = ok ? "none" : "block";
+    if (ok) {
+      document.getElementById("login").style.display = "none";
+      document.getElementById("cfdis").style.display = "block";
+      document.title = "Factura Electronica - CFDI recibidos";
+    }
+  });
+</script>
+</body>
+</html>

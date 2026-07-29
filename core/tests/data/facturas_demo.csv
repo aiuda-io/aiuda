@@ -1,0 +1,6 @@
+folio,cliente,telefono,monto,moneda,fecha_emision,fecha_vencimiento,estatus
+F-100,Abarrotes Don Pepe,5215511111111,4500.00,MXN,2026-04-01,2026-04-30,open
+F-101,Abarrotes Don Pepe,5215511111111,1200.00,MXN,2026-05-15,2026-06-14,open
+F-102,Ferretería El Martillo,5215522222222,18750.50,MXN,2026-05-01,2026-05-31,open
+F-103,Estética Rosy,5215533333333,860.00,MXN,2026-06-01,2026-07-01,open
+F-104,Constructora GAMA,5215544444444,95000.00,MXN,2026-03-01,2026-03-31,open

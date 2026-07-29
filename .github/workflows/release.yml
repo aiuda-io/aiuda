@@ -1,0 +1,139 @@
+name: Release
+
+# Publica los instaladores de la app de escritorio al empujar un tag vX.Y.Z.
+#
+# La firma de macOS: sin secrets, el paquete sale con firma ad-hoc (válida, pero
+# sin identidad), y macOS avisará que el desarrollador no está identificado.
+# Cuando existan los secrets de Apple, este mismo workflow firma con Developer ID
+# y notariza sin cambiar nada más. Los secrets son:
+#   APPLE_CERTIFICATE           .p12 del Developer ID Application, en base64
+#   APPLE_CERTIFICATE_PASSWORD  la contraseña con la que se exportó ese .p12
+#   APPLE_SIGNING_IDENTITY      "Developer ID Application: Nombre (TEAMID)"
+#   APPLE_API_ISSUER / APPLE_API_KEY / APPLE_API_KEY_PATH  para notarizar
+# Después de un release firmado, comprobar que de verdad quedó firmado:
+#   codesign -dv aiuda.app   debe decir Developer ID, no adhoc
+#   scripts/prueba-app.sh    debe decir que pasa todas las revisiones de Apple
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  escritorio:
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - plataforma: macos-latest
+            args: "--target aarch64-apple-darwin"
+          - plataforma: macos-latest
+            args: "--target x86_64-apple-darwin"
+          - plataforma: ubuntu-22.04
+            args: ""
+          - plataforma: windows-latest
+            args: ""
+    runs-on: ${{ matrix.plataforma }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencias de sistema (Linux)
+        if: matrix.plataforma == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ contains(matrix.args, 'aarch64') && 'aarch64-apple-darwin' || contains(matrix.args, 'x86_64') && 'x86_64-apple-darwin' || '' }}
+
+      - name: Consola (export estático)
+        run: cd web && npm ci && npm run export
+
+      - name: Consola dentro del paquete del server
+        shell: bash
+        run: |
+          rm -rf server/aiuda_server/static
+          cp -R web/out server/aiuda_server/static
+
+      - name: Binario del server
+        run: uv sync --locked && uv run pyinstaller packaging/aiuda.spec --noconfirm --distpath dist/bin --workpath build/pyi --log-level WARN
+
+      - name: Sidecar con el triple de esta plataforma
+        shell: bash
+        run: |
+          TRIPLE=$(rustc -Vv | awk '/host:/ {print $2}')
+          [ -n "${{ matrix.args }}" ] && TRIPLE=$(echo "${{ matrix.args }}" | awk '{print $2}')
+          mkdir -p desktop/src-tauri/binaries
+          BIN=dist/bin/aiuda
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          cp "$BIN" "desktop/src-tauri/binaries/aiuda-server-$TRIPLE$([ -f dist/bin/aiuda.exe ] && echo .exe)"
+          chmod +x desktop/src-tauri/binaries/* || true
+
+      - name: Instalar deps de la app
+        run: cd desktop && npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Vacíos mientras no haya cuenta de Apple Developer: tauri-action los
+          # ignora y deja la firma ad-hoc del tauri.conf.json.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+        with:
+          projectPath: desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "aiuda ${{ github.ref_name }}"
+          releaseBody: "Descarga el instalador de tu sistema. En el primer arranque, aiuda te guía para configurarlo todo."
+          releaseDraft: true
+          args: ${{ matrix.args }}
+
+  paquetes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # El token va al entorno del job: GitHub NO permite leer `secrets` en el
+    # `if` de un paso, y ese era el error que tumbaba el workflow entero.
+    env:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Consola
+        run: |
+          cd web && npm ci && npm run export && cd ..
+          rm -rf server/aiuda_server/static && cp -R web/out server/aiuda_server/static
+      - name: Wheels
+        run: |
+          uv build --package aiuda-core --wheel -o dist
+          uv build --package aiuda-server --wheel -o dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels
+          path: dist/*.whl
+      # Publicar a PyPI cuando exista el token (PYPI_TOKEN en secrets del repo).
+      - name: Publicar a PyPI
+        if: env.PYPI_TOKEN != ''
+        run: uv publish --token "$PYPI_TOKEN" dist/*.whl

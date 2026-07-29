@@ -1,0 +1,32 @@
+{
+  "_nota": "Estructura DOCUMENTADA de la Web API de Slack (api.slack.com/methods/chat.postMessage y /methods/auth.test, ejemplos oficiales). NO es una respuesta grabada en vivo: no hay workspace conectado. Cuando haya bot token real, se graba la respuesta y reemplaza estas secciones.",
+  "post_message_ok": {
+    "ok": true,
+    "channel": "C123ABC456",
+    "ts": "1503435956.000247",
+    "message": {
+      "text": "aiuda · Resumen de cartera — 07/07/2026",
+      "username": "aiuda",
+      "bot_id": "B123ABC456",
+      "type": "message",
+      "subtype": "bot_message",
+      "ts": "1503435956.000247"
+    }
+  },
+  "post_message_error": {
+    "ok": false,
+    "error": "channel_not_found"
+  },
+  "auth_test_ok": {
+    "ok": true,
+    "url": "https://despacho-ejemplo.slack.com/",
+    "team": "Despacho Ejemplo",
+    "user": "aiuda",
+    "team_id": "T12345678",
+    "user_id": "W12345678"
+  },
+  "auth_test_error": {
+    "ok": false,
+    "error": "invalid_auth"
+  }
+}

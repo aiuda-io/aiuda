@@ -1,0 +1,56 @@
+name: Reporte de error
+description: Algo no funciona como debería.
+title: "[Error]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar. Entre más concreto seas, más rápido lo arreglamos.
+        Si es una vulnerabilidad de seguridad, NO abras un issue: escribe a
+        consulting@hanova.mx (ver SECURITY.md).
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: Qué pasó
+      description: Describe el comportamiento que viste. Pega el error o mensaje si lo hay.
+      placeholder: Al aprobar un recordatorio, la app se queda cargando y nunca se envía.
+    validations:
+      required: true
+  - type: textarea
+    id: que-esperabas
+    attributes:
+      label: Qué esperabas
+      description: Qué debería haber pasado en su lugar.
+    validations:
+      required: true
+  - type: textarea
+    id: como-reproducir
+    attributes:
+      label: Cómo reproducir
+      description: Pasos exactos, del 1 al último, para que veamos lo mismo.
+      placeholder: |
+        1. Entrar a la consola
+        2. Abrir la bandeja de aprobaciones
+        3. Aprobar un recordatorio
+        4. Ver que...
+    validations:
+      required: true
+  - type: dropdown
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Dónde te pasó.
+      options:
+        - App de escritorio
+        - Desde el código (uv run aiuda start)
+    validations:
+      required: true
+  - type: textarea
+    id: detalles-entorno
+    attributes:
+      label: Detalles del entorno
+      description: SO, versión (commit o tag), navegador, y qué fuente usas (Odoo, Excel, etc.). Opcional pero ayuda.
+      placeholder: macOS 15, commit 808966d, Chrome, fuente Odoo 19.
+    validations:
+      required: false

@@ -1,0 +1,27 @@
+{
+  "result": {
+    "items": [
+      {
+        "uid": "fac-9001",
+        "folio": "A-1091",
+        "saldo": "$12,500.50",
+        "vence": "2026-07-20",
+        "cliente": {"nombre": "Ferretería El Tornillo SA", "celular": "5512345678"}
+      },
+      {
+        "uid": "fac-9002",
+        "folio": "A-1102",
+        "saldo": 8300,
+        "vence": "15/07/2026",
+        "cliente": {"nombre": "Constructora Regia", "celular": ""}
+      },
+      {
+        "uid": "fac-9003",
+        "folio": "A-1110",
+        "saldo": null,
+        "vence": "2026-07-01",
+        "cliente": {"nombre": "Sin Monto SA", "celular": ""}
+      }
+    ]
+  }
+}
