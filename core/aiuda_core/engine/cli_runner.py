@@ -6,11 +6,21 @@ absurdo. Ya está logueado. aiuda solo tiene que hablarle.
 
 Este runner ejecuta el binario local en modo no interactivo y lee su respuesta:
 
-    claude -p "…" --output-format json
-    codex exec "…"
+    claude -p "…" --output-format stream-json --include-partial-messages --verbose
+    codex exec --json "…"
+
+Los dos van por su modo de eventos y no por el de una sola respuesta al final.
+Eso compra dos cosas concretas: el CLI dice en qué va mientras trabaja, así que
+el reloj puede medir SILENCIO en vez de duración total (una corrida larga pero
+sana ya no muere igual que una colgada), y los dos reportan cuántos tokens
+gastaron, incluidos los de caché, que es de donde sale casi todo el costo.
 
 No hay tokens que capturar, ni llaves que pegar, ni navegador que abrir: la
 sesión vive en el CLI, que es de quien la instaló. aiuda nunca ve credenciales.
+
+Si el CLI del dueño es viejo y no conoce esas banderas, se reintenta con las de
+antes (`--output-format json` y `codex exec` a secas) y todo sigue funcionando,
+solo que sin cifras de gasto.
 
 Limitación honesta: estos CLIs devuelven texto, no llamadas a herramientas con
 el protocolo del proveedor. Para el loop con herramientas (el chat de los
@@ -22,15 +32,23 @@ corta con honestidad en vez de inventar.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import queue
 import shutil
 import subprocess
+import threading
+import time
 from collections.abc import Callable
 from pathlib import Path
 
-# Un CLI puede tardar: arranca un proceso, arma su contexto y llama al modelo.
+# Cuánto se le aguanta CALLADO. Como el CLI va contando lo que hace, el silencio
+# es la señal de que se colgó; tardarse no lo es.
 TIMEOUT_S = 180
+
+# Aun hablando, algo tiene que terminar. Este es el tope duro.
+TIMEOUT_TOTAL_S = 900
 
 # El chat con herramientas: cuántas vueltas antes de rendirse.
 MAX_VUELTAS = 6
@@ -102,24 +120,79 @@ def _entorno_para(binario: str) -> dict[str, str]:
 
 
 def _correr(cmd: list[str], entrada: str) -> str:
+    """Corre el CLI y devuelve todo lo que imprimió, vigilando que siga vivo.
+
+    Esto era un `subprocess.run` con 180 segundos de tope total, y ahí estaba el
+    problema: una corrida larga pero sana moría exactamente igual que una
+    colgada. Con el modo de eventos el CLI va diciendo en qué va, así que el
+    reloj mide silencio. Mientras siga hablando se le deja trabajar; si se
+    calla, se corta.
+    """
     try:
-        proceso = subprocess.run(
+        proceso = subprocess.Popen(  # noqa: S603 — el comando lo arma aiuda, no el dueño
             cmd,
-            input=entrada,
-            capture_output=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=TIMEOUT_S,
             env=_entorno_para(cmd[0]),
         )
     except FileNotFoundError as exc:
         raise CliNoDisponible(f"No encontré {Path(cmd[0]).name} en esta computadora.") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise CliNoDisponible(
-            f"{Path(cmd[0]).name} no respondió en {TIMEOUT_S} segundos."
-        ) from exc
-    if proceso.returncode != 0:
-        raise CliNoDisponible(_motivo(Path(cmd[0]).name, proceso.stdout, proceso.stderr))
-    return proceso.stdout
+
+    salida: list[str] = []
+    errores: list[str] = []
+    latidos: queue.Queue = queue.Queue()
+
+    def leer(flujo, destino: list[str]) -> None:
+        try:
+            for linea in flujo:
+                destino.append(linea)
+                latidos.put(True)
+        finally:
+            latidos.put(None)  # este flujo ya cerró
+            with contextlib.suppress(Exception):
+                flujo.close()
+
+    for flujo, destino in ((proceso.stdout, salida), (proceso.stderr, errores)):
+        threading.Thread(target=leer, args=(flujo, destino), daemon=True).start()
+
+    with contextlib.suppress(Exception):
+        proceso.stdin.write(entrada)
+    with contextlib.suppress(Exception):
+        proceso.stdin.close()
+
+    nombre = Path(cmd[0]).name
+    limite = time.monotonic() + TIMEOUT_TOTAL_S
+    abiertos = 2
+    while abiertos:
+        try:
+            if latidos.get(timeout=TIMEOUT_S) is None:
+                abiertos -= 1
+        except queue.Empty:
+            _matar(proceso)
+            raise CliNoDisponible(
+                f"{nombre} se quedó callado {TIMEOUT_S} segundos. Parece que se colgó."
+            ) from None
+        if time.monotonic() > limite:
+            _matar(proceso)
+            raise CliNoDisponible(
+                f"{nombre} lleva más de {TIMEOUT_TOTAL_S // 60} minutos sin terminar."
+            )
+
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        proceso.wait(timeout=10)
+    if proceso.returncode not in (0, None):
+        raise CliNoDisponible(_motivo(nombre, "".join(salida), "".join(errores)))
+    return "".join(salida)
+
+
+def _matar(proceso: subprocess.Popen) -> None:
+    """Que no quede un CLI huérfano comiéndose la computadora del negocio."""
+    with contextlib.suppress(Exception):
+        proceso.kill()
+    with contextlib.suppress(Exception):
+        proceso.wait(timeout=5)
 
 
 def _motivo(cli: str, stdout: str, stderr: str) -> str:
@@ -142,30 +215,131 @@ def _motivo(cli: str, stdout: str, stderr: str) -> str:
     return f"{nombre} no pudo responder: {detalle[:200]}" if detalle else f"{nombre} no pudo responder."
 
 
-def _texto_de_claude(salida: str) -> tuple[str, int, int]:
-    """(texto, tokens_entrada, tokens_salida) del JSON de `claude -p`."""
-    try:
-        datos = json.loads(salida)
-    except ValueError:
-        # Sin --output-format json (o versión distinta): la salida ES el texto.
-        return salida.strip(), 0, 0
-    if datos.get("is_error"):
-        raise CliNoDisponible(str(datos.get("result") or "Claude Code devolvió un error.")[:300])
-    uso = datos.get("usage") or {}
+def _no_conoce_la_bandera(mensaje: str) -> bool:
+    """¿El CLI se quejó de una bandera que no conoce?
+
+    Pasa con instalaciones viejas. No es motivo para mandar al dueño a
+    actualizar nada: se le vuelve a hablar como antes."""
+    bajo = mensaje.lower()
+    return any(
+        p in bajo
+        for p in (
+            "unknown option",
+            "unknown argument",
+            "unexpected argument",
+            "unrecognized",
+            "invalid value",
+            "did you mean",
+        )
+    )
+
+
+def _eventos(salida: str) -> list[dict]:
+    """Los objetos JSON de una salida por líneas.
+
+    Lo que no es JSON se ignora a propósito: los dos CLIs sueltan avisos en
+    medio ("Reading additional input from stdin…") que no son eventos."""
+    eventos = []
+    for linea in salida.splitlines():
+        linea = linea.strip()
+        if not linea.startswith("{"):
+            continue
+        with contextlib.suppress(ValueError):
+            dato = json.loads(linea)
+            if isinstance(dato, dict):
+                eventos.append(dato)
+    return eventos
+
+
+def _uso_de_claude(uso: dict) -> tuple[int, int]:
+    """Los tokens de entrada que de verdad se procesaron.
+
+    Aquí estaba ciego el medidor. `input_tokens` cuenta ÚNICAMENTE lo que no
+    estaba en caché: en una llamada real de Claude Code eso da 2, mientras el
+    contexto que sí se procesó fueron 6,468. Con esa cifra el tope del dueño no
+    tenía cómo cortar, porque medía algo que no era el consumo.
+
+    Lo que se lee de caché queda fuera a propósito. Son el mismo prompt de
+    sistema releído en cada llamada, y se cobran a una décima parte: meterlos
+    aquí multiplicaría el conteo por diez y el tope cortaría por gasto que no
+    ocurrió.
+    """
     return (
-        str(datos.get("result") or "").strip(),
-        int(uso.get("input_tokens") or 0),
+        int(uso.get("input_tokens") or 0) + int(uso.get("cache_creation_input_tokens") or 0),
         int(uso.get("output_tokens") or 0),
     )
 
 
-def _texto_de_codex(salida: str) -> str:
-    """Codex imprime encabezados y un pie de tokens; el mensaje es lo de en medio."""
+def _texto_de_claude(salida: str) -> tuple[str, int, int]:
+    """(texto, tokens_entrada, tokens_salida) de lo que imprimió `claude -p`.
+
+    Entiende las dos formas: el objeto único de `--output-format json` y el
+    chorro de eventos de `stream-json`, donde el último evento `result` trae el
+    texto final y el uso completo."""
+    eventos = _eventos(salida)
+    if not eventos:
+        # Ni JSON ni eventos: la salida ES el texto.
+        return salida.strip(), 0, 0
+
+    final = next((e for e in reversed(eventos) if e.get("type") == "result"), None)
+    if final is None and len(eventos) == 1:
+        final = eventos[0]  # el objeto único de --output-format json
+
+    if final is not None:
+        if final.get("is_error"):
+            raise CliNoDisponible(
+                str(final.get("result") or "Claude Code devolvió un error.")[:300]
+            )
+        texto = str(final.get("result") or "").strip()
+        entrada, salida_tok = _uso_de_claude(final.get("usage") or {})
+        if texto:
+            return texto, entrada, salida_tok
+
+    # Se cortó antes del evento final: se arma la respuesta con los pedazos que
+    # sí alcanzó a mandar, en vez de tirar lo que ya dijo.
+    pedazos = [
+        str(delta.get("text") or "")
+        for evento in eventos
+        if evento.get("type") == "stream_event"
+        for delta in [((evento.get("event") or {}).get("delta") or {})]
+        if delta.get("type") == "text_delta"
+    ]
+    return "".join(pedazos).strip(), 0, 0
+
+
+def _texto_de_codex(salida: str) -> tuple[str, int, int]:
+    """(texto, tokens_entrada, tokens_salida) de lo que imprimió `codex exec`.
+
+    Con `--json` los tokens por fin se pueden leer: antes se registraba la
+    llamada en ceros porque la salida de texto no los traía de forma estable."""
+    eventos = _eventos(salida)
+    if eventos:
+        mensajes = [
+            str((e.get("item") or {}).get("text") or "").strip()
+            for e in eventos
+            if e.get("type") == "item.completed"
+            and (e.get("item") or {}).get("type") == "agent_message"
+        ]
+        uso = next(
+            (e.get("usage") or {} for e in reversed(eventos) if e.get("type") == "turn.completed"),
+            {},
+        )
+        # El razonamiento se cobra como salida aunque no se vea en la respuesta.
+        return (
+            "\n".join(m for m in mensajes if m).strip(),
+            int(uso.get("input_tokens") or 0),
+            int(uso.get("output_tokens") or 0) + int(uso.get("reasoning_output_tokens") or 0),
+        )
+
+    # Salida de texto (CLI viejo): encabezado "codex", el mensaje, y un pie de
+    # tokens. El mensaje es lo de en medio.
     lineas = [ln.rstrip() for ln in salida.splitlines()]
-    # Se descarta el pie ("tokens used" y lo que sigue) y el encabezado "codex".
-    corte = next((i for i, ln in enumerate(lineas) if ln.strip().lower().startswith("tokens used")), len(lineas))
+    corte = next(
+        (i for i, ln in enumerate(lineas) if ln.strip().lower().startswith("tokens used")),
+        len(lineas),
+    )
     utiles = [ln for ln in lineas[:corte] if ln.strip() and ln.strip().lower() != "codex"]
-    return "\n".join(utiles).strip()
+    return "\n".join(utiles).strip(), 0, 0
 
 
 class CliRunner:
@@ -195,24 +369,40 @@ class CliRunner:
             return f"{self.cli}-cli"
         raise ValueError(f"Rol de modelo desconocido: {role}")
 
+    def _comando(self, prompt: str, *, moderno: bool) -> list[str]:
+        if self.cli == "claude":
+            if not moderno:
+                return [self.binario, "-p", prompt, "--output-format", "json"]
+            return [
+                self.binario,
+                "-p",
+                prompt,
+                "--output-format",
+                "stream-json",
+                "--include-partial-messages",
+                "--verbose",  # stream-json lo exige
+            ]
+        return [self.binario, "exec", *(["--json"] if moderno else []), prompt]
+
     def _pedir(self, system: str, user: str, task: str, model: str) -> str:
         if self.budget_check is not None:
             self.budget_check()
         prompt = f"{system}\n\n{user}" if system else user
-        if self.cli == "claude":
-            salida = self._correr(
-                [self.binario, "-p", prompt, "--output-format", "json"], ""
-            )
-            texto, entrada, salida_tok = _texto_de_claude(salida)
-            if self._usage_callback is not None:
-                self._usage_callback(model, task, entrada, salida_tok)
-            return texto
-        salida = self._correr([self.binario, "exec", prompt], "")
-        texto = _texto_de_codex(salida)
+
+        try:
+            salida = self._correr(self._comando(prompt, moderno=True), "")
+        except CliNoDisponible as exc:
+            # Un CLI viejo no conoce las banderas nuevas. En vez de decirle al
+            # dueño que actualice, se le habla como antes: sin cifras de gasto,
+            # pero funcionando.
+            if not _no_conoce_la_bandera(str(exc)):
+                raise
+            salida = self._correr(self._comando(prompt, moderno=False), "")
+
+        leer = _texto_de_claude if self.cli == "claude" else _texto_de_codex
+        texto, entrada, salida_tok = leer(salida)
         if self._usage_callback is not None:
-            # Codex no reporta tokens de forma estable; se registra la llamada
-            # sin inventar cifras.
-            self._usage_callback(model, task, 0, 0)
+            self._usage_callback(model, task, entrada, salida_tok)
         return texto
 
     # ------------------------------------------------------------------ #

@@ -183,6 +183,137 @@ def test_el_cli_corre_con_su_interprete_a_la_mano(monkeypatch, tmp_path):
     assert "/usr/bin" in carpetas, "sin tirar lo que ya traía el PATH"
 
 
+def _stream_claude(texto: str, **uso) -> str:
+    """Lo que imprime `claude -p --output-format stream-json`, en pequeño."""
+    lineas = [
+        {"type": "system", "subtype": "init"},
+        {
+            "type": "stream_event",
+            "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": texto}},
+        },
+        {"type": "result", "is_error": False, "result": texto, "usage": uso},
+    ]
+    return "\n".join(json.dumps(ln) for ln in lineas) + "\n"
+
+
+def test_el_gasto_de_claude_cuenta_lo_que_de_verdad_se_proceso():
+    """El medidor estaba ciego y por eso el tope del dueño no tenía cómo cortar.
+
+    Cifras de una llamada real de Claude Code: `input_tokens` 2, caché escrita
+    6,468, caché leída 17,957. Antes se registraban 2. Lo que se procesó fueron
+    6,470; lo leído de caché queda fuera porque es el mismo prompt de sistema
+    releído y se cobra a una décima parte.
+    """
+    eventos = []
+    salida = _stream_claude(
+        "ok",
+        input_tokens=2,
+        cache_creation_input_tokens=6468,
+        cache_read_input_tokens=17957,
+        output_tokens=218,
+    )
+    runner = CliRunner(
+        "claude",
+        correr=lambda cmd, e: salida,
+        usage_callback=lambda m, t, i, o: eventos.append((i, o)),
+    )
+    assert runner.complete(system="", user="x", task="t") == "ok"
+    assert eventos == [(2 + 6468, 218)]
+
+
+def test_claude_pide_el_modo_de_eventos():
+    llamadas = []
+    runner = CliRunner("claude", correr=lambda cmd, e: llamadas.append(cmd) or _stream_claude("ok"))
+    runner.complete(system="", user="x", task="t")
+    assert "stream-json" in llamadas[0]
+    assert "--include-partial-messages" in llamadas[0]
+
+
+def test_codex_ya_reporta_sus_tokens():
+    """Antes se registraba la llamada en ceros porque la salida no los traía."""
+    eventos = []
+    salida = "\n".join(
+        json.dumps(ln)
+        for ln in [
+            {"type": "thread.started", "thread_id": "x"},
+            {
+                "type": "item.completed",
+                "item": {"id": "i0", "type": "error", "message": "aviso que no es la respuesta"},
+            },
+            {"type": "item.completed", "item": {"id": "i1", "type": "agent_message", "text": "El cliente ya pagó."}},
+            {
+                "type": "turn.completed",
+                "usage": {"input_tokens": 15879, "output_tokens": 26, "reasoning_output_tokens": 19},
+            },
+        ]
+    )
+    runner = CliRunner(
+        "codex",
+        correr=lambda cmd, e: salida,
+        usage_callback=lambda m, t, i, o: eventos.append((i, o)),
+    )
+    assert runner.complete(system="", user="x", task="t") == "El cliente ya pagó."
+    assert eventos == [(15879, 26 + 19)]
+
+
+def test_un_cli_viejo_se_reintenta_con_las_banderas_de_antes():
+    """No se le manda al dueño a actualizar nada: se le habla como antes."""
+    intentos = []
+
+    def correr(cmd, entrada):
+        intentos.append(cmd)
+        if "--json" in cmd:
+            raise CliNoDisponible("error: unexpected argument '--json' found")
+        return "codex\nlisto\ntokens used\n123\n"
+
+    runner = CliRunner("codex", correr=correr)
+    assert runner.complete(system="", user="x", task="t") == "listo"
+    assert len(intentos) == 2 and "--json" not in intentos[1]
+
+
+def test_si_se_corta_a_media_respuesta_se_respeta_lo_que_alcanzo_a_decir():
+    a_medias = "\n".join(
+        json.dumps(ln)
+        for ln in [
+            {"type": "system", "subtype": "init"},
+            {"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Buenas tardes, "}}},
+            {"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "le escribo por su factura."}}},
+        ]
+    )
+    runner = CliRunner("claude", correr=lambda cmd, e: a_medias)
+    assert runner.complete(system="", user="x", task="t") == "Buenas tardes, le escribo por su factura."
+
+
+def test_el_reloj_mide_silencio_y_no_duracion(monkeypatch):
+    """Una corrida larga pero sana no debe morir como una colgada.
+
+    Antes el tope era de duración total: un CLI que tardaba tres minutos
+    trabajando bien se moría igual que uno trabado. Ahora, mientras siga
+    diciendo algo, se le deja seguir.
+    """
+    import sys
+
+    monkeypatch.setattr(cli_runner, "TIMEOUT_S", 2)
+
+    # Habla despacio pero no se calla: cuatro líneas en ~2.8 s, con el tope en 2.
+    hablador = [
+        sys.executable,
+        "-c",
+        "import sys,time\n"
+        "for i in range(4):\n"
+        "    print('{\"type\": \"system\"}', flush=True)\n"
+        "    time.sleep(0.7)\n"
+        "print('{\"type\": \"result\", \"is_error\": false, \"result\": \"terminé\"}', flush=True)\n",
+    ]
+    texto, _, _ = cli_runner._texto_de_claude(cli_runner._correr(hablador, ""))
+    assert texto == "terminé"
+
+    mudo = [sys.executable, "-c", "import time; time.sleep(30)"]
+    with pytest.raises(CliNoDisponible) as exc:
+        cli_runner._correr(mudo, "")
+    assert "callado" in str(exc.value)
+
+
 def test_el_entorno_no_repite_carpetas(monkeypatch, tmp_path):
     """El PATH crece en cada llamada si no se deduplica."""
     monkeypatch.setenv("PATH", f"{tmp_path}:/usr/bin:{tmp_path}")
