@@ -7,6 +7,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     LargeBinary,
     Numeric,
     String,
@@ -274,6 +275,10 @@ class Conversation(Base, TenantMixin, TimestampMixin):
 
 class Message(Base, TenantMixin, TimestampMixin):
     __tablename__ = "messages"
+    # El sondeo de WhatsApp entrante deduplica por (tenant_id, wa_message_id)
+    # cada 20 segundos contra una tabla que solo crece. Sin índice, cada mensaje
+    # que llega se paga con un barrido completo del historial del negocio.
+    __table_args__ = (Index("ix_messages_tenant_wa_id", "tenant_id", "wa_message_id"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     conversation_id: Mapped[str] = mapped_column(ForeignKey("conversations.id"), index=True)
@@ -333,6 +338,10 @@ class OutboxEntry(Base, TenantMixin, TimestampMixin):
 
 class UsageEvent(Base, TenantMixin, TimestampMixin):
     __tablename__ = "usage_events"
+    # El tope de IA re-suma los tokens del mes ANTES de CADA llamada al LLM
+    # (aiuda_server.costs.tokens_this_month). Compuesto y en este orden porque la
+    # consulta siempre filtra por negocio y luego acota por fecha.
+    __table_args__ = (Index("ix_usage_events_tenant_created", "tenant_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
     model: Mapped[str] = mapped_column(String(64))
