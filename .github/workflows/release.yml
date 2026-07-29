@@ -129,7 +129,7 @@ jobs:
         run: |
           uv build --package aiuda-core --wheel -o dist
           uv build --package aiuda-server --wheel -o dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels
           path: dist/*.whl
