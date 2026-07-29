@@ -1,9 +1,11 @@
 """Tope de gasto de IA y metering, versión local.
 
-En local no hay planes ni suscripciones: el único tope es el que el dueño se
-pone a sí mismo (``config["ia_tope_tokens_mes"]``). Se prueba el corte HONESTO:
-con el tope agotado la llamada al proveedor NO sale — ni a media corrida — y el
-metering registra un UsageEvent por llamada.
+En local no hay planes ni suscripciones: el tope es del dueño
+(``config["ia_tope_tokens_mes"]``), pero NO empieza en infinito — hay un tope de
+fábrica para que una corrida atorada no le deje una factura sorpresa con su
+proveedor el día 1. Se prueba el corte HONESTO: con el tope agotado la llamada
+al proveedor NO sale — ni a media corrida — y el metering registra un UsageEvent
+por llamada.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -133,13 +135,35 @@ def test_usage_mensual_solo_cuenta_el_mes(db_session):
 
 
 # --------------------------------------------------------------------------- #
-# Tope propio: sin tope no corta; agotado corta ANTES de llamar                 #
+# Tope de fábrica: protege desde el día 1, sin que el dueño configure nada       #
 # --------------------------------------------------------------------------- #
-def test_sin_tope_no_corta(db_session):
+def test_sin_configurar_hay_tope_de_fabrica(db_session):
+    """El dueño que no puso tope NO queda sin freno: el default lo cubre."""
     t = _tenant(db_session)
+    verdict = costs.ia_budget(db_session, t)
+    assert verdict["limite"] == costs.DEFAULT_TOPE_TOKENS_MES
+    assert verdict["fuente"] == "default" and not verdict["agotado"]
+
+
+def test_tope_de_fabrica_corta_la_factura_sorpresa(db_session):
+    """Una corrida atorada quema tokens sin parar: sin tope propio, el de fábrica
+    corta igual (este es el día 1 de un negocio que nunca abrió los ajustes)."""
+    t = _tenant(db_session)
+    _gastar(db_session, t.id, costs.DEFAULT_TOPE_TOKENS_MES)
+    runner, fake = _runner(db_session, t)
+    with pytest.raises(BudgetExceeded) as exc:
+        runner.complete(system="s", user="u", task="corte")
+    assert "tope de fábrica" in str(exc.value)
+    assert fake.messages.requests == []
+
+
+def test_tope_en_cero_es_sin_tope_explicito(db_session):
+    """Quien de verdad no quiere tope lo dice con un 0, y entonces nada corta."""
+    t = _tenant(db_session, config={"ia_tope_tokens_mes": 0})
     _gastar(db_session, t.id, 10_000_000)
     verdict = costs.ia_budget(db_session, t)
-    assert verdict["limite"] is None and not verdict["agotado"]
+    assert verdict["limite"] is None and verdict["fuente"] is None
+    assert not verdict["agotado"]
     runner, fake = _runner(db_session, t)
     runner.complete(system="s", user="u", task="ok")
     assert len(fake.messages.requests) == 1

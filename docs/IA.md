@@ -117,11 +117,20 @@ Cada llamada a la IA deja un registro con modelo, tarea y tokens. El uso del mes
 con un costo estimado a partir de una tabla de precios local, se consulta en
 `GET /v1/usage`. Todavía no hay una pantalla que lo muestre: está pendiente.
 
-También existe un tope mensual de tokens. Cuando se agota, aiuda deja de llamar a
-la IA: no se cuelga a media iteración, deja el aviso en la bitácora y la corrida
-sigue sin IA. Hoy el tope solo se activa escribiendo `ia_tope_tokens_mes` en la
-configuración del negocio; tampoco hay pantalla para ponerlo. El tope es tuyo y
-opcional: nosotros no cobramos nada.
+También existe un tope mensual de tokens, y viene puesto de fábrica: 5 millones
+de tokens al mes. No es un cobro nuestro (nosotros no cobramos nada y nunca vemos
+tu llave): es el freno para que un mes raro, o una corrida que se atore, no te
+sorprenda en el recibo de tu proveedor de IA. Un negocio normal no lo toca: una
+corrida de cobranza gasta miles de tokens, no millones.
+
+Cuando se agota, aiuda deja de llamar a la IA: no se cuelga a media iteración,
+deja el aviso en la bitácora y la corrida sigue sin IA. Para moverlo se escribe
+`ia_tope_tokens_mes` en la configuración del negocio (todavía no hay pantalla
+para eso); con `0` te quedas sin tope, bajo tu propio riesgo.
+
+Y para que la primera corrida no se lleve el mes entero, cada corrida redacta
+como máximo 20 recordatorios; lo que no cupo sale en la siguiente (son cada
+hora). También se mueve, con `max_borradores_corrida`.
 
 ## Cambiar o desconectar
 

@@ -12,6 +12,7 @@ Corre a nivel tenant (la corrida diaria) o COMO un ayudante concreto
 quedan atribuidas a él (meta.ayudante_id), lo que alimenta su plan de carrera.
 """
 
+import logging
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -44,9 +45,19 @@ from aiuda_core.models import (
 )
 from aiuda_core.optout import OptedOut, opted_out
 
+log = logging.getLogger(__name__)
+
 # Zona horaria del negocio. Toda la cobranza se piensa en hora de México: la ventana de
 # no-molestar la configura el dueño en su reloj, no en el UTC del servidor.
 MX_TZ = ZoneInfo("America/Mexico_City")
+
+# Cuántos recordatorios puede redactar UNA corrida. Sin este freno, importar una
+# cartera con 300 facturas vencidas dispara 300 llamadas al LLM de un jalón: el
+# dueño lo paga completo el mismo día y recibe una bandeja que nadie va a
+# revisar. Lo que no cupo no se pierde — la corrida siguiente (cada hora) lo
+# levanta, porque la factura sigue sin recordatorio activo. Se mueve por negocio
+# con Tenant.config["max_borradores_corrida"].
+MAX_BORRADORES_POR_CORRIDA = 20
 
 # Mapea el "tono base" que elige el dueño (perilla) al tono interno del redactor.
 _TONO_BASE_A_TONO = {"amable": "amable", "directo": "amable_directo", "firme": "firme"}
@@ -128,12 +139,9 @@ class CleoEngine:
         self.shadow = bool((tenant.config or {}).get("modo_sombra"))
         # En sombra, el canal directo (respuestas del agente/dueño) se registra sin enviar.
         if self.shadow and send_whatsapp is not None:
-            import logging
-
-            _log = logging.getLogger(__name__)
 
             def _shadow_send(phone, text):
-                _log.info("modo sombra: NO se envió a %s (se habría enviado: %s)", phone, text[:80])
+                log.info("modo sombra: NO se envió a %s (se habría enviado: %s)", phone, text[:80])
 
             self.send_whatsapp = _shadow_send
         else:
@@ -191,6 +199,17 @@ class CleoEngine:
         if days >= int(env_cfg.get("tope_critico_dias", 45)):
             return False
         return days < int(env_cfg.get("umbral_auto_dias", 7))
+
+    def _tope_borradores(self) -> int:
+        """Cuántos recordatorios puede redactar esta corrida. El negocio puede
+        moverlo; un valor inservible (0, negativo, texto) cae al default en vez
+        de dejar al dueño sin cobranza por un dedazo en la configuración."""
+        crudo = (self.tenant.config or {}).get("max_borradores_corrida")
+        try:
+            propio = int(crudo)
+        except (TypeError, ValueError):
+            return MAX_BORRADORES_POR_CORRIDA
+        return propio if propio > 0 else MAX_BORRADORES_POR_CORRIDA
 
     def _link_de_pago(self, invoice: Invoice, factura_ref: str) -> str | None:
         """Genera un link de cobro con la pasarela conectada del tenant, o None si no
@@ -333,6 +352,9 @@ class CleoEngine:
         factura hasta pasar el cooldown (default 4 días, configurable por
         tenant). Excepción: una promesa de pago incumplida dispara seguimiento
         inmediato (una sola vez por promesa rota).
+
+        Tope por corrida (MAX_BORRADORES_POR_CORRIDA): se atiende primero lo más
+        atrasado y lo que no cupo espera a la corrida siguiente.
         """
         env_cfg = self._cob("cobranza.enviar_whatsapp")
         cooldown_days = (
@@ -345,13 +367,24 @@ class CleoEngine:
         prom_cfg = self._cob("cobranza.registrar_promesa_pago") or {}
         dias_gracia = int(prom_cfg.get("dias_gracia", 0))
         seguir_incumple = bool(prom_cfg.get("seguir_si_incumple", True))
+        # Por vencimiento: el tope de abajo corta por el final, así que lo más
+        # atrasado (lo que de verdad urge cobrar) tiene que ir primero.
         rows = self.session.execute(
             select(Invoice, Customer)
             .join(Customer, Invoice.customer_id == Customer.id)
             .where(Invoice.tenant_id == self.tenant.id, Invoice.status == "open")
+            .order_by(Invoice.due_date)
         ).all()
+        tope = self._tope_borradores()
         drafted: list[Reminder] = []
         for invoice, customer in rows:
+            if len(drafted) >= tope:
+                log.info(
+                    "corrida: se alcanzó el tope de %d borradores; el resto sale "
+                    "en la corrida siguiente",
+                    tope,
+                )
+                break
             if classify(invoice.due_date, today) not in REMINDER_BUCKETS:
                 continue
             # El cliente pidió la baja (BAJA/STOP): no se le redacta cobranza. Su
