@@ -1,0 +1,290 @@
+@import "tailwindcss";
+
+@theme {
+  /* Neutrales entintados hacia el hue de marca (~225). Nunca #000/#fff puros. */
+  --color-bg: oklch(0.988 0.002 220);
+  --color-panel: oklch(0.972 0.004 220); /* sidebar, topbar: segunda capa neutral */
+  --color-surface: oklch(0.998 0.001 220);
+  --color-line: oklch(0.918 0.007 220);
+  --color-line-strong: oklch(0.86 0.01 222);
+
+  --color-ink: oklch(0.26 0.032 235);
+  --color-ink-2: oklch(0.46 0.022 232);
+  --color-ink-3: oklch(0.6 0.016 230);
+
+  /* Acento: acciones primarias, selección, estado. Nada más. */
+  --color-accent: oklch(0.58 0.1 228);
+  --color-accent-strong: oklch(0.5 0.1 230);
+  --color-accent-soft: oklch(0.945 0.025 222);
+  --color-accent-ink: oklch(0.42 0.085 230);
+
+  /* Marca: el azul del wordmark (#2596be) y las superficies oscuras de entrada
+     (panel de acceso, alineado al hero del landing). Solo para la marca, no UI. */
+  --color-brand: oklch(0.62 0.105 228);
+  --color-navy: oklch(0.23 0.045 235);
+  --color-navy-2: oklch(0.285 0.05 238);
+  --color-navy-line: oklch(0.4 0.04 238);
+  --color-sky: oklch(0.8 0.07 222);
+
+  /* Semánticos */
+  --color-ok: oklch(0.56 0.12 161);
+  --color-ok-soft: oklch(0.962 0.028 162);
+  --color-warn: oklch(0.68 0.145 68);
+  --color-warn-soft: oklch(0.972 0.045 85);
+  /* Ámbar profundo: separa "Vencida 16-45 d" de "Vencida 1-15 d" en barras y pills. */
+  --color-warn-strong: oklch(0.58 0.15 52);
+  --color-warn-strong-soft: oklch(0.955 0.05 70);
+  --color-danger: oklch(0.57 0.2 27);
+  --color-danger-soft: oklch(0.962 0.024 27);
+
+  /* Elevación: UNA sola escala, entintada al hue de marca (~235), muy suave y de foco
+     corto · da capas, no glow. Vive en @theme para que también alimente las utilidades
+     shadow-sm/md/lg de Tailwind: así `shadow-lg` deja de ser la sombra NEGRA por defecto
+     (que rompe el tema claro) y queda coherente con `.elev-*`. El resto de la app sigue
+     plano de hairlines; la sombra se reserva para lo que debe "flotar". */
+  --shadow-sm: 0 1px 2px oklch(0.35 0.03 235 / 0.05), 0 1px 3px oklch(0.35 0.03 235 / 0.05);
+  --shadow-md: 0 1px 2px oklch(0.35 0.03 235 / 0.05), 0 3px 10px oklch(0.35 0.03 235 / 0.07);
+  --shadow-lg: 0 10px 34px oklch(0.35 0.03 235 / 0.11);
+
+  --font-sans: "Avenir Next", "Avenir", -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+
+/* Tokens de movimiento: pocas duraciones y curvas, usadas en TODA la app para que el
+   movimiento se sienta de una sola mano · no animaciones sueltas. Premium = coherencia
+   y contención, no cantidad. */
+:root {
+  --dur-fast: 120ms; /* micro-feedback: hover, press, foco */
+  --dur-base: 200ms; /* entradas de contenido (reveal) */
+  --dur-slow: 320ms; /* expandir/colapsar, transiciones con peso */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); /* desacelera al llegar (entradas) */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* mover/redimensionar */
+}
+
+/* Utilidades de elevación (uso deliberado, no por defecto): la capa semántica sobre
+   los tokens --shadow-* de @theme. Misma escala que shadow-sm/md/lg de Tailwind. */
+.elev-sm { box-shadow: var(--shadow-sm); }
+.elev-md { box-shadow: var(--shadow-md); }
+.elev-lg { box-shadow: var(--shadow-lg); }
+
+/* La cifra como protagonista: tabular para que alinee y no "baile", con el tracking
+   apretado que dan las tipografías de datos premium. Para montos y KPIs hero. */
+.hero-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Color de borde por defecto. Tailwind v4 deja `border` (sin color) en
+   currentColor; fijamos --color-line como en v3. En @layer base para que los
+   utilities (border-accent, border-danger, etc.) sigan ganando la cascada. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-line, currentColor);
+  }
+
+  /* Todo lo interactivo transiciona sus estados (color/fondo/borde/sombra/transform);
+     nunca salta. Los componentes que ya definen su propia transición la conservan
+     (los utilities ganan la cascada). */
+  button,
+  a,
+  summary,
+  [role="button"],
+  input,
+  textarea,
+  select {
+    transition:
+      color var(--dur-fast) var(--ease-out),
+      background-color var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out),
+      transform var(--dur-fast) var(--ease-out);
+  }
+
+  /* Foco de campos: anillo suave por box-shadow (respeta el radio, no el cuadro
+     del outline) + borde de acento. focus-visible = solo teclado/tab, no al
+     hacer click, para que no "parpadee" en uso con mouse. */
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px oklch(0.58 0.1 228 / 0.18);
+  }
+
+  /* Foco visible para navegar con teclado: TODO lo interactivo (ligas del menú,
+     filas, ítems del buscador) enseña dónde estás parado. Los botones con su
+     propio focus-visible (utilities) ganan la cascada; esto es la red de piso. */
+  a:focus-visible,
+  button:focus-visible,
+  summary:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Accesibilidad: quien pide menos movimiento, lo obtiene en TODA la app de un tiro. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html {
+  font-size: 16px;
+  /* No re-escalar el texto en landscape iOS; sin flash gris al tocar (móvil). */
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem; /* 13px: densidad de consola */
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility; /* kerning/ligaduras: texto más nítido */
+}
+
+/* En pantallas táctiles los inputs suben a 16px: por debajo, iOS hace zoom al
+   enfocar (rompe el layout). En desktop mantienen la densidad de consola. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
+
+/* Cifras financieras alineadas */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Carga: skeleton con shimmer suave y difuso. Base neutra fija + una banda de luz
+   de bordes transparentes que barre en diagonal con una curva orgánica (no lineal).
+   La suavidad ("fuzzy") viene de los bordes transparentes de la banda, no de un blur. */
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -150% 0; }
+}
+.skeleton {
+  border-radius: 8px;
+  background-color: oklch(0.945 0.004 220);
+  background-image: linear-gradient(
+    100deg,
+    transparent 25%,
+    oklch(0.995 0.002 220 / 0.85) 45%,
+    oklch(0.995 0.002 220 / 0.85) 55%,
+    transparent 75%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+/* Respira suave al aparecer, para que no "salte" el contenido al llegar. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+/* Command palette: entra con un fade + leve deslizamiento (no aparece de golpe) */
+@keyframes cmd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cmd-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+.cmd-backdrop { animation: cmd-fade 120ms ease-out; }
+.cmd-panel { animation: cmd-in 150ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .cmd-backdrop, .cmd-panel { animation: none; }
+}
+
+/* Salida de un elemento de lista al resolverse (estado, no decoración). El `from`
+   con max-height concreto permite que un bloque (ej. <button>) colapse en altura
+   de forma continua; en un <tr> el max-height se ignora y colapsa por padding. */
+@keyframes row-out {
+  from {
+    opacity: 1;
+    max-height: 120px;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+}
+/* Doble clase a propósito: le gana en especificidad a `.reveal-stagger > *` (que
+   también fija `animation` sobre sus hijos) sin recurrir a !important, para que la
+   salida realmente corra cuando la fila vive en una lista con entrada escalonada. */
+.row-leaving.row-leaving {
+  overflow: hidden;
+  animation: row-out 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Navegar se siente fluido: el contenido llega con peso (sobrio, ~180ms), en
+ * la dirección del viaje (adelante = te metiste; atrás = regresaste). El
+ * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve. */
+@keyframes page-enter-fwd {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes page-enter-back {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter-fwd { animation: page-enter-fwd 0.18s var(--ease-out) both; }
+.page-enter-back { animation: page-enter-back 0.18s var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-fwd,
+  .page-enter-back {
+    animation: none;
+  }
+}
+
+/* Reveal: el contenido no aparece de golpe · sube 8px y se desvanece al entrar.
+   `.reveal-stagger` lo hace en cascada suave (listas, grids de tarjetas). El retardo
+   se topa a los primeros elementos para no arrastrar listas largas. */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.reveal { animation: reveal-up var(--dur-base) var(--ease-out) both; }
+.reveal-stagger > * { animation: reveal-up var(--dur-base) var(--ease-out) both; }
+.reveal-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.reveal-stagger > *:nth-child(2) { animation-delay: 45ms; }
+.reveal-stagger > *:nth-child(3) { animation-delay: 90ms; }
+.reveal-stagger > *:nth-child(4) { animation-delay: 135ms; }
+.reveal-stagger > *:nth-child(5) { animation-delay: 180ms; }
+.reveal-stagger > *:nth-child(6) { animation-delay: 225ms; }
+.reveal-stagger > *:nth-child(n + 7) { animation-delay: 270ms; }
+
+/* Un latido suave para estados "vivos" (trabajando, presencia). Sobrio, no parpadea. */
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.breathe { animation: breathe 1.8s var(--ease-in-out) infinite; }
+
+/* Confirmación silenciosa: al aprobar/guardar, un check que se dibuja (no confeti). */
+@keyframes check-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.check-pop { animation: check-pop var(--dur-base) var(--ease-out) both; }

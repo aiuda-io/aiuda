@@ -1,0 +1,36 @@
+[project]
+name = "aiuda-core"
+version = "0.1.0"
+description = "aiuda core — motor de agentes, lógica de cartera y conectores"
+requires-python = ">=3.11"
+authors = [{ name = "Hanova Consulting", email = "consulting@hanova.mx" }]
+license = "Apache-2.0"
+dependencies = [
+    "anthropic>=0.79",
+    "sqlalchemy>=2.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "httpx>=0.27",
+    "openpyxl>=3.1",
+    "cryptography>=42.0",
+    # Estados de cuenta bancarios en PDF: texto y posiciones de palabra
+    # (las columnas cargo/abono se distinguen por coordenada, no por suerte).
+    "pdfplumber>=0.11",
+    # SAT: e.firma y Descarga Masiva de CFDI (web service oficial). MIT,
+    # compatible con Apache-2.0. Sus extras pesados (weasyprint) solo se
+    # importan para PDF, que aiuda no usa: el cliente SAT importa limpio.
+    "satcfdi>=26.7",
+]
+
+[project.optional-dependencies]
+# CUA local (MVP): un Computer Use Agent opera un navegador Chromium local (Playwright)
+# como "computer". Opcional: el core se instala sin navegador; se agrega solo donde se
+# quiera correr misiones CUA. Instalar con: uv sync --extra cua && playwright install chromium
+cua = ["playwright>=1.44"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aiuda_core"]

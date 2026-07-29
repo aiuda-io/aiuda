@@ -1,0 +1,37 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "aiuda",
+  "version": "0.1.0",
+  "identifier": "mx.hanova.aiuda",
+  "build": {
+    "frontendDist": "../ventana"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "nsis", "deb", "appimage"],
+    "category": "Business",
+    "shortDescription": "Ayudantes de IA para el back office de tu negocio",
+    "longDescription": "aiuda corre en tu computadora: lee tus fuentes, propone el trabajo administrativo y tú apruebas. Sin cuentas ni servidores de nadie más.",
+    "copyright": "Copyright 2026 Hanova Consulting",
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist",
+      "signingIdentity": "-"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": ["binaries/aiuda-server"]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permisos de la app: solo arrancar el server local (sidecar).",
+  "windows": ["principal"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [{ "name": "binaries/aiuda-server", "sidecar": true, "args": true }]
+    },
+    "shell:allow-kill"
+  ]
+}

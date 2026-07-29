@@ -1,0 +1,36 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "manual": "node scripts/manual.mjs",
+    "predev": "npm run manual",
+    "dev": "next dev",
+    "prebuild": "npm run manual",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "preexport": "npm run manual",
+    "export": "NEXT_EXPORT=1 NEXT_PUBLIC_API_URL='' next build"
+  },
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.2.12",
+    "marked": "^18.0.7",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "8.5.25",
+    "sharp": "0.35.3"
+  }
+}

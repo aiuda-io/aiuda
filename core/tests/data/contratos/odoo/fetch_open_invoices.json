@@ -1,0 +1,721 @@
+{
+  "verificado_en_vivo": "2026-07-07",
+  "fuente": "Odoo 19.0+e-20260318 de Hanova Consulting via XML-RPC; datos personales REDACTADOS (nombres/telefonos/emails sinteticos, misma forma)",
+  "metodo_conector": "fetch_open_invoices",
+  "llamadas": [
+    {
+      "model": "account.move",
+      "method": "search_read",
+      "args": [
+        [
+          [
+            "move_type",
+            "=",
+            "out_invoice"
+          ],
+          [
+            "state",
+            "in",
+            [
+              "draft",
+              "posted"
+            ]
+          ],
+          [
+            "amount_residual",
+            ">",
+            0
+          ]
+        ]
+      ],
+      "kwargs": {
+        "fields": [
+          "name",
+          "partner_id",
+          "amount_residual",
+          "currency_id",
+          "invoice_date",
+          "invoice_date_due"
+        ],
+        "limit": 200,
+        "offset": 0,
+        "order": "id"
+      },
+      "response": [
+        {
+          "id": 1,
+          "name": false,
+          "partner_id": [
+            11,
+            "Cliente Sintetico 1"
+          ],
+          "amount_residual": 29000.0,
+          "currency_id": [
+            33,
+            "MXN"
+          ],
+          "invoice_date": false,
+          "invoice_date_due": "2026-07-07"
+        }
+      ]
+    },
+    {
+      "model": "res.partner",
+      "method": "fields_get",
+      "args": [
+        []
+      ],
+      "kwargs": {
+        "attributes": [
+          "type"
+        ]
+      },
+      "response": {
+        "id": {
+          "type": "integer"
+        },
+        "display_name": {
+          "type": "char"
+        },
+        "message_is_follower": {
+          "type": "boolean"
+        },
+        "message_follower_ids": {
+          "type": "one2many"
+        },
+        "message_partner_ids": {
+          "type": "many2many"
+        },
+        "message_ids": {
+          "type": "one2many"
+        },
+        "has_message": {
+          "type": "boolean"
+        },
+        "message_needaction": {
+          "type": "boolean"
+        },
+        "message_needaction_counter": {
+          "type": "integer"
+        },
+        "message_has_error": {
+          "type": "boolean"
+        },
+        "message_has_error_counter": {
+          "type": "integer"
+        },
+        "message_attachment_count": {
+          "type": "integer"
+        },
+        "website_message_ids": {
+          "type": "one2many"
+        },
+        "message_has_sms_error": {
+          "type": "boolean"
+        },
+        "email_normalized": {
+          "type": "char"
+        },
+        "is_blacklisted": {
+          "type": "boolean"
+        },
+        "message_bounce": {
+          "type": "integer"
+        },
+        "activity_ids": {
+          "type": "one2many"
+        },
+        "activity_state": {
+          "type": "selection"
+        },
+        "activity_user_id": {
+          "type": "many2one"
+        },
+        "activity_type_id": {
+          "type": "many2one"
+        },
+        "activity_type_icon": {
+          "type": "char"
+        },
+        "activity_date_deadline": {
+          "type": "date"
+        },
+        "my_activity_date_deadline": {
+          "type": "date"
+        },
+        "activity_summary": {
+          "type": "char"
+        },
+        "activity_exception_decoration": {
+          "type": "selection"
+        },
+        "activity_exception_icon": {
+          "type": "char"
+        },
+        "properties": {
+          "type": "properties"
+        },
+        "properties_base_definition_id": {
+          "type": "many2one"
+        },
+        "image_1920": {
+          "type": "binary"
+        },
+        "image_1024": {
+          "type": "binary"
+        },
+        "image_512": {
+          "type": "binary"
+        },
+        "image_256": {
+          "type": "binary"
+        },
+        "image_128": {
+          "type": "binary"
+        },
+        "avatar_1920": {
+          "type": "binary"
+        },
+        "avatar_1024": {
+          "type": "binary"
+        },
+        "avatar_512": {
+          "type": "binary"
+        },
+        "avatar_256": {
+          "type": "binary"
+        },
+        "avatar_128": {
+          "type": "binary"
+        },
+        "name": {
+          "type": "char"
+        },
+        "complete_name": {
+          "type": "char"
+        },
+        "parent_id": {
+          "type": "many2one"
+        },
+        "parent_name": {
+          "type": "char"
+        },
+        "child_ids": {
+          "type": "one2many"
+        },
+        "ref": {
+          "type": "char"
+        },
+        "lang": {
+          "type": "selection"
+        },
+        "active_lang_count": {
+          "type": "integer"
+        },
+        "tz": {
+          "type": "selection"
+        },
+        "tz_offset": {
+          "type": "char"
+        },
+        "user_id": {
+          "type": "many2one"
+        },
+        "vat": {
+          "type": "char"
+        },
+        "vat_label": {
+          "type": "char"
+        },
+        "same_vat_partner_id": {
+          "type": "many2one"
+        },
+        "same_company_registry_partner_id": {
+          "type": "many2one"
+        },
+        "company_registry": {
+          "type": "char"
+        },
+        "company_registry_label": {
+          "type": "char"
+        },
+        "company_registry_placeholder": {
+          "type": "char"
+        },
+        "bank_ids": {
+          "type": "one2many"
+        },
+        "website": {
+          "type": "char"
+        },
+        "comment": {
+          "type": "html"
+        },
+        "category_id": {
+          "type": "many2many"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "employee": {
+          "type": "boolean"
+        },
+        "function": {
+          "type": "char"
+        },
+        "type": {
+          "type": "selection"
+        },
+        "type_address_label": {
+          "type": "char"
+        },
+        "street": {
+          "type": "char"
+        },
+        "street2": {
+          "type": "char"
+        },
+        "zip": {
+          "type": "char"
+        },
+        "city": {
+          "type": "char"
+        },
+        "state_id": {
+          "type": "many2one"
+        },
+        "country_id": {
+          "type": "many2one"
+        },
+        "country_code": {
+          "type": "char"
+        },
+        "partner_latitude": {
+          "type": "float"
+        },
+        "partner_longitude": {
+          "type": "float"
+        },
+        "email": {
+          "type": "char"
+        },
+        "email_formatted": {
+          "type": "char"
+        },
+        "phone": {
+          "type": "char"
+        },
+        "is_company": {
+          "type": "boolean"
+        },
+        "is_public": {
+          "type": "boolean"
+        },
+        "industry_id": {
+          "type": "many2one"
+        },
+        "company_type": {
+          "type": "selection"
+        },
+        "company_id": {
+          "type": "many2one"
+        },
+        "color": {
+          "type": "integer"
+        },
+        "user_ids": {
+          "type": "one2many"
+        },
+        "main_user_id": {
+          "type": "many2one"
+        },
+        "partner_share": {
+          "type": "boolean"
+        },
+        "contact_address": {
+          "type": "char"
+        },
+        "commercial_partner_id": {
+          "type": "many2one"
+        },
+        "commercial_company_name": {
+          "type": "char"
+        },
+        "company_name": {
+          "type": "char"
+        },
+        "barcode": {
+          "type": "char"
+        },
+        "self": {
+          "type": "many2one"
+        },
+        "application_statistics": {
+          "type": "json"
+        },
+        "create_uid": {
+          "type": "many2one"
+        },
+        "create_date": {
+          "type": "datetime"
+        },
+        "write_uid": {
+          "type": "many2one"
+        },
+        "write_date": {
+          "type": "datetime"
+        },
+        "contact_address_complete": {
+          "type": "char"
+        },
+        "channel_ids": {
+          "type": "many2many"
+        },
+        "channel_member_ids": {
+          "type": "one2many"
+        },
+        "is_in_call": {
+          "type": "boolean"
+        },
+        "rtc_session_ids": {
+          "type": "one2many"
+        },
+        "contact_address_inline": {
+          "type": "char"
+        },
+        "im_status": {
+          "type": "char"
+        },
+        "offline_since": {
+          "type": "datetime"
+        },
+        "image_medium": {
+          "type": "binary"
+        },
+        "agent_ids": {
+          "type": "one2many"
+        },
+        "signup_type": {
+          "type": "char"
+        },
+        "phone_sanitized": {
+          "type": "char"
+        },
+        "phone_sanitized_blacklisted": {
+          "type": "boolean"
+        },
+        "phone_blacklisted": {
+          "type": "boolean"
+        },
+        "phone_mobile_search": {
+          "type": "char"
+        },
+        "property_product_pricelist": {
+          "type": "many2one"
+        },
+        "specific_property_product_pricelist": {
+          "type": "many2one"
+        },
+        "ocn_token": {
+          "type": "char"
+        },
+        "payment_token_ids": {
+          "type": "one2many"
+        },
+        "payment_token_count": {
+          "type": "integer"
+        },
+        "fiscal_country_codes": {
+          "type": "char"
+        },
+        "fiscal_country_group_codes": {
+          "type": "json"
+        },
+        "partner_vat_placeholder": {
+          "type": "char"
+        },
+        "partner_company_registry_placeholder": {
+          "type": "char"
+        },
+        "duplicate_bank_partner_ids": {
+          "type": "many2many"
+        },
+        "credit": {
+          "type": "monetary"
+        },
+        "credit_to_invoice": {
+          "type": "monetary"
+        },
+        "credit_limit": {
+          "type": "float"
+        },
+        "use_partner_credit_limit": {
+          "type": "boolean"
+        },
+        "show_credit_limit": {
+          "type": "boolean"
+        },
+        "days_sales_outstanding": {
+          "type": "float"
+        },
+        "debit": {
+          "type": "monetary"
+        },
+        "total_invoiced": {
+          "type": "monetary"
+        },
+        "currency_id": {
+          "type": "many2one"
+        },
+        "property_account_payable_id": {
+          "type": "many2one"
+        },
+        "property_account_receivable_id": {
+          "type": "many2one"
+        },
+        "property_account_position_id": {
+          "type": "many2one"
+        },
+        "property_payment_term_id": {
+          "type": "many2one"
+        },
+        "property_supplier_payment_term_id": {
+          "type": "many2one"
+        },
+        "ref_company_ids": {
+          "type": "one2many"
+        },
+        "supplier_invoice_count": {
+          "type": "integer"
+        },
+        "account_move_count": {
+          "type": "integer"
+        },
+        "invoice_ids": {
+          "type": "one2many"
+        },
+        "contract_ids": {
+          "type": "one2many"
+        },
+        "bank_account_count": {
+          "type": "integer"
+        },
+        "trust": {
+          "type": "selection"
+        },
+        "ignore_abnormal_invoice_date": {
+          "type": "boolean"
+        },
+        "ignore_abnormal_invoice_amount": {
+          "type": "boolean"
+        },
+        "invoice_sending_method": {
+          "type": "selection"
+        },
+        "invoice_edi_format": {
+          "type": "selection"
+        },
+        "invoice_edi_format_store": {
+          "type": "char"
+        },
+        "display_invoice_edi_format": {
+          "type": "boolean"
+        },
+        "invoice_template_pdf_report_id": {
+          "type": "many2one"
+        },
+        "available_invoice_template_pdf_report_ids": {
+          "type": "one2many"
+        },
+        "display_invoice_template_pdf_report_id": {
+          "type": "boolean"
+        },
+        "supplier_rank": {
+          "type": "integer"
+        },
+        "customer_rank": {
+          "type": "integer"
+        },
+        "autopost_bills": {
+          "type": "selection"
+        },
+        "property_outbound_payment_method_line_id": {
+          "type": "many2one"
+        },
+        "property_inbound_payment_method_line_id": {
+          "type": "many2one"
+        },
+        "global_location_number": {
+          "type": "char"
+        },
+        "is_ubl_format": {
+          "type": "boolean"
+        },
+        "is_peppol_edi_format": {
+          "type": "boolean"
+        },
+        "peppol_endpoint": {
+          "type": "char"
+        },
+        "peppol_eas": {
+          "type": "selection"
+        },
+        "available_peppol_eas": {
+          "type": "json"
+        },
+        "vies_valid": {
+          "type": "boolean"
+        },
+        "perform_vies_validation": {
+          "type": "boolean"
+        },
+        "property_purchase_currency_id": {
+          "type": "many2one"
+        },
+        "purchase_order_count": {
+          "type": "integer"
+        },
+        "purchase_warn_msg": {
+          "type": "text"
+        },
+        "receipt_reminder_email": {
+          "type": "boolean"
+        },
+        "reminder_date_before_receipt": {
+          "type": "integer"
+        },
+        "buyer_id": {
+          "type": "many2one"
+        },
+        "online_partner_information": {
+          "type": "char"
+        },
+        "account_represented_company_ids": {
+          "type": "one2many"
+        },
+        "l10n_mx_edi_addenda_ids": {
+          "type": "many2many"
+        },
+        "l10n_mx_edi_fiscal_regime": {
+          "type": "selection"
+        },
+        "l10n_mx_edi_ieps_breakdown": {
+          "type": "boolean"
+        },
+        "l10n_mx_edi_usage": {
+          "type": "selection"
+        },
+        "l10n_mx_edi_payment_method_id": {
+          "type": "many2one"
+        },
+        "l10n_mx_edi_payment_policy": {
+          "type": "selection"
+        },
+        "l10n_mx_edi_partner_address_complete": {
+          "type": "boolean"
+        },
+        "sale_order_count": {
+          "type": "integer"
+        },
+        "sale_order_ids": {
+          "type": "one2many"
+        },
+        "sale_warn_msg": {
+          "type": "text"
+        },
+        "followup_next_action_date": {
+          "type": "date"
+        },
+        "unreconciled_aml_ids": {
+          "type": "one2many"
+        },
+        "unpaid_invoice_ids": {
+          "type": "one2many"
+        },
+        "unpaid_invoices_count": {
+          "type": "integer"
+        },
+        "total_all_due": {
+          "type": "monetary"
+        },
+        "total_all_overdue": {
+          "type": "monetary"
+        },
+        "total_due": {
+          "type": "monetary"
+        },
+        "total_overdue": {
+          "type": "monetary"
+        },
+        "total_overdue_followup": {
+          "type": "monetary"
+        },
+        "followup_status": {
+          "type": "selection"
+        },
+        "followup_line_id": {
+          "type": "many2one"
+        },
+        "followup_reminder_type": {
+          "type": "selection"
+        },
+        "followup_responsible_id": {
+          "type": "many2one"
+        },
+        "has_moves": {
+          "type": "boolean"
+        },
+        "l10n_mx_type_of_third": {
+          "type": "char"
+        },
+        "l10n_mx_type_of_operation": {
+          "type": "selection"
+        },
+        "l10n_mx_nationality": {
+          "type": "char"
+        },
+        "is_created_by_ocr": {
+          "type": "boolean"
+        },
+        "account_xml_id": {
+          "type": "many2one"
+        },
+        "product_tmpl_id": {
+          "type": "many2one"
+        },
+        "tax_isr_id": {
+          "type": "many2one"
+        },
+        "tax_iva_id": {
+          "type": "many2one"
+        },
+        "x_is_uuid_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    {
+      "model": "res.partner",
+      "method": "read",
+      "args": [
+        [
+          11
+        ]
+      ],
+      "kwargs": {
+        "fields": [
+          "name",
+          "phone"
+        ]
+      },
+      "response": [
+        {
+          "id": 11,
+          "name": "Cliente Sintetico 1",
+          "phone": "+52 55 5101 0001"
+        }
+      ]
+    }
+  ],
+  "ajuste_post_grabacion": "2026-07-07, tras la grabacion en vivo: el conector ahora pagina (limit=200, offset, order='id' en search_read); los kwargs de search_read se extendieron a mano para reflejarlo y las respuestas siguen siendo las grabadas en vivo. Pendiente re-verificar en vivo contra Hanova."
+}

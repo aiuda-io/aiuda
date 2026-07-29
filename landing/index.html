@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>aiuda · Ayudantes de IA en tu computadora</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="description" content="Herramienta open source para el back office de tu PyME. Ayudantes de IA con humano en el loop: leen tu Odoo, tus CFDI, tu Excel y tu WhatsApp, proponen y tú apruebas. Corre en tu computadora, gratis y sin cuentas." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://aiuda.io/" />
+<meta property="og:title" content="aiuda · Ayudantes de IA en tu computadora" />
+<meta property="og:description" content="Open source (Apache-2.0) y local: la app abre la consola en tu computadora. Tus ayudantes leen tus fuentes y proponen; tú apruebas. Sin cuentas, sin servidores, sin telemetría." />
+<!-- La vista previa al compartir. Se arma desde landing/og.html: uv run python scripts/og.py -->
+<meta property="og:image" content="https://aiuda.io/assets/og.png" />
+<meta property="og:image:width" content="2400" />
+<meta property="og:image:height" content="1260" />
+<meta property="og:image:alt" content="aiuda: ayudantes de IA en tu computadora. Open source, sin cuentas ni telemetría." />
+<meta property="og:locale" content="es_MX" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ───────────────────────── tokens ─────────────────────────
+   Sistema editorial-tech: lienzo hueso, tinta marino, un solo acento azul.
+   Nunca blanco ni negro puros. Tipografía grotesca (Satoshi) + Inter + mono. */
+:root{
+  --paper: oklch(0.99 0.004 245);       /* lienzo hueso */
+  --surface: oklch(0.972 0.005 245);    /* banda tenue */
+  --surface-2: oklch(0.95 0.006 245);   /* banda honda */
+  --card: oklch(0.997 0.002 245);
+  --ink: oklch(0.26 0.045 250);         /* marino profundo */
+  --ink-muted: oklch(0.47 0.03 250);
+  --ink-faint: oklch(0.585 0.022 250);
+  --brand: oklch(0.52 0.115 238);       /* azul aiuda, hondo para fondo claro */
+  --brand-ink: oklch(0.41 0.105 242);   /* hover / enlaces */
+  --brand-soft: oklch(0.955 0.026 238); /* tinte */
+  --ok: oklch(0.56 0.1 162);
+  --line: oklch(0.915 0.008 250);       /* pelo de línea */
+  --line-strong: oklch(0.865 0.012 250);
+
+  --display: "Satoshi", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+*{ box-sizing:border-box; margin:0; }
+html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+body{
+  font-family:var(--body); color:var(--ink); background:var(--paper);
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+img,svg{ display:block; max-width:100%; }
+a{ color:inherit; }
+::selection{ background:var(--brand-soft); }
+h1,h2,h3{ font-family:var(--display); color:var(--ink); line-height:1.1; letter-spacing:-0.02em; font-weight:700; text-wrap:balance; }
+b,strong{ font-weight:700; }
+
+.wrap{ width:min(1140px, calc(100% - 48px)); margin-inline:auto; }
+.display{ font-size:clamp(2.5rem, 1.2rem + 5vw, 4.3rem); line-height:1.0; letter-spacing:-0.032em; font-weight:900; }
+h2.sec{ font-size:clamp(1.85rem, 1.1rem + 2.8vw, 2.8rem); line-height:1.04; letter-spacing:-0.026em; font-weight:700; }
+.lead{ font-size:clamp(1.04rem, 1rem + 0.3vw, 1.16rem); color:var(--ink-muted); line-height:1.55; }
+.fine{ font-size:0.85rem; color:var(--ink-faint); line-height:1.6; }
+.fine a{ color:var(--brand-ink); }
+
+/* etiqueta mono · el detalle "suizo" que contrasta con titulares apretados */
+.klabel{ display:inline-block; font-family:var(--mono); font-size:0.7rem; font-weight:500; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-faint); }
+.eyebrow{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:0.69rem; font-weight:500; letter-spacing:0.15em; text-transform:uppercase; color:var(--ink-faint);
+  border:1px solid var(--line); border-radius:999px; padding:6px 13px; background:var(--card);
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--brand); flex:none; }
+/* En pantallas angostas la etiqueta tiene que caber en un renglón, no partirse. */
+@media(max-width:560px){ .eyebrow{ font-size:0.6rem; letter-spacing:0.09em; padding:6px 11px; gap:7px; } }
+
+/* ───────────────────────── botones ───────────────────────── */
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:var(--display); font-weight:600; font-size:0.96rem;
+  padding:0.74rem 1.4rem; border-radius:999px; text-decoration:none; cursor:pointer; border:1px solid transparent;
+  transition: background-color .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease), transform .2s var(--ease);
+}
+.btn:active{ transform:scale(.98); }
+.btn .arr{ transition: transform .2s var(--ease); }
+.btn:hover .arr{ transform:translateX(3px); }
+.btn-primary{ background:var(--brand); color:#fff; }
+.btn-primary:hover{ background:var(--brand-ink); }
+.btn-outline{ background:var(--card); color:var(--ink); border-color:var(--line-strong); }
+.btn-outline:hover{ background:var(--surface); border-color:var(--ink-faint); }
+
+/* ───────────────────────── motion ─────────────────────────
+   Entradas largas y suaves, una sola vez. Marino-discreto. */
+.reveal{ opacity:0; transform:translateY(16px);
+  transition: opacity .7s var(--ease), transform .7s var(--ease);
+  transition-delay: var(--d, 0s); }
+.reveal.in{ opacity:1; transform:none; }
+@keyframes rise{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:none;} }
+.hero-rise{ animation: rise .8s var(--ease) both; animation-delay: var(--d, 0s); }
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior:auto; }
+  .reveal,.hero-rise{ animation:none; transition:none; opacity:1; transform:none; }
+  *{ animation-duration:.001s !important; transition-duration:.001s !important; }
+}
+
+/* ───────────────────────── nav ───────────────────────── */
+nav{ position:sticky; top:0; z-index:50; background:oklch(0.99 0.004 245 / .82); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+.nav-in{ display:flex; align-items:center; gap:30px; height:62px; }
+.logo{ font-family:var(--display); font-weight:900; font-size:1.32rem; color:var(--ink); text-decoration:none; letter-spacing:-0.03em; }
+.logo b{ color:var(--brand); }
+.nav-links{ display:flex; gap:26px; margin-left:14px; }
+.nav-links a{ color:var(--ink-muted); text-decoration:none; font-size:0.92rem; font-weight:500; transition:color .15s var(--ease); }
+.nav-links a:hover{ color:var(--ink); }
+.nav-right{ display:flex; align-items:center; gap:6px; margin-left:auto; }
+.nav-signin{ color:var(--ink); text-decoration:none; font-family:var(--display); font-weight:600; font-size:0.92rem; padding:9px 14px; border-radius:999px; transition:background .15s var(--ease); }
+.nav-signin:hover{ background:var(--surface); }
+.nav-cta{ padding:0.5rem 1.05rem; font-size:0.9rem; }
+@media(max-width:860px){ .nav-links{ display:none; } }
+@media(max-width:420px){ .nav-signin{ display:none; } }
+
+/* ───────────────────────── secciones ───────────────────────── */
+section{ padding:clamp(64px,8vw,104px) 0; }
+section[id]{ scroll-margin-top:74px; }
+section.band{ background:var(--surface); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+.sec-head{ max-width:56ch; margin-bottom:clamp(32px,4.5vw,50px); }
+.sec-head.center{ text-align:center; margin-inline:auto; }
+.sec-head .klabel{ margin-bottom:13px; }
+.sec-head p{ margin-top:14px; }
+
+/* ───────────────────────── hero ───────────────────────── */
+.hero{ padding:clamp(60px,9vw,104px) 0 clamp(48px,6vw,72px); text-align:center; }
+.hero-in{ display:flex; flex-direction:column; align-items:center; }
+.hero h1{ margin:22px 0 0; max-width:15ch; }
+.hero h1 em{ font-style:normal; color:var(--brand); }
+.hero-sub{ margin-top:20px; max-width:48ch; }
+.hero-ctas{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:28px; }
+.hero-fine{ margin-top:15px; }
+
+/* ── ventana: el marco que enmarca una captura o una pantalla de la app ── */
+.ventana{ background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; text-align:left;
+  box-shadow:0 44px 90px -50px oklch(0.26 0.045 250 / .5), 0 2px 8px -4px oklch(0.26 0.045 250 / .1); }
+.ventana-barra{ display:flex; align-items:center; gap:7px; padding:11px 15px; border-bottom:1px solid var(--line); background:var(--surface); }
+.ventana-barra i{ width:9px; height:9px; border-radius:50%; background:var(--line-strong); }
+.ventana-barra .t{ margin-left:9px; font-family:var(--mono); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); }
+.ventana-barra .pill{ margin-left:auto; font-family:var(--mono); font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; color:var(--brand-ink); background:var(--brand-soft); border-radius:999px; padding:4px 10px; }
+.ventana img{ width:100%; height:auto; }
+.ventana.maqueta{ user-select:none; }
+
+/* ── cómo funciona: rejilla de pelo de línea, índices mono ── */
+.flow{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+.step{ background:var(--paper); padding:26px 22px 28px; min-height:180px; }
+.step .n{ font-family:var(--mono); font-size:0.82rem; font-weight:500; color:var(--brand); letter-spacing:0.04em; }
+.step h3{ font-size:1.16rem; font-weight:700; margin:14px 0 8px; }
+.step p{ font-size:0.92rem; color:var(--ink-muted); line-height:1.5; }
+@media(max-width:760px){ .flow{ grid-template-columns:1fr; } .step{ min-height:0; } }
+
+/* ── teléfono: el marco está hecho aquí, en CSS. Cero imágenes de fuera ── */
+.telefonos{ display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; gap:clamp(30px,5vw,64px); }
+.tel{ width:min(264px, 74vw); }
+.tel-marco{
+  position:relative; padding:10px; border-radius:46px;
+  background:oklch(0.44 0.018 250);
+  box-shadow:
+    inset 0 0 0 1px oklch(0.57 0.018 250),
+    0 36px 64px -38px oklch(0.26 0.045 250 / .6),
+    0 2px 6px -3px oklch(0.26 0.045 250 / .2);
+}
+.tel-marco i{ position:absolute; background:oklch(0.38 0.018 250); border-radius:2px; }
+.tel-marco i.vol-1{ left:-2px; top:21%; width:3px; height:4.2%; }
+.tel-marco i.vol-2{ left:-2px; top:27%; width:3px; height:4.2%; }
+.tel-marco i.power{ right:-2px; top:26%; width:3px; height:7%; }
+.tel-pantalla{ position:relative; overflow:hidden; border-radius:37px; background:var(--paper); aspect-ratio:644 / 1400; }
+.tel-pantalla img{ width:100%; height:100%; object-fit:cover; }
+/* La isla la dibuja el marco y no la captura, así cualquier captura sirve */
+.tel-pantalla .isla{ position:absolute; z-index:1; top:2.4%; left:50%; transform:translateX(-50%);
+  width:30.5%; height:2.6%; border-radius:99px; background:#000; }
+.tel figcaption{ margin-top:18px; text-align:center; }
+.tel figcaption b{ display:block; font-family:var(--mono); font-size:0.66rem; font-weight:500; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-faint); }
+.tel figcaption span{ display:block; margin-top:8px; font-size:0.9rem; color:var(--ink-muted); line-height:1.5; max-width:30ch; margin-inline:auto; }
+.aviso{ display:flex; gap:11px; align-items:flex-start; max-width:64ch; margin:clamp(38px,5vw,54px) auto 0;
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+.aviso .pt{ width:7px; height:7px; border-radius:50%; background:var(--line-strong); flex:none; margin-top:8px; }
+.aviso p{ font-size:0.9rem; color:var(--ink-muted); line-height:1.6; }
+.aviso p b{ color:var(--ink); }
+
+/* ── tu propia IA: la pantalla real del primer arranque ── */
+.iawin{ max-width:1000px; margin:0 auto; }
+.iawiz{ padding:clamp(22px,3vw,34px) clamp(20px,3vw,34px) clamp(26px,3.4vw,38px); }
+.iaw-h{ font-family:var(--display); font-size:clamp(1.3rem,2.2vw,1.7rem); font-weight:700; color:var(--ink); margin:0; letter-spacing:-0.01em; }
+.iaw-sub{ margin:10px 0 0; max-width:46ch; font-size:0.86rem; line-height:1.6; color:var(--ink-muted); }
+.iaw-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:24px; }
+.iaw-card{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px;
+  border:1px solid var(--line); border-radius:14px; background:var(--card); padding:20px 14px 16px; }
+.iaw-card.on{ border-color:oklch(0.86 0.045 238); }
+.iaw-logo{ display:grid; place-items:center; width:58px; height:58px; border-radius:14px;
+  background:var(--surface); border:1px solid var(--line); color:var(--ink-faint); margin-bottom:2px; }
+.iaw-logo img, .iaw-logo svg{ width:26px; height:26px; object-fit:contain; }
+.iaw-card b{ font-size:0.98rem; color:var(--ink); font-weight:650; }
+.iaw-card small{ font-size:0.76rem; line-height:1.5; color:var(--ink-faint); max-width:22ch; }
+.iaw-chip{ display:inline-flex; align-items:center; gap:6px; font-size:0.7rem; line-height:1.35;
+  color:var(--ink-muted); background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:6px 11px; }
+.iaw-estado{ display:inline-flex; align-items:center; gap:6px; font-size:0.74rem; color:var(--ink-faint); margin-bottom:10px; }
+.iaw-estado .dot, .iaw-chip .dot{ width:6px; height:6px; border-radius:50%; background:var(--line-strong); flex:none; }
+.iaw-estado .dot.ok, .iaw-chip .dot.ok{ background:var(--ok); }
+.iaw-btn{ margin-top:auto; width:100%; border:1px solid var(--line-strong); border-radius:10px; padding:9px 10px;
+  font-size:0.82rem; font-weight:550; color:var(--ink-muted); background:var(--card); }
+.iaw-btn.on{ background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
+@media (max-width:1000px){ .iaw-grid{ grid-template-columns:repeat(2,1fr); } }
+@media (max-width:560px){ .iaw-grid{ grid-template-columns:1fr; } }
+.nota-pie{ text-align:center; margin:clamp(26px,3.4vw,38px) auto 0; max-width:76ch; }
+
+/* ── sin adornos: dos listas de una línea ── */
+.claro{ display:grid; grid-template-columns:1fr 1fr; gap:clamp(28px,4vw,56px); }
+@media(max-width:820px){ .claro{ grid-template-columns:1fr; gap:34px; } }
+.claro h3{ font-size:1.16rem; margin-bottom:4px; }
+.claro ul{ list-style:none; padding:0; }
+.claro li{ padding:13px 0; border-bottom:1px solid var(--line); font-size:0.92rem; color:var(--ink-muted); line-height:1.55; }
+.claro li b{ color:var(--ink); }
+
+/* ── descarga: dos columnas y una terminal ── */
+.dos{ display:grid; grid-template-columns:1fr 1fr; gap:clamp(28px,4vw,52px); align-items:start; }
+@media(max-width:880px){ .dos{ grid-template-columns:1fr; } }
+.dos h3{ font-size:1.3rem; margin-bottom:12px; }
+.dos p{ color:var(--ink-muted); font-size:0.94rem; line-height:1.6; }
+.dos .btn{ margin-top:20px; }
+ul.pts{ list-style:none; padding:0; margin-top:18px; }
+ul.pts li{ display:flex; gap:10px; padding:7px 0; color:var(--ink-muted); font-size:0.89rem; line-height:1.55; }
+ul.pts li::before{ content:"→"; color:var(--brand); font-weight:600; }
+.term{ background:oklch(0.2 0.035 255); border:1px solid oklch(0.32 0.04 255); border-radius:14px; font-family:var(--mono);
+  font-size:0.79rem; padding:20px; color:oklch(0.82 0.02 250); line-height:1.95; overflow-x:auto;
+  box-shadow:0 30px 70px -46px oklch(0.2 0.04 255 / .6); }
+.term .c{ color:oklch(0.6 0.03 250); }
+.term .g{ color:oklch(0.78 0.12 155); }
+
+/* ── footer ── */
+footer{ border-top:1px solid var(--line); padding:36px 0 48px; }
+footer .wrap{ display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
+footer .logo{ color:var(--ink); font-size:1.15rem; }
+footer small{ color:var(--ink-faint); font-size:0.78rem; }
+footer small a{ color:var(--ink-muted); }
+footer .hanova{ margin-left:auto; display:flex; align-items:center; gap:10px; text-decoration:none; }
+footer .hanova img{ height:17px; opacity:.85; }
+footer .hanova small{ font-family:var(--mono); font-weight:500; font-size:0.66rem; letter-spacing:0.04em; }
+@media(max-width:680px){ footer .hanova{ margin-left:0; } }
+/* ═══ la consola trabajando, sola (.ademo, en #viva) ═══ */
+.ademo{ --ok-soft:oklch(0.965 0.03 162); --warn:oklch(0.62 0.12 56); --warn-soft:oklch(0.965 0.04 70); --blue-read:oklch(0.62 0.13 235); width:100%; }
+.ademo .app{ position:relative; text-align:left; background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; pointer-events:none; user-select:none; box-shadow:0 44px 90px -48px oklch(0.26 0.045 250 / .5),0 2px 8px -4px oklch(0.26 0.045 250 / .1); }
+.ademo .app-bar{ display:flex; align-items:center; gap:7px; padding:11px 15px; border-bottom:1px solid var(--line); background:var(--surface); }
+.ademo .app-bar i{ width:9px; height:9px; border-radius:50%; background:var(--line-strong); }
+.ademo .app-bar .t{ margin-left:9px; font-family:var(--mono); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); }
+.ademo .app-bar .pill{ margin-left:auto; font-family:var(--mono); font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; color:var(--brand-ink); background:var(--brand-soft); border-radius:999px; padding:4px 10px; }
+.ademo .app-body{ display:grid; grid-template-columns:172px 1fr; min-height:404px; }
+.ademo .side{ border-right:1px solid var(--line); padding:14px 12px; background:var(--card); }
+.ademo .nav2{ display:flex; flex-direction:column; gap:2px; margin-bottom:16px; }
+.ademo .nav2 a{ display:flex; align-items:center; gap:9px; font-size:.82rem; color:var(--ink-muted); padding:7px 9px; border-radius:9px; font-weight:500; }
+.ademo .nav2 a.on{ background:var(--brand-soft); color:var(--brand-ink); font-weight:600; }
+.ademo .nav2 a .ic{ width:13px; height:13px; border-radius:4px; border:1.5px solid currentColor; opacity:.6; }
+.ademo .lbl{ font-family:var(--mono); font-size:.58rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 9px 4px; }
+.ademo .team{ display:flex; flex-direction:column; gap:3px; }
+.ademo .agent{ display:flex; align-items:center; gap:9px; font-size:.82rem; color:var(--ink-muted); padding:7px 8px; border-radius:9px; border:1px solid transparent; transition:background .2s,border-color .2s; }
+.ademo .agent .dot{ width:7px; height:7px; border-radius:50%; background:var(--line-strong); margin-left:auto; transition:background .25s; }
+.ademo .agent.on{ background:var(--brand-soft); border-color:oklch(0.9 0.03 238); color:var(--ink); font-weight:600; }
+.ademo .agent.on .dot{ background:var(--ok); }
+.ademo .adpanel{ padding:15px 17px; position:relative; }
+.ademo .stat{ display:flex; align-items:baseline; gap:10px; padding-bottom:13px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+.ademo .stat small{ font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-faint); }
+.ademo .stat b{ font-family:var(--display); font-weight:900; font-size:1.4rem; letter-spacing:-.02em; margin-left:auto; }
+.ademo .stat .up{ font-size:.72rem; font-weight:600; color:var(--ok); }
+.ademo .views{ position:relative; min-height:300px; }
+.ademo .view{ display:none; }
+.ademo .view.on{ display:block; animation:adfade .34s ease both; }
+@keyframes adfade{ from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
+.ademo .card{ border:1px solid var(--line); border-radius:12px; padding:14px 15px; }
+.ademo .card.done .pending{ display:none; }
+.ademo .card .sent{ display:none; }
+.ademo .card.done .sent{ display:block; animation:adfade .3s ease both; }
+.ademo .ch{ display:flex; align-items:center; gap:9px; margin-bottom:10px; }
+.ademo .ch b{ font-family:var(--display); font-size:.9rem; }
+.ademo .ch small{ display:block; font-size:.74rem; color:var(--ink-faint); }
+.ademo .tag{ margin-left:auto; font-family:var(--mono); font-size:.58rem; letter-spacing:.05em; text-transform:uppercase; color:var(--brand-ink); background:var(--brand-soft); border-radius:6px; padding:3px 8px; white-space:nowrap; }
+.ademo .msg{ background:var(--surface); border-radius:9px; padding:10px 12px; font-size:.81rem; color:var(--ink-muted); line-height:1.55; margin-bottom:12px; }
+.ademo .msg b{ color:var(--ink); }
+.ademo .acts{ display:flex; gap:8px; flex-wrap:wrap; }
+.ademo .b1{ font-family:var(--display); font-weight:600; font-size:.8rem; background:var(--brand); color:#fff; border:0; border-radius:9px; padding:9px 16px; position:relative; }
+.ademo .b1.busy{ padding-left:34px; opacity:.92; }
+.ademo .b1.busy::before{ content:""; position:absolute; left:14px; top:50%; width:12px; height:12px; margin-top:-6px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:adspin .6s linear infinite; }
+@keyframes adspin{ to{transform:rotate(360deg)} }
+.ademo .b2{ font-family:var(--display); font-weight:600; font-size:.8rem; background:var(--card); color:var(--ink); border:1px solid var(--line-strong); border-radius:9px; padding:9px 16px; }
+.ademo .qsum{ display:flex; flex-direction:column; gap:0; margin-bottom:11px; font-size:.81rem; }
+.ademo .qrow{ display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); color:var(--ink-muted); }
+.ademo .qrow span:first-child{ color:var(--ink); }
+.ademo .qrow.total{ border-bottom:0; font-family:var(--display); font-weight:700; color:var(--ink); padding-top:9px; }
+.ademo .src{ font-size:.74rem; color:var(--ink-faint); margin-bottom:11px; }
+.ademo .src b{ color:var(--brand-ink); }
+.ademo .rec{ display:flex; flex-direction:column; gap:7px; margin-bottom:12px; }
+.ademo .recrow{ display:flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:9px; padding:9px 11px; font-size:.79rem; }
+.ademo .recrow .mv{ font-weight:600; color:var(--ink); min-width:132px; }
+.ademo .recrow .ar{ color:var(--ink-faint); }
+.ademo .recrow .fx{ color:var(--ink-muted); flex:1; }
+.ademo .recrow .st{ font-family:var(--mono); font-size:.58rem; letter-spacing:.04em; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+.ademo .recrow.ok{ background:var(--ok-soft); border-color:oklch(0.9 0.04 162); }
+.ademo .recrow.ok .st{ color:var(--ok); }
+.ademo .recrow.warn{ background:var(--warn-soft); border-color:oklch(0.9 0.05 70); }
+.ademo .recrow.warn .st{ color:var(--warn); }
+.ademo .ck{ width:13px; height:13px; }
+.ademo .thread{ display:flex; flex-direction:column; gap:8px; background:var(--surface); border-radius:11px; padding:12px; margin-bottom:11px; }
+.ademo .bub{ max-width:88%; font-size:.79rem; line-height:1.5; padding:8px 11px 6px; border-radius:12px; }
+.ademo .bub.out{ align-self:flex-end; background:var(--card); border:1px solid var(--line); border-bottom-right-radius:3px; color:var(--ink-muted); }
+.ademo .bub.out b{ color:var(--ink); }
+.ademo .bub.in{ align-self:flex-start; background:var(--brand-soft); border-bottom-left-radius:3px; color:var(--ink); }
+.ademo .bub .meta{ display:flex; align-items:center; justify-content:flex-end; gap:5px; margin-top:3px; font-size:.6rem; color:var(--ink-faint); }
+.ademo .bub.in .meta{ justify-content:flex-start; }
+.ademo .ticks{ display:inline-flex; color:var(--ink-faint); transition:color .4s ease; }
+.ademo .ticks.read{ color:var(--blue-read); }
+.ademo .tk{ width:17px; height:11px; }
+.ademo .filechip{ display:flex; align-items:center; gap:9px; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:7px 10px; margin-bottom:4px; }
+.ademo .filechip svg{ width:23px; height:27px; flex-shrink:0; }
+.ademo .filechip b{ font-size:.78rem; color:var(--ink); }
+.ademo .filechip small{ display:block; font-size:.68rem; color:var(--ink-faint); }
+.ademo .after{ font-size:.75rem; color:var(--ink-faint); display:flex; align-items:flex-start; gap:7px; line-height:1.5; }
+.ademo .after b{ color:var(--ink-muted); }
+.ademo .after .ok{ color:var(--ok); display:inline-flex; flex-shrink:0; margin-top:1px; }
+.ademo .rtop{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px; }
+.ademo .rtop b{ font-family:var(--display); font-weight:700; font-size:.9rem; }
+.ademo .rtop .pct{ font-family:var(--mono); font-size:.74rem; color:var(--ok); }
+.ademo .progress{ height:7px; background:var(--surface); border:1px solid var(--line); border-radius:99px; overflow:hidden; margin-bottom:12px; }
+.ademo .progress .bar{ height:100%; width:0; background:var(--ok); border-radius:99px; transition:width .9s cubic-bezier(.4,0,.2,1); }
+.ademo .card.done .progress .bar{ width:91.6%; }
+.ademo .pendrow{ display:flex; align-items:center; gap:9px; background:var(--warn-soft); border:1px solid oklch(0.9 0.05 70); border-radius:9px; padding:10px 11px; font-size:.79rem; margin-bottom:11px; }
+.ademo .pendrow .mv{ font-weight:600; color:var(--ink); }
+.ademo .pendrow .fx{ color:var(--ink-muted); flex:1; }
+.ademo .pendrow .nb{ font-family:var(--mono); font-size:.58rem; text-transform:uppercase; letter-spacing:.04em; color:var(--warn); }
+.ademo .next{ margin-top:12px; padding-top:11px; border-top:1px solid var(--line); display:inline-flex; align-items:center; gap:7px; font-family:var(--display); font-weight:600; font-size:.79rem; color:var(--brand-ink); }
+.ademo .next .ar{ display:inline-flex; } .ademo .next svg{ width:13px; height:13px; }
+.ademo .av{ position:relative; display:inline-flex; width:30px; height:30px; flex-shrink:0; }
+.ademo .av .b-face{ display:block; width:100%; height:100%; border-radius:50%; overflow:hidden; }
+.ademo .av-badge{ position:absolute; right:-2px; bottom:-2px; width:14px; height:14px; background:var(--card); border-radius:50%; box-shadow:0 0 0 1px var(--line); display:flex; align-items:center; justify-content:center; }
+.ademo .av-badge svg{ width:9px; height:9px; }
+.ademo .agent .av{ width:26px; height:26px; }
+.ademo .ch .av{ width:28px; height:28px; }
+.ademo .cursor{ position:absolute; left:60%; top:55%; width:21px; height:21px; pointer-events:none; z-index:7; opacity:0; transition:left .66s cubic-bezier(.45,0,.2,1),top .66s cubic-bezier(.45,0,.2,1),opacity .3s,transform .15s ease; }
+.ademo .cursor.show{ opacity:1; }
+.ademo .cursor.down{ transform:scale(.8); }
+.ademo .cursor svg{ display:block; filter:drop-shadow(0 2px 5px rgba(20,30,50,.35)); }
+
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="logo" href="#">aiuda<b>.</b></a>
+    <div class="nav-links">
+      <a href="#viva">Así se ve</a>
+      <a href="#como">Cómo funciona</a>
+      <a href="#telefono">Desde tu teléfono</a>
+      <a href="#tu-ia">Tu propia IA</a>
+      <a href="#descarga">Descargar</a>
+    </div>
+    <div class="nav-right">
+      <a class="nav-signin" href="https://github.com/aiuda-io/aiuda">GitHub</a>
+      <a class="btn btn-primary nav-cta" href="#descarga">Descargar</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════ HERO ═══════════ -->
+<header class="hero">
+  <div class="wrap hero-in">
+    <span class="eyebrow hero-rise" style="--d:.05s"><span class="dot"></span>Open source · corre en tu computadora</span>
+    <h1 class="display hero-rise" style="--d:.13s">Ayudantes de IA en <em>tu computadora</em>.</h1>
+    <p class="lead hero-sub hero-rise" style="--d:.24s">
+      Leen tu Odoo, tu Excel y tu WhatsApp, redactan la cobranza del día y te la dejan lista.
+      Nada sale sin tu visto bueno.
+    </p>
+    <div class="hero-ctas hero-rise" style="--d:.34s">
+      <a class="btn btn-primary" href="#descarga">Pide la app para Mac <span class="arr">→</span></a>
+      <a class="btn btn-outline" href="https://github.com/aiuda-io/aiuda">Ver el código</a>
+    </div>
+    <p class="fine hero-fine hero-rise" style="--d:.42s">Gratis y Apache-2.0. Sin cuentas, sin servidores de nadie más, sin telemetría.</p>
+  </div>
+</header>
+
+
+<!-- ═══════════ LA CONSOLA, TRABAJANDO ═══════════ -->
+<section class="light" id="viva">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center; max-width:44rem; margin:0 auto clamp(28px,3.6vw,44px)">
+      <span class="klabel">Así se ve</span>
+      <h2 class="sec" style="margin-top:10px">Tu ayudante propone.<br>Tú das el clic.</h2>
+      <p class="lead" style="margin-top:14px">Esto corre solo, para que se vea el único momento que importa: el visto bueno.</p>
+    </div>
+    <div class="reveal" style="--d:.1s">
+      <div class="ademo" aria-hidden="true">
+  <div class="app" id="adapp">
+    <div class="cursor" id="adcursor"><svg width="21" height="21" viewBox="0 0 24 24"><path d="M4.2 2.4 L4.2 18.6 L8.3 14.7 L11 20.4 L13.4 19.3 L10.7 13.7 L16 13.7 Z" fill="#1b2638" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg></div>
+    <div class="app-bar"><i></i><i></i><i></i><span class="t">aiuda · consola</span><span class="pill">Tú apruebas</span></div>
+    <div class="app-body">
+      <aside class="side">
+        <div class="nav2"><a><span class="ic"></span>Inicio</a><a class="on"><span class="ic"></span>Bandeja · 3</a><a><span class="ic"></span>Conexiones</a><a><span class="ic"></span>Equipo</a></div>
+        <p class="lbl">Tu equipo</p>
+        <div class="team">
+          <div class="agent on" data-a="cob"><span class="av" data-slug="mariana"></span>Cobranza<span class="dot"></span></div>
+          <div class="agent" data-a="ven"><span class="av" data-slug="carlos"></span>Ventas<span class="dot"></span></div>
+          <div class="agent" data-a="con"><span class="av" data-slug="lupita"></span>Conciliación<span class="dot"></span></div>
+        </div>
+      </aside>
+      <main class="adpanel">
+        <div class="stat" id="adstat"><small id="adstatL">Recuperado este mes</small><b id="adstatV">$53,990</b><span class="up" id="adstatU">+$18,750 hoy</span></div>
+        <div class="views">
+
+          <section class="view on" data-v="cob"><div class="card">
+            <div class="pending">
+              <div class="ch"><span class="av" data-slug="mariana"></span><div><b>Recordatorio de pago</b><small>Ferretería El Martillo · F-102 · $18,750 · 9 días</small></div><span class="tag">Espera tu OK</span></div>
+              <div class="msg">Hola, le escribimos de su proveedor. La factura <b>F-102</b> por <b>$18,750</b> venció el 31 de mayo. ¿Le ayudo con los datos para el pago o una fecha para liquidarla?</div>
+              <div class="acts"><button class="b1 approve" data-label="Aprobar y enviar" data-busy="Enviando…">Aprobar y enviar</button><button class="b2">Editar</button></div>
+            </div>
+            <div class="sent">
+              <div class="thread">
+                <div class="bub out">Hola, le escribimos de su proveedor. La factura <b>F-102</b> por <b>$18,750</b> venció el 31 de mayo. ¿Le ayudo con los datos para el pago?<span class="meta">11:32 <span class="ticks"><svg class="tk" viewBox="0 0 20 12" fill="none"><path d="M1.5 6.8 L4.6 9.9 L10 3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6.8 L10.1 9.9 L15.5 3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span></div>
+                <div class="bub in">ya quedó, le mandé el comprobante<span class="meta">11:48</span></div>
+              </div>
+              <div class="after"><span class="ok"><svg class="ck" viewBox="0 0 12 12" fill="none"><path d="m2.5 6.5 2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Promesa de pago registrada en tu Odoo · siguiente seguimiento <b>6 jun</b></span></div>
+              <span class="next">Ver las otras 4 cuentas por cobrar <span class="ar"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M8 3.5 11.5 7 8 10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            </div>
+          </div></section>
+
+          <section class="view" data-v="ven"><div class="card">
+            <div class="pending">
+              <div class="ch"><span class="av" data-slug="carlos"></span><div><b>Cotización · Aceros del Norte</b><small>Pedida por WhatsApp hace 6 min · plantilla en preview</small></div><span class="tag">Espera tu OK</span></div>
+              <div class="qsum">
+                <div class="qrow"><span>Lámina galvanizada cal. 20 ×8</span><span>$6,240</span></div>
+                <div class="qrow"><span>Perfil PTR 2"×2" ×12</span><span>$4,980</span></div>
+                <div class="qrow"><span>Electrodo 6013 (caja) ×3</span><span>$1,530</span></div>
+                <div class="qrow total"><span>Total</span><span>$12,750</span></div>
+              </div>
+              <p class="src">Precios de tu catálogo en <b>Odoo</b> · existencias verificadas</p>
+              <div class="acts"><button class="b1 approve" data-label="Aprobar y enviar" data-busy="Enviando…">Aprobar y enviar</button><button class="b2">Ajustar</button></div>
+            </div>
+            <div class="sent">
+              <div class="thread">
+                <div class="bub out"><div class="filechip"><svg viewBox="0 0 26 30" fill="none"><path d="M2.5 1.4h13l8 8v19.2H2.5z" fill="#fff" stroke="#E0453B" stroke-width="1.5" stroke-linejoin="round"/><path d="M15.5 1.4V9.4h8" stroke="#E0453B" stroke-width="1.5" stroke-linejoin="round"/><rect x="2.5" y="16.4" width="21" height="8.6" rx="1.6" fill="#E0453B"/><text x="13" y="22.7" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="6" font-weight="700" fill="#fff">PDF</text></svg><div><b>Cotización-AN-0612.pdf</b><small>3 partidas · $12,750</small></div></div><span class="meta">11:34 <span class="ticks"><svg class="tk" viewBox="0 0 20 12" fill="none"><path d="M1.5 6.8 L4.6 9.9 L10 3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 6.8 L10.1 9.9 L15.5 3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span></div>
+              </div>
+              <div class="after"><span>Entregado · <b>visto 11:36</b> · esperando confirmación de Aceros del Norte</span></div>
+              <span class="next">Ir al resto de cotizaciones <span class="ar"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M8 3.5 11.5 7 8 10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            </div>
+          </div></section>
+
+          <section class="view" data-v="con"><div class="card">
+            <div class="pending">
+              <div class="ch"><span class="av" data-slug="lupita"></span><div><b>Conciliación bancaria</b><small>Banco ↔ Odoo · 12 movimientos de hoy · plantilla planeada</small></div><span class="tag">Espera tu OK</span></div>
+              <div class="rec">
+                <div class="recrow ok"><span class="mv">SPEI · $18,750</span><span class="ar">→</span><span class="fx">F-102 · Ferretería El Martillo</span><span class="st"><svg class="ck" viewBox="0 0 12 12" fill="none"><path d="m2.5 6.5 2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>ok</span></div>
+                <div class="recrow ok"><span class="mv">Depósito · $9,400</span><span class="ar">→</span><span class="fx">F-098 · Aceros del Norte</span><span class="st"><svg class="ck" viewBox="0 0 12 12" fill="none"><path d="m2.5 6.5 2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>ok</span></div>
+                <div class="recrow warn"><span class="mv">SPEI · $5,200</span><span class="ar">→</span><span class="fx">no encontré factura que coincida</span><span class="st">revisar</span></div>
+              </div>
+              <div class="acts"><button class="b1 approve" data-label="Conciliar 11 movimientos" data-busy="Conciliando…">Conciliar 11 movimientos</button><button class="b2">Revisar el pendiente</button></div>
+            </div>
+            <div class="sent">
+              <div class="rtop"><b>11 de 12 movimientos conciliados</b><span class="pct">92%</span></div>
+              <div class="progress"><div class="bar"></div></div>
+              <div class="pendrow"><span class="mv">SPEI · $5,200</span><span class="fx">sin factura que coincida</span><span class="nb">por revisar</span></div>
+              <div class="after"><span class="ok"><svg class="ck" viewBox="0 0 12 12" fill="none"><path d="m2.5 6.5 2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Lo conciliado ya quedó en tu <b>Odoo</b> · el pendiente espera tu revisión</span></div>
+              <span class="next">Ir a Bancos · ver conciliación completa <span class="ar"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M8 3.5 11.5 7 8 10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></span>
+            </div>
+          </div></section>
+
+        </div>
+      </main>
+    </div>
+  </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CÓMO FUNCIONA ═══════════ -->
+<section id="como">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <span class="klabel">Cómo funciona</span>
+      <h2 class="sec">Tres pasos y se pone a trabajar.</h2>
+    </div>
+    <div class="flow reveal">
+      <article class="step">
+        <span class="n">01</span>
+        <h3>Conecta tus datos</h3>
+        <p>Tu Odoo, o tu Excel como lo llevas hoy. Cada factura guarda de dónde vino.</p>
+      </article>
+      <article class="step">
+        <span class="n">02</span>
+        <h3>Conecta tu IA</h3>
+        <p>Un clic si ya tienes Claude Code o Codex en esa computadora. Si no, tu llave o un modelo local.</p>
+      </article>
+      <article class="step">
+        <span class="n">03</span>
+        <h3>Aprueba</h3>
+        <p>Cada mañana te espera la bandeja con propuestas concretas. Apruebas, editas o rechazas.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ DESDE TU TELÉFONO ═══════════ -->
+<section class="band" id="telefono">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <span class="klabel">Desde tu teléfono</span>
+      <h2 class="sec">El visto bueno, sin sentarte frente a la compu.</h2>
+      <p class="lead">La computadora del negocio hace el trabajo. El teléfono es para ver lo que tu ayudante
+      propuso y aprobarlo. Los dos en tu propia red, sin pasar por el servidor de nadie.</p>
+    </div>
+
+    <div class="telefonos">
+      <figure class="tel reveal">
+        <div class="tel-marco">
+          <i class="vol-1"></i><i class="vol-2"></i><i class="power"></i>
+          <div class="tel-pantalla">
+            <i class="isla"></i>
+            <img src="assets/iphone/bienvenida.png" width="644" height="1400" loading="lazy"
+                 alt="Pantalla de bienvenida de la app de iPhone: aprueba desde tu teléfono, con los tres pasos para emparejarla con la computadora del negocio y el botón de escanear el código." />
+          </div>
+        </div>
+        <figcaption>
+          <b>Emparejar</b>
+          <span>Apuntas el teléfono al código que muestra tu computadora. Una vez.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="tel reveal" style="--d:.1s">
+        <div class="tel-marco">
+          <i class="vol-1"></i><i class="vol-2"></i><i class="power"></i>
+          <div class="tel-pantalla">
+            <i class="isla"></i>
+            <img src="assets/iphone/hoy.png" width="644" height="1400" loading="lazy"
+                 alt="Pantalla de inicio de la app de iPhone: cuánto te deben, cuánto ya está vencido, cuánto recuperaste este mes, las promesas de pago y lo que falta conciliar." />
+          </div>
+        </div>
+        <figcaption>
+          <b>Ver y aprobar</b>
+          <span>Cuánto te deben, qué se venció, y lo que tu ayudante dejó listo esperando tu clic.</span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="aviso reveal" style="--d:.16s">
+      <span class="pt"></span>
+      <p><b>Esta app todavía no está en la App Store y no se puede descargar.</b> Lo que ves son capturas
+      de la que corre hoy en un iPhone, contra una instalación real. Cuando se pueda bajar, lo dirá aquí.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ TU PROPIA IA ═══════════ -->
+<section id="tu-ia">
+  <div class="wrap">
+    <div class="sec-head center reveal">
+      <span class="klabel">Tu propia IA</span>
+      <h2 class="sec">La IA la pones tú. Y si ya la tienes, es un clic.</h2>
+      <p class="lead">aiuda no vende inferencia ni te revende tokens, y nunca ve tu llave. Si ya usas
+      <b>Claude Code</b> o <b>Codex</b> en esa computadora, aiuda los detecta y los usa con tu sesión.</p>
+    </div>
+
+    <div class="ventana maqueta iawin reveal" style="--d:.06s" aria-label="Pantalla de aiuda: elegir tu IA">
+      <div class="ventana-barra"><i></i><i></i><i></i><span class="t">aiuda · primer arranque</span><span class="pill">Paso 2 de 4</span></div>
+      <div class="iawiz">
+        <h3 class="iaw-h">Tu IA</h3>
+        <p class="iaw-sub">Es el cerebro que redacta, lee y propone. Tú siempre decides qué sale.
+        Ya tienes una en esta computadora: un clic y queda.</p>
+        <div class="iaw-grid">
+          <div class="iaw-card on">
+            <span class="iaw-logo"><img src="assets/anthropic.svg" alt="" /></span>
+            <b>Claude</b>
+            <small>De Anthropic. Trabaja con tu propia cuenta.</small>
+            <span class="iaw-chip"><i class="dot ok"></i>Ya tienes Claude Code en esta computadora</span>
+            <span class="iaw-estado"><i class="dot ok"></i>Listo para usar</span>
+            <span class="iaw-btn on">Usar Claude Code</span>
+          </div>
+          <div class="iaw-card">
+            <span class="iaw-logo"><img src="assets/openai.svg" alt="" /></span>
+            <b>ChatGPT</b>
+            <small>De OpenAI. Trabaja con tu propia cuenta.</small>
+            <span class="iaw-chip"><i class="dot ok"></i>Ya tienes Codex en esta computadora</span>
+            <span class="iaw-estado"><i class="dot ok"></i>Listo para usar</span>
+            <span class="iaw-btn">Usar Codex</span>
+          </div>
+          <div class="iaw-card">
+            <span class="iaw-logo"><img src="assets/ollama.svg" alt="" /></span>
+            <b>En esta computadora</b>
+            <small>Gratis y sin internet. Ningún dato sale de aquí.</small>
+            <span class="iaw-chip">Apple M3 Pro, 18 GB</span>
+            <span class="iaw-estado"><i class="dot ok"></i>Modelo listo en tu máquina</span>
+            <span class="iaw-btn">Usar este</span>
+          </div>
+          <div class="iaw-card">
+            <span class="iaw-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="10" height="8" rx="2"/><rect x="11" y="12" width="10" height="8" rx="2"/></svg></span>
+            <b>En la red de tu oficina</b>
+            <small>Si otra computadora ya tiene una IA, la puedes usar desde aquí.</small>
+            <span class="iaw-estado"><i class="dot"></i>Sin revisar</span>
+            <span class="iaw-btn">Buscar</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="fine nota-pie reveal" style="--d:.1s">
+      La IA la pagas tú, directo a quien te la da, o no pagas nada si la corres en tu máquina. Usar el Claude
+      Code o el Codex que ya tienes ocupa la cuenta con la que entraste en esa computadora, como cualquier otro
+      programa tuyo; no es una vía oficial según los términos de Anthropic ni de OpenAI, y la app te lo dice
+      antes de conectar. Si prefieres cero letras chicas: tu llave o un modelo local.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════ SIN ADORNOS ═══════════ -->
+<section class="band" id="claro">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="klabel">Sin adornos</span>
+      <h2 class="sec">Qué no es, y en qué va.</h2>
+    </div>
+    <div class="claro">
+      <div class="reveal">
+        <h3>Qué no es</h3>
+        <ul>
+          <li><b>No es una nube.</b> Corre en tu computadora, sin cuentas ni servidores nuestros.</li>
+          <li><b>No es tu sistema.</b> Lo que ya usas sigue mandando; aiuda trabaja encima.</li>
+          <li><b>No es una IA que actúa sola.</b> Propone y espera. Tú apruebas.</li>
+          <li><b>No vende IA.</b> Traes la tuya, y nunca vemos tu llave.</li>
+          <li><b>No manda mensajes masivos.</b> Es uno a uno, con el texto que tú aprobaste.</li>
+        </ul>
+      </div>
+      <div class="reveal" style="--d:.08s">
+        <h3>Estado, hoy</h3>
+        <ul>
+          <li><b>Cobranza es lo más maduro.</b> Conectar Odoo, sincronizar cartera real, redactar y aprobar está verificado punta a punta.</li>
+          <li><b>22 conexiones en el catálogo.</b> Nueve están escritas contra su contrato y sin estrenar en vivo; la consola lo dice en cada una.</li>
+          <li><b>La app de Mac está probada</b> de punta a punta en chip Apple. Falta notarizarla con Apple.</li>
+          <li><b>Windows y Linux se construyen</b> en cada release, y nadie los ha probado todavía.</li>
+          <li><b>Un negocio por instalación.</b> Multi-usuario no existe.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ DESCARGA ═══════════ -->
+<section id="descarga">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="klabel">Descargar</span>
+      <h2 class="sec">Pídela y te la mandamos.</h2>
+    </div>
+    <div class="dos">
+      <div class="reveal">
+        <h3>La app de Mac</h3>
+        <p>Es una app normal: la abres y ella arranca el motor local, sin terminal. En el primer arranque
+        pregunta el nombre de tu negocio, revisa si ya tienes una IA en la computadora y te ayuda a traer
+        tus datos.</p>
+        <p style="margin-top:12px">Todavía no está notarizada por Apple, así que no la colgamos de un enlace
+        público. Escríbenos y te mandamos el instalador. La primera vez tu Mac avisa que el desarrollador
+        no está identificado: se abre con clic derecho y Abrir, esa vez nada más.</p>
+        <a class="btn btn-primary" href="mailto:consulting@hanova.mx?subject=Quiero%20la%20app%20de%20aiuda%20para%20Mac&amp;body=Hola%2C%20me%20gustar%C3%ADa%20probar%20aiuda%20en%20mi%20Mac.%0A%0AMi%20negocio%3A%20%0AA%20qu%C3%A9%20se%20dedica%3A%20%0A%0AGracias.">Pídenos la app para Mac <span class="arr">→</span></a>
+        <ul class="pts">
+          <li>macOS con chip Apple. Trae todo adentro: no instalas Python ni nada más</li>
+          <li>WhatsApp opcional, con tu propio número: escaneas un QR, como en WhatsApp Web. O correo</li>
+          <li>Tus datos y tu llave de cifrado viven en ~/.aiuda: borras esa carpeta y no queda nada</li>
+        </ul>
+      </div>
+      <div class="reveal" style="--d:.08s">
+        <h3>O desde el código</h3>
+        <p>Todo está en GitHub bajo Apache-2.0: el motor, la consola y los conectores. Es exactamente el
+        mismo programa que va dentro de la app. Necesitas Python 3.11 o más nuevo, uv y node.</p>
+        <div class="term" style="margin-top:20px" aria-label="Terminal: correr aiuda desde el código">
+          <span class="g">$</span> git clone https://github.com/aiuda-io/aiuda<br/>
+          <span class="g">$</span> cd aiuda &amp;&amp; uv sync<br/>
+          <span class="g">$</span> cd web &amp;&amp; npm ci &amp;&amp; npm run export &amp;&amp; cd ..<br/>
+          <span class="g">$</span> uv run aiuda start<br/>
+          <span class="c"># la consola abre en 127.0.0.1:4747</span>
+        </div>
+        <ul class="pts">
+          <li>Sin edición de pago: la del repositorio es la versión completa</li>
+          <li>Todavía no publicamos en PyPI ni hay un release en GitHub</li>
+          <li>Los safeguards (tú apruebas todo) están en el código, no en un PDF legal</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="logo" href="#">aiuda<b>.</b></a>
+      <small style="display:block; margin-top:4px">© 2026 aiuda · Apache-2.0 · Hecho en México · <a href="https://github.com/aiuda-io/aiuda">GitHub</a> · <a href="https://github.com/aiuda-io/aiuda#empezar">Documentación</a></small>
+    </div>
+    <a class="hanova" href="https://hanova.mx">
+      <img src="assets/hanova-consulting-blue.svg" alt="Hanova Consulting" />
+      <small>Un proyecto de Hanova Consulting</small>
+    </a>
+  </div>
+</footer>
+
+<script>
+/* Reveals on scroll: una vez, con stagger por --d (IntersectionObserver). Es todo el JS del sitio. */
+const io = new IntersectionObserver((entries) => {
+  for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+}, { rootMargin: "-8% 0px -6% 0px" });
+document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+/* Apariencia curada por rol · espejo de web/lib/look.ts (PERFIL_LOOK). Las plantillas se
+   dibujan con la MISMA mascota por capas que se construye abajo (no fotos): color = índice en
+   ACCENTS, partes y símbolo idénticos a la consola. Si cambias una cara allá, refléjala aquí. */
+const ACCENTS = ["#2C6E8F","#5A4A9C","#4A7A45","#A66A3A","#3A5E8F","#9C4A6A","#5B6B7A","#A85A4A"];
+const PERFIL_LOOK = {
+  mariana:{color:0,hair:"bob",eyes:"round-soft",mouth:"smile-soft",hat:"none",accessory:"glasses",symbol:"coins"},
+  carlos:{color:3,hair:"short",eyes:"dot",mouth:"line-smile",hat:"none",accessory:"none",symbol:"cart"},
+  lupita:{color:1,hair:"bun",eyes:"round-soft",mouth:"flat",hat:"none",accessory:"glasses-round",symbol:"scale"},
+  valeria:{color:4,hair:"bob",eyes:"dot",mouth:"smile-soft",hat:"headset",accessory:"none",symbol:"chat"},
+  diego:{color:2,hair:"short",eyes:"dot",mouth:"flat",hat:"none",accessory:"glasses",symbol:"reconcile"},
+  roberto:{color:5,hair:"none",eyes:"dot",mouth:"flat",hat:"hard-hat",accessory:"lanyard",symbol:"box"},
+  memo:{color:7,hair:"textured",eyes:"line",mouth:"o-talk",hat:"none",accessory:"none",symbol:"pen"},
+  sofia:{color:6,hair:"bun",eyes:"dot",mouth:"smile-soft",hat:"none",accessory:"glasses",symbol:"target"},
+};
+function partSVG(cat,id){ const m=A_PARTS[cat]; return (id in m) ? m[id] : (m[PART_DEF[cat]]||''); }
+function avatarSVG(ap){
+  return '<svg viewBox="0 0 64 64" style="display:block;width:100%;height:100%">'+A_BASE
+    +partSVG('mouth',ap.mouth)+partSVG('eyes',ap.eyes)+partSVG('hair',ap.hair)
+    +partSVG('hat',ap.hat)+partSVG('accessory',ap.accessory)+'</svg>';
+}
+
+function iconSVG(k){ return '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+(ICON_SVG[k]||ICON_SVG.spark)+'</svg>'; }
+
+
+function avatarSVG(ap){
+  return '<svg viewBox="0 0 64 64" style="display:block;width:100%;height:100%">'+A_BASE
+    +partSVG('mouth',ap.mouth)+partSVG('eyes',ap.eyes)+partSVG('hair',ap.hair)
+    +partSVG('hat',ap.hat)+partSVG('accessory',ap.accessory)+'</svg>';
+}
+
+/* HTML del avatar por capas (círculo de color + mascota + símbolo) de una plantilla por slug. */
+function slugAvatar(slug){
+  const a = PERFIL_LOOK[slug] || {color:0,hair:"none",eyes:"dot",mouth:"smile-soft",hat:"none",accessory:"none",symbol:"spark"};
+  const c = ACCENTS[a.color];
+  return '<span class="b-face" style="display:block;width:100%;height:100%;border-radius:50%;overflow:hidden;background:'+c+'">'+avatarSVG(a)+'</span>'
+    + '<span class="av-badge" style="color:'+c+'">'+iconSVG(a.symbol)+'</span>';
+}
+const ICON_SVG = {
+  coins:'<circle cx="6.8" cy="7" r="3.6"/><path d="M9.4 4.7a3.6 3.6 0 1 1 1.8 6.6"/>',
+  cart:'<path d="M2.6 3.4h1.7l1.3 6.8h6.1l1.3-4.9H5.3"/><circle cx="7.2" cy="14" r="1"/><circle cx="12" cy="14" r="1"/>',
+  scale:'<path d="M9 3v11M5.2 14h7.6"/><path d="M3.4 6.4h11.2M3.4 6.4 5.4 10H1.4zM14.6 6.4 12.6 10h4z"/>',
+  chat:'<path d="M3 4.4h12v7.4H8.2L5 14.2v-2.4H3z"/>',
+  reconcile:'<path d="M3 6.6h9M9.6 4.2 12 6.6 9.6 9"/><path d="M15 11.4H6M8.4 9l-2.4 2.4L8.4 13.8"/>',
+  box:'<path d="M9 2.7 15 5.6v6.8L9 15.3 3 12.4V5.6z"/><path d="M3 5.6 9 8.5l6-2.9M9 8.5v6.8"/>',
+  pen:'<path d="M11.4 3.2 14.8 6.6 6.3 15H3v-3.3z"/><path d="M10 4.6 13.4 8"/>',
+  target:'<circle cx="9" cy="9" r="5.4"/><circle cx="9" cy="9" r="2.2"/>',
+  spark:'<path d="M9 2.8 10.5 7.5 15.2 9 10.5 10.5 9 15.2 7.5 10.5 2.8 9 7.5 7.5z"/>',
+};
+function iconSVG(k){ return '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+(ICON_SVG[k]||ICON_SVG.spark)+'</svg>'; }
+
+/* PARITY: espejo de web/components/avatar-parts.tsx + web/lib/look.ts. Mascota por capas en
+   viewBox 0 0 64 64. Si cambias una forma o agregas variante allá, refléjala aquí y mantén
+   PART_KEYS en lockstep. "none" = '' (sin esa capa). */
+const A_BASE =
+  '<path d="M9 64C9 52 18 47.5 32 47.5C46 47.5 55 52 55 64Z" fill="#F3F0E8"/>'+
+  '<circle cx="14" cy="29" r="3.6" fill="#F3F0E8"/><circle cx="50" cy="29" r="3.6" fill="#F3F0E8"/>'+
+  '<ellipse cx="32" cy="27" rx="18" ry="19" fill="#F3F0E8"/>'+
+  '<ellipse cx="23.5" cy="18" rx="4.2" ry="6" fill="#FFFFFF" opacity="0.55" transform="rotate(-22 23.5 18)"/>';
+const A_PARTS = {
+  eyes: {
+    dot: '<circle cx="25" cy="27" r="3" fill="#23272C"/><circle cx="39" cy="27" r="3" fill="#23272C"/><circle cx="26.1" cy="25.9" r="0.85" fill="#fff"/><circle cx="40.1" cy="25.9" r="0.85" fill="#fff"/>',
+    "round-soft": '<circle cx="25" cy="27" r="3.1" fill="none" stroke="#23272C" stroke-width="1.6"/><circle cx="39" cy="27" r="3.1" fill="none" stroke="#23272C" stroke-width="1.6"/>',
+    line: '<path d="M21.8 27h6.4M35.8 27h6.4" stroke="#23272C" stroke-width="1.9" stroke-linecap="round" fill="none"/>',
+    wide: '<ellipse cx="25" cy="27" rx="3" ry="3.7" fill="#23272C"/><ellipse cx="39" cy="27" rx="3" ry="3.7" fill="#23272C"/><circle cx="26.1" cy="25.6" r="0.9" fill="#fff"/><circle cx="40.1" cy="25.6" r="0.9" fill="#fff"/>',
+    pixel: '<rect x="22.8" y="24.8" width="4.4" height="4.4" rx="1.1" fill="#23272C"/><rect x="36.8" y="24.8" width="4.4" height="4.4" rx="1.1" fill="#23272C"/>',
+  },
+  mouth: {
+    "smile-soft": '<path d="M28 34.5Q32 38 36 34.5" fill="none" stroke="#23272C" stroke-width="1.8" stroke-linecap="round"/>',
+    flat: '<path d="M29 35.6h6" stroke="#23272C" stroke-width="1.8" stroke-linecap="round" fill="none"/>',
+    "line-smile": '<path d="M26.5 34.4Q32 38.6 37.5 34.4" fill="none" stroke="#23272C" stroke-width="1.8" stroke-linecap="round"/>',
+    "o-talk": '<ellipse cx="32" cy="35.6" rx="2" ry="2.5" fill="#23272C"/>',
+    none: '',
+  },
+  hair: {
+    none: '',
+    short: '<path d="M14.4 27C14.4 13 22 8 32 8C42 8 49.6 13 49.6 27C49.6 19.5 43 16.4 32 16.4C21 16.4 14.4 19.5 14.4 27Z" fill="#3B4149"/>',
+    "side-part": '<path d="M14.4 27C14.4 13 22 8 32 8C42 8 49.6 13 49.6 25.5C49.6 19 44 16 35 16.8C31 19.8 24 20.6 18.5 19.6C16.4 21.6 15 24.5 14.4 27Z" fill="#3B4149"/>',
+    bob: '<path d="M13 27C13 12 21 8 32 8C43 8 51 12 51 27C51 34 49.2 39.5 47.2 41.5C47.2 30 47 20.5 44 18.4C40.2 16.2 36 16.6 32 16.6C28 16.6 23.8 16.2 20 18.4C17 20.5 16.8 30 16.8 41.5C14.8 39.5 13 34 13 27Z" fill="#3B4149"/>',
+    bun: '<circle cx="32" cy="6.6" r="4" fill="#3B4149"/><path d="M14.4 27C14.4 13 22 8 32 8C42 8 49.6 13 49.6 27C49.6 19.5 43 16.4 32 16.4C21 16.4 14.4 19.5 14.4 27Z" fill="#3B4149"/>',
+    textured: '<path d="M14.4 26.5C13.6 19 15 14 18 12C18 14 19.4 14.6 21 13C21.6 15 23.4 15.4 25.4 13.6C26 15.6 28 16 30 14.2C31 16 33.4 16 35.2 14.2C36.4 16 38.6 15.8 40 13.8C41 15.6 43 15.6 44.4 13.4C47 15 49 18.6 49.6 26.5C49.6 19.5 43 16.4 32 16.4C21 16.4 14.4 19 14.4 26.5Z" fill="#3B4149"/>',
+  },
+  hat: {
+    none: '',
+    cap: '<path d="M15.5 20.5C16.5 11.5 23 7 32 7C41 7 47.5 11.5 48.5 20.5C40 17.5 24 17.5 15.5 20.5Z" fill="#586069"/><path d="M15.5 20.5C9 20.8 5.5 22.4 5 23.6C11 24.6 17.5 23.6 22 21.4C19.5 20.6 17.5 20.4 15.5 20.5Z" fill="#586069"/>',
+    beanie: '<path d="M14.5 21.5C14.5 11.5 22 7 32 7C42 7 49.5 11.5 49.5 21.5C36 18 28 18 14.5 21.5Z" fill="#586069"/><rect x="13.5" y="19.5" width="37" height="4.2" rx="2.1" fill="#6B727B"/>',
+    "hard-hat": '<path d="M16.5 19.5C16.5 11.5 23.5 8.5 32 8.5C40.5 8.5 47.5 11.5 47.5 19.5C36 16.5 28 16.5 16.5 19.5Z" fill="#C2862F"/><rect x="12" y="18" width="40" height="3.2" rx="1.6" fill="#C2862F"/><path d="M30 9.2h4v8h-4z" fill="#A9741F"/>',
+    headset: '<path d="M16 25C16 13.5 23 9.5 32 9.5C41 9.5 48 13.5 48 25" fill="none" stroke="#23272C" stroke-width="2.4" stroke-linecap="round"/><rect x="12.5" y="23.5" width="5.2" height="8.4" rx="2.6" fill="#23272C"/><rect x="46.3" y="23.5" width="5.2" height="8.4" rx="2.6" fill="#23272C"/><path d="M15 31.5C15 37.5 21.5 39.5 26 38.5" fill="none" stroke="#23272C" stroke-width="1.6" stroke-linecap="round"/><circle cx="26.5" cy="38.4" r="1.5" fill="#23272C"/>',
+  },
+  accessory: {
+    none: '',
+    glasses: '<rect x="20.3" y="23.4" width="9.4" height="7.2" rx="2.6" fill="none" stroke="#23272C" stroke-width="1.6"/><rect x="34.3" y="23.4" width="9.4" height="7.2" rx="2.6" fill="none" stroke="#23272C" stroke-width="1.6"/><path d="M29.7 26.5h4.6" stroke="#23272C" stroke-width="1.6" stroke-linecap="round" fill="none"/><path d="M20.3 25.6 16.5 24.6M43.7 25.6 47.5 24.6" stroke="#23272C" stroke-width="1.6" stroke-linecap="round" fill="none"/>',
+    "glasses-round": '<circle cx="25" cy="27" r="4.6" fill="none" stroke="#23272C" stroke-width="1.4"/><circle cx="39" cy="27" r="4.6" fill="none" stroke="#23272C" stroke-width="1.4"/><path d="M29.6 27h4.8" stroke="#23272C" stroke-width="1.4" stroke-linecap="round" fill="none"/><path d="M20.4 26.4 16.6 25.4M43.6 26.4 47.4 25.4" stroke="#23272C" stroke-width="1.4" stroke-linecap="round" fill="none"/>',
+    tie: '<path d="M27.5 48 32 52.5 36.5 48" fill="none" stroke="#23272C" stroke-width="1.6" stroke-linejoin="round"/><path d="M32 52.5 29.8 56 32 62 34.2 56Z" fill="#3A4A6B"/>',
+    lanyard: '<path d="M27 48 31.2 56M37 48 32.8 56" stroke="#23272C" stroke-width="1.5" stroke-linecap="round" fill="none"/><rect x="28.8" y="55" width="6.4" height="8.5" rx="1.2" fill="#fff" stroke="#23272C" stroke-width="1.4"/><path d="M30.4 58h3.2" stroke="#23272C" stroke-width="1.2" stroke-linecap="round" fill="none"/>',
+  },
+};
+
+/* #viva · consola auto-reproducida (showcase, no interactiva) */
+(function(){
+ var root=document.querySelector(".ademo"); if(!root||typeof slugAvatar!=="function") return;
+ document.querySelectorAll(".ademo [data-slug]").forEach(function(el){ el.innerHTML=slugAvatar(el.dataset.slug); });
+ var app=document.getElementById("adapp"), cursor=document.getElementById("adcursor");
+ var agents=[].slice.call(root.querySelectorAll(".agent"));
+ var views={}; root.querySelectorAll(".view").forEach(function(v){views[v.dataset.v]=v;});
+ var statEl=document.getElementById("adstat"), statL=document.getElementById("adstatL"), statV=document.getElementById("adstatV"), statU=document.getElementById("adstatU");
+ var stats={cob:["Recuperado este mes","$53,990","+$18,750 hoy"], ven:["Cotizado hoy","$41,200","2 pedidos nuevos"], con:["Conciliado este mes","142 / 154","92% cuadrado"]};
+ var order=["cob","ven","con"];
+ function delay(ms){return new Promise(function(r){setTimeout(r,ms);});}
+ function center(el){var a=app.getBoundingClientRect(),r=el.getBoundingClientRect();return [r.left-a.left+r.width/2, r.top-a.top+r.height/2];}
+ async function move(el){var c=center(el);cursor.classList.add("show");cursor.style.left=c[0]+"px";cursor.style.top=c[1]+"px";await delay(700);}
+ async function press(){cursor.classList.add("down");await delay(170);cursor.classList.remove("down");await delay(130);}
+ function setStat(id){var s=stats[id];statL.textContent=s[0];statV.textContent=s[1];statU.textContent=s[2];statEl.style.animation="none";void statEl.offsetWidth;statEl.style.animation="adfade .35s ease both";}
+ function resetView(v){var c=v.querySelector(".card");if(c)c.classList.remove("done");var b=v.querySelector(".approve");if(b){b.classList.remove("busy");b.textContent=b.dataset.label;}var t=v.querySelector(".ticks");if(t)t.classList.remove("read");}
+ function select(id){agents.forEach(function(a){a.classList.toggle("on",a.dataset.a===id);});
+   for(var k in views){var on=k===id;views[k].classList.toggle("on",on);if(on)resetView(views[k]);}
+   setStat(id);}
+ async function approveAnim(id){var v=views[id],card=v.querySelector(".card"),btn=v.querySelector(".approve");
+   btn.classList.add("busy");btn.textContent=btn.dataset.busy;
+   await delay(950); card.classList.add("done");
+   await delay(700); var t=v.querySelector(".ticks"); if(t)t.classList.add("read");}
+ async function run(){
+   select("cob"); await delay(1000);
+   while(true){
+     for(var i=0;i<order.length;i++){ var id=order[i];
+       var row=agents.filter(function(a){return a.dataset.a===id;})[0];
+       await move(row); await press(); select(id);
+       await delay(1500);
+       var btn=views[id].querySelector(".approve");
+       await move(btn); await press(); await approveAnim(id);
+       await delay(1850);
+     }
+   }
+ }
+ run();
+})();
+</script>
+</body>
+</html>

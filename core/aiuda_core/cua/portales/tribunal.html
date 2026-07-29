@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Tribunal - Consulta de acuerdos</title>
+<!-- Portal de PRUEBA local para misiones CUA: simula el boletin de un tribunal
+     (buscador de expediente + lista de acuerdos). Sin login. Datos ficticios.
+     Expedientes con acuerdos: 123/2026 y 77/2025. Estatico: file:// o HTTP local. -->
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #f2f3f5; color: #20262c; }
+  header { background: #2b3a48; color: #fff; padding: 14px 28px; display: flex; align-items: center; gap: 12px; }
+  header .logo { width: 26px; height: 26px; border-radius: 4px; background: #8a9bab; }
+  header h1 { font-size: 16px; font-weight: 600; margin: 0; }
+  .demo-tag { margin-left: auto; font-size: 11px; background: #f4c95d; color: #3a2f00; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+  main { max-width: 860px; margin: 24px auto; padding: 0 20px; }
+  .card { background: #fff; border: 1px solid #d9dee3; border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #5d6b78; margin: 0; padding: 14px 18px; border-bottom: 1px solid #eef1f3; }
+  form { padding: 18px; display: flex; gap: 10px; align-items: end; }
+  .campo { flex: 1; max-width: 320px; }
+  label { display: block; font-size: 12.5px; font-weight: 600; color: #46535f; margin-bottom: 5px; }
+  input { width: 100%; box-sizing: border-box; font-size: 14px; padding: 9px 10px; border: 1px solid #c2ccd5; border-radius: 6px; }
+  button { font-size: 14px; font-weight: 600; color: #fff; background: #2b3a48; border: 0; border-radius: 6px; padding: 10px 22px; cursor: pointer; }
+  .hint { padding: 0 18px 14px; color: #75828e; font-size: 12px; margin: 0; }
+  #resultado { display: none; }
+  #sin-resultado { display: none; padding: 16px 18px; font-size: 13px; color: #75828e; }
+  ul.acuerdos { list-style: none; margin: 0; padding: 0; }
+  ul.acuerdos li { padding: 13px 18px; border-bottom: 1px solid #eef1f3; font-size: 13.5px; }
+  ul.acuerdos li:last-child { border-bottom: 0; }
+  .fecha { font-variant-numeric: tabular-nums; font-weight: 600; color: #46535f; margin-right: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"></div>
+  <h1>Poder Judicial · Lista de acuerdos publicados</h1>
+  <span class="demo-tag">Portal de prueba local · datos ficticios</span>
+</header>
+<main>
+  <section class="card">
+    <h2>Consulta por numero de expediente</h2>
+    <form id="form-busqueda">
+      <div class="campo">
+        <label for="expediente">Numero de expediente</label>
+        <input id="expediente" name="expediente" placeholder="Ej. 123/2026" autocomplete="off" autofocus />
+      </div>
+      <button type="submit">Buscar</button>
+    </form>
+    <p class="hint">Escribe el numero tal como aparece en tu caratula (numero/anio).</p>
+  </section>
+
+  <section id="resultado" class="card">
+    <h2 id="titulo-resultado">Acuerdos del expediente</h2>
+    <ul class="acuerdos" id="lista-acuerdos"></ul>
+  </section>
+  <section id="vacio" class="card" style="display:none">
+    <h2>Sin resultados</h2>
+    <p id="sin-resultado" style="display:block">No hay acuerdos publicados para ese expediente.</p>
+  </section>
+</main>
+<script>
+  // Foco determinista: el autofocus del parser puede perderse en arranques
+  // frios de headless; al terminar de cargar se reafirma.
+  window.addEventListener("load", function () { document.getElementById("expediente").focus(); });
+  // Boletin ficticio: expediente -> acuerdos publicados.
+  var ACUERDOS = {
+    "123/2026": [
+      { fecha: "2026-06-30", sintesis: "Se admite la demanda y se ordena emplazar a la parte demandada." },
+      { fecha: "2026-07-04", sintesis: "Se tiene por contestada la demanda; se abre periodo probatorio." }
+    ],
+    "77/2025": [
+      { fecha: "2026-06-18", sintesis: "Se difiere la audiencia incidental a peticion de ambas partes." },
+      { fecha: "2026-07-02", sintesis: "Se dicta sentencia interlocutoria; se condena al pago de costas." }
+    ]
+  };
+  document.getElementById("form-busqueda").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var num = document.getElementById("expediente").value.trim();
+    var acuerdos = ACUERDOS[num];
+    var res = document.getElementById("resultado");
+    var vacio = document.getElementById("vacio");
+    if (!acuerdos) {
+      res.style.display = "none";
+      vacio.style.display = "block";
+      return;
+    }
+    vacio.style.display = "none";
+    document.getElementById("titulo-resultado").textContent = "Acuerdos del expediente " + num;
+    var ul = document.getElementById("lista-acuerdos");
+    ul.innerHTML = "";
+    acuerdos.forEach(function (a) {
+      var li = document.createElement("li");
+      var f = document.createElement("span");
+      f.className = "fecha";
+      f.textContent = a.fecha;
+      li.appendChild(f);
+      li.appendChild(document.createTextNode(a.sintesis));
+      ul.appendChild(li);
+    });
+    res.style.display = "block";
+    document.title = "Tribunal - Expediente " + num;
+  });
+</script>
+</body>
+</html>

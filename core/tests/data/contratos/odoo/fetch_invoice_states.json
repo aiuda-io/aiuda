@@ -1,0 +1,50 @@
+{
+  "verificado_en_vivo": "2026-07-11",
+  "fuente": "réplica local Odoo 19 de hanova_facturas via XML-RPC; datos ya sinteticos (folios INV/*, montos de prueba), sin redaccion",
+  "metodo_conector": "fetch_invoice_states",
+  "nota": "Mezcla real de los tres desenlaces: move 1 pagada (payment_state paid), move 131 parcial (se deja igual), move 248 cancelada (state cancel, name false). Un id inexistente que Odoo no trae simplemente no aparece en la respuesta.",
+  "llamadas": [
+    {
+      "model": "account.move",
+      "method": "read",
+      "args": [
+        [
+          1,
+          131,
+          248
+        ]
+      ],
+      "kwargs": {
+        "fields": [
+          "name",
+          "state",
+          "payment_state",
+          "amount_residual"
+        ]
+      },
+      "response": [
+        {
+          "id": 1,
+          "name": "INV/2026/00014",
+          "state": "posted",
+          "payment_state": "paid",
+          "amount_residual": 0.0
+        },
+        {
+          "id": 131,
+          "name": "INV/2026/00108",
+          "state": "posted",
+          "payment_state": "partial",
+          "amount_residual": 45593.86
+        },
+        {
+          "id": 248,
+          "name": false,
+          "state": "cancel",
+          "payment_state": "not_paid",
+          "amount_residual": 61009.61
+        }
+      ]
+    }
+  ]
+}

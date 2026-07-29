@@ -1,0 +1,45 @@
+name: Propuesta de mejora
+description: Una idea, un conector nuevo o un cambio que te haría falta.
+title: "[Mejora]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cuéntanos qué necesitas y para qué. Las propuestas se evalúan contra la
+        visión del proyecto (docs/VISION.md): trazabilidad, soberanía humana,
+        procedencia de datos y KISS.
+  - type: textarea
+    id: que-necesitas
+    attributes:
+      label: Qué necesitas
+      description: La mejora o capacidad que propones, en una o dos frases.
+      placeholder: Un conector para leer facturas desde Contpaqi.
+    validations:
+      required: true
+  - type: textarea
+    id: para-que
+    attributes:
+      label: Para qué te sirve
+      description: El problema real que resuelve. Qué haces hoy sin esto.
+      placeholder: Hoy exporto a Excel a mano cada semana para poder cobrar.
+    validations:
+      required: true
+  - type: textarea
+    id: como-lo-imaginas
+    attributes:
+      label: Cómo lo imaginas
+      description: Si tienes una idea de cómo debería verse o funcionar, descríbela. Opcional.
+    validations:
+      required: false
+  - type: dropdown
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Dónde lo usarías.
+      options:
+        - App de escritorio
+        - Desde el código (uv run aiuda start)
+        - Ambos / no aplica
+    validations:
+      required: false

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Permisos mínimos que el hardened runtime bloquea y que el server sí necesita.
+  El hardened runtime es requisito para que Apple notarice la app, y por default
+  mata al binario que hace estas tres cosas. El server de aiuda las hace porque
+  viaja empaquetado con PyInstaller: al arrancar se desempaca en una carpeta
+  temporal y carga desde ahí el intérprete de Python y sus librerías.
+
+  Nada más que esto: cada permiso que se agrega es un candado que se quita.
+-->
+<plist version="1.0">
+<dict>
+  <!-- Cargar las librerías de Python desempacadas, que no llevan nuestra firma. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+
+  <!-- CPython escribe y ejecuta memoria al arrancar el intérprete. -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+
+  <!-- PyInstaller apunta el cargador a la carpeta desempacada con DYLD_*. -->
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+</dict>
+</plist>

@@ -1,0 +1,126 @@
+[?2026h[?25l[1Gpulling manifest ⠙ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠙ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠸ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠼ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠴ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠦ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠦ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠇ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠇ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest [K
+pulling 797b70c4edf8:   0% ▕                  ▏  65 KB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:   1% ▕                  ▏ 294 KB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:   9% ▕█                 ▏ 3.9 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  27% ▕████              ▏  12 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  35% ▕██████            ▏  15 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  44% ▕███████           ▏  20 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  57% ▕██████████        ▏  26 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  65% ▕███████████       ▏  29 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  83% ▕██████████████    ▏  38 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  85% ▕███████████████   ▏  39 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  95% ▕█████████████████ ▏  43 MB/ 45 MB                  [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8:  98% ▕█████████████████ ▏  44 MB/ 45 MB   43 MB/s      0s[K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K[?25h[?2026l[?2026h[?25l[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K[?25h[?2026l[?2026h[?25l[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K[?25h[?2026l[?2026h[?25l[A[A[A[A[1Gpulling manifest [K
+pulling 797b70c4edf8: 100% ▕██████████████████▏  45 MB                         [K
+pulling c71d239df917: 100% ▕██████████████████▏  11 KB                         [K
+pulling 85011998c600: 100% ▕██████████████████▏   16 B                         [K
+pulling 548455b72658: 100% ▕██████████████████▏  407 B                         [K
+verifying sha256 digest [K
+writing manifest [K
+success [K[?25h[?2026l

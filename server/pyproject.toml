@@ -1,0 +1,38 @@
+[project]
+name = "aiuda-server"
+version = "0.1.0"
+description = "aiuda server — API local y jobs (corre en tu computadora)"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [{ name = "Hanova Consulting", email = "consulting@hanova.mx" }]
+dependencies = [
+    "aiuda-core",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",
+    "segno>=1.6.6",
+    # Bonjour: para que el teléfono reencuentre esta computadora cuando el
+    # router le cambie la dirección, sin que el dueño escriba una IP.
+    "zeroconf>=0.132",
+]
+
+[project.optional-dependencies]
+# Postgres es opcional: el default local es SQLite. Este extra es para una
+# instancia operada (varios usuarios) que apunte DATABASE_URL a Postgres.
+postgres = ["psycopg[binary]>=3.1"]
+
+[project.scripts]
+aiuda = "aiuda_server.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aiuda_server"]
+
+# La consola exportada viaja DENTRO del wheel: `uvx aiuda` no necesita Node.
+# Orden de build (RELEASING.md): exportar la consola y COPIARLA a
+# aiuda_server/static antes de construir. `artifacts` la incluye aunque esté
+# gitignoreada; si no existe, el build igual pasa (modo API-sin-consola).
+artifacts = ["aiuda_server/static/**"]

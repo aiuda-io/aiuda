@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#2596be"/>
+  <text x="29" y="46" text-anchor="middle" font-family="Avenir Next, Avenir, -apple-system, Segoe UI, sans-serif" font-size="42" font-weight="600" fill="#fafcfd">a</text>
+  <circle cx="48" cy="42" r="5" fill="#7ec8e3"/>
+</svg>

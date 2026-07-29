@@ -1,0 +1,72 @@
+{
+  "verificado_en_vivo": "2026-07-07",
+  "fuente": "Odoo 19.0+e-20260318 de Hanova Consulting via XML-RPC; datos personales REDACTADOS (nombres/telefonos/emails sinteticos, misma forma)",
+  "metodo_conector": "test_connection",
+  "llamadas": [
+    {
+      "model": "res.partner",
+      "method": "search_count",
+      "args": [
+        []
+      ],
+      "kwargs": {},
+      "response": 25
+    },
+    {
+      "model": "res.partner",
+      "method": "search_count",
+      "args": [
+        [
+          [
+            "customer_rank",
+            ">",
+            0
+          ]
+        ]
+      ],
+      "kwargs": {},
+      "response": 3
+    },
+    {
+      "model": "account.move",
+      "method": "search_count",
+      "args": [
+        [
+          [
+            "move_type",
+            "=",
+            "out_invoice"
+          ],
+          [
+            "state",
+            "in",
+            [
+              "draft",
+              "posted"
+            ]
+          ],
+          [
+            "amount_residual",
+            ">",
+            0
+          ]
+        ]
+      ],
+      "kwargs": {},
+      "response": 1
+    }
+  ],
+  "version_response": {
+    "server_version": "19.0+e-20260318",
+    "server_version_info": [
+      19,
+      0,
+      0,
+      "final",
+      0,
+      "e"
+    ],
+    "protocol_version": 1
+  },
+  "ajuste_post_grabacion": "2026-07-07, tras la grabacion en vivo: 'Probar conexion' ahora cuenta tambien los clientes reales (customer_rank>0, respuesta 3 derivada de la lectura en vivo de fetch_partners) y el conteo de facturas usa el filtro de fetch_open_invoices (amount_residual>0; la factura viva tenia saldo, sigue contando 1). Pendiente re-verificar en vivo contra Hanova."
+}

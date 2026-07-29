@@ -1,0 +1,44 @@
+{
+  "_nota": "Forma DOCUMENTADA de GET /v1/charges de Stripe (stripe.com/docs/api/charges/list). NO es una respuesta grabada de una cuenta real: cuando exista la primera corrida en vivo, este archivo se reemplaza por la respuesta real (redactada). Hasta entonces, la señal en el producto es 'pendiente de verificar en vivo'.",
+  "object": "list",
+  "url": "/v1/charges",
+  "has_more": false,
+  "data": [
+    {
+      "id": "ch_3PxYzA2eZvKYlo2C1a2b3c4d",
+      "object": "charge",
+      "amount": 1707360,
+      "amount_captured": 1707360,
+      "amount_refunded": 0,
+      "billing_details": {
+        "email": "compras@papeleriabic.mx",
+        "name": "Papeleria Bic SA de CV",
+        "phone": null
+      },
+      "created": 1781049600,
+      "currency": "mxn",
+      "description": "Factura M-104",
+      "paid": true,
+      "refunded": false,
+      "status": "succeeded"
+    },
+    {
+      "id": "ch_3PxYzB2eZvKYlo2C9z8y7x6w",
+      "object": "charge",
+      "amount": 500000,
+      "amount_captured": 0,
+      "amount_refunded": 0,
+      "billing_details": {
+        "email": "pagos@fogon.mx",
+        "name": "Restaurante Fogon",
+        "phone": null
+      },
+      "created": 1781136000,
+      "currency": "mxn",
+      "description": "Factura M-108",
+      "paid": false,
+      "refunded": false,
+      "status": "failed"
+    }
+  ]
+}

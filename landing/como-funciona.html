@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8" />
+<!--
+  El diagrama de "cómo funciona", para la landing y el README. Se arma con la
+  paleta y la tipografía del sitio, así que cambiar la marca no lo desalinea.
+
+  Para exportarlo:  uv run python scripts/diagrama.py
+-->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --paper: oklch(0.99 0.004 245);
+  --card: oklch(1 0 0);
+  --ink: oklch(0.26 0.045 250);
+  --ink-muted: oklch(0.47 0.03 250);
+  --ink-faint: oklch(0.585 0.022 250);
+  --brand: oklch(0.52 0.115 238);
+  --brand-soft: oklch(0.955 0.026 238);
+  --ok: oklch(0.56 0.1 162);
+  --ok-soft: oklch(0.965 0.03 162);
+  --line: oklch(0.915 0.008 250);
+  --display: "Satoshi", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+*{ box-sizing:border-box; margin:0; padding:0 }
+body{
+  width:1400px; height:720px; background:var(--paper); color:var(--ink);
+  font-family:var(--body); padding:56px 60px;
+  display:flex; flex-direction:column; gap:30px;
+}
+header h1{ font-family:var(--display); font-weight:900; font-size:34px; letter-spacing:-.025em }
+header p{ font-size:16px; color:var(--ink-muted); margin-top:7px }
+
+.flujo{ flex:1; display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:stretch; gap:0 }
+
+.col{ display:flex; flex-direction:column; gap:12px }
+.etiqueta{
+  font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-faint);
+}
+.caja{
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:16px 18px; flex:1; display:flex; flex-direction:column; gap:11px;
+}
+.caja.acento{ border-color:oklch(0.85 0.05 238); background:var(--brand-soft) }
+.caja.humano{ border-color:oklch(0.85 0.05 162); background:var(--ok-soft) }
+
+.fila{ display:flex; align-items:center; gap:9px; font-size:15px }
+.punto{ width:7px; height:7px; border-radius:50%; background:var(--brand); flex:none }
+.punto.gris{ background:oklch(0.78 0.01 250) }
+.punto.verde{ background:var(--ok) }
+
+.titulo{ font-family:var(--display); font-weight:700; font-size:19px; letter-spacing:-.01em }
+.nota{ font-size:13.5px; line-height:1.5; color:var(--ink-muted); margin-top:auto }
+
+/* La flecha: una línea con punta, sin adornos. */
+.flecha{ display:flex; flex-direction:column; justify-content:center; align-items:center; width:96px; gap:8px }
+.flecha svg{ width:56px; height:14px; color:oklch(0.8 0.012 250) }
+.flecha span{ font-size:12.5px; color:var(--ink-faint); text-align:center; line-height:1.35 }
+
+.pie{
+  display:flex; align-items:center; justify-content:space-between;
+  border-top:1px solid var(--line); padding-top:18px; font-size:14px; color:var(--ink-muted);
+}
+.pie b{ color:var(--ink); font-weight:600 }
+.marca{ display:flex; align-items:center; gap:8px; font-family:var(--display); font-weight:900; font-size:20px; color:var(--ink) }
+.marca i{ width:8px; height:8px; border-radius:50%; background:var(--brand); font-style:normal }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Cómo funciona</h1>
+    <p>Todo esto ocurre en la computadora de tu negocio. Nada sale sin que tú lo apruebes.</p>
+  </header>
+
+  <div class="flujo">
+    <div class="col">
+      <span class="etiqueta">Lo que ya tienes</span>
+      <div class="caja">
+        <span class="titulo">Tus fuentes</span>
+        <div class="fila"><span class="punto gris"></span>Tu sistema</div>
+        <div class="fila"><span class="punto gris"></span>Tu Excel</div>
+        <div class="fila"><span class="punto gris"></span>Tus CFDI</div>
+        <div class="fila"><span class="punto gris"></span>Tu WhatsApp</div>
+        <div class="fila"><span class="punto gris"></span>Tu banco</div>
+        <p class="nota">Siguen mandando ellas. aiuda lee con procedencia: cada dato sabe de dónde vino.</p>
+      </div>
+    </div>
+
+    <div class="flecha">
+      <svg viewBox="0 0 56 14" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M0 7h48M42 2l6 5-6 5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>lee</span>
+    </div>
+
+    <div class="col">
+      <span class="etiqueta">En tu computadora</span>
+      <div class="caja acento">
+        <span class="titulo">Tu ayudante</span>
+        <div class="fila"><span class="punto"></span>Revisa quién te debe</div>
+        <div class="fila"><span class="punto"></span>Redacta el mensaje</div>
+        <div class="fila"><span class="punto"></span>Concilia los pagos</div>
+        <div class="fila"><span class="punto"></span>Anota las promesas</div>
+        <p class="nota">Piensa con la IA que tú conectaste: la que ya tienes instalada, tu llave, o un modelo local.</p>
+      </div>
+    </div>
+
+    <div class="flecha">
+      <svg viewBox="0 0 56 14" fill="none" stroke="currentColor" stroke-width="1.6">
+        <path d="M0 7h48M42 2l6 5-6 5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>propone</span>
+    </div>
+
+    <div class="col">
+      <span class="etiqueta">Tú decides</span>
+      <div class="caja humano">
+        <span class="titulo">Tu visto bueno</span>
+        <div class="fila"><span class="punto verde"></span>Apruebas</div>
+        <div class="fila"><span class="punto verde"></span>Editas</div>
+        <div class="fila"><span class="punto verde"></span>Rechazas</div>
+        <p class="nota">Hasta aquí no ha salido nada. Lo que apruebas se manda, y regresa anotado a tu sistema.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pie">
+    <span>Sin cuentas. Sin servidores de nadie más. Sin telemetría. <b>Apache-2.0</b></span>
+    <span class="marca">aiuda<i></i></span>
+  </div>
+</body>
+</html>

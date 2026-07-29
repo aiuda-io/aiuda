@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# Env / secretos — NUNCA commitear credenciales
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Datos locales
+*.sqlite3
+postgres-data/
+.astro/
+dist/
+build/
+*.spec.bak
+
+# App de escritorio
+desktop/src-tauri/target/
+desktop/src-tauri/binaries/
+desktop/src-tauri/gen/
+
+# Artefacto de build: la consola exportada (scripts/build-app.sh la genera)
+server/aiuda_server/static/
+# El manual, armado desde docs/ antes de cada build (web/scripts/manual.mjs)
+web/public/manual/
