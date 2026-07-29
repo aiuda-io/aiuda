@@ -10,6 +10,10 @@ from conftest import FakeResponse
 
 TODAY = date(2026, 6, 9)  # con invoice (vence 2026-05-31): bucket vencida_reciente, 9 días
 
+# La factura de conftest es F-001 por $12,500.50, y el motor descarta el borrador
+# que no las cita: un fake tiene que verse como algo que sí saldría al cliente.
+RECORDATORIO = "Buen día, le recuerdo su factura F-001 por $12,500.50, ya vencida."
+
 
 def make_engine(session, tenant, fake_client):
     return CleoEngine(session, tenant, runner=ClaudeRunner(client=fake_client))
@@ -39,10 +43,11 @@ def test_tono_base_pone_piso_y_firma_y_reglas(
         {"tono_base": "firme", "escalar_por_atraso": True, "firma": "Equipo Hanova",
          "reglas": "Nunca menciones recargos."},
     )
-    fake = fake_client_factory(FakeResponse("Su factura F-001 sigue pendiente."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     r = make_engine(session, tenant, fake).draft_reminder(invoice, customer, TODAY)
     # el bucket pediría "amable_directo" (sev 2), pero el piso firme (sev 3) manda
     assert r.tone == "firme"
+    assert r.message.startswith(RECORDATORIO)
     assert r.message.endswith("Equipo Hanova")  # firma anexada
     assert "Nunca menciones recargos." in fake.messages.requests[0]["system"]  # reglas al prompt
 
@@ -54,7 +59,7 @@ def test_escalar_apagado_usa_solo_el_tono_base(
         session, tenant, "cobranza.redactar_recordatorio",
         {"tono_base": "amable", "escalar_por_atraso": False},
     )
-    fake = fake_client_factory(FakeResponse("Recordatorio amable."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     r = make_engine(session, tenant, fake).draft_reminder(invoice, customer, TODAY)
     assert r.tone == "amable"  # sin escalar, no sube a amable_directo
 
@@ -67,7 +72,7 @@ def test_autonomia_auto_bajo_umbral_aprueba_solo(
         {"autonomia": "auto_bajo_umbral", "umbral_auto_dias": 15, "tope_critico_dias": 45,
          "cooldown_dias": 4},
     )
-    fake = fake_client_factory(FakeResponse("Recordatorio"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     r = make_engine(session, tenant, fake).draft_reminder(invoice, customer, TODAY)
     assert r.status == "approved"  # 9 días < umbral 15 -> auto
 
@@ -82,7 +87,7 @@ def test_autonomia_siempre_pedir_gana_sobre_tenant(
         {"autonomia": "siempre_pedir", "umbral_auto_dias": 7, "tope_critico_dias": 45,
          "cooldown_dias": 4},
     )
-    fake = fake_client_factory(FakeResponse("Recordatorio"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     r = make_engine(session, tenant, fake).draft_reminder(invoice, customer, TODAY)
     assert r.status == "pending_approval"  # siempre pide tu OK
 
@@ -168,7 +173,7 @@ def test_dias_de_gracia_pospone_el_seguimiento(session, tenant, customer, invoic
 def test_promesa_fuera_de_gracia_si_dispara(session, tenant, customer, invoice, fake_client_factory):
     con_aiudita(session, tenant, "cobranza.registrar_promesa_pago", {"dias_gracia": 2, "seguir_si_incumple": True})
     _promesa(session, tenant, invoice, dias_vencida=5)  # 5 > 2 de gracia: incumple
-    fake = fake_client_factory(FakeResponse("Seguimiento"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     drafted = make_engine(session, tenant, fake).run_reminders(TODAY)
     assert len(drafted) == 1
     assert "prometió pagar" in fake.messages.requests[0]["messages"][0]["content"]
@@ -243,7 +248,7 @@ def test_incluir_link_pago_anexa_el_link(
     import aiuda_core.engine.cobro as cobro
 
     monkeypatch.setattr(cobro, "resolver_pasarela", lambda s, t: ("mercadopago", fp))
-    fake = fake_client_factory(FakeResponse("Su factura F-001 sigue pendiente."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     r = make_engine(session, tenant, fake).draft_reminder(invoice, customer, TODAY)
     assert "Paga aquí: https://mpago.la/PAGA123" in r.message
     assert fp.args[0] == float(invoice.amount)  # el monto de la factura
@@ -263,7 +268,7 @@ def test_sin_perilla_ni_intenta_resolver_pasarela(
         return (None, None)
 
     monkeypatch.setattr(cobro, "resolver_pasarela", espia)
-    fake = fake_client_factory(FakeResponse("Su factura F-001 sigue pendiente."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     r = make_engine(session, tenant, fake).draft_reminder(invoice, customer, TODAY)
     assert "Paga aquí" not in r.message
     assert llamadas["n"] == 0  # apagado por defecto: cero costo
@@ -281,7 +286,7 @@ def test_link_pago_caido_no_rompe_el_recordatorio(
     import aiuda_core.engine.cobro as cobro
 
     monkeypatch.setattr(cobro, "resolver_pasarela", lambda s, t: ("mercadopago", _Boom()))
-    fake = fake_client_factory(FakeResponse("Su factura F-001 sigue pendiente."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     r = make_engine(session, tenant, fake).draft_reminder(invoice, customer, TODAY)
     assert r.status == "pending_approval"  # el recordatorio sale igual, sin link
     assert "Paga aquí" not in r.message

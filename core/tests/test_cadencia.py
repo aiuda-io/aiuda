@@ -11,6 +11,10 @@ from conftest import FakeResponse
 
 TODAY = date(2026, 6, 9)
 
+# La factura de conftest: F-001 por $12,500.50. El motor descarta el borrador que
+# no cita folio y monto, así que el fake tiene que citarlos.
+RECORDATORIO = "Buen día, le recuerdo su factura F-001 por $12,500.50, ya vencida."
+
 
 def make_engine(session, tenant, fake_client):
     return CleoEngine(session, tenant, runner=ClaudeRunner(client=fake_client))
@@ -79,7 +83,7 @@ def test_cooldown_vencido_permite_seguimiento(
     session, tenant, customer, invoice, fake_client_factory
 ):
     sent_reminder(session, tenant, invoice, days_ago=5)
-    engine = make_engine(session, tenant, fake_client_factory(FakeResponse("Seguimiento")))
+    engine = make_engine(session, tenant, fake_client_factory(FakeResponse(RECORDATORIO)))
     drafted = engine.run_reminders(TODAY)
     assert len(drafted) == 1  # default 4 dias: a los 5 ya toca
 
@@ -107,7 +111,7 @@ def test_promesa_incumplida_dispara_seguimiento_inmediato(
         )
     )
     session.flush()
-    fake = fake_client_factory(FakeResponse("Seguimiento de promesa"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     engine = make_engine(session, tenant, fake)
     drafted = engine.run_reminders(TODAY)
     assert len(drafted) == 1

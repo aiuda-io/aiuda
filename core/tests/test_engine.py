@@ -11,6 +11,12 @@ from conftest import FakeResponse
 
 TODAY = date(2026, 6, 9)
 
+# Lo que un modelo de verdad contesta para la factura de conftest (F-001 por
+# $12,500.50). El motor descarta el borrador que no cita folio y monto, así que
+# un "Recordatorio" pelón no sirve ni como fake: no representa nada que pudiera
+# salirle a un cliente.
+RECORDATORIO = "Buen día, le recuerdo su factura F-001 por $12,500.50, ya vencida."
+
 
 def make_engine(session, tenant, fake_client, send_log=None):
     runner = ClaudeRunner(client=fake_client, usage_callback=None)
@@ -30,7 +36,7 @@ def make_engine(session, tenant, fake_client, send_log=None):
 def test_draft_reminder_queda_pendiente_de_aprobacion(
     session, tenant, customer, invoice, fake_client_factory
 ):
-    fake = fake_client_factory(FakeResponse("Hola, su factura F-001 está pendiente."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     engine = make_engine(session, tenant, fake)
     reminder = engine.draft_reminder(invoice, customer, TODAY)
 
@@ -44,7 +50,7 @@ def test_draft_reminder_queda_pendiente_de_aprobacion(
 
 
 def test_run_reminders_no_duplica_activos(session, tenant, customer, invoice, fake_client_factory):
-    fake = fake_client_factory(FakeResponse("Mensaje 1"), FakeResponse("Mensaje 2"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO), FakeResponse(RECORDATORIO))
     engine = make_engine(session, tenant, fake)
     first = engine.run_reminders(TODAY)
     assert len(first) == 1
@@ -56,21 +62,21 @@ def test_auto_send_aprueba_solo_buckets_configurados(
     session, tenant, customer, invoice, fake_client_factory
 ):
     tenant.config = {"auto_send_buckets": ["vencida_reciente"]}
-    fake = fake_client_factory(FakeResponse("Recordatorio"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     engine = make_engine(session, tenant, fake)
     reminder = engine.draft_reminder(invoice, customer, TODAY)
     assert reminder.status == "approved"
 
 
 def test_aprobar_y_enviar(session, tenant, customer, invoice, fake_client_factory):
-    fake = fake_client_factory(FakeResponse("Recordatorio de pago"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     sent = []
     engine = make_engine(session, tenant, fake, send_log=sent)
     reminder = engine.draft_reminder(invoice, customer, TODAY)
     engine.approve(reminder)
     engine.send(reminder, customer.phone)
     assert reminder.status == "sent"
-    assert sent == [(customer.phone, "Recordatorio de pago")]
+    assert sent == [(customer.phone, RECORDATORIO)]
 
 
 def test_send_evalua_la_ventana_en_hora_de_mexico(
@@ -103,7 +109,7 @@ def test_send_evalua_la_ventana_en_hora_de_mexico(
     monkeypatch.setattr(engine_mod, "datetime", _DT)
 
     sent: list = []
-    engine = make_engine(session, tenant, fake_client_factory(FakeResponse("Recordatorio")), sent)
+    engine = make_engine(session, tenant, fake_client_factory(FakeResponse(RECORDATORIO)), sent)
     reminder = engine.draft_reminder(invoice, customer, TODAY)
     engine.approve(reminder)
     engine.send(reminder, customer.phone)
@@ -119,7 +125,7 @@ def test_modo_sombra_retiene_el_envio_de_recordatorios(
 
     tenant.config = {"modo_sombra": True}
     sent: list = []
-    engine = make_engine(session, tenant, fake_client_factory(FakeResponse("Recordatorio")), sent)
+    engine = make_engine(session, tenant, fake_client_factory(FakeResponse(RECORDATORIO)), sent)
     reminder = engine.draft_reminder(invoice, customer, TODAY)
     engine.approve(reminder)
     with pytest.raises(ShadowHold):
@@ -140,7 +146,7 @@ def test_modo_sombra_no_manda_por_el_canal_directo(
 
 
 def test_registro_de_uso_por_tenant(session, tenant, customer, invoice, fake_client_factory):
-    fake = fake_client_factory(FakeResponse("Recordatorio"))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     engine = make_engine(session, tenant, fake)
     engine.draft_reminder(invoice, customer, TODAY)
     session.flush()
@@ -224,11 +230,13 @@ def test_draft_reminder_tambien_plancha_markdown(
     session, tenant, customer, invoice, fake_client_factory
 ):
     fake = fake_client_factory(
-        FakeResponse("**Recordatorio:** su factura F-001 vence pronto.\n___\nGracias.")
+        FakeResponse("**Recordatorio:** su factura F-001 por $12,500.50 vence pronto.\n___\nGracias.")
     )
     engine = make_engine(session, tenant, fake)
     reminder = engine.draft_reminder(invoice, customer, TODAY)
-    assert reminder.message == "Recordatorio: su factura F-001 vence pronto.\nGracias."
+    assert reminder.message == (
+        "Recordatorio: su factura F-001 por $12,500.50 vence pronto.\nGracias."
+    )
 
 
 def test_strip_markdown_plancha_reporte():
