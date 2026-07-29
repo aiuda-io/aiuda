@@ -118,7 +118,9 @@ def test_run_daily_omite_si_ya_hay_una_corriendo(monkeypatch):
 def test_run_daily_libera_el_lock_al_terminar(monkeypatch):
     import aiuda_server.worker.main as worker
 
-    monkeypatch.setattr(worker, "_run_daily_impl", lambda now=None: {"ok": True})
+    monkeypatch.setattr(
+        worker, "_run_daily_impl", lambda now=None, horas_cubiertas=None: {"ok": True}
+    )
     assert worker.run_daily_blocking() == {"ok": True}
     # el lock quedó libre para la siguiente corrida
     assert worker._daily_lock.acquire(blocking=False)

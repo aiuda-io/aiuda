@@ -316,12 +316,13 @@ def test_set_aiudita_valida_la_fuente(client, demo_tenant, demo_login):
 # --- Correr al ayudante + plan de carrera ------------------------------------
 
 class _FakeRunner:
-    """Runner mínimo para la corrida: redacta un texto fijo, sin IA real."""
+    """Runner mínimo para la corrida: redacta sin IA real, pero un texto que sí se
+    le podría mandar a un cliente (el motor descarta lo que no cita folio y monto)."""
 
     _usage_callback = None
 
     def complete(self, system, user, **kw):
-        return "Recordatorio de prueba para su factura."
+        return "Buen día, le recuerdo su factura F-77 por $1,800.00, ya vencida."
 
 
 def _factura_vencida(db_session, tenant):

@@ -10,6 +10,10 @@ from conftest import FakeResponse
 
 TODAY = date(2026, 6, 9)
 
+# La factura de conftest: F-001 por $12,500.50. El motor no guarda el borrador que
+# no las cita, así que ni como fake sirve un "Recordatorio." pelón.
+RECORDATORIO = "Buen día, le recuerdo su factura F-001 por $12,500.50, ya vencida."
+
 
 def _engine(session, tenant, fake_client, ayudante_id=None):
     runner = ClaudeRunner(client=fake_client, usage_callback=None)
@@ -45,7 +49,7 @@ def test_corrida_como_ayudante_usa_su_config_y_atribuye(
         instructions="Habla de tú, sé breve.",
     )
 
-    fake = fake_client_factory(FakeResponse("Recuerda tu factura F-001."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     drafted = _engine(session, tenant, fake, ayudante_id=nuevo.id).run_reminders(TODAY)
 
     assert len(drafted) == 1
@@ -72,7 +76,7 @@ def test_corrida_tenant_atribuye_al_que_gobierna(
     )
     _ayudante(session, tenant, "gio", {"cobranza.redactar_recordatorio": {"tono_base": "firme"}})
 
-    fake = fake_client_factory(FakeResponse("Recordatorio."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     drafted = _engine(session, tenant, fake).run_reminders(TODAY)
 
     assert len(drafted) == 1
@@ -83,7 +87,7 @@ def test_sin_ayudantes_no_finge_atribucion(
     session, tenant, customer, invoice, fake_client_factory
 ):
     """Sin ayudantes creados, el motor corre como siempre y NO inventa un autor."""
-    fake = fake_client_factory(FakeResponse("Recordatorio."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     drafted = _engine(session, tenant, fake).run_reminders(TODAY)
 
     assert len(drafted) == 1
@@ -102,7 +106,7 @@ def test_corrida_como_ayudante_sin_la_aiudita_usa_defaults(
         session, tenant, "gio", {"cobranza.redactar_recordatorio": {}}
     )
 
-    fake = fake_client_factory(FakeResponse("Recordatorio."))
+    fake = fake_client_factory(FakeResponse(RECORDATORIO))
     engine = _engine(session, tenant, fake, ayudante_id=solo_envio.id)
     drafted = engine.run_reminders(TODAY)
 

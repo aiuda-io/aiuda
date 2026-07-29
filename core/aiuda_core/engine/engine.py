@@ -12,6 +12,7 @@ Corre a nivel tenant (la corrida diaria) o COMO un ayudante concreto
 quedan atribuidas a él (meta.ayudante_id), lo que alimenta su plan de carrera.
 """
 
+import logging
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -44,9 +45,19 @@ from aiuda_core.models import (
 )
 from aiuda_core.optout import OptedOut, opted_out
 
+log = logging.getLogger(__name__)
+
 # Zona horaria del negocio. Toda la cobranza se piensa en hora de México: la ventana de
 # no-molestar la configura el dueño en su reloj, no en el UTC del servidor.
 MX_TZ = ZoneInfo("America/Mexico_City")
+
+# Cuántos recordatorios puede redactar UNA corrida. Sin este freno, importar una
+# cartera con 300 facturas vencidas dispara 300 llamadas al LLM de un jalón: el
+# dueño lo paga completo el mismo día y recibe una bandeja que nadie va a
+# revisar. Lo que no cupo no se pierde — la corrida siguiente (cada hora) lo
+# levanta, porque la factura sigue sin recordatorio activo. Se mueve por negocio
+# con Tenant.config["max_borradores_corrida"].
+MAX_BORRADORES_POR_CORRIDA = 20
 
 # Mapea el "tono base" que elige el dueño (perilla) al tono interno del redactor.
 _TONO_BASE_A_TONO = {"amable": "amable", "directo": "amable_directo", "firme": "firme"}
@@ -58,6 +69,12 @@ class OutsideSendWindow(Exception):
     """El envío cae fuera de la franja horaria de no-molestar del negocio. No es un
     fallo: el recordatorio queda aprobado y se reintenta en la próxima corrida que
     caiga dentro de la ventana."""
+
+
+class BorradorInvalido(Exception):
+    """Lo que el modelo redactó no se le puede mandar a un cliente, así que no se
+    guarda. La factura queda sin recordatorio activo y la corrida siguiente la
+    vuelve a intentar; nadie recibe un mensaje a medias mientras tanto."""
 
 
 class ShadowHold(Exception):
@@ -85,6 +102,31 @@ def _within_window(raw: str, now: time) -> bool:
         return True
     ini, fin = win
     return ini <= now <= fin if ini <= fin else (now >= ini or now <= fin)
+
+
+def _menciona_monto(mensaje: str, monto: float) -> bool:
+    """¿El mensaje trae la cantidad? Se compara sin comas, para que '12,500.50',
+    '12500.50' y '12500' cuenten igual: el modelo escribe la cifra como quiera y
+    la reja no puede rechazar un mensaje bueno por una coma."""
+    plano = mensaje.replace(",", "")
+    return any(forma in plano for forma in (f"{monto:.2f}", str(int(monto))))
+
+
+def revisar_borrador(mensaje: str, *, factura_ref: str, monto: float) -> str:
+    """Qué le falta al borrador para poder salir; '' si está listo.
+
+    Es la última reja entre el modelo y el WhatsApp de un cliente real, y por eso
+    vive en código y no en el prompt: el prompt pide, esto garantiza. Un mensaje
+    vacío, sin folio o sin cantidad no es un recordatorio — es ruido con el
+    nombre del negocio encima.
+    """
+    if not mensaje.strip():
+        return "quedó vacío"
+    if factura_ref and factura_ref not in mensaje:
+        return f"no cita el folio {factura_ref}"
+    if not _menciona_monto(mensaje, monto):
+        return f"no menciona el monto ({monto:,.2f})"
+    return ""
 
 
 def _parse_hour(raw: str, default: int = 8) -> int:
@@ -128,12 +170,9 @@ class CleoEngine:
         self.shadow = bool((tenant.config or {}).get("modo_sombra"))
         # En sombra, el canal directo (respuestas del agente/dueño) se registra sin enviar.
         if self.shadow and send_whatsapp is not None:
-            import logging
-
-            _log = logging.getLogger(__name__)
 
             def _shadow_send(phone, text):
-                _log.info("modo sombra: NO se envió a %s (se habría enviado: %s)", phone, text[:80])
+                log.info("modo sombra: NO se envió a %s (se habría enviado: %s)", phone, text[:80])
 
             self.send_whatsapp = _shadow_send
         else:
@@ -191,6 +230,17 @@ class CleoEngine:
         if days >= int(env_cfg.get("tope_critico_dias", 45)):
             return False
         return days < int(env_cfg.get("umbral_auto_dias", 7))
+
+    def _tope_borradores(self) -> int:
+        """Cuántos recordatorios puede redactar esta corrida. El negocio puede
+        moverlo; un valor inservible (0, negativo, texto) cae al default en vez
+        de dejar al dueño sin cobranza por un dedazo en la configuración."""
+        crudo = (self.tenant.config or {}).get("max_borradores_corrida")
+        try:
+            propio = int(crudo)
+        except (TypeError, ValueError):
+            return MAX_BORRADORES_POR_CORRIDA
+        return propio if propio > 0 else MAX_BORRADORES_POR_CORRIDA
 
     def _link_de_pago(self, invoice: Invoice, factura_ref: str) -> str | None:
         """Genera un link de cobro con la pasarela conectada del tenant, o None si no
@@ -289,13 +339,22 @@ class CleoEngine:
                 )
                 + f"Fecha de vencimiento: {invoice.due_date} ({atraso})\n"
                 f"{promesa}"
-                f"Tono requerido ({tone}): {TONE_GUIDANCE[tone]}"
+                f"Tono requerido ({tone}): {TONE_GUIDANCE[tone]}\n"
+                "Escribe SIEMPRE el monto tal como te lo di"
+                + (f" y cita el folio {factura_ref}." if factura_ref else ".")
+                + " Un cobro sin cantidad obliga al cliente a adivinar de qué se le habla."
             ),
             role="redaccion",
             task="redactar_recordatorio",
             max_tokens=512,
         )
         msg = strip_markdown(strip_emojis(message)).strip()
+        # La reja, ANTES de anexar link y firma: si el modelo no dijo nada, la
+        # firma del negocio sola parecería un mensaje de verdad y saldría con
+        # auto-envío. Nada que no se le pueda mandar a un cliente se guarda.
+        falla = revisar_borrador(msg, factura_ref=factura_ref, monto=float(invoice.amount))
+        if falla:
+            raise BorradorInvalido(f"El borrador {falla}; no se guarda.")
         # Link de pago (opt-in): si el dueño lo activó y tiene una pasarela conectada,
         # el recordatorio sale con un link para pagar de una vez (tarjeta/OXXO/SPEI).
         # Silencioso ante fallo de la pasarela: el recordatorio se manda igual, sin link.
@@ -333,6 +392,9 @@ class CleoEngine:
         factura hasta pasar el cooldown (default 4 días, configurable por
         tenant). Excepción: una promesa de pago incumplida dispara seguimiento
         inmediato (una sola vez por promesa rota).
+
+        Tope por corrida (MAX_BORRADORES_POR_CORRIDA): se atiende primero lo más
+        atrasado y lo que no cupo espera a la corrida siguiente.
         """
         env_cfg = self._cob("cobranza.enviar_whatsapp")
         cooldown_days = (
@@ -345,13 +407,27 @@ class CleoEngine:
         prom_cfg = self._cob("cobranza.registrar_promesa_pago") or {}
         dias_gracia = int(prom_cfg.get("dias_gracia", 0))
         seguir_incumple = bool(prom_cfg.get("seguir_si_incumple", True))
+        # Por vencimiento: el tope de abajo corta por el final, así que lo más
+        # atrasado (lo que de verdad urge cobrar) tiene que ir primero.
         rows = self.session.execute(
             select(Invoice, Customer)
             .join(Customer, Invoice.customer_id == Customer.id)
             .where(Invoice.tenant_id == self.tenant.id, Invoice.status == "open")
+            .order_by(Invoice.due_date)
         ).all()
+        tope = self._tope_borradores()
         drafted: list[Reminder] = []
+        # Se cuentan los INTENTOS, no los borradores buenos: cada intento es una
+        # llamada al LLM que el dueño paga, salga o no.
+        intentos = 0
         for invoice, customer in rows:
+            if intentos >= tope:
+                log.info(
+                    "corrida: se alcanzó el tope de %d borradores; el resto sale "
+                    "en la corrida siguiente",
+                    tope,
+                )
+                break
             if classify(invoice.due_date, today) not in REMINDER_BUCKETS:
                 continue
             # El cliente pidió la baja (BAJA/STOP): no se le redacta cobranza. Su
@@ -402,9 +478,19 @@ class CleoEngine:
                 if days_since < cooldown_days:
                     continue  # cadencia: no insistir todavía
 
-            drafted.append(
-                self.draft_reminder(invoice, customer, today, broken_promise=broken_promise)
-            )
+            intentos += 1
+            try:
+                drafted.append(
+                    self.draft_reminder(invoice, customer, today, broken_promise=broken_promise)
+                )
+            except BorradorInvalido as exc:
+                # Una factura que el modelo no supo redactar no se lleva a las
+                # demás. Queda sin recordatorio activo, así que la corrida
+                # siguiente la reintenta.
+                log.warning(
+                    "factura %s sin recordatorio esta corrida: %s",
+                    invoice.folio or invoice.id, exc,
+                )
         return drafted
 
     # ---------- Aprobación y envío ----------

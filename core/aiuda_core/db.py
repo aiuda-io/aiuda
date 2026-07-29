@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from aiuda_core.config import settings
 from aiuda_core.models.base import Base
+
+log = logging.getLogger(__name__)
 
 _engine = None
 _SessionLocal = None
@@ -74,7 +77,30 @@ def session_scope() -> Iterator[Session]:
         session.close()
 
 
+def _crear_indices_faltantes(engine) -> None:
+    """Crea los índices que falten sobre tablas que YA existían.
+
+    ``metadata.create_all`` hace su checkfirst POR TABLA: si la tabla existe, ni
+    la mira, y un índice agregado después nunca se crea. El resultado sería que
+    el índice solo lo tienen las instalaciones nuevas, y quien lleva meses usando
+    aiuda —el único que ya tiene datos suficientes para notarlo— se queda sin él.
+    Sin Alembic, este es el lugar.
+
+    Un índice que no se puede crear no es motivo para no arrancar: es velocidad,
+    no corrección. Se registra y se sigue.
+    """
+    for table in Base.metadata.sorted_tables:
+        for index in table.indexes:
+            try:
+                with engine.begin() as conn:
+                    index.create(bind=conn, checkfirst=True)
+            except Exception:  # noqa: BLE001 — sin el índice aiuda sirve, más lento
+                log.warning("no se pudo crear el índice %s", index.name, exc_info=True)
+
+
 def create_all(engine=None) -> None:
-    """Crea las tablas que falten. Es el único 'migrador' local: el esquema se
-    declara en los modelos y aquí se materializa de forma idempotente."""
-    Base.metadata.create_all(engine or get_engine())
+    """Crea las tablas y los índices que falten. Es el único 'migrador' local: el
+    esquema se declara en los modelos y aquí se materializa de forma idempotente."""
+    engine = engine or get_engine()
+    Base.metadata.create_all(engine)
+    _crear_indices_faltantes(engine)

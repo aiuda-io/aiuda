@@ -843,19 +843,23 @@ def _safe_send(label: str, send_fn) -> bool:
         return False
 
 
-def run_daily_blocking(now: datetime | None = None) -> dict:
+def run_daily_blocking(
+    now: datetime | None = None, horas_cubiertas: list[int] | None = None
+) -> dict:
     """Corrida diaria con guard anti-solapamiento. Si ya hay una corriendo en el proceso,
     omite el disparo duplicado (dos disparos solapados del cron mandarían doble cobranza)."""
     if not _daily_lock.acquire(blocking=False):
         log.info("corrida diaria ya en curso; se omite el disparo duplicado")
         return {"skipped": True}
     try:
-        return _run_daily_impl(now)
+        return _run_daily_impl(now, horas_cubiertas)
     finally:
         _daily_lock.release()
 
 
-def _run_daily_impl(now: datetime | None = None) -> dict:
+def _run_daily_impl(
+    now: datetime | None = None, horas_cubiertas: list[int] | None = None
+) -> dict:
     """Corrida diaria, reutilizable por el cron del worker y por el trigger HTTP
     (free tier sin worker continuo). Para cada tenant: sincroniza fuentes, redacta
     recordatorios y manda el resumen a su hora. Degrada con gracia: si no hay canal de
@@ -864,6 +868,11 @@ def _run_daily_impl(now: datetime | None = None) -> dict:
 
     Pensada para correr CADA HORA: así cada negocio recibe su resumen a la hora que
     configuró y los auto-envíos respetan su franja. `now` es inyectable para pruebas.
+
+    `horas_cubiertas` son las horas de reloj que esta corrida está saldando: el
+    scheduler las manda cuando la máquina estuvo dormida y se perdieron horas. Sin
+    ellas se asume solo la hora de `now`. Es lo que hace que el resumen de las 8
+    salga (tarde) si la laptop se abrió a las 11, en vez de perderse ese día.
 
     La corrida de cada tenant va POR ETAPAS, cada una con su propia transacción
     (antes era UNA sola que envolvía también las llamadas al LLM): un error de la
@@ -877,6 +886,7 @@ def _run_daily_impl(now: datetime | None = None) -> dict:
 
     current = now or datetime.now(MX_TZ)
     today = current.date()
+    horas = list(horas_cubiertas) if horas_cubiertas else [current.hour]
     report = {
         "tenants": 0, "drafted": 0, "sent": 0, "send_skipped": 0, "summaries": 0,
         "ia_cortada": 0, "correo_propuestas": 0,
@@ -938,12 +948,14 @@ def _run_daily_impl(now: datetime | None = None) -> dict:
                     else:
                         report["send_skipped"] += 1
             # 4) El resumen, solo a la hora que el dueño configuró (o 8:00 por
-            #    defecto), también en transacción corta propia.
+            #    defecto), también en transacción corta propia. Si esta corrida
+            #    salda horas que pasaron con la máquina dormida, basta con que su
+            #    hora sea UNA de ellas: el resumen sale tarde, pero sale.
             with session_scope() as session:
                 tenant = session.get(Tenant, tenant_id)
                 engine = _build_engine(session, tenant)
                 wa = resolve_whatsapp(session, tenant)
-                if engine.summary_due(current.hour):
+                if any(engine.summary_due(h) for h in horas):
                     resumen = engine.daily_summary(today)
                     with _pause_for(wa):
                         ok = _safe_send(
@@ -1045,4 +1057,5 @@ def _sweep_stranded_approved(now: datetime, older_than_min: int = 10, cap: int =
 
 
 # La cadencia horaria vive en aiuda_server.scheduler (hilo local, sin Redis):
-# llama run_daily_blocking() al minuto 0 de cada hora.
+# llama run_daily_blocking() una vez por hora de reloj y le pasa las horas que la
+# máquina se durmió, para que ninguna se pierda.
