@@ -112,10 +112,10 @@ export default function CitasPage() {
                   {agenda.proximas.map((a) => (
                     <RailRow key={a.id}>
                       <button onClick={() => setSelected(a)} className="min-w-0 text-left">
-                        <span className="block truncate text-[12.5px] text-ink-2 transition-colors hover:text-accent-ink">
+                        <span className="block truncate text-cuerpo text-ink-2 transition-colors hover:text-accent-ink">
                           {a.title}
                         </span>
-                        <span className="text-[11px] text-ink-3">{formatWhen(a.starts_at)}</span>
+                        <span className="text-apoyo text-ink-3">{formatWhen(a.starts_at)}</span>
                       </button>
                     </RailRow>
                   ))}
@@ -137,21 +137,21 @@ export default function CitasPage() {
                 {/* Botón real (no solo li onClick): el detalle se abre con teclado. */}
                 <button
                   onClick={() => setSelected(a)}
-                  className="text-left text-[12.5px] font-medium text-ink hover:text-accent-ink"
+                  className="text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
                 >
                   {a.title}
                 </button>
                 {a.customer_name && (
-                  <span className="text-[12px] text-ink-2">· {a.customer_name}</span>
+                  <span className="text-cuerpo text-ink-2">· {a.customer_name}</span>
                 )}
-                <span className="tnum ml-auto text-[12px] text-ink-3">{formatWhen(a.starts_at)}</span>
+                <span className="tnum ml-auto text-cuerpo text-ink-3">{formatWhen(a.starts_at)}</span>
                 {a.notes && (
-                  <p className="w-full text-[11.5px] leading-relaxed text-ink-3">{a.notes}</p>
+                  <p className="w-full text-apoyo leading-relaxed text-ink-3">{a.notes}</p>
                 )}
               </li>
             ))}
             {rows.length === 0 && (
-              <li className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+              <li className="px-4 py-10 text-center text-cuerpo text-ink-3">
                 Sin resultados para tu búsqueda.
               </li>
             )}

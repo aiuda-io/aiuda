@@ -170,10 +170,10 @@ function AutonomiaControl({ info, ayudanteId }: { info: Autonomia; ayudanteId: s
     <div className="rounded-xl border border-line bg-panel p-3.5">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-ink">
+          <p className="text-seccion font-semibold text-ink">
             Enviar la cobranza de rutina sin pedir aprobación
           </p>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-ink-2">
+          <p className="mt-1.5 text-cuerpo text-ink-2">
             {auto ? (
               <>
                 Manda sola los recordatorios de{" "}
@@ -209,7 +209,7 @@ function AutonomiaControl({ info, ayudanteId }: { info: Autonomia; ayudanteId: s
       </div>
 
       {auto && (
-        <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[12px] text-ink-2">
+        <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-cuerpo text-ink-2">
           Solo por debajo de
           <input
             type="number"
@@ -222,19 +222,19 @@ function AutonomiaControl({ info, ayudanteId }: { info: Autonomia; ayudanteId: s
             onKeyDown={(e) => {
               if (e.key === "Enter") (e.target as HTMLInputElement).blur();
             }}
-            className="tnum w-14 rounded-md border border-line bg-surface px-2 py-1 text-center text-[12.5px] text-ink focus:border-accent focus:outline-none"
+            className="tnum w-14 rounded-md border border-line bg-surface px-2 py-1.5 text-center text-cuerpo text-ink focus:border-accent focus:outline-none"
           />
           días de atraso.
         </div>
       )}
 
       {error && (
-        <p className="mt-3 rounded-lg bg-warn-soft px-2.5 py-1.5 text-[11.5px] text-warn">
+        <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-apoyo text-warn">
           No se pudo guardar el cambio. Revisa tu conexión y vuelve a intentarlo.
         </p>
       )}
 
-      <div className="mt-3 flex items-center gap-2 text-[11.5px] text-ink-3">
+      <div className="mt-3 flex items-center gap-2 text-apoyo text-ink-3">
         {CANDADO}
         Los casos críticos siempre requieren tu aprobación.
       </div>
@@ -245,9 +245,9 @@ function AutonomiaControl({ info, ayudanteId }: { info: Autonomia; ayudanteId: s
 function Stat({ n, label, tone }: { n: number; label: string; tone: "ok" | "warn" | "danger" }) {
   const color = tone === "ok" ? "text-ok" : tone === "warn" ? "text-warn" : "text-danger";
   return (
-    <div className="min-w-[80px] rounded-lg border border-line bg-surface px-3 py-1.5 text-right">
-      <span className={`tnum block text-[17px] font-bold leading-none ${color}`}>{n}</span>
-      <span className="text-[10px] text-ink-3">{label}</span>
+    <div className="min-w-[104px] rounded-lg border border-line bg-surface px-3.5 py-2 text-right">
+      <span className={`tnum block text-titulo font-bold leading-none ${color}`}>{n}</span>
+      <span className="text-rotulo text-ink-3">{label}</span>
     </div>
   );
 }
@@ -258,12 +258,12 @@ function YouNode({ businessName }: { businessName: string }) {
   const glyph = (clean[0] ?? "T").toUpperCase();
   return (
     <div className="flex items-center gap-2.5 rounded-xl bg-navy px-4 py-2.5 text-surface shadow-[0_12px_32px_-20px_rgba(13,45,62,0.7)]">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 text-[14px] font-bold">
+      <span className="grid h-8 w-8 place-items-center rounded-lg bg-white/15 text-seccion font-bold">
         {glyph}
       </span>
       <div className="leading-tight">
-        <div className="text-[13.5px] font-semibold">{name}</div>
-        <div className="text-[10px] uppercase tracking-[0.11em] text-surface/70">Tú</div>
+        <div className="text-seccion font-semibold">{name}</div>
+        <div className="text-rotulo uppercase tracking-[0.1em] text-surface/70">Tú</div>
       </div>
     </div>
   );
@@ -275,7 +275,7 @@ function Trunk() {
   return (
     <>
       <span className="h-5 w-px bg-line-strong" />
-      <span className="h-px w-full max-w-[820px] bg-line-strong" />
+      <span className="h-px w-full max-w-[880px] bg-line-strong" />
     </>
   );
 }
@@ -308,7 +308,7 @@ function Chips({
           return (
             <span
               key={f.key}
-              className="inline-flex items-center gap-1.5 rounded-full border border-ok px-2 py-0.5 text-[11px] font-medium text-ok"
+              className="inline-flex items-center gap-1.5 rounded-full border border-ok px-2.5 py-1 text-rotulo font-medium text-ok"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-ok" />
               {f.name}
@@ -316,7 +316,7 @@ function Chips({
           );
         }
         const base =
-          "inline-flex items-center gap-1.5 rounded-full border border-dashed border-line-strong px-2 py-0.5 text-[11px] font-medium text-ink-3";
+          "inline-flex items-center gap-1.5 rounded-full border border-dashed border-line-strong px-2.5 py-1 text-rotulo font-medium text-ink-3";
         // Solo se ofrece conectar la fuente si existe como sistema en el grafo (si es del
         // catálogo pero no está en systems, no la ofrecemos: se muestra informativa).
         if (node) {
@@ -359,14 +359,14 @@ function CapRowView({
     <div className="rounded-lg border border-line bg-surface px-3 py-2.5">
       <div className="flex items-center gap-2">
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
-        <span className="text-[12.5px] font-semibold text-ink">{row.spec.label}</span>
+        <span className="text-cuerpo font-semibold text-ink">{row.spec.label}</span>
       </div>
-      <p className="ml-3.5 mt-0.5 text-[11.5px] leading-snug text-ink-3">{row.spec.linea}</p>
+      <p className="ml-3.5 mt-0.5 text-apoyo text-ink-3">{row.spec.linea}</p>
       {row.kind !== "accion" && (
         <Chips row={row} systemByKey={systemByKey} onConnect={onConnect} />
       )}
       {row.kind === "hueco" && (
-        <div className="ml-3.5 mt-2 flex items-start gap-1.5 text-[11px] text-danger">
+        <div className="ml-3.5 mt-2 flex items-start gap-1.5 text-apoyo text-danger">
           <svg viewBox="0 0 12 12" className="mt-px h-3 w-3 shrink-0" fill="none">
             <path d="M6 1.5 11 10.5H1z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
             <path d="M6 5v2.4M6 9v.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
@@ -399,23 +399,23 @@ function TarjetaPunteada({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-full min-h-[104px] w-[248px] flex-col items-center justify-center rounded-lg border border-dashed bg-transparent px-4 py-6 text-center transition-colors hover:bg-accent-soft ${
+      className={`flex h-full min-h-[128px] w-[268px] flex-col items-center justify-center rounded-lg border border-dashed bg-transparent px-4 py-6 text-center transition-colors hover:bg-accent-soft ${
         destacada ? "border-accent" : "border-line-strong hover:border-accent"
       }`}
     >
       <span
-        className={`grid h-9 w-9 place-items-center rounded-lg border border-dashed text-[18px] leading-none ${
+        className={`grid h-9 w-9 place-items-center rounded-lg border border-dashed text-titulo leading-none ${
           destacada ? "border-accent bg-accent-soft text-accent-ink" : "border-line-strong text-ink-3"
         }`}
       >
         +
       </span>
       <span
-        className={`mt-2 text-[12.5px] font-semibold ${destacada ? "text-accent-ink" : "text-ink-2"}`}
+        className={`mt-2.5 text-cuerpo font-semibold ${destacada ? "text-accent-ink" : "text-ink-2"}`}
       >
         {title}
       </span>
-      <span className={`mt-0.5 text-[11px] ${destacada ? "text-ink-2" : "text-ink-3"}`}>{hint}</span>
+      <span className={`mt-1 text-apoyo ${destacada ? "text-ink-2" : "text-ink-3"}`}>{hint}</span>
     </button>
   );
 }
@@ -438,24 +438,24 @@ function AgentCard({
     <button
       type="button"
       onClick={onOpen}
-      className="w-[248px] overflow-hidden rounded-lg border border-line bg-surface text-left transition-colors hover:border-line-strong hover:shadow-md"
+      className="w-[268px] overflow-hidden rounded-lg border border-line bg-surface text-left transition-colors hover:border-line-strong hover:shadow-md"
     >
       <span className="flex w-full items-center gap-2.5 p-3">
         <Avatar name={a.name} size={36} {...normalizeAppearance(a.appearance)} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="min-w-0 truncate text-[13.5px] font-semibold text-ink">{a.name}</span>
+            <span className="min-w-0 truncate text-seccion font-semibold text-ink">{a.name}</span>
             {activo ? (
-              <span className="shrink-0 rounded-full bg-ok-soft px-1.5 py-px text-[10px] font-semibold text-ok">
+              <span className="shrink-0 rounded-full bg-ok-soft px-1.5 py-0.5 text-sello font-semibold text-ok">
                 activo
               </span>
             ) : (
-              <span className="shrink-0 rounded-full border border-line bg-panel px-1.5 py-px text-[10px] font-medium text-ink-3">
+              <span className="shrink-0 rounded-full border border-line bg-panel px-1.5 py-0.5 text-sello font-medium text-ink-3">
                 sin aiuditas
               </span>
             )}
           </span>
-          <span className="block truncate text-[11.5px] text-ink-3">{oficio}</span>
+          <span className="block truncate text-apoyo text-ink-3">{oficio}</span>
         </span>
         <svg viewBox="0 0 12 12" className="h-3 w-3 shrink-0 text-ink-3" fill="none">
           {CHEVRON}
@@ -471,14 +471,14 @@ function AgentCard({
               style={{ width: `${((r.total - r.listas) / r.total) * 100}%` }}
             />
           </span>
-          <span className="tnum text-[10.5px] text-ink-3">
+          <span className="tnum text-rotulo text-ink-3">
             {r.listas} / {r.total} listas
           </span>
         </span>
       )}
 
       {auto && (
-        <span className="flex items-center gap-1.5 border-t border-line px-3 py-2 text-[11px] text-ink-2">
+        <span className="flex items-center gap-1.5 border-t border-line px-3 py-2.5 text-apoyo text-ink-2">
           {CANDADO}
           {auto.auto ? "Envía la rutina · te pide lo demás" : "Aprobación manual"}
         </span>
@@ -510,7 +510,7 @@ function AyudanteDrawer({
       <div className="space-y-6">
         {auto && (
           <section>
-            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="mb-2.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
               Autonomía
             </p>
             <AutonomiaControl key={a.id} info={auto} ayudanteId={a.id} />
@@ -518,7 +518,7 @@ function AyudanteDrawer({
         )}
 
         <section>
-          <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+          <p className="mb-2.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
             Lo que sabe hacer
           </p>
           {r.rows.length > 0 ? (
@@ -533,7 +533,7 @@ function AyudanteDrawer({
               ))}
             </div>
           ) : (
-            <p className="text-[12px] text-ink-3">
+            <p className="text-cuerpo text-ink-3">
               Sin aiuditas todavía. Actívale lo que quieres que sepa hacer desde su ficha.
             </p>
           )}
@@ -541,7 +541,7 @@ function AyudanteDrawer({
 
         <Link
           href={`/ayudantes/detalle?id=${a.id}`}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-accent-ink hover:underline"
+          className="inline-flex items-center gap-1.5 text-cuerpo font-semibold text-accent-ink hover:underline"
         >
           Abrir ficha completa
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -605,7 +605,7 @@ function CrearDrawer({
         }}
       >
         <div>
-          <label htmlFor="nuevo-ayudante" className="mb-1.5 block text-[12px] font-semibold text-ink">
+          <label htmlFor="nuevo-ayudante" className="mb-1.5 block text-cuerpo font-semibold text-ink">
             ¿Cómo se va a llamar?
           </label>
           <input
@@ -614,7 +614,7 @@ function CrearDrawer({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={perfilSpec ? perfilSpec.name : "tavo, lucía, abi…"}
-            className="w-full rounded-md border border-line bg-surface px-3 py-2 text-[13.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+            className="w-full rounded-md border border-line bg-surface px-3 py-2.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
           />
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {SUGERENCIAS.map((s) => (
@@ -622,7 +622,7 @@ function CrearDrawer({
                 key={s}
                 type="button"
                 onClick={() => setName(s)}
-                className="rounded-full border border-line bg-surface px-3 py-1 text-[12px] text-ink-2 transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent-ink"
+                className="rounded-full border border-line bg-surface px-3 py-1.5 text-apoyo text-ink-2 transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent-ink"
               >
                 {s}
               </button>
@@ -631,20 +631,20 @@ function CrearDrawer({
         </div>
 
         <div>
-          <p className="mb-1.5 text-[12px] font-semibold text-ink">¿Con qué empieza?</p>
+          <p className="mb-2 text-cuerpo font-semibold text-ink">¿Con qué empieza?</p>
           <div className="space-y-1.5">
             <button
               type="button"
               onClick={() => setPerfil(null)}
               aria-pressed={perfil === null}
-              className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-[12.5px] transition-colors ${
+              className={`flex w-full items-center justify-between rounded-md border px-3.5 py-2.5 text-left text-cuerpo transition-colors ${
                 perfil === null
                   ? "border-accent bg-accent-soft text-accent-ink"
                   : "border-line bg-surface text-ink-2 hover:border-line-strong"
               }`}
             >
               <span className="font-medium">Desde cero</span>
-              <span className="text-[11px] opacity-80">le activas sus aiuditas después</span>
+              <span className="text-apoyo opacity-80">le activas sus aiuditas después</span>
             </button>
             {(catalog?.perfiles ?? []).map((p) => {
               const items = catalog ? catalog.aiuditas.filter((a) => a.perfil === p.slug) : [];
@@ -655,14 +655,14 @@ function CrearDrawer({
                   type="button"
                   onClick={() => setPerfil(activo ? null : p.slug)}
                   aria-pressed={activo}
-                  className={`flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-[12.5px] transition-colors ${
+                  className={`flex w-full items-center justify-between rounded-md border px-3.5 py-2.5 text-left text-cuerpo transition-colors ${
                     activo
                       ? "border-accent bg-accent-soft text-accent-ink"
                       : "border-line bg-surface text-ink-2 hover:border-line-strong"
                   }`}
                 >
                   <span className="font-medium">{p.name}</span>
-                  <span className="text-[11px] opacity-80">
+                  <span className="text-apoyo opacity-80">
                     {items.length} aiudita{items.length === 1 ? "" : "s"}
                   </span>
                 </button>
@@ -674,7 +674,7 @@ function CrearDrawer({
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-md bg-accent px-3 py-2.5 text-[13px] font-semibold text-surface transition-colors hover:bg-accent-strong disabled:opacity-60"
+          className="w-full rounded-md bg-accent px-3 py-3 text-cuerpo font-semibold text-surface transition-colors hover:bg-accent-strong disabled:opacity-60"
         >
           {saving
             ? "Creando…"
@@ -683,7 +683,7 @@ function CrearDrawer({
               : "Crear desde cero"}
         </button>
 
-        <p className="text-[11.5px] leading-relaxed text-ink-3">
+        <p className="text-apoyo text-ink-3">
           Queda en tu organización con su oficio activo desde el primer momento; adentro ajustas
           sus perillas y de dónde lee. Sin cambiarte de pantalla.
         </p>
@@ -716,6 +716,8 @@ export function Organigrama({
     () => Object.fromEntries(systems.map((s) => [s.key, s])) as Record<string, IntegrationNode>,
     [systems],
   );
+
+  const conectados = useMemo(() => systems.filter((s) => s.connected), [systems]);
 
   const resolved = useMemo(
     () => (catalog ? ayudantes.map((a) => resolveAyudante(a, catalog, systemByKey)) : []),
@@ -772,7 +774,7 @@ export function Organigrama({
   return (
     <div className="mt-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-xl text-[12.5px] text-ink-3">
+        <p className="max-w-2xl text-cuerpo text-ink-2">
           Tú arriba; tus ayudantes debajo; lo que cada uno sabe hacer y de dónde lo lee. Toca un
           ayudante para ver su detalle, o conecta una fuente donde falte, sin salir de aquí.
         </p>
@@ -794,33 +796,90 @@ export function Organigrama({
         <Trunk />
 
         {ayudantes.length === 0 ? (
-          <div className="flex w-full flex-wrap items-start justify-center gap-x-3.5 gap-y-5">
-            <Hangs>
-              <div className="w-[420px] max-w-full rounded-lg border border-dashed border-line-strong bg-surface px-6 py-8 text-center">
-                <p className="text-[13px] font-semibold text-ink">Aún no tienes ayudantes</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-ink-3">
-                  Crea tu primer ayudante y aquí verás qué sabe hacer y de dónde lo lee, con su
-                  estado real.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setCreating(true)}
-                  className="mt-3 inline-block rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong"
-                >
-                  Crear un ayudante
-                </button>
+          /* Sin ayudantes el árbol no tiene nada que enseñar, y dos cajitas
+             punteadas en medio de una pantalla de 1440 se leen como un error.
+             En su lugar cuelga UN panel que ocupa el ancho y dice los dos pasos
+             que siguen, en orden, con su botón. */
+          <Hangs>
+            <div className="w-full max-w-4xl overflow-hidden rounded-xl border border-line bg-surface">
+              <p className="border-b border-line bg-panel/40 px-6 py-3.5 text-cuerpo text-ink-2">
+                Tu organización está vacía. Son dos pasos, en este orden:
+              </p>
+              <div className="grid grid-cols-1 divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                <div className="px-6 py-5">
+                  <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                    Paso 1
+                  </p>
+                  <h3 className="mt-1.5 text-seccion font-semibold text-ink">
+                    Conecta de dónde leer
+                  </h3>
+                  <p className="mt-1 text-cuerpo text-ink-2">
+                    Tu Odoo, tu Excel, tu WhatsApp, tu banco. Sin una fuente, un ayudante no tiene
+                    con qué trabajar.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onVerFuentes}
+                    className={`mt-3.5 rounded-md px-4 py-2 text-cuerpo font-semibold transition-colors ${
+                      sinFuentes
+                        ? "bg-accent text-surface hover:bg-accent-strong"
+                        : "border border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
+                    }`}
+                  >
+                    Ver las fuentes
+                  </button>
+                </div>
+                <div className="px-6 py-5">
+                  <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                    Paso 2
+                  </p>
+                  <h3 className="mt-1.5 text-seccion font-semibold text-ink">
+                    Crea tu primer ayudante
+                  </h3>
+                  <p className="mt-1 text-cuerpo text-ink-2">
+                    Le dices qué sabe hacer y de dónde lo lee. Aquí verás su estado real, aiudita
+                    por aiudita.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setCreating(true)}
+                    className={`mt-3.5 rounded-md px-4 py-2 text-cuerpo font-semibold transition-colors ${
+                      sinFuentes
+                        ? "border border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
+                        : "bg-accent text-surface hover:bg-accent-strong"
+                    }`}
+                  >
+                    Crear un ayudante
+                  </button>
+                </div>
               </div>
-            </Hangs>
 
-            <Hangs>
-              <TarjetaPunteada
-                title="Conecta una fuente"
-                hint={FUENTE_HINT}
-                destacada={sinFuentes}
-                onClick={onVerFuentes}
-              />
-            </Hangs>
-          </div>
+              {/* Lo que ya está conectado cuelga del negocio aunque todavía no
+                  haya ayudantes: es la mitad del árbol que sí existe, y llena
+                  con información real el espacio que antes quedaba en blanco. */}
+              {conectados.length > 0 && (
+                <div className="border-t border-line bg-panel/25 px-6 py-4">
+                  <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                    De dónde ya puede leer
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {conectados.map((n) => (
+                      <button
+                        key={n.key}
+                        type="button"
+                        onClick={() => onConnect(n)}
+                        title={`Revisar la conexión con ${n.name}`}
+                        className="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-cuerpo text-ink transition-colors hover:border-line-strong"
+                      >
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-ok" />
+                        {n.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Hangs>
         ) : (
           <div className="flex w-full flex-wrap items-start justify-center gap-x-3.5 gap-y-5">
             {resolved.map((r) => (

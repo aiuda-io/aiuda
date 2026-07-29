@@ -170,7 +170,7 @@ export default function SatPage() {
         right={
           <Link
             href="/manual/sat.html"
-            className="text-[12px] font-medium text-accent-ink hover:underline"
+            className="text-cuerpo font-medium text-accent-ink hover:underline"
           >
             Ver manual
           </Link>
@@ -179,7 +179,7 @@ export default function SatPage() {
 
       {estadoApi.error && <ErrorState message={estadoApi.error} retry={estadoApi.refetch} />}
       {estadoApi.loading && !estado && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <Skeleton key={index} className="h-20 rounded-lg" />
           ))}
@@ -187,16 +187,16 @@ export default function SatPage() {
       )}
 
       {estado && (
-        <div className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
             ["Empresas", `${empresas.length} / ${estado.maximo}`],
             ["CFDI", String(estado.boveda.total)],
             ["Intercompañía", String(estado.boveda.intercompania)],
             ["Cartera abierta", mxn(estado.cartera.todo_junto.total)],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-lg border border-line bg-surface px-4 py-3">
-              <p className="text-[11.5px] text-ink-3">{label}</p>
-              <p className="mt-1 text-[17px] font-semibold text-ink">{value}</p>
+            <div key={label} className="rounded-lg border border-line bg-surface px-4 py-3.5">
+              <p className="text-apoyo text-ink-2">{label}</p>
+              <p className="hero-num mt-1 text-titulo font-semibold text-ink">{value}</p>
             </div>
           ))}
         </div>
@@ -211,13 +211,13 @@ export default function SatPage() {
             <article key={empresa.rfc} className="rounded-lg border border-line bg-surface p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-[13px] font-semibold text-ink">{empresa.rfc}</p>
-                  <p className="mt-0.5 text-[11.5px] text-ink-3">
+                  <p className="text-seccion font-semibold text-ink">{empresa.rfc}</p>
+                  <p className="mt-0.5 text-apoyo text-ink-3">
                     {empresa.nombre || "Sin razón social"} ·{" "}
                     {empresa.efirma ? `e.firma vigente hasta ${fecha(empresa.vigente_hasta)}` : "Carga manual"}
                   </p>
                 </div>
-                <div className="flex gap-3 text-[11.5px]">
+                <div className="flex gap-3 text-apoyo">
                   {empresa.efirma && (
                     <button
                       onClick={() => probar(empresa.rfc)}
@@ -237,7 +237,7 @@ export default function SatPage() {
                 </div>
               </div>
               <div className="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-[8rem_1fr_1fr]">
-                <label className="text-[11.5px] text-ink-3">
+                <label className="text-apoyo text-ink-3">
                   Plazo PPD estimado
                   <select
                     value={empresa.plazo_dias}
@@ -251,7 +251,7 @@ export default function SatPage() {
                   </select>
                 </label>
                 {(["emitidas", "recibidas"] as const).map((scope) => (
-                  <div key={scope} className="text-[11.5px]">
+                  <div key={scope} className="text-apoyo">
                     <p className="font-medium capitalize text-ink">{scope}</p>
                     <p className="mt-1 text-ink-3">
                       {estadoSync(
@@ -266,7 +266,7 @@ export default function SatPage() {
           ))}
 
           {empresas.length < (estado?.maximo ?? 3) && (
-            <form onSubmit={guardarEmpresa} className="grid gap-2 sm:grid-cols-[1fr_1fr_8rem_auto]">
+            <form onSubmit={guardarEmpresa} className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,8rem)_auto]">
               <input
                 name="rfc"
                 required
@@ -321,7 +321,7 @@ export default function SatPage() {
               </SettingsField>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="max-w-md text-[11.5px] leading-relaxed text-ink-3">
+              <p className="max-w-md text-apoyo leading-relaxed text-ink-3">
                 Los archivos y la contraseña se cifran juntos. La consola solo vuelve a mostrar RFC,
                 titular y vigencia.
               </p>
@@ -345,7 +345,7 @@ export default function SatPage() {
             className={inputCls}
           />
           <div className="flex flex-wrap items-end gap-3">
-            <label className="min-w-52 flex-1 text-[11.5px] text-ink-3">
+            <label className="min-w-52 flex-1 text-apoyo text-ink-3">
               Registrar o clasificar como
               <select name="rfc" defaultValue="" className={`${inputCls} mt-1`}>
                 <option value="">Detectar con empresas registradas</option>
@@ -360,7 +360,7 @@ export default function SatPage() {
           </div>
         </form>
         {resultado && (
-          <div className="mt-3 rounded-lg border border-line bg-panel/30 px-4 py-3 text-[11.5px] text-ink-2">
+          <div className="mt-3 rounded-lg border border-line bg-panel/30 px-4 py-3 text-apoyo text-ink-2">
             {resultado.nuevos} nuevos · {resultado.duplicados} duplicados ·{" "}
             {resultado.facturas_creadas} cuentas por cobrar
             {resultado.avisos.length > 0 && (
@@ -396,7 +396,7 @@ export default function SatPage() {
           {bovedaApi.loading && !boveda && <Skeleton className="h-40 rounded-lg" />}
           {boveda && (
             <div className="overflow-x-auto rounded-lg border border-line bg-surface">
-              <table className="w-full min-w-[680px] text-left text-[11.5px]">
+              <table className="w-full min-w-[680px] text-left text-apoyo">
                 <thead className="border-b border-line bg-panel/30 text-ink-3">
                   <tr>
                     <th className="px-3 py-2 font-medium">Fecha</th>

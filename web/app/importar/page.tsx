@@ -39,7 +39,7 @@ export default function ImportarPage() {
           <div className="rounded-lg border border-line bg-surface">
             <BancoUpload className="px-5 py-5" />
           </div>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
+          <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
             Los depósitos aparecen en{" "}
             <Link href="/conciliacion" className="text-accent-ink underline-offset-2 hover:underline">
               Conciliación
@@ -60,12 +60,12 @@ export default function ImportarPage() {
                   href={t.href}
                   className="rounded-lg border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong"
                 >
-                  <p className="text-[12.5px] font-medium text-ink">{t.label}</p>
-                  <p className="mt-0.5 text-[11.5px] text-ink-3">{t.desc}</p>
+                  <p className="text-cuerpo font-medium text-ink">{t.label}</p>
+                  <p className="mt-0.5 text-apoyo text-ink-3">{t.desc}</p>
                 </Link>
               ))}
             </div>
-            <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
+            <p className="mt-3 text-apoyo leading-relaxed text-ink-3">
               Re-subir el mismo archivo no duplica: actualiza lo que ya existe. Más adelante, lo
               mismo entra solo desde tus integraciones (Odoo, tu tienda, Stripe).
             </p>

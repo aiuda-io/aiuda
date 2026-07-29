@@ -3,7 +3,15 @@
 import { Suspense, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, type CustomConnector, type IntegrationNode } from "@/lib/api";
-import { ErrorState, PageHeader, Skeleton, Tabs, useApi } from "@/components/ui";
+import {
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  SecondaryButton,
+  Skeleton,
+  Tabs,
+  useApi,
+} from "@/components/ui";
 import { IntegrationConfigDrawer } from "@/components/integration-config-drawer";
 import { CAP_LABEL, CustomConnectorDrawer } from "@/components/custom-connector-drawer";
 import { toast } from "@/components/toast";
@@ -28,16 +36,16 @@ const NEEDS: { cap: string; title: string; hint: string }[] = [
 
 function Logo({ node }: { node: IntegrationNode }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-surface">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-surface">
       {node.logo ? (
         <img
           src={node.logo}
           alt=""
-          className="h-5 w-5 object-contain"
+          className="h-6 w-6 object-contain"
           style={{ filter: node.connected ? undefined : "grayscale(1) opacity(0.7)" }}
         />
       ) : (
-        <span className="text-[12px] font-bold" style={{ color: node.color }}>
+        <span className="text-rotulo font-bold" style={{ color: node.color }}>
           {node.name.slice(0, 2)}
         </span>
       )}
@@ -49,28 +57,28 @@ function ConnectorButton({ node, onOpen }: { node: IntegrationNode; onOpen: (n: 
   return (
     <button
       onClick={() => onOpen(node)}
-      className="group flex items-center gap-3 rounded-lg border border-line bg-surface px-3.5 py-3 text-left transition-colors hover:border-line-strong"
+      className="group flex items-center gap-3.5 rounded-lg border border-line bg-surface px-4 py-3.5 text-left transition-colors hover:border-line-strong"
     >
       <Logo node={node} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-ink">{node.name}</p>
-        <p className="truncate text-[11.5px] text-ink-3">{node.rol}</p>
+        <p className="truncate text-cuerpo font-semibold text-ink">{node.name}</p>
+        <p className="truncate text-apoyo text-ink-3">{node.rol}</p>
       </div>
       {node.verified === "error" ? (
         <span
           title={node.last_error ?? undefined}
-          className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-danger"
+          className="flex shrink-0 items-center gap-1.5 text-apoyo font-medium text-danger"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+          <span className="h-2 w-2 rounded-full bg-danger" />
           Revisar
         </span>
       ) : node.connected ? (
-        <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-ok">
-          <span className="h-1.5 w-1.5 rounded-full bg-ok" />
+        <span className="flex shrink-0 items-center gap-1.5 text-apoyo font-medium text-ok">
+          <span className="h-2 w-2 rounded-full bg-ok" />
           {node.verified === "ok" ? "Verificado" : "Conectado"}
         </span>
       ) : (
-        <span className="shrink-0 text-[11.5px] font-medium text-accent-ink">
+        <span className="shrink-0 rounded-md bg-accent-soft px-2.5 py-1 text-apoyo font-semibold text-accent-ink">
           {node.key === "excel" ? "Subir" : "Conectar"}
         </span>
       )}
@@ -99,36 +107,162 @@ function CustomEstado({ c }: { c: CustomConnector }) {
     return (
       <span
         title={(testEsMasReciente ? c.last_test_error : c.last_error) || undefined}
-        className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-danger"
+        className="flex shrink-0 items-center gap-1.5 text-apoyo font-medium text-danger"
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+        <span className="h-2 w-2 rounded-full bg-danger" />
         Revisar
       </span>
     );
   }
   if (!c.has_secret && c.auth_type) {
-    return <span className="shrink-0 text-[11.5px] font-medium text-warn">Falta tu clave</span>;
+    return <span className="shrink-0 text-apoyo font-medium text-warn">Falta tu clave</span>;
   }
   if (c.last_sync_at && !c.last_error) {
     return (
       <span
         title={`Última corrida: ${c.last_sync_at}`}
-        className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-ok"
+        className="flex shrink-0 items-center gap-1.5 text-apoyo font-medium text-ok"
       >
-        <span className="h-1.5 w-1.5 rounded-full bg-ok" />
+        <span className="h-2 w-2 rounded-full bg-ok" />
         Sincronizada · {c.last_count ?? 0}
       </span>
     );
   }
   if (c.last_test_ok) {
     return (
-      <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-medium text-ok">
-        <span className="h-1.5 w-1.5 rounded-full bg-ok" />
+      <span className="flex shrink-0 items-center gap-1.5 text-apoyo font-medium text-ok">
+        <span className="h-2 w-2 rounded-full bg-ok" />
         Probada
       </span>
     );
   }
-  return <span className="shrink-0 text-[11.5px] text-ink-3">Sin probar</span>;
+  return <span className="shrink-0 text-apoyo text-ink-3">Sin probar</span>;
+}
+
+/** La salida de escape: tu sistema no está en el catálogo y lo conectas por su API. */
+function NoEstaElTuyo({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="mt-2.5 flex w-full items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-4 py-3.5 text-left text-cuerpo transition-colors hover:border-accent"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-line-strong text-seccion text-ink-3">
+        +
+      </span>
+      <span className="font-semibold text-ink">¿No está el tuyo?</span>
+      <span className="hidden text-ink-2 sm:inline">
+        Crea una conexión a la medida contra tu propia API.
+      </span>
+      <span className="ml-auto shrink-0 font-semibold text-accent-ink">Créalo</span>
+    </button>
+  );
+}
+
+/** Las conexiones que el dueño creó por API. Al FINAL de la pantalla: es la
+ *  salida de escape, no lo primero que hay que leer. Cuando no hay ninguna se
+ *  queda en un renglón que dice qué hacer, no en un cajón vacío. */
+function ALaMedida({
+  custom,
+  probando,
+  onImportar,
+  onCrear,
+  onProbar,
+  onEditar,
+  onReceta,
+  onQuitar,
+}: {
+  custom: CustomConnector[];
+  probando: string | null;
+  onImportar: () => void;
+  onCrear: () => void;
+  onProbar: (c: CustomConnector) => void;
+  onEditar: (c: CustomConnector) => void;
+  onReceta: (c: CustomConnector) => void;
+  onQuitar: (id: string) => void;
+}) {
+  return (
+    <section className="mt-9 border-t border-line pt-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
+        <div className="min-w-0">
+          <h2 className="text-seccion font-semibold text-ink">Tus conexiones a la medida</h2>
+          <p className="text-cuerpo text-ink-2">
+            Fuentes que tú creaste por API. El motor las lee en cada corrida, con su procedencia.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <SecondaryButton onClick={onCrear}>Crear una conexión</SecondaryButton>
+          <SecondaryButton
+            onClick={onImportar}
+            title="Crea una conexión desde una receta compartida (JSON sin secretos)"
+          >
+            Importar receta
+          </SecondaryButton>
+        </div>
+      </div>
+
+      {custom.length === 0 ? (
+        <p className="mt-3 text-cuerpo text-ink-3">
+          Todavía no tienes ninguna, y está bien: solo las necesitas si tu sistema no aparece
+          arriba.
+        </p>
+      ) : (
+        <ul className="mt-3 overflow-hidden rounded-lg border border-line bg-surface">
+          {custom.map((c) => (
+            <li
+              key={c.id}
+              className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-3 last:border-b-0"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-cuerpo font-semibold text-ink">
+                  {c.name}
+                  <span className="ml-2 font-normal text-ink-3">{CAP_LABEL[c.cap] ?? c.cap}</span>
+                  {/* La receta declara write_path: también recibe altas de aiuda. */}
+                  {c.write_path && (
+                    <span
+                      title="Esta conexión también recibe altas de aiuda (endpoint de escritura declarado)"
+                      className="ml-2 rounded bg-panel px-1.5 py-0.5 text-sello font-medium text-ink-2"
+                    >
+                      escribe
+                    </span>
+                  )}
+                </p>
+                <p className="truncate text-apoyo text-ink-3">{c.base_url}</p>
+              </div>
+              <CustomEstado c={c} />
+              <div className="flex shrink-0 items-center gap-4">
+                <button
+                  onClick={() => onProbar(c)}
+                  disabled={probando === c.id}
+                  className="text-apoyo font-medium text-accent-ink transition-colors hover:underline disabled:opacity-50"
+                >
+                  {probando === c.id ? "Probando…" : "Probar"}
+                </button>
+                <button
+                  onClick={() => onEditar(c)}
+                  className="text-apoyo font-medium text-accent-ink transition-colors hover:underline"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => onReceta(c)}
+                  title="Descarga la receta (JSON sin secretos) para compartirla"
+                  className="text-apoyo text-ink-3 transition-colors hover:text-ink"
+                >
+                  Receta
+                </button>
+                <button
+                  onClick={() => onQuitar(c.id)}
+                  className="text-apoyo text-ink-3 transition-colors hover:text-danger"
+                >
+                  Quitar
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 function Integraciones() {
@@ -139,7 +273,6 @@ function Integraciones() {
   const [crear, setCrear] = useState<string | null>(null);
   const [editar, setEditar] = useState<CustomConnector | null>(null);
   const [probando, setProbando] = useState<string | null>(null);
-  const [openNeed, setOpenNeed] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const custom = customData ?? [];
 
@@ -192,9 +325,12 @@ function Integraciones() {
     }
   }
   const vistaParam = useSearchParams().get("vista");
+  // Se abre en "Por necesidad" y no en el organigrama. Quien entra aquí viene a
+  // conectar algo, y el organigrama de alguien que todavía no tiene ayudantes es
+  // una caja vacía que no lo deja ni empezar. "mapa" es compat de enlaces
+  // viejos: el mapa se reemplazó por el organigrama.
   const [vista, setVista] = useState<"organigrama" | "conectores" | "todos">(
-    // "mapa" es compat de enlaces viejos: el mapa se reemplazó por el organigrama.
-    vistaParam === "conectores" ? "conectores" : vistaParam === "todos" ? "todos" : "organigrama",
+    vistaParam === "organigrama" ? "organigrama" : vistaParam === "todos" ? "todos" : "conectores",
   );
 
   const systems = data?.systems ?? [];
@@ -210,8 +346,8 @@ function Integraciones() {
         subtitle="Dinos qué quieres lograr y te damos las opciones. Tus fuentes siguen mandando: aiuda actúa encima."
         right={
           data && (
-            <span className="text-[12px] text-ink-3">
-              <span className="font-medium text-ink">{data.connected_count}</span> conectadas ·{" "}
+            <span className="text-cuerpo text-ink-2">
+              <span className="font-semibold text-ink">{data.connected_count}</span> conectadas ·{" "}
               {data.available_count} disponibles
             </span>
           )
@@ -220,107 +356,28 @@ function Integraciones() {
 
       <Tabs
         tabs={[
+          { key: "conectores", label: "Qué quieres conectar" },
+          { key: "todos", label: "Todas", count: systems.length || undefined },
           { key: "organigrama", label: "Organigrama" },
-          { key: "conectores", label: "Por necesidad" },
-          { key: "todos", label: "Todos", count: systems.length || undefined },
         ]}
         active={vista}
         onChange={(k) => setVista(k as typeof vista)}
       />
 
-      {vista !== "organigrama" && (
-        <section className="mt-4 overflow-hidden rounded-lg border border-line bg-surface">
-          <div className="flex items-center gap-3 border-b border-line bg-panel/30 px-4 py-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-semibold text-ink">Tus conexiones a la medida</p>
-              <p className="text-[11px] text-ink-3">
-                Fuentes que tú creaste por API. El motor las lee en cada corrida, con su procedencia.
-              </p>
-            </div>
-            <input
-              ref={importRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) importarReceta(f);
-                e.target.value = ""; // permite re-importar el mismo archivo
-              }}
-            />
-            <button
-              onClick={() => importRef.current?.click()}
-              title="Crea una conexión desde una receta compartida (JSON sin secretos)"
-              className="shrink-0 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[11.5px] font-medium text-ink-2 transition-colors hover:border-line-strong"
-            >
-              Importar receta
-            </button>
-          </div>
-          {custom.length === 0 ? (
-            <p className="px-4 py-3 text-[12px] text-ink-3">
-              Aún no tienes ninguna. Créala desde una necesidad (&ldquo;¿No está el tuyo?&rdquo;) o
-              importa una receta.
-            </p>
-          ) : (
-            <ul>
-              {custom.map((c) => (
-                <li
-                  key={c.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2.5 text-[12px] last:border-b-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-ink">
-                      {c.name}
-                      <span className="ml-2 font-normal text-ink-3">
-                        {CAP_LABEL[c.cap] ?? c.cap}
-                      </span>
-                      {/* La receta declara write_path: también recibe altas de aiuda. */}
-                      {c.write_path && (
-                        <span
-                          title="Esta conexión también recibe altas de aiuda (endpoint de escritura declarado)"
-                          className="ml-2 rounded bg-panel px-1.5 py-px text-[10.5px] font-medium text-ink-2"
-                        >
-                          escribe
-                        </span>
-                      )}
-                    </p>
-                    <p className="truncate text-[11px] text-ink-3">{c.base_url}</p>
-                  </div>
-                  <CustomEstado c={c} />
-                  <div className="flex shrink-0 items-center gap-2.5">
-                    <button
-                      onClick={() => probarCustom(c)}
-                      disabled={probando === c.id}
-                      className="text-[11.5px] font-medium text-accent-ink transition-colors hover:opacity-70 disabled:opacity-50"
-                    >
-                      {probando === c.id ? "Probando…" : "Probar"}
-                    </button>
-                    <button
-                      onClick={() => setEditar(c)}
-                      className="text-[11.5px] font-medium text-accent-ink transition-colors hover:opacity-70"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => exportarReceta(c)}
-                      title="Descarga la receta (JSON sin secretos) para compartirla"
-                      className="text-[11.5px] text-ink-3 transition-colors hover:text-ink"
-                    >
-                      Receta
-                    </button>
-                    <button
-                      onClick={() => quitarCustom(c.id)}
-                      className="text-[11.5px] text-ink-3 transition-colors hover:text-danger"
-                    >
-                      Quitar
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+      {/* Las conexiones a la medida viven ABAJO, no arriba: son la salida de
+          escape para quien no encontró su sistema, no lo primero que hay que
+          leer. Antes se comían el encabezado de la pantalla con un cajón vacío. */}
+      <input
+        ref={importRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) importarReceta(f);
+          e.target.value = ""; // permite re-importar el mismo archivo
+        }}
+      />
 
       {vista === "organigrama" && (
         <Organigrama
@@ -337,33 +394,21 @@ function Integraciones() {
       )}
 
       {vista === "todos" && (
-        <div className="reveal-stagger mt-4">
+        <div className="reveal-stagger mt-1">
           {error && <ErrorState message={error} retry={refetch} />}
           {loading && !data && (
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-[58px] w-full rounded-lg" />
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 2xl:grid-cols-3">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <Skeleton key={i} className="h-[70px] w-full rounded-lg" />
               ))}
             </div>
           )}
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 2xl:grid-cols-3">
             {systems.map((node) => (
               <ConnectorButton key={node.key} node={node} onOpen={abrir} />
             ))}
           </div>
-          {systems.length > 0 && (
-            <button
-              onClick={() => setCrear("")}
-              className="mt-2.5 flex w-full items-center gap-2 rounded-lg border border-dashed border-line-strong bg-surface px-3.5 py-2.5 text-left text-[12px] transition-colors hover:border-accent"
-            >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-dashed border-line-strong text-[15px] text-ink-3">
-                +
-              </span>
-              <span className="font-medium text-ink">¿No está el tuyo?</span>
-              <span className="hidden text-ink-3 sm:inline">Crea una conexión a la medida.</span>
-              <span className="ml-auto shrink-0 font-medium text-accent-ink">Créalo →</span>
-            </button>
-          )}
+          {systems.length > 0 && <NoEstaElTuyo onClick={() => setCrear("")} />}
         </div>
       )}
 
@@ -371,84 +416,91 @@ function Integraciones() {
         <>
           {error && <ErrorState message={error} retry={refetch} />}
 
-      {loading && !data && (
-        <div className="space-y-2.5">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-[58px] w-full rounded-lg" />
-          ))}
-        </div>
-      )}
-
-      <div className="reveal-stagger mt-4 space-y-2.5">
-        {NEEDS.map((need) => {
-          const opts = systems.filter((s) => s.provides.some((p) => p.cap === need.cap));
-          if (opts.length === 0) return null;
-          const conectadas = opts.filter((s) => s.connected).length;
-          const abierto = openNeed === need.cap;
-          return (
-            <section key={need.cap} className="overflow-hidden rounded-lg border border-line bg-surface">
-              <button
-                onClick={() => setOpenNeed(abierto ? null : need.cap)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-panel/40"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-ink">{need.title}</p>
-                  <p className="text-[11.5px] text-ink-3">{need.hint}</p>
+          {loading && !data && (
+            <div className="space-y-8">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i}>
+                  <Skeleton className="h-6 w-64 rounded" />
+                  <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2 2xl:grid-cols-3">
+                    <Skeleton className="h-[70px] w-full rounded-lg" />
+                    <Skeleton className="h-[70px] w-full rounded-lg" />
+                  </div>
                 </div>
-                {conectadas > 0 ? (
-                  <span className="shrink-0 text-[11.5px] font-medium text-ok">
-                    {conectadas} conectada{conectadas > 1 ? "s" : ""}
-                  </span>
-                ) : (
-                  <span className="shrink-0 text-[11.5px] text-ink-3">
-                    {opts.length} {opts.length > 1 ? "opciones" : "opción"}
-                  </span>
-                )}
-                <svg
-                  viewBox="0 0 12 12"
-                  className={`h-3 w-3 shrink-0 text-ink-3 transition-transform ${abierto ? "rotate-90" : ""}`}
-                  fill="none"
-                >
-                  <path
-                    d="M4.5 3 8 6l-3.5 3"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              {abierto && (
-                <div className="border-t border-line bg-panel/20 px-3 py-3">
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              ))}
+            </div>
+          )}
+
+          {/* Nada plegado. Antes eran diez renglones casi idénticos y lo que el
+              dueño venía a hacer (conectar el SAT) estaba escondido tras un
+              clic; ahora lee el encabezado y ahí mismo está su opción. */}
+          <div className="reveal-stagger space-y-7">
+            {NEEDS.map((need) => {
+              const opts = systems.filter((s) => s.provides.some((p) => p.cap === need.cap));
+              if (opts.length === 0) return null;
+              const conectadas = opts.filter((s) => s.connected).length;
+              return (
+                <section key={need.cap}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
+                    <div className="min-w-0">
+                      <h2 className="text-seccion font-semibold text-ink">{need.title}</h2>
+                      <p className="text-cuerpo text-ink-2">{need.hint}</p>
+                    </div>
+                    <div className="flex shrink-0 items-baseline gap-5">
+                      {conectadas > 0 ? (
+                        <span className="flex items-center gap-2 text-apoyo font-medium text-ok">
+                          <span className="h-2 w-2 rounded-full bg-ok" />
+                          {conectadas} conectada{conectadas > 1 ? "s" : ""}
+                        </span>
+                      ) : (
+                        <span className="text-apoyo text-ink-3">Sin conectar</span>
+                      )}
+                      {/* Solo donde el builder de verdad sirve: es el conjunto de
+                          necesidades con mapeo de campos (CAP_LABEL). Ofrecerlo en
+                          "habla con tus clientes" sería mentir: una receta GET no
+                          reemplaza a WhatsApp. */}
+                      {need.cap in CAP_LABEL && (
+                        <button
+                          onClick={() => setCrear(need.cap)}
+                          title="Crea una conexión a la medida contra tu propia API"
+                          className="text-apoyo font-medium text-accent-ink transition-colors hover:underline"
+                        >
+                          ¿No está el tuyo?
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2 2xl:grid-cols-3">
                     {opts.map((node) => (
                       <ConnectorButton key={node.key} node={node} onOpen={abrir} />
                     ))}
                   </div>
-                  {/* Fallback abierto: si no está tu fuente, la creas a la medida por API. */}
-                  <button
-                    onClick={() => setCrear(need.cap)}
-                    className="mt-2.5 flex w-full items-center gap-2 rounded-lg border border-dashed border-line-strong bg-surface px-3.5 py-2.5 text-left text-[12px] transition-colors hover:border-accent"
-                  >
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-dashed border-line-strong text-[15px] text-ink-3">
-                      +
-                    </span>
-                    <span className="font-medium text-ink">¿No está el tuyo?</span>
-                    <span className="hidden text-ink-3 sm:inline">Crea una conexión a la medida.</span>
-                    <span className="ml-auto shrink-0 font-medium text-accent-ink">Créalo →</span>
-                  </button>
-                </div>
-              )}
-            </section>
-          );
-        })}
-        {!loading && !error && systems.length === 0 && (
-          <div className="rounded-lg border border-line bg-surface px-6 py-12 text-center text-[13px] text-ink-3">
-            No hay integraciones para mostrar.
+                </section>
+              );
+            })}
+            {!loading && !error && systems.length === 0 && (
+              <EmptyState
+                title="No pudimos leer el catálogo de conectores"
+                action={<SecondaryButton onClick={refetch}>Volver a intentar</SecondaryButton>}
+              >
+                Vuelve a cargar la pantalla. Si sigue vacía, revisa que aiuda esté corriendo en
+                esta computadora.
+              </EmptyState>
+            )}
           </div>
-        )}
-      </div>
         </>
+      )}
+
+      {vista !== "organigrama" && (
+        <ALaMedida
+          custom={custom}
+          probando={probando}
+          onImportar={() => importRef.current?.click()}
+          onCrear={() => setCrear("")}
+          onProbar={probarCustom}
+          onEditar={setEditar}
+          onReceta={exportarReceta}
+          onQuitar={quitarCustom}
+        />
       )}
 
       <IntegrationConfigDrawer node={open} onClose={() => setOpen(null)} onSaved={refetch} />

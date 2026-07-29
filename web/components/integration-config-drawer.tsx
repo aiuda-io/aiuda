@@ -91,13 +91,13 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
   if (paired) {
     return (
       <div className="rounded-lg border border-ok/30 bg-ok-soft/40 px-4 py-4">
-        <p className="text-[12.5px] font-medium text-ok">WhatsApp conectado</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-ink-2">
+        <p className="text-cuerpo font-medium text-ok">WhatsApp conectado</p>
+        <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
           Tu número está vinculado. Tus clientes te escriben y tu equipo responde desde la consola.
         </p>
         <button
           onClick={logout}
-          className="mt-3 rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
+          className="mt-3 rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
         >
           Desvincular
         </button>
@@ -111,27 +111,27 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
         <div className="flex flex-col items-center rounded-lg border border-line bg-surface px-4 py-5 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qr} alt="Código QR de WhatsApp" className="h-44 w-44" />
-          <p className="mt-3 text-[12.5px] font-medium text-ink">Escanea para vincular</p>
-          <ol className="mx-auto mt-2 max-w-xs space-y-0.5 text-left text-[11.5px] leading-relaxed text-ink-3">
+          <p className="mt-3 text-cuerpo font-medium text-ink">Escanea para vincular</p>
+          <ol className="mx-auto mt-2 max-w-xs space-y-0.5 text-left text-apoyo leading-relaxed text-ink-3">
             <li>1. Abre WhatsApp en tu teléfono</li>
             <li>2. Ajustes &gt; Dispositivos vinculados &gt; Vincular un dispositivo</li>
             <li>3. Apunta la cámara a este código</li>
           </ol>
-          <p className="mt-3 flex items-center gap-1.5 text-[11.5px] text-ink-3">
+          <p className="mt-3 flex items-center gap-1.5 text-apoyo text-ink-3">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
             Esperando a que escanees…
           </p>
         </div>
       ) : (
         <div className="rounded-lg border border-line bg-surface px-4 py-5 text-center">
-          <p className="text-[12.5px] leading-relaxed text-ink-2">
+          <p className="text-cuerpo leading-relaxed text-ink-2">
             Vincula tu número de WhatsApp escaneando un código QR, como WhatsApp Web. Tu número, tu
             sesión; aiuda actúa encima.
           </p>
           <button
             onClick={startQr}
             disabled={loading}
-            className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+            className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
           >
             {loading ? "Generando QR…" : "Mostrar código QR"}
           </button>
@@ -267,7 +267,7 @@ export function IntegrationConfigDrawer({
             {node.logo ? (
               <img src={node.logo} alt="" className="h-6 w-6 object-contain" />
             ) : (
-              <span className="text-[13px] font-bold" style={{ color: node.color }}>
+              <span className="text-seccion font-bold" style={{ color: node.color }}>
                 {node.name.slice(0, 2)}
               </span>
             )}
@@ -275,25 +275,25 @@ export function IntegrationConfigDrawer({
           {node.verified === "error" ? (
             <span
               title={node.last_error ?? undefined}
-              className="flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-[11.5px] font-medium text-danger"
+              className="flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-sello font-medium text-danger"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-danger" />
               Revisar
             </span>
           ) : node.connected ? (
-            <span className="flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-[11.5px] font-medium text-ok">
+            <span className="flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-sello font-medium text-ok">
               <span className="h-1.5 w-1.5 rounded-full bg-ok" />
               {node.verified === "ok" ? "Verificado" : "Conectado"}
             </span>
           ) : (
-            <span className="rounded-full bg-panel px-2.5 py-1 text-[11.5px] font-medium text-ink-2">
+            <span className="rounded-full bg-panel px-2.5 py-1 text-sello font-medium text-ink-2">
               Sin conectar
             </span>
           )}
           <Link
             href={`/integraciones/detalle?key=${node.key}`}
             onClick={onClose}
-            className="ml-auto text-[12px] font-medium text-accent-ink transition-colors hover:underline"
+            className="ml-auto text-cuerpo font-medium text-accent-ink transition-colors hover:underline"
           >
             Abrir vista completa
           </Link>
@@ -301,12 +301,12 @@ export function IntegrationConfigDrawer({
 
         {node.does && (
           <div className="rounded-lg border border-line bg-panel/40 px-3.5 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
               ¿Cómo <span className="italic">aiuda</span>?
             </p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">{node.does}</p>
+            <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{node.does}</p>
             {node.live === false && (
-              <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
+              <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
                 Guarda tus credenciales para dejarla conectada. La sincronización automática
                 por negocio se habilita contigo en el alta del piloto.
               </p>
@@ -316,10 +316,10 @@ export function IntegrationConfigDrawer({
 
         {!isExcel && node.key !== "whatsapp" && caps.length > 0 && (
           <div className="rounded-lg border border-line bg-surface px-3.5 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
               Qué obtener de {node.name}
             </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-ink-3">
+            <p className="mt-1 text-apoyo leading-relaxed text-ink-3">
               Elige qué le da esta fuente a tu equipo. Empieza a obtenerse cuando la conectes.
             </p>
             <ul className="mt-2.5 space-y-2.5">
@@ -353,17 +353,17 @@ export function IntegrationConfigDrawer({
                     )}
                   </button>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12.5px] font-medium text-ink">
+                    <p className="text-cuerpo font-medium text-ink">
                       {c.label}
                       {!c.live && <span className="font-normal text-ink-3"> · por conectar</span>}
                     </p>
                     {c.agents.length > 0 && (
                       <div className="mt-1 flex flex-wrap items-center gap-1">
-                        <span className="text-[11px] text-ink-3">→</span>
+                        <span className="text-apoyo text-ink-3">→</span>
                         {c.agents.map((ag) => (
                           <span
                             key={ag.slug}
-                            className="flex items-center gap-1 rounded-full bg-panel px-1.5 py-0.5 text-[11px] text-ink-2"
+                            className="flex items-center gap-1 rounded-full bg-panel px-1.5 py-0.5 text-sello text-ink-2"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={ag.avatar} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
@@ -382,13 +382,13 @@ export function IntegrationConfigDrawer({
         {node.key === "whatsapp" ? (
           <WhatsAppPairing onChange={onSaved} />
         ) : isExcel ? (
-          <div className="rounded-lg border border-line bg-panel/40 px-4 py-4 text-[12.5px] leading-relaxed text-ink-2">
+          <div className="rounded-lg border border-line bg-panel/40 px-4 py-4 text-cuerpo leading-relaxed text-ink-2">
             Excel y CSV no necesitan credenciales. Sube cualquier hoja —clientes, productos,
             facturas, citas o prospectos— y la IA detecta qué es y la carga sola.
             <div className="mt-3">
               <Link
                 href="/importar"
-                className="inline-block rounded-md bg-accent px-3 py-1.5 text-[12px] font-medium text-surface hover:bg-accent-strong"
+                className="inline-block rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface hover:bg-accent-strong"
               >
                 Ir a Importar
               </Link>
@@ -401,12 +401,12 @@ export function IntegrationConfigDrawer({
             <div className="space-y-3">
               {fields.map((f) => (
                 <div key={f.key}>
-                  <label className="text-[12px] font-medium text-ink">{f.label}</label>
+                  <label className="text-cuerpo font-medium text-ink">{f.label}</label>
                   {f.type === "select" ? (
                     <select
                       value={values[f.key] ?? f.options?.[0]?.value ?? ""}
                       onChange={(e) => setField(f.key, e.target.value)}
-                      className="mt-1 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink focus:border-accent focus:outline-none"
+                      className="mt-1 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-rotulo text-ink focus:border-accent focus:outline-none"
                     >
                       {f.options?.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -420,10 +420,10 @@ export function IntegrationConfigDrawer({
                       value={values[f.key] ?? ""}
                       placeholder={f.placeholder}
                       onChange={(e) => setField(f.key, e.target.value)}
-                      className="mt-1 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                      className="mt-1 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-rotulo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
                     />
                   )}
-                  {f.hint && <p className="mt-1 text-[11px] leading-relaxed text-ink-3">{f.hint}</p>}
+                  {f.hint && <p className="mt-1 text-apoyo leading-relaxed text-ink-3">{f.hint}</p>}
                 </div>
               ))}
             </div>
@@ -432,7 +432,7 @@ export function IntegrationConfigDrawer({
               <button
                 onClick={save}
                 disabled={saving}
-                className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
               >
                 {saving ? "Guardando…" : configured ? "Guardar cambios" : "Conectar"}
               </button>
@@ -440,7 +440,7 @@ export function IntegrationConfigDrawer({
               {configured && (
                 <button
                   onClick={disconnect}
-                  className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
+                  className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
                 >
                   Desconectar
                 </button>
@@ -449,7 +449,7 @@ export function IntegrationConfigDrawer({
 
             {node.key === "whatsapp_cloud" && configured && (
               <div className="rounded-lg border border-line bg-panel/40 px-3.5 py-3">
-                <p className="text-[12px] leading-relaxed text-ink-2">
+                <p className="text-cuerpo leading-relaxed text-ink-2">
                   Con las credenciales guardadas, activa esta vía oficial como TU canal de
                   WhatsApp: recordatorios y respuestas saldrán por aquí (y no por wacli).
                 </p>
@@ -463,14 +463,14 @@ export function IntegrationConfigDrawer({
                       toast(`No se pudo activar: ${(e as Error).message}`, "error");
                     }
                   }}
-                  className="mt-2 rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink transition-colors hover:border-accent hover:text-accent-ink"
+                  className="mt-2 rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink transition-colors hover:border-accent hover:text-accent-ink"
                 >
                   Usar como mi canal de WhatsApp
                 </button>
               </div>
             )}
 
-            <p className="border-t border-line/60 pt-3 text-[11px] leading-relaxed text-ink-3">
+            <p className="border-t border-line/60 pt-3 text-apoyo leading-relaxed text-ink-3">
               Tus credenciales se guardan cifradas en esta instalación y solo se usan para
               conectar este sistema.
             </p>
@@ -491,7 +491,7 @@ function IntegrationHelp({ nodeKey, name }: { nodeKey: string; name: string }) {
     <div className="border-t border-line/60 pt-3">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-[12px] font-medium text-ink transition-colors hover:text-accent-ink"
+        className="flex w-full items-center justify-between text-cuerpo font-medium text-ink transition-colors hover:text-accent-ink"
       >
         Cómo conectar {name}
         <svg viewBox="0 0 12 12" className={`h-3 w-3 text-ink-3 transition-transform ${open ? "rotate-90" : ""}`} fill="none">
@@ -500,11 +500,11 @@ function IntegrationHelp({ nodeKey, name }: { nodeKey: string; name: string }) {
       </button>
       {open && (
         <div className="mt-2.5 space-y-3">
-          <p className="text-[12px] leading-relaxed text-ink-2">{help.intro}</p>
+          <p className="text-cuerpo leading-relaxed text-ink-2">{help.intro}</p>
           {help.steps.length > 0 && (
             <ol className="space-y-1.5">
               {help.steps.map((s, i) => (
-                <li key={i} className="flex gap-2 text-[12px] leading-relaxed text-ink-2">
+                <li key={i} className="flex gap-2 text-cuerpo leading-relaxed text-ink-2">
                   <span className="tnum shrink-0 font-medium text-ink-3">{i + 1}.</span>
                   {s}
                 </li>
@@ -513,10 +513,10 @@ function IntegrationHelp({ nodeKey, name }: { nodeKey: string; name: string }) {
           )}
           {help.credentials.length > 0 && (
             <div className="rounded-md border border-line bg-panel/40 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">Dónde obtener cada dato</p>
+              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">Dónde obtener cada dato</p>
               <ul className="mt-1.5 space-y-1.5">
                 {help.credentials.map((c) => (
-                  <li key={c.field} className="text-[11.5px] leading-relaxed text-ink-2">
+                  <li key={c.field} className="text-apoyo leading-relaxed text-ink-2">
                     <span className="font-medium text-ink">{c.field}:</span> {c.where}
                   </li>
                 ))}

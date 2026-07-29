@@ -40,7 +40,7 @@ type ObjSource = {
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[11px] uppercase tracking-[0.06em] text-ink-3">{label}</span>
+      <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
   );
@@ -63,8 +63,8 @@ function OptionCard({
     "block rounded-lg border border-line bg-surface px-3.5 py-3 transition-colors hover:border-line-strong hover:bg-panel/40";
   const body = (
     <>
-      <p className="text-[12.5px] font-medium text-ink">{title}</p>
-      <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-3">{desc}</p>
+      <p className="text-cuerpo font-medium text-ink">{title}</p>
+      <p className="mt-0.5 text-apoyo leading-relaxed text-ink-3">{desc}</p>
     </>
   );
   if (external) {
@@ -298,10 +298,10 @@ export function AgregarSheet({
                               setClienteQuery(c.name);
                               setListaAbierta(false);
                             }}
-                            className="flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left text-[12.5px] text-ink transition-colors hover:bg-panel/50"
+                            className="flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left text-cuerpo text-ink transition-colors hover:bg-panel/50"
                           >
                             <span className="truncate">{c.name}</span>
-                            {c.phone && <span className="tnum shrink-0 text-[11px] text-ink-3">{c.phone}</span>}
+                            {c.phone && <span className="tnum shrink-0 text-apoyo text-ink-3">{c.phone}</span>}
                           </button>
                         </li>
                       ))}
@@ -310,7 +310,7 @@ export function AgregarSheet({
                 </div>
               </Campo>
               {clientes.length === 0 && (
-                <p className="text-[11.5px] text-ink-3">
+                <p className="text-apoyo text-ink-3">
                   La factura se cuelga de un cliente. Crea uno primero desde{" "}
                   <Link href="/clientes" onClick={onClose} className="font-medium text-accent-ink hover:underline">
                     Clientes
@@ -366,12 +366,12 @@ export function AgregarSheet({
                   className="mt-0.5 accent-[var(--color-accent)]"
                 />
                 <span className="min-w-0">
-                  <span className="block text-[12.5px] font-medium text-ink">
+                  <span className="block text-cuerpo font-medium text-ink">
                     {destinos.length === 1
                       ? `Crear también en ${destinos[0].label}`
                       : "Crear también en otro sistema"}
                   </span>
-                  <span className="mt-0.5 block text-[11.5px] leading-relaxed text-ink-3">
+                  <span className="mt-0.5 block text-apoyo leading-relaxed text-ink-3">
                     El registro nace en aiuda y el alta viaja al destino en segundo plano.
                   </span>
                 </span>
@@ -390,12 +390,12 @@ export function AgregarSheet({
                 </select>
               )}
               {inyectar && tipo === "facturas" && destinoSel?.target === "odoo" && (
-                <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
+                <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
                   A Odoo llega como borrador: revisas impuestos y la publicas allá.
                 </p>
               )}
               {inyectar && tipo === "citas" && !v("starts_at") && (
-                <p className="mt-2 text-[11.5px] leading-relaxed text-warn">
+                <p className="mt-2 text-apoyo leading-relaxed text-warn">
                   Para viajar al calendario, la cita necesita fecha y hora.
                 </p>
               )}
@@ -408,7 +408,7 @@ export function AgregarSheet({
         </div>
 
         {/* Los caminos de siempre, ahora secundarios. */}
-        <p className="pt-2 text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <p className="pt-2 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
           O si prefieres…
         </p>
 

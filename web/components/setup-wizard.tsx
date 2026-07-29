@@ -138,17 +138,17 @@ function Arrow() {
 function Titulo({ children, sub }: { children: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div className="mb-7">
-      <h1 className="text-[27px] font-semibold leading-[1.15] tracking-[-0.015em] text-ink">
+      <h1 className="text-cifra font-semibold leading-[1.15] tracking-[-0.015em] text-ink">
         {children}
       </h1>
-      {sub && <p className="mt-2.5 max-w-[52ch] text-[13.5px] leading-relaxed text-ink-2">{sub}</p>}
+      {sub && <p className="mt-2.5 max-w-[52ch] text-cuerpo leading-relaxed text-ink-2">{sub}</p>}
     </div>
   );
 }
 
 /** Nota tranquila al pie de un paso (lo honesto: qué es opcional, quién paga qué). */
 function Nota({ children }: { children: React.ReactNode }) {
-  return <p className="mt-6 max-w-[80ch] text-[11.5px] leading-relaxed text-ink-3">{children}</p>;
+  return <p className="mt-6 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">{children}</p>;
 }
 
 /** Logo de marca. El proyecto sirve estáticos desde FastAPI (export estático),
@@ -232,21 +232,21 @@ function Tarjeta({
       <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-line bg-panel">
         {logo}
       </span>
-      <span className="mt-4 block text-[15px] font-semibold leading-tight text-ink">{nombre}</span>
-      <span className="mt-1.5 block text-[12px] leading-relaxed text-ink-3">{resumen}</span>
+      <span className="mt-4 block text-cuerpo font-semibold leading-tight text-ink">{nombre}</span>
+      <span className="mt-1.5 block text-cuerpo leading-relaxed text-ink-3">{resumen}</span>
       {chip && (
-        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-line bg-panel px-2.5 py-1 text-[11px] leading-[1.35] text-ink-2">
+        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-line bg-panel px-2.5 py-1 text-sello leading-[1.35] text-ink-2">
           {chipPunto && <Punto tono="ok" />}
           {chip}
         </span>
       )}
-      <span className="mt-3 inline-flex items-center gap-1.5 text-[11.5px] leading-tight text-ink-2">
+      <span className="mt-3 inline-flex items-center gap-1.5 text-apoyo leading-tight text-ink-2">
         <Punto tono={tono} />
         {estado}
       </span>
       <span className="mt-auto block w-full pt-5">
         <span
-          className={`block w-full rounded-md px-3 py-2.5 text-[12.5px] font-medium transition-colors ${
+          className={`block w-full rounded-md px-3 py-2.5 text-cuerpo font-medium transition-colors ${
             principal
               ? "bg-accent text-surface group-hover:bg-accent-strong"
               : "border border-line bg-surface text-ink-2 group-hover:border-line-strong group-hover:text-ink"
@@ -280,7 +280,7 @@ function ResultadoIA({ test }: { test: ProviderTest }) {
     return (
       <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-line bg-surface px-4 py-3">
         <Check />
-        <p className="text-[12.5px] leading-relaxed text-ink-2">
+        <p className="text-cuerpo leading-relaxed text-ink-2">
           Tu IA respondió bien. Ya puede trabajar.
         </p>
       </div>
@@ -288,8 +288,8 @@ function ResultadoIA({ test }: { test: ProviderTest }) {
   }
   return (
     <div className="mt-4 rounded-lg border border-line bg-surface px-4 py-3">
-      <p className="text-[12.5px] font-medium text-ink">No pudo responder</p>
-      <p className="mt-1 text-[12px] leading-relaxed text-ink-2">{test.error}</p>
+      <p className="text-cuerpo font-medium text-ink">No pudo responder</p>
+      <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{test.error}</p>
     </div>
   );
 }
@@ -389,7 +389,7 @@ export function SetupWizard() {
       <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4">
         <button
           onClick={volver}
-          className="flex items-center gap-3 rounded-full border border-line bg-surface py-2 pl-4 pr-3 text-[12.5px] text-ink-2 elev-md transition-colors hover:text-ink"
+          className="flex items-center gap-3 rounded-full border border-line bg-surface py-2 pl-4 pr-3 text-cuerpo text-ink-2 elev-md transition-colors hover:text-ink"
         >
           Estás en la configuración inicial
           <span className="flex items-center gap-1.5 font-medium text-accent-ink">
@@ -419,11 +419,11 @@ export function SetupWizard() {
         <header className="mb-8">
           <div className="flex items-baseline justify-between">
             <span className="flex items-baseline gap-1.5">
-              <span className="text-[15px] font-semibold tracking-tight text-ink">aiuda</span>
+              <span className="text-cuerpo font-semibold tracking-tight text-ink">aiuda</span>
               <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             </span>
             {paso !== "cierre" && (
-              <span className="text-[11px] font-medium uppercase tracking-[0.07em] text-ink-3">
+              <span className="text-rotulo font-medium uppercase tracking-[0.07em] text-ink-3">
                 Paso {numero} de {paso4}
               </span>
             )}
@@ -451,7 +451,7 @@ export function SetupWizard() {
             {indice > 0 ? <SecondaryButton onClick={atras}>Atrás</SecondaryButton> : <span />}
             <button
               onClick={avanzar}
-              className="text-[12px] text-ink-3 transition-colors hover:text-ink"
+              className="text-cuerpo text-ink-3 transition-colors hover:text-ink"
             >
               Saltar por ahora
             </button>
@@ -500,7 +500,7 @@ function PasoNegocio({
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <label htmlFor="setup-negocio" className="block text-[13px] font-medium text-ink">
+          <label htmlFor="setup-negocio" className="block text-cuerpo font-medium text-ink">
             Nombre del negocio
           </label>
           <input
@@ -515,10 +515,10 @@ function PasoNegocio({
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="setup-tel" className="block text-[13px] font-medium text-ink">
+          <label htmlFor="setup-tel" className="block text-cuerpo font-medium text-ink">
             Tu WhatsApp <span className="font-normal text-ink-3">(opcional)</span>
           </label>
-          <p className="text-[12px] leading-relaxed text-ink-3">
+          <p className="text-cuerpo leading-relaxed text-ink-3">
             Para avisarte cuando algo necesite tu visto bueno. Lo puedes dejar en blanco y ponerlo
             después.
           </p>
@@ -580,7 +580,7 @@ function EtiquetaCabe({ cabe }: { cabe: ModeloRecomendado["cabe"] }) {
         : { texto: "No le queda", cls: "bg-line/60 text-ink-3" };
   return (
     <span
-      className={`rounded px-1.5 py-px text-[10.5px] font-medium leading-[1.5] ${meta.cls}`}
+      className={`rounded px-1.5 py-px text-sello font-medium leading-[1.5] ${meta.cls}`}
     >
       {meta.texto}
     </span>
@@ -830,11 +830,11 @@ function PasoIA({
           <div className="min-w-0">
             {/* Honestidad: quedó anotada, pero si la prueba falló no se canta
                 victoria. El porqué y el cómo arreglarlo van justo abajo. */}
-            <p className="flex items-center gap-2 text-[15px] font-semibold text-ink">
+            <p className="flex items-center gap-2 text-cuerpo font-semibold text-ink">
               {test && !test.ok ? null : <Check className="h-4 w-4 text-ok" />}
               {test && !test.ok ? "Quedó guardada, pero no contestó" : "Tu IA ya está conectada"}
             </p>
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
+            <p className="mt-1.5 text-cuerpo leading-relaxed text-ink-2">
               Estás usando {comoSeLlama}. Lo puedes cambiar cuando quieras desde Tu IA, en el menú.
             </p>
           </div>
@@ -1043,13 +1043,13 @@ function PasoIA({
       {abierta === "red" && enRed !== null && (
         <div className="mt-4 rounded-xl border border-line bg-panel/40 p-4">
           {enRed.length === 0 ? (
-            <p className="text-[12.5px] text-ink-2">
+            <p className="text-cuerpo text-ink-2">
               No vimos ninguna IA compartida en tu red. Si alguien la tiene, pídele que la
               deje visible para los demás equipos y vuelve a buscar.
             </p>
           ) : (
             <>
-              <p className="mb-2.5 text-[12px] font-semibold text-ink">Encontradas en tu red</p>
+              <p className="mb-2.5 text-cuerpo font-semibold text-ink">Encontradas en tu red</p>
               <ul className="space-y-2">
                 {enRed.map((s) => (
                   <li
@@ -1057,15 +1057,15 @@ function PasoIA({
                     className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-3.5 py-2.5"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-ink">{s.equipo}</p>
-                      <p className="truncate text-[11.5px] text-ink-3">
+                      <p className="truncate text-cuerpo font-medium text-ink">{s.equipo}</p>
+                      <p className="truncate text-apoyo text-ink-3">
                         {s.programa}
                         {s.modelos.length > 0 ? ` · ${s.modelos.slice(0, 2).join(", ")}` : ""}
                         {s.protegido ? " · pide contraseña" : ""}
                       </p>
                     </div>
                     {s.protegido ? (
-                      <span className="text-[11.5px] text-ink-3">
+                      <span className="text-apoyo text-ink-3">
                         Conéctala desde Proveedor de IA con su clave
                       </span>
                     ) : (
@@ -1088,7 +1088,7 @@ function PasoIA({
                 ))}
               </ul>
               {avisoRed && (
-                <p className="mt-3 border-t border-line/60 pt-3 text-[11.5px] leading-relaxed text-ink-3">
+                <p className="mt-3 border-t border-line/60 pt-3 text-apoyo leading-relaxed text-ink-3">
                   {avisoRed}
                 </p>
               )}
@@ -1100,14 +1100,14 @@ function PasoIA({
       {abierta === null && (
         <div className="mt-4 space-y-1.5">
           {tardando && (
-            <p className="text-[12px] leading-relaxed text-ink-2">
+            <p className="text-cuerpo leading-relaxed text-ink-2">
               La primera vez tarda un poco: tu programa está despertando. No cierres esta ventana.
             </p>
           )}
           {sugerido && catalogo.length > 0 && (
             <button
               onClick={() => setAbierta("local")}
-              className="block text-[12px] text-ink-3 transition-colors hover:text-ink"
+              className="block text-cuerpo text-ink-3 transition-colors hover:text-ink"
             >
               Ver otros modelos para tu equipo
             </button>
@@ -1115,7 +1115,7 @@ function PasoIA({
           {/* El camino de un clic manda; quien prefiera otra cosa la tiene aquí,
               en una línea, sin robarle la atención al botón de arriba. */}
           {unClic && (
-            <p className="text-[12px] leading-relaxed text-ink-3">
+            <p className="text-cuerpo leading-relaxed text-ink-3">
               Otra forma de conectar:{" "}
               <button
                 onClick={() => {
@@ -1164,11 +1164,11 @@ function PasoIA({
           {ollamaInstalado ? (
             catalogo.length > 0 ? (
               <div>
-                <p className="text-[13.5px] font-semibold text-ink">
+                <p className="text-seccion font-semibold text-ink">
                   Recomendados para tu equipo
                   {equipo ? ` (${equipo.chip}, ${equipo.ram_gb} GB)` : ""}
                 </p>
-                <p className="mt-1 text-[12px] leading-relaxed text-ink-3">
+                <p className="mt-1 text-cuerpo leading-relaxed text-ink-3">
                   Se descargan una vez y se quedan en tu computadora. Al terminar, aiuda lo conecta
                   solo.
                 </p>
@@ -1188,10 +1188,10 @@ function PasoIA({
               </div>
             ) : (
               <div>
-                <p className="text-[13.5px] font-semibold text-ink">
+                <p className="text-seccion font-semibold text-ink">
                   Ollama está aquí, pero sin ningún modelo
                 </p>
-                <p className="mt-1 text-[12px] leading-relaxed text-ink-3">
+                <p className="mt-1 text-cuerpo leading-relaxed text-ink-3">
                   Abre la app Terminal y pega esta línea. Baja el modelo, tarda unos minutos.
                 </p>
                 <Comando texto="ollama pull llama3.1" />
@@ -1204,13 +1204,13 @@ function PasoIA({
             )
           ) : (
             <div>
-              <p className="text-[13.5px] font-semibold text-ink">
+              <p className="text-seccion font-semibold text-ink">
                 Instalar un modelo en tu computadora
               </p>
-              <p className="mt-1 text-[12px] leading-relaxed text-ink-3">
+              <p className="mt-1 text-cuerpo leading-relaxed text-ink-3">
                 No pagas nada y ningún dato sale de aquí. Toma unos minutos la primera vez.
               </p>
-              <ol className="mt-3.5 space-y-2.5 text-[12.5px] leading-relaxed text-ink-2">
+              <ol className="mt-3.5 space-y-2.5 text-cuerpo leading-relaxed text-ink-2">
                 <li className="flex gap-2.5">
                   <span className="tnum text-ink-3">1.</span>
                   <span>
@@ -1252,7 +1252,7 @@ function PasoIA({
       {abierta === null && test && <ResultadoIA test={test} />}
 
       {ia.env_key && (
-        <p className="mt-4 text-[11.5px] leading-relaxed text-ink-3">
+        <p className="mt-4 text-apoyo leading-relaxed text-ink-3">
           Esta computadora ya trae una llave configurada por fuera de la consola. Puedes seguir sin
           pegar nada; si conectas una aquí, esa manda.
         </p>
@@ -1274,7 +1274,7 @@ function PasoIA({
 function AvisoAqui({ claude, codex }: { claude: boolean; codex: boolean }) {
   const cuales = claude && codex ? "Claude Code o Codex" : claude ? "Claude Code" : "Codex";
   return (
-    <p className="mt-5 max-w-[80ch] text-[11.5px] leading-relaxed text-ink-3">
+    <p className="mt-5 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">
       Al usar {cuales}, aiuda ocupa la cuenta con la que ya entraste en esta computadora, como tus
       demás programas. No es una vía oficial según los términos de{" "}
       {claude && (
@@ -1318,10 +1318,10 @@ function Comando({ texto }: { texto: string }) {
   }
   return (
     <span className="mt-2 flex items-center gap-2 rounded-md border border-line bg-surface px-3 py-2">
-      <code className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink">{texto}</code>
+      <code className="min-w-0 flex-1 truncate font-mono text-cuerpo text-ink">{texto}</code>
       <button
         onClick={copiar}
-        className="shrink-0 text-[11.5px] font-medium text-accent-ink hover:underline"
+        className="shrink-0 text-apoyo font-medium text-accent-ink hover:underline"
       >
         {copiado ? "Copiado" : "Copiar"}
       </button>
@@ -1347,16 +1347,16 @@ function FilaModelo({
     <li className="flex items-center gap-4 border-t border-line py-3 first:border-t-0">
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          <span className="text-[13px] font-medium text-ink">{modelo.nombre}</span>
+          <span className="text-cuerpo font-medium text-ink">{modelo.nombre}</span>
           {/* Lo que ya está bajado no necesita veredicto de si "cabe": ya cupo. */}
           {!modelo.instalado && <EtiquetaCabe cabe={modelo.cabe} />}
           {modelo.recomendado && !modelo.instalado && !descarga && (
-            <span className="rounded bg-accent-soft px-1.5 py-px text-[10.5px] font-medium leading-[1.5] text-accent-ink">
+            <span className="rounded bg-accent-soft px-1.5 py-px text-sello font-medium leading-[1.5] text-accent-ink">
               Recomendado
             </span>
           )}
         </span>
-        <span className="mt-0.5 block text-[11.5px] leading-relaxed text-ink-3">
+        <span className="mt-0.5 block text-apoyo leading-relaxed text-ink-3">
           <span className="tnum">{modelo.tam_gb} GB</span>
           {modelo.para ? ` · ${modelo.para}` : ""}
         </span>
@@ -1370,18 +1370,18 @@ function FilaModelo({
               style={{ width: `${descarga.pct}%` }}
             />
           </span>
-          <span className="tnum mt-1.5 block text-[11px] text-ink-3">
+          <span className="tnum mt-1.5 block text-apoyo text-ink-3">
             Descargando {descarga.pct}%
           </span>
         </span>
       ) : descarga?.estado === "listo" ? (
-        <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] text-ok">
+        <span className="flex shrink-0 items-center gap-1.5 text-apoyo text-ok">
           <Check className="h-3.5 w-3.5 text-ok" />
           Listo
         </span>
       ) : descarga?.estado === "error" ? (
         <span className="flex shrink-0 items-center gap-2">
-          <span className="max-w-[13rem] truncate text-[11.5px] text-danger" title={descarga.error}>
+          <span className="max-w-[13rem] truncate text-apoyo text-danger" title={descarga.error}>
             {descarga.error}
           </span>
           <SecondaryButton onClick={onDescargar}>Reintentar</SecondaryButton>
@@ -1421,7 +1421,7 @@ function AvisoCuenta({
   href: string;
 }) {
   return (
-    <p className="mt-3.5 max-w-[80ch] text-[11.5px] leading-relaxed text-ink-3">
+    <p className="mt-3.5 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">
       Tu suscripción, en tu computadora: aiuda corre aquí y usa tu propia cuenta de {marca}, como
       tus demás programas. Eso sí, no es una vía oficial según los{" "}
       <a
@@ -1571,8 +1571,8 @@ function PanelProveedor({
   // La llave: un campo y ya. Se guarda cifrada en esta computadora.
   const campoLlave = (
     <div>
-      <p className="text-[13px] font-medium text-ink">Pega tu llave de {marca}</p>
-      <p className="mt-1 max-w-[70ch] text-[12px] leading-relaxed text-ink-3">
+      <p className="text-cuerpo font-medium text-ink">Pega tu llave de {marca}</p>
+      <p className="mt-1 max-w-[70ch] text-cuerpo leading-relaxed text-ink-3">
         La sacas en{" "}
         <a
           href={esClaude ? "https://console.anthropic.com" : "https://platform.openai.com/api-keys"}
@@ -1610,13 +1610,13 @@ function PanelProveedor({
 
   return (
     <Panel>
-      <p className="text-[13.5px] font-semibold text-ink">Conectar {marca}</p>
+      <p className="text-seccion font-semibold text-ink">Conectar {marca}</p>
 
       {esClaude ? (
         <div className="mt-3.5">
           {campoLlave}
           {!cliInstalado && (
-            <p className="mt-4 max-w-[80ch] text-[11.5px] leading-relaxed text-ink-3">
+            <p className="mt-4 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">
               ¿No tienes llave? Instala{" "}
               <a
                 href="https://claude.com/product/claude-code"
@@ -1632,18 +1632,18 @@ function PanelProveedor({
         </div>
       ) : (
         <div className="mt-3.5">
-          <p className="max-w-[70ch] text-[12px] leading-relaxed text-ink-3">
+          <p className="max-w-[70ch] text-cuerpo leading-relaxed text-ink-3">
             aiuda te da un código de un solo uso, lo escribes en la página de OpenAI y listo. No
             tienes que pegar nada aquí.
           </p>
 
           {fase === "esperando" && codigo ? (
             <div className="mt-3.5 rounded-lg border border-line bg-surface px-4 py-4">
-              <p className="text-[12.5px] leading-relaxed text-ink-2">
+              <p className="text-cuerpo leading-relaxed text-ink-2">
                 Escribe este código en la página de OpenAI:
               </p>
               <div className="mt-2.5 flex items-center gap-2">
-                <code className="tnum flex-1 rounded-md border border-line bg-panel px-3 py-2.5 text-center text-[20px] font-semibold tracking-[0.18em] text-ink">
+                <code className="tnum flex-1 rounded-md border border-line bg-panel px-3 py-2.5 text-center text-titulo font-semibold tracking-[0.18em] text-ink">
                   {codigo.userCode}
                 </code>
                 <SecondaryButton size="lg" className="shrink-0" onClick={copiarCodigo}>
@@ -1655,7 +1655,7 @@ function PanelProveedor({
                   href={codigo.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex rounded-md bg-accent px-4 py-2.5 text-[13.5px] font-medium text-surface transition-colors hover:bg-accent-strong"
+                  className="inline-flex rounded-md bg-accent px-4 py-2.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
                 >
                   Abrir la página de OpenAI
                 </a>
@@ -1663,7 +1663,7 @@ function PanelProveedor({
                   Cancelar
                 </SecondaryButton>
               </div>
-              <p className="mt-3 flex items-start gap-2 text-[12px] text-ink-3">
+              <p className="mt-3 flex items-start gap-2 text-cuerpo text-ink-3">
                 <span className="breathe mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
                 <span>
                   Esperando a que autorices… El código vence en{" "}
@@ -1684,10 +1684,10 @@ function PanelProveedor({
           )}
 
           {fase === "error" && (
-            <p className="mt-3 max-w-[80ch] text-[12px] leading-relaxed text-danger">{falla}</p>
+            <p className="mt-3 max-w-[80ch] text-cuerpo leading-relaxed text-danger">{falla}</p>
           )}
 
-          <p className="mt-3 max-w-[80ch] text-[11.5px] leading-relaxed text-ink-3">
+          <p className="mt-3 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">
             Una sola vez, ChatGPT te va a pedir que actives el{" "}
             <a
               href={TERMINOS_OPENAI}
@@ -1702,7 +1702,7 @@ function PanelProveedor({
 
           {/* Lo de siempre: una acción visible arriba, lo demás detrás de una línea. */}
           <details className="mt-4 rounded-lg border border-line bg-surface px-4 py-3">
-            <summary className="cursor-pointer text-[12px] font-medium text-ink-2 hover:text-ink">
+            <summary className="cursor-pointer text-cuerpo font-medium text-ink-2 hover:text-ink">
               Otra forma de conectar
             </summary>
             <div className="mt-3.5">{campoLlave}</div>
@@ -1753,11 +1753,11 @@ function PasoDatos({
             )}
           </span>
           <div className="min-w-0">
-            <p className="flex items-center gap-2 text-[15px] font-semibold text-ink">
+            <p className="flex items-center gap-2 text-cuerpo font-semibold text-ink">
               <Check className="h-4 w-4 text-ok" />
               {partes.length > 0 ? `Ya tenemos ${partes.join(" y ")}` : "Ya tienes una fuente conectada"}
             </p>
-            <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
+            <p className="mt-1.5 text-cuerpo leading-relaxed text-ink-2">
               {fuentes.length > 0
                 ? `Conectado a ${fuentes.join(", ")}. Puedes agregar más fuentes cuando quieras.`
                 : "Puedes seguir cargando más datos cuando quieras, desde Importar."}
@@ -1888,7 +1888,7 @@ function PasoAyudante({
           {...appearanceForSlug(oficio || "cobranza")}
         />
         <div className="min-w-0 flex-1">
-          <label htmlFor="setup-ayudante" className="block text-[13px] font-medium text-ink">
+          <label htmlFor="setup-ayudante" className="block text-cuerpo font-medium text-ink">
             ¿Cómo le quieres decir?
           </label>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1901,12 +1901,12 @@ function PasoAyudante({
               autoComplete="off"
             />
             <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[11.5px] text-ink-3">Ideas:</span>
+              <span className="text-apoyo text-ink-3">Ideas:</span>
               {SUGERENCIAS.map((s) => (
                 <button
                   key={s}
                   onClick={() => setNombre(s)}
-                  className="rounded-md border border-line px-2 py-0.5 text-[11.5px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  className="rounded-md border border-line px-2 py-0.5 text-sello text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
                 >
                   {s}
                 </button>
@@ -1917,7 +1917,7 @@ function PasoAyudante({
       </div>
 
       <div className="mt-6">
-        <p className="mb-2.5 text-[13px] font-medium text-ink">¿De qué se va a encargar?</p>
+        <p className="mb-2.5 text-cuerpo font-medium text-ink">¿De qué se va a encargar?</p>
         {perfiles.length === 0 ? (
           <div className="skeleton h-[140px] w-full rounded-xl" />
         ) : (
@@ -1935,8 +1935,8 @@ function PasoAyudante({
                 >
                   <Avatar name={p.name} size={32} {...appearanceForSlug(p.slug)} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-medium text-ink">{p.name}</span>
-                    <span className="mt-0.5 block truncate text-[11.5px] text-ink-3">
+                    <span className="block text-cuerpo font-medium text-ink">{p.name}</span>
+                    <span className="mt-0.5 block truncate text-apoyo text-ink-3">
                       {p.desc || `${p.total} ${p.total === 1 ? "aiudita" : "aiuditas"}`}
                     </span>
                   </span>
@@ -1981,8 +1981,8 @@ function Resumen({ label, valor, ok }: { label: string; valor: string; ok: boole
         </svg>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block text-[12px] text-ink-3">{label}</span>
-        <span className="mt-0.5 block text-[13.5px] text-ink">{valor}</span>
+        <span className="block text-cuerpo text-ink-3">{label}</span>
+        <span className="mt-0.5 block text-cuerpo text-ink">{valor}</span>
       </span>
     </li>
   );

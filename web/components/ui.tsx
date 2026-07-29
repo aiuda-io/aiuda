@@ -16,8 +16,8 @@ export function PageHeader({
   return (
     <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-[17px] font-semibold tracking-tight text-ink">{title}</h1>
-        {subtitle && <p className="mt-1.5 text-[12.5px] text-ink-3">{subtitle}</p>}
+        <h1 className="text-titulo font-semibold text-ink">{title}</h1>
+        {subtitle && <p className="mt-1.5 max-w-2xl text-cuerpo text-ink-2">{subtitle}</p>}
       </div>
       {right}
     </header>
@@ -32,7 +32,7 @@ export function BucketPill({ bucket }: { bucket: string }) {
   };
   return (
     <span
-      className={`inline-flex items-center whitespace-nowrap rounded px-1.5 py-px text-[11px] font-medium ${meta.bg} ${meta.fg}`}
+      className={`inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-sello font-medium ${meta.bg} ${meta.fg}`}
     >
       {meta.label}
     </span>
@@ -51,11 +51,11 @@ export function ChevronLeft({ className = "h-3 w-3" }: { className?: string }) {
  *  padding/tipografía a mano). `md` es el default e IDÉNTICO al estilo previo;
  *  `sm` es para acciones inline compactas (ej. "Editar" junto a un título). */
 const BTN_SIZE = {
-  sm: "px-2 py-0.5 text-[11.5px]",
-  md: "px-3 py-1.5 text-[12.5px]",
+  sm: "px-2.5 py-1 text-rotulo",
+  md: "px-3.5 py-2 text-cuerpo",
   /** Superficies de pantalla completa (asistente de primer arranque): el botón
    *  es el objeto principal de la vista y la densidad de consola queda chica. */
-  lg: "px-4 py-2.5 text-[13.5px]",
+  lg: "px-5 py-3 text-seccion",
 } as const;
 type BtnSize = keyof typeof BTN_SIZE;
 
@@ -139,7 +139,7 @@ export function SecondaryLink({
  *  componer (textarea, prefijos, className extra) y `<TextInput>` para el caso común.
  *  Reemplaza las variantes inline sueltas que hoy viven repetidas por el repo. */
 export const inputCls =
-  "w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+  "w-full rounded-md border border-line bg-surface px-3 py-2.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
 
 export function TextInput({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${className ?? ""}`} />;
@@ -150,7 +150,7 @@ export function TextInput({ className, ...props }: React.InputHTMLAttributes<HTM
  *  Se usa como clase suelta (no compuesta sobre inputCls) para que no compitan
  *  dos padding/tamaños del mismo utility. */
 export const inputLgCls =
-  "w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+  "w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-seccion text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
 
 /** Confirmación destructiva no-bloqueante (reemplaza el confirm() nativo, que bloquea
  *  y no es estilizable). Uso:
@@ -201,15 +201,15 @@ export function useConfirm() {
         className="w-full max-w-sm rounded-xl border border-line bg-surface p-5 shadow-[0_12px_40px_rgba(13,45,62,0.18)]"
         onClick={(e) => e.stopPropagation()}
       >
-        {state.title && <p className="text-[14px] font-semibold text-ink">{state.title}</p>}
-        <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{state.message}</p>
+        {state.title && <p className="text-seccion font-semibold text-ink">{state.title}</p>}
+        <p className="mt-1.5 text-cuerpo text-ink-2">{state.message}</p>
         <div className="mt-4 flex justify-end gap-2">
           <SecondaryButton onClick={() => close(false)} autoFocus>
             Cancelar
           </SecondaryButton>
           <button
             onClick={() => close(true)}
-            className="rounded-md bg-danger px-3 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:opacity-90 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+            className="rounded-md bg-danger px-3.5 py-2 text-cuerpo font-medium text-surface transition-colors hover:opacity-90 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
           >
             {state.confirmLabel}
           </button>
@@ -262,7 +262,7 @@ export function SourceBadge({
   const systems = Object.keys(presence ?? {});
   const list = systems.length > 0 ? systems : [source];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[10.5px] ${ok ? "text-ok" : "text-ink-3"}`}>
+    <span className={`inline-flex items-center gap-1.5 text-rotulo ${ok ? "text-ok" : "text-ink-3"}`}>
       {list.map((sys, i) => {
         const logo = SOURCE_LOGO[sys];
         const external = presence?.[sys]?.url;
@@ -335,7 +335,7 @@ export function Tabs({
         <button
           key={t.key}
           onClick={() => onChange(t.key)}
-          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[12.5px] font-medium transition-colors ${
+          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-cuerpo font-medium transition-colors ${
             active === t.key
               ? "border-accent text-ink"
               : "border-transparent text-ink-3 hover:text-ink-2"
@@ -344,7 +344,7 @@ export function Tabs({
           {t.label}
           {typeof t.count === "number" && (
             <span
-              className={`tnum rounded px-1.5 text-[11px] ${
+              className={`tnum rounded px-1.5 text-sello ${
                 active === t.key ? "bg-accent-soft text-accent-ink" : "bg-line/60 text-ink-3"
               }`}
             >
@@ -381,13 +381,13 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-3 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+        className="w-full rounded-md border border-line bg-surface py-2 pl-8 pr-3 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
       />
       {value && (
         <button
           onClick={() => onChange("")}
           aria-label="Limpiar búsqueda"
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 px-1 text-[14px] leading-none text-ink-3 hover:text-ink"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 px-1 text-seccion leading-none text-ink-3 hover:text-ink"
         >
           &times;
         </button>
@@ -407,8 +407,8 @@ export function EmptyState({
 }) {
   return (
     <div className="mx-auto max-w-xl rounded-lg border border-line-strong bg-surface px-6 py-14 text-center">
-      <p className="text-[13.5px] font-medium text-ink">{title}</p>
-      <p className="mx-auto mt-1 max-w-md text-[12.5px] leading-relaxed text-ink-3">{children}</p>
+      <p className="text-seccion font-semibold text-ink">{title}</p>
+      <p className="mx-auto mt-2 max-w-md text-cuerpo text-ink-2">{children}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -426,8 +426,8 @@ export function ErrorState({ message, retry }: { message: string; retry?: () => 
       : `${message.trim()}.`;
   return (
     <div className="mx-auto max-w-xl rounded-lg border border-line bg-surface px-6 py-12 text-center">
-      <p className="text-[13.5px] font-medium text-ink">No pudimos conectar</p>
-      <p className="mx-auto mt-1.5 max-w-md text-[12.5px] text-ink-3">
+      <p className="text-seccion font-semibold text-ink">No pudimos conectar</p>
+      <p className="mx-auto mt-2 max-w-md text-cuerpo text-ink-2">
         {detalle} Intenta de nuevo en unos segundos; si sigue igual, avísale a tu
         equipo.
       </p>

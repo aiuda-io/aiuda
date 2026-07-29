@@ -96,11 +96,11 @@ export function AiuditaPicker({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar aiudita · cotizar, agendar, conciliar…"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
+            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3"
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="shrink-0 rounded border border-line bg-panel px-1 text-[10px] text-ink-3">
+          <kbd className="shrink-0 rounded border border-line bg-panel px-1 text-sello text-ink-3">
             Esc
           </kbd>
         </div>
@@ -123,13 +123,13 @@ export function AiuditaPicker({
         {/* Filas */}
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
           {grupos.length === 0 ? (
-            <p className="px-4 py-10 text-center text-[12px] text-ink-3">
+            <p className="px-4 py-10 text-center text-cuerpo text-ink-3">
               {query ? `Sin aiuditas para «${q.trim()}».` : "Sin aiuditas en este filtro."}
             </p>
           ) : (
             grupos.map((g) => (
               <div key={g.perfil.slug}>
-                <p className="px-4 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+                <p className="px-4 pb-1 pt-3 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
                   {g.perfil.name}
                 </p>
                 {g.items.map((spec) => (
@@ -147,7 +147,7 @@ export function AiuditaPicker({
         </div>
 
         {/* Pie honesto */}
-        <div className="border-t border-line px-4 py-2.5 text-[11.5px] leading-relaxed text-ink-3">
+        <div className="border-t border-line px-4 py-2.5 text-apoyo leading-relaxed text-ink-3">
           Toca el + para equipar una aiudita. Las «por conectar» se guardan listas para cuando
           conectes su fuente; nada se envía sin tu aprobación.
         </div>
@@ -170,7 +170,7 @@ function FiltroChip({
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors ${
+      className={`rounded-full px-2.5 py-1 text-sello font-medium transition-colors ${
         activo
           ? "bg-ink text-surface"
           : "border border-line text-ink-2 hover:border-line-strong hover:text-ink"
@@ -210,11 +210,11 @@ function PickerRow({
         <AiuditaIcon id={spec.id} tipo={tipo} className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-ink">{spec.label}</span>
-        <span className="block truncate text-[11.5px] text-ink-3">{spec.linea}</span>
+        <span className="block truncate text-cuerpo font-medium text-ink">{spec.label}</span>
+        <span className="block truncate text-apoyo text-ink-3">{spec.linea}</span>
       </span>
       <span
-        className="hidden shrink-0 items-center gap-1.5 text-[11px] font-semibold sm:inline-flex"
+        className="hidden shrink-0 items-center gap-1.5 text-apoyo font-semibold sm:inline-flex"
         style={{ color: spec.live ? "var(--color-ok)" : "var(--color-ink-3)" }}
       >
         <span

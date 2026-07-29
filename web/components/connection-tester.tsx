@@ -35,15 +35,15 @@ export function ConnectionTester({ intKey, disabled }: { intKey: string; disable
       <button
         onClick={probar}
         disabled={busy || disabled}
-        className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
+        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
       >
         {busy ? "Probando…" : "Probar conexión"}
       </button>
       {result && (
-        <div className={`mt-2 rounded-md border px-3 py-2 text-[12px] ${tone}`}>
+        <div className={`mt-2 rounded-md border px-3 py-2 text-cuerpo ${tone}`}>
           <p className="font-medium">{result.message}</p>
           {result.details && (
-            <ul className="mt-1 space-y-0.5 text-[11.5px] text-ink-2">
+            <ul className="mt-1 space-y-0.5 text-apoyo text-ink-2">
               {Object.entries(result.details).map(([k, v]) => (
                 <li key={k}>
                   {k}: <span className="font-medium">{v}</span>

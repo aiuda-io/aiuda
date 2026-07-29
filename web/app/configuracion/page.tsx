@@ -13,7 +13,7 @@ import { SHADOW_EVENT } from "@/components/shadow-banner";
 // pintaba su valor default (posiblemente FALSO) como si fuera el real.
 function SettingLoadError({ retry }: { retry: () => void }) {
   return (
-    <p className="text-[12.5px] text-ink-3">
+    <p className="text-cuerpo text-ink-3">
       No se pudo cargar este ajuste.{" "}
       <button onClick={retry} className="font-medium text-accent-ink hover:underline">
         Reintentar
@@ -71,7 +71,7 @@ function ModoSombra() {
           }`}
         />
       </button>
-      <span className="text-[12.5px] font-medium text-ink">
+      <span className="text-cuerpo font-medium text-ink">
         {active ? "Activado: nada sale a clientes reales" : "Desactivado: los envíos salen normal"}
       </span>
     </div>
@@ -128,7 +128,7 @@ function ContextoNegocio() {
         onBlur={guardar}
         placeholder="Ej. Aceptamos transferencia y depósito OXXO. Cuenta CLABE 0123…"
       />
-      <p className="mt-1 text-[11.5px] text-ink-3" aria-live="polite">
+      <p className="mt-1 text-apoyo text-ink-3" aria-live="polite">
         {estado === "guardando" ? "Guardando…" : estado === "ok" ? "Guardado" : ""}
       </p>
     </SettingsField>
@@ -182,7 +182,7 @@ function VentanaEnvio() {
         }}
         onBlur={guardar}
       />
-      <p className="mt-1 text-[11.5px] text-ink-3" aria-live="polite">
+      <p className="mt-1 text-apoyo text-ink-3" aria-live="polite">
         {estado === "guardando" ? "Guardando…" : estado === "ok" ? "Guardado" : ""}
       </p>
     </SettingsField>
@@ -238,7 +238,7 @@ export default function ConfiguracionPage() {
         >
           <Link
             href="/ayudantes"
-            className="inline-flex rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            className="inline-flex rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
           >
             Ir a tus ayudantes
           </Link>

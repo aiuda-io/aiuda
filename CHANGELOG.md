@@ -19,6 +19,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.1.0/). Versionado:
 - Manual sin conexión generado desde `docs/`.
 - Builds de wheels e instaladores para macOS, Windows y Linux.
 
+### Cambiado
+
+- Consola legible para quien no es técnico: escala tipográfica semántica de siete
+  niveles con el cuerpo en 15px como piso, en lugar de 1012 tamaños clavados en
+  píxeles (el más chico, de 9px). Integraciones deja de plegar sus diez
+  necesidades: las opciones se ven sin dar un clic.
+
 ### Seguridad
 
 - Token nuevo por arranque para la consola local.

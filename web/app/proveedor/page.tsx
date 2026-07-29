@@ -42,7 +42,7 @@ function Segmented<T extends string>({
             disabled={o.disabled}
             title={o.disabled ? "Próximamente" : undefined}
             onClick={() => !o.disabled && onChange(o.value)}
-            className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-[12.5px] font-medium transition-colors ${
+            className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-cuerpo font-medium transition-colors ${
               active
                 ? "bg-surface text-ink elev-sm"
                 : o.disabled
@@ -52,7 +52,7 @@ function Segmented<T extends string>({
           >
             {o.label}
             {o.badge && (
-              <span className="rounded bg-line/70 px-1 py-px text-[9.5px] font-semibold uppercase tracking-[0.04em] text-ink-3">
+              <span className="rounded bg-line/70 px-1 py-px text-rotulo font-semibold uppercase tracking-[0.04em] text-ink-3">
                 {o.badge}
               </span>
             )}
@@ -80,7 +80,7 @@ function AvisoSuscripcion({
         <circle cx="7" cy="7" r="5.6" stroke="currentColor" strokeWidth="1.3" />
         <path d="M7 6.2v3.2M7 4.2h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
       </svg>
-      <div className="text-[12px] leading-relaxed text-ink-2">
+      <div className="text-cuerpo leading-relaxed text-ink-2">
         <span className="font-semibold text-ink">Tu suscripción, en tu computadora.</span> aiuda
         corre local y usa tu propia cuenta de {proveedor}, como tus demás herramientas. Eso sí: no
         es una vía oficial según los{" "}
@@ -420,7 +420,7 @@ export default function ProviderPage() {
   const deviceCountdown = `${Math.floor(deviceSecsLeft / 60)}:${String(deviceSecsLeft % 60).padStart(2, "0")}`;
   const statusPill = server ? (
     <span
-      className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium ${
+      className={`rounded-full px-2.5 py-1 text-sello font-medium ${
         connectedHere ? "bg-ok-soft text-ok" : "bg-panel text-ink-2"
       }`}
     >
@@ -475,7 +475,7 @@ export default function ProviderPage() {
               {esCli ? (
                 /* Un clic: el programa ya está aquí, con la sesión del dueño. */
                 <div className="space-y-3">
-                  <p className="text-[12.5px] leading-relaxed text-ink-2">
+                  <p className="text-cuerpo leading-relaxed text-ink-2">
                     Ya tienes {marcaCli} en esta computadora y ya entraste ahí con tu cuenta. Un
                     clic y tus ayudantes lo usan: aiuda no guarda ninguna llave tuya.
                   </p>
@@ -483,7 +483,7 @@ export default function ProviderPage() {
                     <button
                       onClick={() => usarCli(provider === "claude_cli" ? "claude_cli" : "codex_cli")}
                       disabled={saving}
-                      className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                      className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                     >
                       {saving
                         ? "Conectando…"
@@ -495,7 +495,7 @@ export default function ProviderPage() {
                       <button
                         onClick={probar}
                         disabled={testing}
-                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                       >
                         {testing ? "Probando…" : "Probar conexión"}
                       </button>
@@ -503,7 +503,7 @@ export default function ProviderPage() {
                     {connectedHere && (
                       <button
                         onClick={disconnect}
-                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
                       >
                         Desconectar
                       </button>
@@ -556,7 +556,7 @@ export default function ProviderPage() {
                     <button
                       onClick={() => savePassword("claude", "api_key", secret)}
                       disabled={saving || !secret.trim()}
-                      className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                      className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                     >
                       {saving ? "Conectando…" : conectadoConLlave ? "Guardar cambios" : "Conectar"}
                     </button>
@@ -564,7 +564,7 @@ export default function ProviderPage() {
                       <button
                         onClick={probar}
                         disabled={testing}
-                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                       >
                         {testing ? "Probando…" : "Probar conexión"}
                       </button>
@@ -572,7 +572,7 @@ export default function ProviderPage() {
                     {connectedHere && (
                       <button
                         onClick={disconnect}
-                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
                       >
                         Desconectar
                       </button>
@@ -583,13 +583,13 @@ export default function ProviderPage() {
                       alguien insiste en la clave de su cuenta, y solo aquí, nunca en el
                       asistente de primer arranque. */}
                   <details className="rounded-lg border border-line bg-panel/40 px-3.5 py-2.5">
-                    <summary className="cursor-pointer text-[12px] font-medium text-ink-2 hover:text-ink">
+                    <summary className="cursor-pointer text-cuerpo font-medium text-ink-2 hover:text-ink">
                       Usar la clave de mi cuenta (avanzado)
                     </summary>
                     <div className="mt-3 space-y-3">
-                      <p className="text-[12px] leading-relaxed text-ink-2">
+                      <p className="text-cuerpo leading-relaxed text-ink-2">
                         En la app Terminal corre{" "}
-                        <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-[11.5px] text-ink">
+                        <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-sello text-ink">
                           claude setup-token
                         </code>{" "}
                         <button
@@ -613,7 +613,7 @@ export default function ProviderPage() {
                       <button
                         onClick={() => savePassword("claude", "subscription", claudeToken.trim())}
                         disabled={saving || !claudeToken.trim()}
-                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                       >
                         {saving ? "Conectando…" : "Conectar con la clave de mi cuenta"}
                       </button>
@@ -643,7 +643,7 @@ export default function ProviderPage() {
                     hint={
                       <>
                         El nombre exacto que lista{" "}
-                        <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-[11.5px] text-ink">
+                        <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-sello text-ink">
                           ollama list
                         </code>{" "}
                         (p.ej. llama3.1, qwen2.5). Necesita soportar tool calling para los ayudantes.
@@ -657,7 +657,7 @@ export default function ProviderPage() {
                       onChange={(e) => setLocalModel(e.target.value)}
                     />
                   </SettingsField>
-                  <p className="text-[11.5px] leading-relaxed text-ink-3">
+                  <p className="text-apoyo leading-relaxed text-ink-3">
                     La única vía donde ningún dato sale de tu computadora. A cambio, la
                     calidad depende del modelo que corras: prueba y decide.
                   </p>
@@ -665,7 +665,7 @@ export default function ProviderPage() {
                     <button
                       onClick={saveLocal}
                       disabled={saving || !localModel.trim()}
-                      className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                      className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                     >
                       {saving ? "Conectando…" : connectedHere ? "Guardar cambios" : "Conectar"}
                     </button>
@@ -673,7 +673,7 @@ export default function ProviderPage() {
                       <button
                         onClick={probar}
                         disabled={testing}
-                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                       >
                         {testing ? "Probando…" : "Probar conexión"}
                       </button>
@@ -681,7 +681,7 @@ export default function ProviderPage() {
                     {connectedHere && (
                       <button
                         onClick={disconnect}
-                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
                       >
                         Desconectar
                       </button>
@@ -691,7 +691,7 @@ export default function ProviderPage() {
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="text-[12px] text-ink-3">Cómo entrar</span>
+                    <span className="text-cuerpo text-ink-3">Cómo entrar</span>
                     <Segmented<ProviderMode>
                       ariaLabel="Cómo conectar OpenAI"
                       value={mode}
@@ -735,7 +735,7 @@ export default function ProviderPage() {
                         <button
                           onClick={() => savePassword("codex", "api_key", secret)}
                           disabled={saving || !secret.trim()}
-                          className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                         >
                           {saving ? "Conectando…" : conectadoConLlave ? "Guardar cambios" : "Conectar"}
                         </button>
@@ -743,7 +743,7 @@ export default function ProviderPage() {
                           <button
                             onClick={probar}
                             disabled={testing}
-                            className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                            className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                           >
                             {testing ? "Probando…" : "Probar conexión"}
                           </button>
@@ -751,7 +751,7 @@ export default function ProviderPage() {
                         {connectedHere && (
                           <button
                             onClick={disconnect}
-                            className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                            className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
                           >
                             Desconectar
                           </button>
@@ -760,7 +760,7 @@ export default function ProviderPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-[12px] leading-relaxed text-ink-2">
+                      <p className="text-cuerpo leading-relaxed text-ink-2">
                         Entra con la misma cuenta con la que usas ChatGPT, sin salir de aquí: aiuda
                         te da un código de un solo uso y lo escribes en la página de OpenAI. Una
                         sola vez, activa{" "}
@@ -777,16 +777,16 @@ export default function ProviderPage() {
 
                       {devicePhase === "waiting" && device ? (
                         <div className="space-y-3 rounded-lg border border-line bg-panel/50 px-3.5 py-3.5">
-                          <p className="text-[12.5px] leading-relaxed text-ink-2">
+                          <p className="text-cuerpo leading-relaxed text-ink-2">
                             Escribe este código en la página de OpenAI:
                           </p>
                           <div className="flex items-center gap-2">
-                            <code className="tnum flex-1 rounded-md border border-line bg-surface px-3 py-2 text-center text-[18px] font-semibold tracking-[0.18em] text-ink">
+                            <code className="tnum flex-1 rounded-md border border-line bg-surface px-3 py-2 text-center text-seccion font-semibold tracking-[0.18em] text-ink">
                               {device.userCode}
                             </code>
                             <button
                               onClick={copyCode}
-                              className="rounded-md border border-line bg-surface px-3 py-2 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                              className="rounded-md border border-line bg-surface px-3 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
                             >
                               Copiar
                             </button>
@@ -795,11 +795,11 @@ export default function ProviderPage() {
                             href={device.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong"
+                            className="inline-flex rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
                           >
                             Abrir la página de OpenAI
                           </a>
-                          <div className="flex items-start gap-2 text-[12px] text-ink-3">
+                          <div className="flex items-start gap-2 text-cuerpo text-ink-3">
                             <span className="breathe mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
                             <span>
                               Esperando a que autorices… El código vence en{" "}
@@ -811,7 +811,7 @@ export default function ProviderPage() {
                         <button
                           onClick={startDevice}
                           disabled={devicePhase === "starting"}
-                          className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                         >
                           {devicePhase === "starting"
                             ? "Preparando…"
@@ -826,7 +826,7 @@ export default function ProviderPage() {
                           <svg viewBox="0 0 12 12" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" fill="none" aria-hidden="true">
                             <path d="M3.5 3.5 8.5 8.5M8.5 3.5 3.5 8.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
-                          <p className="text-[12.5px] leading-relaxed text-ink-2">{deviceError}</p>
+                          <p className="text-cuerpo leading-relaxed text-ink-2">{deviceError}</p>
                         </div>
                       )}
 
@@ -842,7 +842,7 @@ export default function ProviderPage() {
                             <button
                               onClick={probar}
                               disabled={testing}
-                              className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                              className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                             >
                               {testing ? "Probando…" : "Probar conexión"}
                             </button>
@@ -850,7 +850,7 @@ export default function ProviderPage() {
                           {devicePhase === "waiting" && (
                             <button
                               onClick={resetDevice}
-                              className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-line-strong hover:text-ink"
+                              className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-line-strong hover:text-ink"
                             >
                               Cancelar
                             </button>
@@ -858,7 +858,7 @@ export default function ProviderPage() {
                           {connectedHere && (
                             <button
                               onClick={disconnect}
-                              className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                              className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
                             >
                               Desconectar
                             </button>
@@ -868,7 +868,7 @@ export default function ProviderPage() {
 
                       {/* Fallback de power-user / self-host: pegar el auth.json a mano. */}
                       <details className="rounded-lg border border-line bg-panel/40 px-3.5 py-2.5">
-                        <summary className="cursor-pointer text-[12px] font-medium text-ink-2 hover:text-ink">
+                        <summary className="cursor-pointer text-cuerpo font-medium text-ink-2 hover:text-ink">
                           Pegar la sesión a mano (avanzado)
                         </summary>
                         <div className="mt-3 space-y-3">
@@ -877,11 +877,11 @@ export default function ProviderPage() {
                             hint={
                               <>
                                 Si prefieres, en tu máquina corre{" "}
-                                <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-[11.5px] text-ink">
+                                <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-sello text-ink">
                                   codex login
                                 </code>{" "}
                                 y pega aquí el contenido de{" "}
-                                <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-[11.5px] text-ink">
+                                <code className="rounded bg-panel px-1.5 py-0.5 font-mono text-sello text-ink">
                                   ~/.codex/auth.json
                                 </code>
                                 . Se guarda cifrado, solo para tu negocio.
@@ -889,7 +889,7 @@ export default function ProviderPage() {
                             }
                           >
                             <textarea
-                              className={`${settingsInputCls} h-24 resize-y font-mono text-[11.5px]`}
+                              className={`${settingsInputCls} h-24 resize-y font-mono text-apoyo`}
                               placeholder={'{ "tokens": { "access_token": "…", "refresh_token": "…", "account_id": "…" } }'}
                               value={codexAuth}
                               onChange={(e) => setCodexAuth(e.target.value)}
@@ -898,7 +898,7 @@ export default function ProviderPage() {
                           <button
                             onClick={connectOpenai}
                             disabled={connecting || !codexAuth.trim()}
-                            className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                            className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                           >
                             {connecting ? "Conectando…" : "Conectar con el auth.json"}
                           </button>
@@ -913,7 +913,7 @@ export default function ProviderPage() {
               {(testing || connecting || testResult) && (
                 <div>
                   {testing || connecting ? (
-                    <div className="flex items-center gap-2.5 rounded-lg border border-line bg-panel/50 px-3.5 py-2.5 text-[12.5px] text-ink-2">
+                    <div className="flex items-center gap-2.5 rounded-lg border border-line bg-panel/50 px-3.5 py-2.5 text-cuerpo text-ink-2">
                       <span className="breathe h-2 w-2 rounded-full bg-accent" />
                       {connecting ? "Conectando con OpenAI…" : "Probando la conexión…"}
                       {tardando && !connecting && (
@@ -927,7 +927,7 @@ export default function ProviderPage() {
                       <svg viewBox="0 0 12 12" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ok" fill="none" aria-hidden="true">
                         <path d="m2.5 6.5 2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      <p className="text-[12.5px] leading-relaxed text-ink-2">
+                      <p className="text-cuerpo leading-relaxed text-ink-2">
                         <span className="font-semibold text-ok">Verificado.</span> Respondió en{" "}
                         <span className="tnum font-medium text-ink">{testResult.latency_ms} ms</span> por{" "}
                         {testResult.mode === "cli"
@@ -943,7 +943,7 @@ export default function ProviderPage() {
                       <svg viewBox="0 0 12 12" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" fill="none" aria-hidden="true">
                         <path d="M3.5 3.5 8.5 8.5M8.5 3.5 3.5 8.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                      <p className="text-[12.5px] leading-relaxed text-ink-2">
+                      <p className="text-cuerpo leading-relaxed text-ink-2">
                         <span className="font-semibold text-danger">No respondió.</span> {testResult.error}
                       </p>
                     </div>
@@ -954,7 +954,7 @@ export default function ProviderPage() {
           </SettingsSection>
 
           {server?.env_fallback && !connectedHere && provider === "claude" && (
-            <p className="px-1 text-[11.5px] leading-relaxed text-ink-3">
+            <p className="px-1 text-apoyo leading-relaxed text-ink-3">
               Hay una API key configurada por variable de entorno, así que tus ayudantes ya
               responden. Conectar aquí la reemplaza para este negocio.
             </p>

@@ -278,14 +278,14 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar cliente, folio, conversación…"
-            className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-3"
+            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3"
             autoComplete="off"
             spellCheck={false}
           />
           {loading && (
             <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-accent" />
           )}
-          <kbd className="shrink-0 rounded border border-line bg-panel px-1 text-[10px] text-ink-3">
+          <kbd className="shrink-0 rounded border border-line bg-panel px-1 text-sello text-ink-3">
             Esc
           </kbd>
         </div>
@@ -300,14 +300,14 @@ export function CommandPalette() {
         >
           {/* Estado inicial */}
           {!query.trim() && (
-            <p className="px-4 py-6 text-center text-[12px] text-ink-3">
+            <p className="px-4 py-6 text-center text-cuerpo text-ink-3">
               Escribe para buscar en todo tu negocio
             </p>
           )}
 
           {/* Sin resultados */}
           {showEmpty && (
-            <p className="px-4 py-6 text-center text-[12px] text-ink-3">
+            <p className="px-4 py-6 text-center text-cuerpo text-ink-3">
               Sin resultados para «{query.trim()}»
             </p>
           )}
@@ -320,7 +320,7 @@ export function CommandPalette() {
 
               return (
                 <div key={group.title}>
-                  <p className="px-4 pb-1 pt-3 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="px-4 pb-1 pt-3 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                     {group.title}
                   </p>
                   {group.items.map((item, itemIdx) => {
@@ -341,7 +341,7 @@ export function CommandPalette() {
                         }`}
                       >
                         <span
-                          className={`flex-1 truncate text-[13px] ${
+                          className={`flex-1 truncate text-cuerpo ${
                             isSelected ? "text-accent-ink" : "text-ink"
                           }`}
                         >
@@ -349,7 +349,7 @@ export function CommandPalette() {
                         </span>
                         {item.sublabel && (
                           <span
-                            className={`tnum shrink-0 text-[11.5px] ${
+                            className={`tnum shrink-0 text-apoyo ${
                               isSelected ? "text-accent-ink/70" : "text-ink-3"
                             }`}
                           >

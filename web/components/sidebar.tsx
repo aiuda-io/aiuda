@@ -185,7 +185,7 @@ export function Sidebar() {
       <Link
         href={href}
         title={!exp ? label : undefined}
-        className={`flex items-center rounded-md py-[6px] text-[13px] transition-colors ${
+        className={`flex items-center rounded-md py-[7px] text-cuerpo transition-colors ${
           exp ? "gap-2.5 px-2" : "justify-center px-0"
         } ${
           active
@@ -202,7 +202,7 @@ export function Sidebar() {
         {exp && <span className="flex-1 truncate">{label}</span>}
         {exp && badge != null && badge > 0 && (
           <span
-            className={`tnum rounded px-1.5 text-[11px] font-medium ${
+            className={`tnum rounded px-1.5 text-sello font-medium ${
               active ? "bg-surface text-accent-ink" : "bg-line/70 text-ink-2"
             }`}
           >
@@ -215,7 +215,7 @@ export function Sidebar() {
 
   const renderDivider = (label: string, exp: boolean) =>
     exp ? (
-      <p className="mb-1.5 mt-1 px-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+      <p className="mb-1.5 mt-1 px-2 text-rotulo font-semibold uppercase tracking-[0.08em] text-ink-3">
         {label}
       </p>
     ) : (
@@ -227,7 +227,7 @@ export function Sidebar() {
       <>
         <div className={`flex h-12 items-center ${exp ? "px-5" : "justify-center"}`}>
           <Link href="/" title="aiuda" className="flex items-baseline gap-1.5">
-            {exp && <span className="text-[17px] font-semibold tracking-tight text-ink">aiuda</span>}
+            {exp && <span className="text-seccion font-semibold tracking-tight text-ink">aiuda</span>}
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
           </Link>
         </div>
@@ -269,14 +269,14 @@ export function Sidebar() {
                   <Link
                     href="/ayudantes"
                     title="Crear un ayudante"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-line/60 text-[12px] font-medium text-ink-2 transition-colors hover:bg-accent-soft hover:text-accent-ink"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-line/60 text-cuerpo font-medium text-ink-2 transition-colors hover:bg-accent-soft hover:text-accent-ink"
                   >
                     +
                   </Link>
                 </div>
                 <Link
                   href="/ayudantes"
-                  className={`mt-1.5 block px-2 text-[11px] transition-colors ${
+                  className={`mt-1.5 block px-2 text-apoyo transition-colors ${
                     isActive("/ayudantes")
                       ? "font-medium text-accent-ink"
                       : "text-ink-3 hover:text-ink-2"
@@ -327,14 +327,14 @@ export function Sidebar() {
                   onClick={() => setControlOpen(false)}
                 />
                 <div className="absolute bottom-full left-2 z-40 mb-1 w-48 rounded-lg border border-line bg-surface p-1 shadow-[0_4px_24px_rgba(13,45,62,0.12)]">
-                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="px-2 py-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                     Control del menú
                   </p>
                   {(["expanded", "collapsed", "hover"] as Mode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => pickMode(m)}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12.5px] text-ink-2 transition-colors hover:bg-panel"
+                      className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-cuerpo text-ink-2 transition-colors hover:bg-panel"
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${mode === m ? "bg-accent" : "border border-line-strong"}`}
@@ -348,7 +348,7 @@ export function Sidebar() {
             <button
               onClick={() => setControlOpen((v) => !v)}
               title="Control del menú"
-              className={`flex items-center rounded-md py-1.5 text-[11.5px] text-ink-3 transition-colors hover:bg-line/45 hover:text-ink ${
+              className={`flex items-center rounded-md py-2 text-apoyo text-ink-3 transition-colors hover:bg-line/45 hover:text-ink ${
                 exp ? "w-full gap-2 px-2" : "w-full justify-center"
               }`}
             >
@@ -361,7 +361,7 @@ export function Sidebar() {
         {exp && (
           <a
             href="https://hanova.mx"
-            className="flex items-center gap-1.5 border-t border-line px-5 py-3 text-[10.5px] text-ink-3 transition-colors hover:text-ink-2"
+            className="flex items-center gap-1.5 border-t border-line px-5 py-3 text-rotulo text-ink-3 transition-colors hover:text-ink-2"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/hanova-icon-blue.svg" alt="" className="h-3 w-3 opacity-70" />

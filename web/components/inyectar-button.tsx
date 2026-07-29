@@ -71,7 +71,7 @@ export function InyectarButton({
   }
 
   const cls = `rounded-md border border-line bg-surface font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50 ${
-    small ? "px-2 py-0.5 text-[11.5px]" : "px-3 py-1.5 text-[12px]"
+    small ? "px-2 py-0.5 text-apoyo" : "px-3 py-1.5 text-cuerpo"
   }`;
 
   if (opciones.length === 1) {
@@ -93,7 +93,7 @@ export function InyectarButton({
             <li key={`${d.target}-${d.conexion_id ?? ""}`}>
               <button
                 onClick={() => ir(d)}
-                className="w-full px-3 py-2 text-left text-[12.5px] text-ink transition-colors hover:bg-panel/50"
+                className="w-full px-3 py-2 text-left text-cuerpo text-ink transition-colors hover:bg-panel/50"
               >
                 {d.label}
               </button>

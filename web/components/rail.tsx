@@ -33,10 +33,14 @@ export function RailLayout({
 }) {
   if (!rail) return <div className="min-w-0">{children}</div>;
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_296px]">
+    // El riel entra a 1360px y no a 1024: con la letra en tamaño legible, en una
+    // laptop de 1280 le robaba 320px a la tabla y las acciones del renglón
+    // ("Recordar", "Registrar pago") quedaban fuera de cuadro. Contexto útil no
+    // vale esconder el botón que resuelve la fila.
+    <div className="grid gap-6 min-[1360px]:grid-cols-[minmax(0,1fr)_296px]">
       <div className="min-w-0">{children}</div>
       <aside
-        className={`reveal hidden space-y-6 lg:block${sticky ? " lg:sticky lg:top-4 lg:self-start" : ""}`}
+        className={`reveal hidden space-y-6 min-[1360px]:block${sticky ? " min-[1360px]:sticky min-[1360px]:top-4 min-[1360px]:self-start" : ""}`}
       >
         {rail}
       </aside>
@@ -56,7 +60,7 @@ export function RailSection({ label, children }: { label: string; children: Reac
 
 export function RailLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">{children}</p>
+    <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">{children}</p>
   );
 }
 
@@ -74,12 +78,12 @@ export function RailStat({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-2 border-b border-line/50 pb-2 last:border-0">
-      <span className="text-[12px] text-ink-3">
+      <span className="text-cuerpo text-ink-3">
         {label}
-        {hint && <span className="block text-[11px] text-ink-3/80">{hint}</span>}
+        {hint && <span className="block text-apoyo text-ink-3/80">{hint}</span>}
       </span>
       <span
-        className={`tnum shrink-0 ${strong ? "text-[14px] font-semibold text-ink" : "text-[12.5px] font-medium text-ink-2"}`}
+        className={`tnum shrink-0 ${strong ? "text-cuerpo font-semibold text-ink" : "text-cuerpo font-medium text-ink-2"}`}
       >
         {value}
       </span>

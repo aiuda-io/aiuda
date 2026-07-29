@@ -49,8 +49,8 @@ function SinHilo() {
           <path d="M4 5.5h16v10H9l-4 3v-3H4z" strokeLinejoin="round" />
         </svg>
       </span>
-      <p className="mt-3 text-[13px] font-medium text-ink">Elige una conversación</p>
-      <p className="mt-1 max-w-xs text-[12px] text-ink-3">
+      <p className="mt-3 text-cuerpo font-medium text-ink">Elige una conversación</p>
+      <p className="mt-1 max-w-xs text-cuerpo text-ink-3">
         Sus mensajes aparecen aquí. Entras a responder cuando quieras; tu ayudante te avisa lo
         que necesita tu aprobación en el Centro.
       </p>
@@ -129,14 +129,14 @@ function Conversacion({ id }: { id: string }) {
             <button
               onClick={() => resend(m.id)}
               disabled={retryingId === m.id}
-              className="text-[10px] font-medium text-danger underline decoration-danger/40 underline-offset-2 hover:decoration-danger disabled:opacity-60"
+              className="text-sello font-medium text-danger underline decoration-danger/40 underline-offset-2 hover:decoration-danger disabled:opacity-60"
             >
               {retryingId === m.id ? "Reintentando…" : "No se envió · Reintentar"}
             </button>
           ) : m.delivery === "pending" ? (
-            <span className="text-[10px] text-ink-3">Enviando…</span>
+            <span className="text-sello text-ink-3">Enviando…</span>
           ) : m.delivery === "sent" ? (
-            <span className="text-[10px] text-ink-3">Enviado</span>
+            <span className="text-sello text-ink-3">Enviado</span>
           ) : undefined
         ) : undefined,
     };
@@ -162,7 +162,7 @@ function Conversacion({ id }: { id: string }) {
           <ChevronLeft />
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[14px] font-semibold text-ink">
+          <h1 className="truncate text-cuerpo font-semibold text-ink">
             {data?.customer_id ? (
               <Link
                 href={`/clientes/detalle?id=${data.customer_id}`}
@@ -175,7 +175,7 @@ function Conversacion({ id }: { id: string }) {
             )}
           </h1>
           {data && (
-            <p className="tnum truncate text-[11px] text-ink-3">
+            <p className="tnum truncate text-apoyo text-ink-3">
               {esCorreo
                 ? `Correo · ${data.correo?.de || "sin remitente"}${data.correo?.asunto ? ` · ${data.correo.asunto}` : ""}`
                 : `WhatsApp · ${data.remote_phone}`}
@@ -186,7 +186,7 @@ function Conversacion({ id }: { id: string }) {
           <button
             onClick={toggleTakeover}
             disabled={toggling}
-            className={`shrink-0 rounded-md px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-60 ${
+            className={`shrink-0 rounded-md px-3 py-1.5 text-cuerpo font-medium transition-colors disabled:opacity-60 ${
               takeover
                 ? "bg-accent text-surface hover:bg-accent-strong"
                 : "border border-line bg-surface text-ink-2 hover:border-accent hover:text-accent-ink"
@@ -198,7 +198,7 @@ function Conversacion({ id }: { id: string }) {
       </header>
 
       {takeover && (
-        <p className="shrink-0 border-b border-line bg-accent-soft px-4 py-2 text-[12px] font-medium text-accent-ink">
+        <p className="shrink-0 border-b border-line bg-accent-soft px-4 py-2 text-cuerpo font-medium text-accent-ink">
           Tú tienes el control. Tu ayudante está en pausa y no responderá hasta que se lo devuelvas.
         </p>
       )}
