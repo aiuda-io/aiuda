@@ -145,6 +145,83 @@ export function TextInput({ className, ...props }: React.InputHTMLAttributes<HTM
   return <input {...props} className={`${inputCls} ${className ?? ""}`} />;
 }
 
+/** Elegir un archivo, en español y sin letra diminuta.
+ *
+ *  El control del sistema pinta "Choose File / No file chosen": en inglés, en
+ *  gris chico, y sin decir qué archivo espera. Un dueño que no es técnico no
+ *  tiene por qué toparse con eso en su propia consola, y menos cuando lo que
+ *  está subiendo es su e.firma.
+ *
+ *  El input nativo se queda dentro del formulario con su `name` y su `required`,
+ *  así que quien lo lea con FormData no se enteró de nada. Lo que cambia es lo
+ *  que ve el dueño: un botón que se entiende, el nombre de lo que eligió, y
+ *  poder arrastrar el archivo encima. */
+export function FilePicker({
+  name,
+  accept,
+  required,
+  hint,
+  onPick,
+}: {
+  name: string;
+  accept?: string;
+  required?: boolean;
+  /** Qué archivo se espera, dicho en corto: "Te lo dio el SAT, termina en .cer". */
+  hint?: string;
+  onPick?: (file: File | null) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [elegido, setElegido] = useState<string | null>(null);
+  const [encima, setEncima] = useState(false);
+
+  function usar(file: File | null) {
+    setElegido(file?.name ?? null);
+    onPick?.(file);
+  }
+
+  function soltar(e: React.DragEvent) {
+    e.preventDefault();
+    setEncima(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !ref.current) return;
+    // Se le pasan al input nativo para que el formulario los mande igual.
+    const bolsa = new DataTransfer();
+    bolsa.items.add(file);
+    ref.current.files = bolsa.files;
+    usar(file);
+  }
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setEncima(true);
+      }}
+      onDragLeave={() => setEncima(false)}
+      onDrop={soltar}
+      className={`flex items-center gap-3 rounded-md border border-dashed px-3 py-2.5 transition-colors ${
+        encima ? "border-accent bg-accent-soft" : "border-line-strong bg-surface"
+      }`}
+    >
+      <input
+        ref={ref}
+        name={name}
+        type="file"
+        accept={accept}
+        required={required}
+        className="sr-only"
+        onChange={(e) => usar(e.target.files?.[0] ?? null)}
+      />
+      <SecondaryButton type="button" onClick={() => ref.current?.click()}>
+        {elegido ? "Cambiar" : "Elegir archivo"}
+      </SecondaryButton>
+      <span className={`min-w-0 flex-1 truncate text-apoyo ${elegido ? "text-ink" : "text-ink-3"}`}>
+        {elegido ?? hint ?? "o arrástralo aquí"}
+      </span>
+    </div>
+  );
+}
+
 /** Variante grande del campo, para el asistente de primer arranque: ahí el campo
  *  es el protagonista de la pantalla y la densidad de consola se siente apretada.
  *  Se usa como clase suelta (no compuesta sobre inputCls) para que no compitan

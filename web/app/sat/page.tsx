@@ -6,6 +6,7 @@ import { api, mxn, type SatImportResult } from "@/lib/api";
 import { fecha } from "@/lib/format";
 import {
   ErrorState,
+  FilePicker,
   PageHeader,
   PrimaryButton,
   SecondaryButton,
@@ -296,10 +297,10 @@ export default function SatPage() {
           <form ref={efirmaForm} onSubmit={conectarEfirma} className="space-y-4" autoComplete="off">
             <div className="grid gap-3 sm:grid-cols-2">
               <SettingsField label="Certificado .cer">
-                <input name="cer" type="file" accept=".cer" required className={inputCls} />
+                <FilePicker name="cer" accept=".cer" required hint="Termina en .cer" />
               </SettingsField>
               <SettingsField label="Llave privada .key">
-                <input name="key" type="file" accept=".key" required className={inputCls} />
+                <FilePicker name="key" accept=".key" required hint="Termina en .key" />
               </SettingsField>
             </div>
             <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
@@ -337,12 +338,11 @@ export default function SatPage() {
         desc="Carga manual inmediata. UUID repetidos no duplican; intercompañía queda fuera de cartera."
       >
         <form ref={importForm} onSubmit={importar} className="space-y-3">
-          <input
+          <FilePicker
             name="archivo"
-            type="file"
             accept=".xml,.zip,application/xml,application/zip"
             required
-            className={inputCls}
+            hint="Un XML, o el ZIP que bajaste del portal del SAT"
           />
           <div className="flex flex-wrap items-end gap-3">
             <label className="min-w-52 flex-1 text-apoyo text-ink-3">
