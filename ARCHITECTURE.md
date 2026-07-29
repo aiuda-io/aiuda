@@ -83,10 +83,15 @@ Es el flujo más maduro y el molde de los demás.
 ## Trabajos de fondo
 
 No hay Redis, ni cola, ni proceso aparte. Dos hilos dentro del mismo proceso: uno
-dispara la corrida de cobranza al minuto 0 de cada hora (idempotente y con
+dispara la corrida de cobranza una vez por hora de reloj (idempotente y con
 cooldowns, así que correr de más no duplica nada) y otro sondea WhatsApp entrante
-cada 20 segundos. Si la computadora estaba apagada, la corrida siguiente se pone
-al día. `aiuda daily` hace lo mismo en primer plano.
+cada 20 segundos. `aiuda daily` hace lo mismo en primer plano.
+
+La corrida no depende de que el hilo despierte en el minuto exacto: cada 30
+segundos compara la hora actual contra la última corrida (guardada en
+`Tenant.config["ultima_corrida_horaria"]`) y salda las que falten. Si la laptop
+se cerró a las 7 y se abrió a las 11, el resumen de las 8 sale al despertar en
+vez de perderse ese día.
 
 Las tareas que dispara un request (redactar ahora, por ejemplo) corren inline con
 `BackgroundTasks` en este mismo proceso, después de responder.
