@@ -556,7 +556,7 @@ const LOGO_IA: Record<string, string> = {
 const NOMBRE_IA: Record<string, string> = {
   local: "En esta computadora",
   claude: "Claude",
-  codex: "ChatGPT",
+  codex: "OpenAI",
 };
 
 const TERMINOS_CLAUDE = "https://www.anthropic.com/legal/consumer-terms";
@@ -685,8 +685,7 @@ function PasoIA({
 
   /** Guarda la credencial y la prueba de inmediato. `modo` es "api_key" (la llave que
    *  pega el dueño) o "cli" (el Claude Code o el Codex que ya está en esta
-   *  computadora: sin secreto, la sesión vive dentro del propio programa).
-   *  La cuenta de ChatGPT NO pasa por aquí: se conecta con el código de un solo uso. */
+   *  computadora: sin secreto, la sesión vive dentro del propio programa). */
   async function conectar(name: ProviderName, secreto: string, modo: ProviderMode = "api_key") {
     setTrabajando(name);
     setTest(null);
@@ -814,7 +813,7 @@ function PasoIA({
             : ia.proveedor === "claude"
               ? "Claude"
               : ia.proveedor === "codex"
-                ? "ChatGPT"
+                ? "OpenAI"
                 : "tu IA";
     return (
       /* Ya conectada no hay nada que comparar: el paso se angosta a la medida
@@ -977,7 +976,7 @@ function PasoIA({
               ? "Conectando…"
               : tieneCodex
                 ? "Usar Codex"
-                : "Conectar ChatGPT"
+                : "Conectar OpenAI"
           }
           principal={tieneCodex && !tieneClaudeCode}
           activa={abierta === "codex"}
@@ -1134,7 +1133,7 @@ function PasoIA({
                 }}
                 className="text-ink-2 underline-offset-2 transition-colors hover:text-ink hover:underline"
               >
-                entrar con mi cuenta de ChatGPT
+                pegar mi llave de OpenAI
               </button>
               .
             </p>
@@ -1146,15 +1145,10 @@ function PasoIA({
         <PanelProveedor
           key={abierta}
           proveedor={abierta}
-          cliInstalado={abierta === "claude" ? tieneClaudeCode : tieneCodex}
           llave={llave}
           setLlave={setLlave}
           trabajando={trabajando !== ""}
           onConectarLlave={() => conectar(abierta, llave.trim())}
-          onCuentaLista={async (t) => {
-            setTest(t);
-            await refrescar();
-          }}
           test={test}
         />
       )}
@@ -1411,317 +1405,64 @@ function FilaModelo({
 
 /** Nota tranquila de la vía "mi cuenta": aiuda corre en TU computadora con TU
  *  cuenta; solo se aclara que no es una vía oficial del proveedor. */
-function AvisoCuenta({
-  marca,
-  terminos,
-  href,
-}: {
-  marca: string;
-  terminos: string;
-  href: string;
-}) {
-  return (
-    <p className="mt-3.5 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">
-      Tu suscripción, en tu computadora: aiuda corre aquí y usa tu propia cuenta de {marca}, como
-      tus demás programas. Eso sí, no es una vía oficial según los{" "}
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="font-medium text-accent-ink underline-offset-2 hover:underline"
-      >
-        {terminos}
-      </a>
-      ; si prefieres cero letras chicas, usa tu llave o un modelo en esta computadora.
-    </p>
-  );
-}
-
-/** El detalle de conectar Claude o ChatGPT cuando el programa NO está en esta
+/** El detalle de conectar Claude u OpenAI cuando el programa NO está en esta
  *  computadora (si estuviera, la tarjeta lo conecta de un clic y este panel ni se
- *  abre). Una sola acción visible por marca: pegar la llave de Claude, o entrar
- *  con la cuenta de ChatGPT por código de un solo uso. Lo demás queda detrás de
- *  "Otra forma de conectar". */
+ *  abre). Una sola acción visible: pegar tu llave.
+ *
+ *  Antes había una segunda vía, "entrar con mi cuenta", que mandaba el token de tu
+ *  suscripción haciéndose pasar por el programa oficial del proveedor. Se retiró. Si
+ *  ya pagas una suscripción, el camino es instalar su programa: la tarjeta de arriba
+ *  lo detecta y lo conecta de un clic, con tu propia sesión. */
 function PanelProveedor({
   proveedor,
-  cliInstalado,
   llave,
   setLlave,
   trabajando,
   onConectarLlave,
-  onCuentaLista,
   test,
 }: {
   proveedor: "claude" | "codex";
-  /** El programa del proveedor ya está en esta computadora (lo detectó el backend). */
-  cliInstalado: boolean;
   llave: string;
   setLlave: (v: string) => void;
   trabajando: boolean;
   onConectarLlave: () => void;
-  /** Solo ChatGPT: el código de un solo uso ya quedó autorizado del otro lado. */
-  onCuentaLista: (test: ProviderTest) => void;
   test: ProviderTest | null;
 }) {
   const esClaude = proveedor === "claude";
-  const marca = esClaude ? "Claude" : "ChatGPT";
-
-  // ChatGPT: el código de un solo uso vive aquí mientras el dueño lo autoriza en
-  // su navegador; aiuda pregunta cada pocos segundos si ya quedó.
-  const [codigo, setCodigo] = useState<{
-    userCode: string;
-    url: string;
-    deviceCode: string;
-    interval: number;
-    venceEn: number;
-  } | null>(null);
-  const [fase, setFase] = useState<"inicio" | "pidiendo" | "esperando" | "error">("inicio");
-  const [falla, setFalla] = useState("");
-  const [ahora, setAhora] = useState(() => Date.now());
-  const [copiado, setCopiado] = useState(false);
-
-  async function pedirCodigo() {
-    setFase("pidiendo");
-    setFalla("");
-    try {
-      const res = await api.startOpenaiDevice();
-      setCodigo({
-        userCode: res.user_code,
-        url: res.verification_uri,
-        deviceCode: res.device_code,
-        interval: Math.max(1, res.interval || 5),
-        venceEn: Date.now() + (res.expires_in || 900) * 1000,
-      });
-      setAhora(Date.now());
-      setFase("esperando");
-    } catch (e) {
-      setFase("error");
-      setFalla((e as Error).message);
-    }
-  }
-
-  function cancelar() {
-    setCodigo(null);
-    setFase("inicio");
-    setFalla("");
-  }
-
-  function copiarCodigo() {
-    if (!codigo) return;
-    navigator.clipboard?.writeText(codigo.userCode).then(
-      () => {
-        setCopiado(true);
-        setTimeout(() => setCopiado(false), 2000);
-      },
-      () => toast("No se pudo copiar. Escríbelo tal cual.", "error"),
-    );
-  }
-
-  // Le pregunta a OpenAI cada pocos segundos si el dueño ya autorizó el código.
-  useEffect(() => {
-    if (!codigo || fase !== "esperando") return;
-    let cancelado = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const preguntar = async () => {
-      if (cancelado) return;
-      if (Date.now() >= codigo.venceEn) {
-        setFase("error");
-        setFalla("El código venció. Pide uno nuevo.");
-        return;
-      }
-      try {
-        const res = await api.pollOpenaiDevice(codigo.deviceCode, codigo.userCode);
-        if (cancelado) return;
-        if (res.status === "success") {
-          setCodigo(null);
-          setFase("inicio");
-          onCuentaLista(res.test);
-          return;
-        }
-        if (res.status === "error") {
-          setFase("error");
-          setFalla(res.detail || "No se pudo entrar con tu cuenta de ChatGPT.");
-          return;
-        }
-        timer = setTimeout(preguntar, codigo.interval * 1000);
-      } catch {
-        // Hipo de red: se sigue preguntando hasta que el código venza.
-        if (!cancelado) timer = setTimeout(preguntar, codigo.interval * 1000);
-      }
-    };
-    timer = setTimeout(preguntar, codigo.interval * 1000);
-    return () => {
-      cancelado = true;
-      clearTimeout(timer);
-    };
-    // onCuentaLista es estable en la práctica; listarlo reiniciaría la espera.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codigo, fase]);
-
-  // Tic de reloj para la cuenta regresiva del código.
-  useEffect(() => {
-    if (!codigo || fase !== "esperando") return;
-    const id = setInterval(() => setAhora(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [codigo, fase]);
-
-  const segundos = codigo ? Math.max(0, Math.ceil((codigo.venceEn - ahora) / 1000)) : 0;
-  const regresiva = `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
-
-  // La llave: un campo y ya. Se guarda cifrada en esta computadora.
-  const campoLlave = (
-    <div>
-      <p className="text-cuerpo font-medium text-ink">Pega tu llave de {marca}</p>
-      <p className="mt-1 max-w-[70ch] text-cuerpo leading-relaxed text-ink-3">
-        La sacas en{" "}
-        <a
-          href={esClaude ? "https://console.anthropic.com" : "https://platform.openai.com/api-keys"}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-accent-ink underline-offset-2 hover:underline"
-        >
-          {esClaude ? "console.anthropic.com" : "platform.openai.com"}
-        </a>
-        . La pagas directo con ellos y se guarda cifrada en esta computadora.
-      </p>
-      <div className="mt-3.5 flex gap-2">
+  const marca = esClaude ? "Claude" : "OpenAI";
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
+          Tu llave de {marca}
+        </span>
         <input
+          className="mt-1 w-full rounded-md border border-line bg-surface px-2.5 py-2 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
           type="password"
-          autoFocus={esClaude}
-          className={inputLgCls}
+          placeholder={esClaude ? "sk-ant-…" : "sk-…"}
           value={llave}
           onChange={(e) => setLlave(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && llave.trim() && !trabajando && onConectarLlave()}
-          placeholder={esClaude ? "sk-ant-…" : "sk-…"}
-          autoComplete="off"
-          spellCheck={false}
         />
-        <PrimaryButton
-          size="lg"
-          onClick={onConectarLlave}
-          disabled={!llave.trim() || trabajando}
-          className="shrink-0"
-        >
-          {trabajando ? "Conectando…" : "Conectar"}
-        </PrimaryButton>
-      </div>
+      </label>
+      <p className="text-apoyo leading-relaxed text-ink-3">
+        La sacas en {esClaude ? "console.anthropic.com" : "platform.openai.com"}. Se guarda
+        cifrada en esta computadora y te la cobran a ti directo: aiuda no cobra por el uso.
+      </p>
+      <button
+        onClick={onConectarLlave}
+        disabled={trabajando || !llave.trim()}
+        className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+      >
+        {trabajando ? "Conectando…" : "Conectar"}
+      </button>
+      {test && !test.ok && (
+        <p className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-cuerpo text-danger">
+          {test.error}
+        </p>
+      )}
     </div>
   );
-
-  return (
-    <Panel>
-      <p className="text-seccion font-semibold text-ink">Conectar {marca}</p>
-
-      {esClaude ? (
-        <div className="mt-3.5">
-          {campoLlave}
-          {!cliInstalado && (
-            <p className="mt-4 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">
-              ¿No tienes llave? Instala{" "}
-              <a
-                href="https://claude.com/product/claude-code"
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-accent-ink underline-offset-2 hover:underline"
-              >
-                Claude Code
-              </a>{" "}
-              en esta computadora y entra ahí con tu cuenta: al volver aquí se conecta con un clic.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="mt-3.5">
-          <p className="max-w-[70ch] text-cuerpo leading-relaxed text-ink-3">
-            aiuda te da un código de un solo uso, lo escribes en la página de OpenAI y listo. No
-            tienes que pegar nada aquí.
-          </p>
-
-          {fase === "esperando" && codigo ? (
-            <div className="mt-3.5 rounded-lg border border-line bg-surface px-4 py-4">
-              <p className="text-cuerpo leading-relaxed text-ink-2">
-                Escribe este código en la página de OpenAI:
-              </p>
-              <div className="mt-2.5 flex items-center gap-2">
-                <code className="tnum flex-1 rounded-md border border-line bg-panel px-3 py-2.5 text-center text-titulo font-semibold tracking-[0.18em] text-ink">
-                  {codigo.userCode}
-                </code>
-                <SecondaryButton size="lg" className="shrink-0" onClick={copiarCodigo}>
-                  {copiado ? "Copiado" : "Copiar"}
-                </SecondaryButton>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <a
-                  href={codigo.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex rounded-md bg-accent px-4 py-2.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
-                >
-                  Abrir la página de OpenAI
-                </a>
-                <SecondaryButton size="lg" onClick={cancelar}>
-                  Cancelar
-                </SecondaryButton>
-              </div>
-              <p className="mt-3 flex items-start gap-2 text-cuerpo text-ink-3">
-                <span className="breathe mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
-                <span>
-                  Esperando a que autorices… El código vence en{" "}
-                  <span className="tnum font-medium text-ink-2">{regresiva}</span>.
-                </span>
-              </p>
-            </div>
-          ) : (
-            <div className="mt-3.5">
-              <PrimaryButton
-                size="lg"
-                onClick={pedirCodigo}
-                disabled={fase === "pidiendo" || trabajando}
-              >
-                {fase === "pidiendo" ? "Preparando…" : "Entrar con mi cuenta de ChatGPT"}
-              </PrimaryButton>
-            </div>
-          )}
-
-          {fase === "error" && (
-            <p className="mt-3 max-w-[80ch] text-cuerpo leading-relaxed text-danger">{falla}</p>
-          )}
-
-          <p className="mt-3 max-w-[80ch] text-apoyo leading-relaxed text-ink-3">
-            Una sola vez, ChatGPT te va a pedir que actives el{" "}
-            <a
-              href={TERMINOS_OPENAI}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-accent-ink underline-offset-2 hover:underline"
-            >
-              inicio de sesión con código
-            </a>{" "}
-            en Configuración, Seguridad: viene apagado.
-          </p>
-
-          {/* Lo de siempre: una acción visible arriba, lo demás detrás de una línea. */}
-          <details className="mt-4 rounded-lg border border-line bg-surface px-4 py-3">
-            <summary className="cursor-pointer text-cuerpo font-medium text-ink-2 hover:text-ink">
-              Otra forma de conectar
-            </summary>
-            <div className="mt-3.5">{campoLlave}</div>
-          </details>
-
-          <AvisoCuenta
-            marca="ChatGPT"
-            terminos="usos documentados por OpenAI"
-            href={TERMINOS_OPENAI}
-          />
-        </div>
-      )}
-
-      {test && <ResultadoIA test={test} />}
-    </Panel>
-  );
 }
-
-// --- Paso 3: tus datos ------------------------------------------------------
 
 function PasoDatos({
   estado,
@@ -1999,7 +1740,7 @@ function PasoCierre({ estado, onEntrar }: { estado: SetupEstado; onEntrar: () =>
       : estado.ia.proveedor === "claude"
         ? "Claude"
         : estado.ia.proveedor === "codex"
-          ? "ChatGPT"
+          ? "OpenAI"
           : "Sin conectar. La conectas en Tu IA, en el menú";
 
   const datos =

@@ -948,23 +948,9 @@ export type AgentSystems = {
 // tiene instalado y con su sesión iniciada. Se conecta con un clic: el secreto va
 // vacío porque no hay ninguno que guardar, la sesión vive dentro del propio programa.
 export type ProviderName = "claude" | "codex" | "local" | "claude_cli" | "codex_cli";
-export type ProviderMode = "api_key" | "subscription" | "cli";
-
-/** Arranque del device code de OpenAI: el código de un solo uso, la URL a abrir, el intervalo
- *  de sondeo (segundos) y la expiración (segundos, ~15 min). La consola sondea con estos. */
-export type OpenaiDeviceStart = {
-  device_code: string;
-  user_code: string;
-  verification_uri: string;
-  interval: number;
-  expires_in: number;
-};
-
-/** Un sondeo del device code: pendiente (sigue), listo (conectado + veredicto), o error. */
-export type OpenaiDevicePoll =
-  | { status: "pending" }
-  | { status: "success"; name: ProviderName; mode: ProviderMode; connected: boolean; test: ProviderTest }
-  | { status: "error"; detail: string };
+// Ya no existe "subscription": esa vía mandaba el token del dueño haciéndose pasar
+// por el CLI oficial del proveedor. Quien tiene suscripción usa "cli".
+export type ProviderMode = "api_key" | "cli";
 
 /** Estado del proveedor de IA conectado (panel /proveedor). */
 export type ProviderState = {
@@ -977,6 +963,8 @@ export type ProviderState = {
   secret: string;
   /** Solo proveedor "local": base_url y modelo (no son secretos, se editan sin re-capturar). */
   local_config?: { base_url: string; model: string };
+  /** Venías de la vía retirada por suscripción: qué pasó y qué hacer, en una frase. */
+  aviso_retirado?: string;
 };
 
 /** Veredicto de la prueba de conexión REAL del proveedor (POST /v1/provider/test):
@@ -1294,30 +1282,6 @@ export const api = {
   disconnectProvider: () =>
     request<{ connected: boolean; env_fallback: boolean }>("/v1/provider", { method: "DELETE" }),
   testProvider: () => request<ProviderTest>("/v1/provider/test", { method: "POST" }),
-  // OpenAI por SUSCRIPCIÓN, sin pegar nada: device code ("Iniciar sesión con ChatGPT"). start
-  // pide el código; la consola muestra el código + la URL y sondea poll según el intervalo
-  // hasta que el dueño autorice en su navegador. Al autorizar, el backend canjea, prueba y
-  // guarda el bundle CIFRADO por tenant. El bundle nunca toca el navegador.
-  startOpenaiDevice: () =>
-    request<OpenaiDeviceStart>("/v1/provider/openai/device/start", { method: "POST" }),
-  pollOpenaiDevice: (deviceCode: string, userCode: string) =>
-    request<OpenaiDevicePoll>("/v1/provider/openai/device/poll", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_code: deviceCode, user_code: userCode }),
-    }),
-  // OpenAI pegando el auth.json (fallback de power-user/self-host): el dueño corre `codex
-  // login` en SU máquina y pega el contenido; el bundle se guarda CIFRADO por tenant. Sin
-  // pegar nada, en self-host de una máquina el backend lee la sesión local. authJson opcional.
-  connectOpenai: (authJson?: string) =>
-    request<{ name: ProviderName; mode: ProviderMode; connected: boolean; test: ProviderTest }>(
-      "/v1/provider/openai/connect",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(authJson ? { auth_json: authJson } : {}),
-      },
-    ),
   testIntegration: (key: string) =>
     request<{ ok: boolean | null; message: string; details?: Record<string, number | string> }>(
       `/v1/integrations/${key}/test`,

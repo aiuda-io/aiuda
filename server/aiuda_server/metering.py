@@ -14,11 +14,8 @@ dejan aviso en la bitácora y siguen sin IA.
 
 from __future__ import annotations
 
-import json
-from collections.abc import Callable
 
 from aiuda_server import costs
-from aiuda_core.connectors import credentials as cred
 from aiuda_core.engine.llm import BudgetExceeded, UsageCallback
 from aiuda_core.engine.provider import resolve_credential
 from aiuda_core.engine.runner import ProviderRunner, make_runner
@@ -57,26 +54,12 @@ def budget_check(db, tenant: Tenant):
     return _check
 
 
-def _codex_token_persist(db, tenant_id: str) -> Callable[[dict], None]:
-    """Persiste el bundle de token de Codex tras un refresh, re-cifrándolo POR TENANT.
-    Sin esto, la rotación del refresh_token de OpenAI se perdería y el tenant tendría que
-    reconectar cada hora. Conserva 'connected' (refresh_secret no toca el status)."""
-
-    def _persist(bundle: dict) -> None:
-        cred.refresh_secret(
-            db, tenant_id, "ia", {"secret": json.dumps(bundle, separators=(",", ":"))}
-        )
-
-    return _persist
-
-
 def tenant_runner(db, tenant: Tenant) -> ProviderRunner:
     """Runner del proveedor del tenant con metering y tope enganchados. Es la vía
     canónica de la capa HTTP/worker; construir el runner a mano se salta el tope."""
     runner = make_runner(
         resolve_credential(session=db, tenant_id=tenant.id),
         usage_callback=usage_recorder(db, tenant.id),
-        token_persist=_codex_token_persist(db, tenant.id),
     )
     runner.budget_check = budget_check(db, tenant)
     return runner

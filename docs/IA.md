@@ -40,8 +40,8 @@ ves con una versión nueva, cuéntalo en un issue.
 
 | Vía | Qué necesitas | Costo | Tus datos salen a |
 |---|---|---|---|
+| El programa que ya tienes | Claude Code o Codex instalado | Lo que ya pagas al mes | Anthropic u OpenAI |
 | API key | Llave de Anthropic u OpenAI | Por token, lo cobra el proveedor | Anthropic u OpenAI |
-| Suscripción | Tu cuenta de Claude o de ChatGPT | Lo que ya pagas al mes | Anthropic u OpenAI |
 | Modelo local | Ollama en tu máquina | Nada | Ningún lado |
 
 ### 1. API key
@@ -55,23 +55,28 @@ aiuda usa dos modelos: uno chico para clasificar y hacer triage, uno grande para
 redactar. Con Claude y OpenAI esos modelos vienen fijos (se cambian por variable
 de entorno, no desde la consola); con un modelo local sí eliges cuál corre.
 
-### 2. Suscripción
+### 2. El programa que ya tienes instalado
 
-Usa la cuenta que ya pagas, sin llave aparte.
+Si ya pagas Claude o ChatGPT y tienes `claude` o `codex` en tu computadora, esa es
+la vía de un clic: aiuda detecta el programa, lo lanza como cualquier otra app lo
+lanzaría, y lee su respuesta. **El programa se identifica con tu propia sesión;
+aiuda nunca ve ni guarda tu token.**
 
-- **Claude:** si tienes Claude Code instalado, no necesitas esto: usa la vía de un
-  clic de arriba. Si no lo tienes, generas el token con `claude setup-token` y lo
-  pegas en la consola; aiuda habla con la API por OAuth, igual que Claude Code.
-  Con suscripción se redacta con el modelo chico: el grande topa en 429 casi de
-  inmediato (verificado en vivo).
-- **OpenAI:** "Iniciar sesión con ChatGPT" desde la consola (device code, tú
-  apruebas en tu navegador). También se puede pegar el `auth.json` que deja
-  `codex login` en tu máquina.
+#### Lo que se quitó, y por qué
 
-Tu suscripción y tu computadora, como cualquier otra herramienta que uses con esa
-cuenta. Eso sí: no es una vía oficial según los términos de servicio del
-proveedor, y la consola lo dice antes de conectar. Si prefieres cero letras
-chicas, usa API key o un modelo local.
+Antes había una cuarta vía: pegar el token de `claude setup-token` (o entrar con
+ChatGPT por código) y que aiuda hablara con la API directamente. Para que el
+proveedor aceptara ese token, aiuda tenía que anteponer a cada mensaje la frase
+"You are Claude Code, Anthropic's official CLI for Claude". No era un detalle de
+estilo: era una afirmación falsa que viajaba en cada petición para pasar un
+control de acceso, y correr en tu computadora no lo cambiaba.
+
+aiuda es abierto y cualquiera lo puede instalar o forkear, así que ese riesgo se
+le repartía a todos. Se retiró. Lo que se buscaba —usar la suscripción que ya
+pagas sin llave aparte— lo da la vía de arriba, y esa sí es legítima.
+
+Si ya la tenías configurada, la consola te lo dice al abrir Tu IA y te ofrece el
+cambio; no se apaga en silencio.
 
 ### 3. Modelo local (Ollama)
 

@@ -86,26 +86,29 @@ def test_guardar_leer_enmascarado_y_desconectar(client, demo_tenant, demo_login)
     assert client.get("/v1/provider").json()["connected"] is False
 
 
-def test_modo_suscripcion_se_guarda(client, demo_tenant, demo_login):
+def test_el_modo_suscripcion_ya_no_se_puede_conectar(client, demo_tenant, demo_login):
+    """Se retiró: para que el proveedor aceptara ese token, aiuda tenía que declararse
+    como su programa oficial. No hay bandera que lo reviva."""
     demo_login(client)
     res = client.put(
         "/v1/provider",
         json={"name": "claude", "mode": "subscription", "secret": "oauth-tok"},
     )
+    assert res.status_code == 400
+
+
+def test_el_cli_del_dueno_se_conecta_sin_guardar_nada(client, demo_tenant, demo_login, monkeypatch):
+    """La vía que reemplaza a la suscripción: su binario, su sesión, cero credenciales
+    nuestras."""
+    import aiuda_core.engine.cli_runner as cli
+
+    monkeypatch.setattr(cli, "detectar", lambda nombre: "/usr/local/bin/claude")
+    demo_login(client)
+    res = client.put("/v1/provider", json={"name": "claude_cli", "mode": "cli", "secret": ""})
     assert res.status_code == 200
     body = client.get("/v1/provider").json()
-    assert body["mode"] == "subscription" and body["connected"] is True
-
-
-def test_codex_no_se_conecta_pegando_secreto(client, demo_tenant, demo_login):
-    # OpenAI (codex) se conecta por OAuth, no pegando un secreto: la vía PUT lo rechaza y
-    # dirige al botón de ChatGPT. La conexión real se prueba en test_provider_openai.py.
-    demo_login(client)
-    res = client.put(
-        "/v1/provider", json={"name": "codex", "mode": "subscription", "secret": "sk-x"}
-    )
-    assert res.status_code == 400
-    assert "ChatGPT" in res.json()["detail"]
+    assert body["name"] == "claude_cli" and body["connected"] is True
+    assert not body["secret"], "aiuda no guarda ningún token del dueño"
 
 
 def test_modo_invalido_rechazado(client, demo_tenant, demo_login):
@@ -138,7 +141,7 @@ def test_secreto_se_guarda_cifrado_no_en_claro(client, demo_tenant, db_session, 
     demo_login(client)
     assert client.put(
         "/v1/provider",
-        json={"name": "claude", "mode": "subscription", "secret": "sk-secreto-real"},
+        json={"name": "claude", "mode": "api_key", "secret": "sk-secreto-real"},
     ).status_code == 200
 
     db_session.refresh(demo_tenant)
@@ -152,39 +155,29 @@ def test_secreto_se_guarda_cifrado_no_en_claro(client, demo_tenant, db_session, 
         )
     )
     assert row is not None
-    assert row.public_config == {"name": "claude", "mode": "subscription"}
+    assert row.public_config == {"name": "claude", "mode": "api_key"}
     assert b"sk-secreto-real" not in (row.secret_ciphertext or b"")
     # 3) El motor lo resuelve descifrado (lo que de verdad usa el runner).
     cred = resolve_credential(session=db_session, tenant_id=demo_tenant.id)
     assert cred is not None
     assert cred.secret == "sk-secreto-real"
-    assert cred.mode == "subscription"
+    assert cred.mode == "api_key"
 
 
 def test_cifrado_end_to_end_hasta_el_cliente_del_motor(client, demo_tenant, db_session, demo_login):
-    """El eslabón final del E2E: el cliente Anthropic que arma el motor a partir de
-    la fila CIFRADA lleva el secreto descifrado en el header correcto (auth_token en
-    suscripción, api_key en api_key). Guardar → cifrar → resolver → usar."""
+    """El eslabón final del E2E: el cliente Anthropic que arma el motor a partir de la
+    fila CIFRADA lleva el secreto descifrado. Guardar → cifrar → resolver → usar."""
     from aiuda_core.engine.provider import build_anthropic_client, resolve_credential
 
     demo_login(client)
-
-    # Vía suscripción: Authorization Bearer con el token descifrado.
-    client.put(
-        "/v1/provider",
-        json={"name": "claude", "mode": "subscription", "secret": "oauth-cifrado-e2e"},
-    )
-    cred = resolve_credential(session=db_session, tenant_id=demo_tenant.id)
-    cli = build_anthropic_client(cred)
-    assert cli.auth_token == "oauth-cifrado-e2e" and cli.api_key is None
-
-    # Vía API key: x-api-key con la key descifrada.
     client.put(
         "/v1/provider",
         json={"name": "claude", "mode": "api_key", "secret": "sk-cifrado-e2e"},
     )
     cred = resolve_credential(session=db_session, tenant_id=demo_tenant.id)
     cli = build_anthropic_client(cred)
+    # x-api-key con la llave descifrada. Ya no hay una segunda vía con Bearer: esa era
+    # la del token de suscripción, que iba acompañado de la identidad falsa.
     assert cli.api_key == "sk-cifrado-e2e" and cli.auth_token is None
 
 
