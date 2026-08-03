@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader, useApi } from "@/components/ui";
 import { SettingsField, SettingsPage, SettingsSection, settingsInputCls } from "@/components/settings";
 import { TagManager } from "@/components/tags";
@@ -189,6 +189,48 @@ function VentanaEnvio() {
   );
 }
 
+/** Modo técnico: enseña lo que solo le sirve a quien programa (hoy, la API).
+ *
+ *  La regla del producto: el desarrollador instala, el usuario no técnico implementa.
+ *  Que la API exista y esté documentada es bueno; que viva en el menú de alguien que
+ *  nunca va a escribir un curl, no. Quien la busca la prende. Es preferencia de ESTA
+ *  consola (localStorage), no config del negocio: no se la impone a los demás. */
+function ModoTecnico() {
+  const [activo, setActivo] = useState(false);
+  useEffect(() => setActivo(localStorage.getItem("aiuda-modo-tecnico") === "1"), []);
+  const alternar = () => {
+    const nuevo = !activo;
+    setActivo(nuevo);
+    localStorage.setItem("aiuda-modo-tecnico", nuevo ? "1" : "0");
+    window.dispatchEvent(new Event("modo-tecnico-cambio"));
+    toast(nuevo ? "Modo técnico activado: aparece la API en el menú." : "Modo técnico desactivado.", "info");
+  };
+  return (
+    <div className="flex items-center gap-4">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={activo}
+        aria-label="Modo técnico"
+        onClick={alternar}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+          activo ? "bg-accent" : "bg-line-strong"
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-surface shadow transition-transform ${
+            activo ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+      <span className="text-cuerpo font-medium text-ink">
+        {activo ? "Activado: la API aparece en el menú" : "Desactivado"}
+      </span>
+    </div>
+  );
+}
+
+
 export default function ConfiguracionPage() {
   const { data: session } = useApi(() => api.workspace(), []);
   return (
@@ -211,6 +253,13 @@ export default function ConfiguracionPage() {
           }
         >
           <ModoSombra />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Modo técnico"
+          desc="Enseña en el menú lo que solo le sirve a quien programa: hoy, la API de tu aiuda. Todo lo que ves en esta consola existe primero como API y corre en esta computadora; si no la necesitas, no tiene por qué estorbarte."
+        >
+          <ModoTecnico />
         </SettingsSection>
 
         <SettingsSection

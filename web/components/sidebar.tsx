@@ -86,17 +86,33 @@ const iconFor = (href: string): ReactNode => ICONS[ICON_FOR[href] ?? "dot"];
 // duplicar. Las rutas siguen vivas (p.ej. /aprobaciones redirige al Centro de mando).
 const CONSOLIDADO = new Set(["/aprobaciones", "/conciliacion", "/promesas"]);
 
-const PLATFORM = [
+// El menú muestra lo que el dueño puede DECIDIR, en sus palabras. "Proveedor de IA"
+// era jerga: lo que él eligió es qué inteligencia usa su negocio.
+//
+// `tecnico: true` = solo aparece con el modo técnico encendido (Configuración). La
+// regla es la del producto: el desarrollador instala, el usuario no técnico
+// implementa. La API existe y se documenta, pero no vive en el menú de alguien que
+// nunca va a escribir un curl; quien la busca, la prende.
+const PLATFORM: { href: string; label: string; tecnico?: boolean }[] = [
   { href: "/configuracion", label: "General" },
   { href: "/integraciones", label: "Integraciones" },
-  { href: "/proveedor", label: "Proveedor de IA" },
-  { href: "/aparatos", label: "Tus aparatos" },
+  { href: "/proveedor", label: "Tu IA" },
   { href: "/importar", label: "Importar datos" },
-  { href: "/desarrolladores", label: "API" },
+  { href: "/aparatos", label: "Tus aparatos" },
+  { href: "/desarrolladores", label: "API", tecnico: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  // Preferencia de ESTA consola, no config del negocio: quien quiere ver la API la
+  // prende para sí, y a los demás no les aparece.
+  const [tecnico, setTecnico] = useState(false);
+  useEffect(() => {
+    const leer = () => setTecnico(localStorage.getItem("aiuda-modo-tecnico") === "1");
+    leer();
+    window.addEventListener("modo-tecnico-cambio", leer);
+    return () => window.removeEventListener("modo-tecnico-cambio", leer);
+  }, []);
   const [pending, setPending] = useState<number | null>(null);
   const [agents, setAgents] = useState<AgentState[]>([
     {
@@ -310,7 +326,7 @@ export function Sidebar() {
           <div>
             {renderDivider("Configuración", exp)}
             <ul className="space-y-px">
-              {PLATFORM.map((it) => (
+              {PLATFORM.filter((it) => !it.tecnico || tecnico).map((it) => (
                 <li key={it.href}>{renderItem(it, exp)}</li>
               ))}
             </ul>

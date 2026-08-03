@@ -6,21 +6,24 @@ import {
   BUCKET_META,
   mxn,
   type AgentState,
+  type AiuditasCatalog,
+  type AyudanteDTO,
   type Cartera,
   type ReminderItem,
 } from "@/lib/api";
 import { BucketPill, ErrorState, PageHeader, Skeleton, useApi } from "@/components/ui";
 import { AnimatedNumber } from "@/components/motion";
 import { Avatar } from "@/components/avatar";
-import { appearanceForSlug } from "@/lib/look";
-import { AGENT_NAV, getAsistente } from "@/lib/asistentes";
-import { useAyudantes } from "@/lib/ayudantes-store";
+import { normalizeAppearance } from "@/lib/look";
+import { useAyudantes, useCatalog } from "@/lib/ayudantes-store";
+import { perfilesActivos } from "@/lib/perfiles";
 
 export default function ResumenPage() {
   const cartera = useApi<Cartera>(api.cartera);
   const reminders = useApi<ReminderItem[]>(() => api.reminders());
   const agents = useApi<AgentState[]>(api.agents);
   const { ayudantes } = useAyudantes();
+  const { catalog } = useCatalog();
 
   if (cartera.error) return <ErrorState message={cartera.error} retry={cartera.refetch} />;
   const data = cartera.data;
@@ -31,7 +34,9 @@ export default function ResumenPage() {
     month: "long",
   });
 
-  const team = (agents.data ?? []).filter((a) => a.active);
+  // El equipo son los ayudantes que el DUEÑO creó, no el roster de slugs del motor.
+  // Antes esta sección pintaba "Cobranza", un trabajador que él nunca contrató, y su
+  // ayudante real solo aparecía en un rincón del sidebar.
 
   return (
     <div className="min-w-0">
@@ -61,8 +66,10 @@ export default function ResumenPage() {
           </p>
         ) : agents.loading ? (
           <Skeleton className="h-24 w-full md:col-span-2" />
+        ) : ayudantes.length > 0 ? (
+          ayudantes.map((a) => <AyudanteCard key={a.id} a={a} catalog={catalog} />)
         ) : (
-          team.map((state) => <AgentCard key={state.slug} state={state} cartera={data} />)
+          <SinEquipo />
         )}
       </section>
 
@@ -209,8 +216,9 @@ export default function ResumenPage() {
                       href={`/centro?r=${r.id}`}
                       className="flex items-center gap-2.5 px-4 py-2.5 transition-colors hover:bg-panel/60"
                     >
-                      <span title={getAsistente(r.agent)?.role ?? "Ayudante"}>
-                        <Avatar name="" size={24} {...appearanceForSlug(r.agent)} />
+                      {/* Quién la redactó: el ayudante del dueño, no el slug del motor. */}
+                      <span title={r.propuesto_por ? `de ${r.propuesto_por}` : "Tu ayudante"}>
+                        <Avatar name={r.propuesto_por ?? ""} size={24} />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-cuerpo font-medium text-ink">
@@ -235,32 +243,27 @@ export default function ResumenPage() {
   );
 }
 
-function AgentCard({ state, cartera }: { state: AgentState; cartera: Cartera | null }) {
-  const a = getAsistente(state.slug);
-  if (!a) return null;
-  const nav = AGENT_NAV[state.slug];
-  const headline =
-    state.slug === "mariana"
-      ? cartera
-        ? `${mxn(cartera.recovered_this_month)} recuperados este mes`
-        : ""
-      : `${state.sent} enviada${state.sent === 1 ? "" : "s"} · ${state.pending} por aprobar`;
-
+function AyudanteCard({ a, catalog }: { a: AyudanteDTO; catalog: AiuditasCatalog | null }) {
+  // El oficio se deriva de las aiuditas que tiene activas, igual que en su ficha: es
+  // lo que de verdad sabe hacer, no una etiqueta fija.
+  const perfiles = catalog ? perfilesActivos(catalog, a.aiuditas) : [];
+  const app = normalizeAppearance(a.appearance);
+  const detalle = `/ayudantes/detalle?id=${a.id}`;
   return (
     <div className="rounded-lg border border-line bg-surface p-4">
       <div className="flex items-center gap-3">
-        <Link href={"/ayudantes"} className="shrink-0">
+        <Link href={detalle} className="shrink-0">
           <Avatar
-            name={a.role}
+            name={a.name}
             size={44}
-            {...appearanceForSlug(state.slug)}
+            {...app}
             className="transition-transform hover:scale-105"
           />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Link
-              href={"/ayudantes"}
+              href={detalle}
               className="text-seccion font-semibold text-ink hover:text-accent-ink"
             >
               {a.name}
@@ -268,21 +271,40 @@ function AgentCard({ state, cartera }: { state: AgentState; cartera: Cartera | n
             {/* Dato neutro de trayectoria: acciones reales, sin nivel ni barra de
                 juego (nada de gamificación cerca de montos). */}
             <span className="tnum text-apoyo text-ink-3">
-              {state.actions} {state.actions === 1 ? "acción" : "acciones"}
+              {a.acciones.total} {a.acciones.total === 1 ? "acción" : "acciones"}
             </span>
           </div>
-          <p className="tnum truncate text-cuerpo text-ink-2">{headline}</p>
+          <p className="truncate text-cuerpo text-ink-2">
+            {perfiles.length > 0
+              ? perfiles.map((p) => p.name).join(" · ")
+              : "Sin oficio todavía · elige qué quieres que haga"}
+          </p>
         </div>
       </div>
-      {/* Accesos directos de este agente */}
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {state.pending > 0 && (
-          <Quick href="/centro" label={`Bandeja (${state.pending})`} accent />
+        {a.acciones.pendientes > 0 && (
+          <Quick href="/centro" label={`Bandeja (${a.acciones.pendientes})`} accent />
         )}
-        {nav?.items.slice(0, 3).map((item) => (
-          <Quick key={item.href} href={item.href} label={item.label} />
-        ))}
+        <Quick href={detalle} label="Su trabajo" />
       </div>
+    </div>
+  );
+}
+
+/** Todavía no hay a quién delegarle nada. Un solo camino, no tres. */
+function SinEquipo() {
+  return (
+    <div className="rounded-lg border border-dashed border-line bg-surface px-4 py-5 md:col-span-2">
+      <p className="text-cuerpo font-medium text-ink">Todavía no tienes ayudantes</p>
+      <p className="mt-0.5 text-cuerpo text-ink-3">
+        Un ayudante lee tus fuentes, propone el trabajo y espera tu visto bueno.
+      </p>
+      <Link
+        href="/ayudantes"
+        className="mt-3 inline-block rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
+      >
+        Crear el primero
+      </Link>
     </div>
   );
 }
