@@ -236,3 +236,51 @@ def test_commit_guarda_procedencia(session, tenant):
     )
     ana = session.scalar(select(Customer).where(Customer.name == "Ana"))
     assert ana.presence["excel"]["file"] == "clientes_junio.csv"
+
+
+# --- Nada de no-ops mudos --------------------------------------------------
+#
+# El camino más publicitado para el dueño no técnico es "sube tu Excel". Si no entra
+# nada, tiene que decirle por qué: created=0, skipped=N, errors=[] lo dejaba mirando
+# una pantalla que no hizo nada y no explicaba nada.
+
+
+def test_commit_sin_mapeo_explica_en_vez_de_callarse(session, tenant):
+    from aiuda_core.connectors.smart_import import commit
+
+    contenido = _csv("Cliente,Telefono\nRefaccionaria del Golfo,2291234567\n")
+    rep = commit(session, tenant.id, contenido, "clientes.csv", "clientes", {}, [])
+
+    assert rep.created == 0
+    assert rep.skipped == 1, "cuenta los renglones que no pudo cargar"
+    assert rep.errors, "y NO se queda callado"
+    assert "no quedó claro qué columna es cuál" in rep.errors[0]
+    # El mensaje le sirve al dueño: nombra sus columnas y lo que falta decidir.
+    assert "Cliente" in rep.errors[0] and "nombre" in rep.errors[0]
+
+
+def test_commit_con_mapeo_si_carga(session, tenant):
+    from aiuda_core.connectors.smart_import import commit
+
+    contenido = _csv("Cliente,Telefono\nRefaccionaria del Golfo,2291234567\n")
+    rep = commit(
+        session, tenant.id, contenido, "clientes.csv", "clientes",
+        {"nombre": "Cliente", "telefono": "Telefono"}, [],
+    )
+    assert rep.created == 1 and not rep.errors
+    assert session.scalar(
+        select(Customer).where(Customer.tenant_id == tenant.id, Customer.name == "Refaccionaria del Golfo")
+    ) is not None
+
+
+def test_si_no_entra_nada_siempre_hay_motivo(session, tenant):
+    """Red de seguridad: aunque el ingestor no explique, el reporte explica."""
+    from aiuda_core.connectors.smart_import import commit
+
+    contenido = _csv("Cliente,Telefono\nRefaccionaria del Golfo,2291234567\n")
+    mapeo = {"nombre": "Cliente", "telefono": "Telefono"}
+    commit(session, tenant.id, contenido, "clientes.csv", "clientes", mapeo, [])
+    # La segunda vez ya existe: skipped, y el dueño merece saberlo.
+    rep = commit(session, tenant.id, contenido, "clientes.csv", "clientes", mapeo, [])
+    assert rep.created == 0 and rep.skipped == 1
+    assert rep.errors and "No se cargó ninguno" in rep.errors[0]
