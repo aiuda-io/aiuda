@@ -268,7 +268,7 @@ function AyudanteDetail() {
       {tab === "aprendizaje" && (
         <div key="aprendizaje" className="reveal">
           {/* Loop de aprendizaje: qué aprende de tus ediciones en el Centro */}
-          <LearningPanel />
+          <LearningPanel ayudanteId={id} />
         </div>
       )}
     </div>
@@ -305,18 +305,21 @@ function LearningStat({
 }
 
 /** El loop de aprendizaje hecho visible: cuánto se aprueba sin editar y las últimas
- *  correcciones del dueño. Esas ediciones se reinyectan al prompt del agente (backend),
- *  así redacta cada vez más como él. Es de cobranza (Mariana), el runtime que aprende. */
-function LearningPanel() {
+ *  correcciones del dueño. Esas ediciones se reinyectan al prompt del ayudante (backend),
+ *  así redacta cada vez más como él.
+ *
+ *  Son las correcciones DE ESTE ayudante: antes se pedía siempre el slug de runtime, así
+ *  que la pestaña mostraba los mismos números en todos. Dato falso y silencioso. */
+function LearningPanel({ ayudanteId }: { ayudanteId: string }) {
   const [sum, setSum] = useState<LearningSummary | null>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     api
-      .learningSummary("mariana")
+      .learningSummary(ayudanteId)
       .then(setSum)
       .catch(() => setSum(null))
       .finally(() => setLoaded(true));
-  }, []);
+  }, [ayudanteId]);
   if (!loaded) return null; // secundario: silencioso mientras carga
   const enviados = (sum?.approved ?? 0) + (sum?.edited ?? 0);
   return (
@@ -380,7 +383,8 @@ function PersonaEditor({
   const [value, setValue] = useState(instructions);
   const [estado, setEstado] = useState<"idle" | "guardando" | "ok">("idle");
   const [verGarantias, setVerGarantias] = useState(false);
-  const [prompt, setPrompt] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<{ chat: string; corrida: string } | null>(null);
+  const [promptTab, setPromptTab] = useState<"corrida" | "chat">("corrida");
   const [cargandoPrompt, setCargandoPrompt] = useState(false);
 
   const dirty = value.trim() !== (instructions ?? "").trim();
@@ -401,7 +405,7 @@ function PersonaEditor({
     setCargandoPrompt(true);
     try {
       const r = await api.ayudantePrompt(id);
-      setPrompt(r.system);
+      setPrompt({ chat: r.chat, corrida: r.corrida });
     } finally {
       setCargandoPrompt(false);
     }
@@ -479,11 +483,30 @@ function PersonaEditor({
 
         {prompt !== null && (
           <div className="mt-3">
-            <p className="mb-1.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
-              Prompt del sistema (así lo ve tu ayudante)
-            </p>
+            {/* Son dos y no uno: lo que le dice a un CLIENTE no es lo que te contesta
+                a ti. Antes esta vista enseñaba el de chat rotulado como "el final". */}
+            <div className="mb-1.5 flex items-center gap-3">
+              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                Prompt del sistema
+              </p>
+              <div className="flex gap-1">
+                {(["corrida", "chat"] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setPromptTab(k)}
+                    className={`rounded px-1.5 py-px text-sello font-medium transition-colors ${
+                      promptTab === k
+                        ? "bg-accent-soft text-accent-ink"
+                        : "text-ink-3 hover:text-ink-2"
+                    }`}
+                  >
+                    {k === "corrida" ? "Cuando le escribe a un cliente" : "Cuando platicas con él"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-line/70 bg-bg px-3 py-2.5 text-apoyo leading-relaxed text-ink-2">
-              {prompt}
+              {prompt[promptTab]}
             </pre>
           </div>
         )}

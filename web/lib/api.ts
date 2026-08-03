@@ -1663,8 +1663,15 @@ export const api = {
   // Reenvía un aprobado que quedó varado (sombra apagada después de aprobarlo, o el
   // envío en segundo plano no completó). No re-aprueba: approved→approved no es válido.
   sendReminder: (id: string) => request(`/v1/reminders/${id}/send`, { method: "POST" }),
-  learningSummary: (agent = "mariana") =>
-    request<LearningSummary>(`/v1/learning/summary?agent=${encodeURIComponent(agent)}`),
+  // Con ayudanteId son las correcciones de ESE ayudante (atribución real por
+  // Reminder.meta). Sin él, las del slug de runtime, que no distingue entre dos
+  // ayudantes del mismo oficio.
+  learningSummary: (ayudanteId?: string) =>
+    request<LearningSummary>(
+      ayudanteId
+        ? `/v1/learning/summary?ayudante_id=${encodeURIComponent(ayudanteId)}`
+        : `/v1/learning/summary`,
+    ),
   pay: (invoiceId: string) => request(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
   remind: (invoiceId: string) =>
     request<{ id: string; status: string; message: string }>(
@@ -1719,8 +1726,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
+  // Son DOS prompts porque el interlocutor cambia: `chat` cuando el dueño le
+  // pregunta, `corrida` cuando redacta para un cliente. `system` es alias de `chat`
+  // y se conserva por compatibilidad.
   ayudantePrompt: (id: string) =>
-    request<{ system: string }>(`/v1/ayudantes/${id}/prompt`),
+    request<{ system: string; chat: string; corrida: string }>(
+      `/v1/ayudantes/${id}/prompt`,
+    ),
   cuaEstado: () => request<CuaEstado>("/v1/cua/estado"),
   cuaCapacidades: () => request<CuaCapacidad[]>("/v1/cua/capacidades"),
   cuaMisiones: () => request<CuaMision[]>("/v1/cua/misiones"),

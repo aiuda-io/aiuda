@@ -68,14 +68,34 @@ def recent_corrections(
     return [(r.draft_original, r.final_text) for r in rows if r.final_text]
 
 
-def learning_summary(session: Session, tenant: Tenant, agent: str = "mariana") -> dict:
-    """Qué está aprendiendo el agente: cuánto se aprueba sin tocar, cuánto se edita/rechaza,
-    y las últimas correcciones. Hace visible (y confiable) el aprendizaje."""
+def learning_summary(
+    session: Session,
+    tenant: Tenant,
+    agent: str = "mariana",
+    ayudante_id: str | None = None,
+) -> dict:
+    """Qué está aprendiendo el ayudante: cuánto se aprueba sin tocar, cuánto se
+    edita/rechaza, y las últimas correcciones. Hace visible (y confiable) el aprendizaje.
+
+    Con ``ayudante_id`` filtra por el ayudante QUE EL DUEÑO CREÓ, cruzando por
+    ``Reminder.meta["ayudante_id"]``, que es la atribución real de cada propuesta.
+    Sin él cae al slug legado (``AgentFeedback.agent``), que es de runtime y no
+    distingue entre dos ayudantes de cobranza.
+
+    La consola pedía siempre el slug "mariana", así que la pestaña Aprendizaje de
+    TODOS los ayudantes mostraba los mismos números. Filtrar por ayudante es lo que
+    hace que el panel deje de mentir."""
+    query = select(AgentFeedback).where(AgentFeedback.tenant_id == tenant.id)
+    if ayudante_id:
+        de_este = select(Reminder.id).where(
+            Reminder.tenant_id == tenant.id,
+            Reminder.meta["ayudante_id"].as_string() == ayudante_id,
+        )
+        query = query.where(AgentFeedback.reminder_id.in_(de_este))
+    else:
+        query = query.where(AgentFeedback.agent == agent)
     rows = session.scalars(
-        select(AgentFeedback)
-        .where(AgentFeedback.tenant_id == tenant.id, AgentFeedback.agent == agent)
-        .order_by(AgentFeedback.created_at.desc())
-        .limit(200)
+        query.order_by(AgentFeedback.created_at.desc()).limit(200)
     ).all()
     total = len(rows)
     approved = sum(1 for r in rows if r.decision == "approved")

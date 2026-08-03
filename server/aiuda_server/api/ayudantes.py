@@ -170,16 +170,40 @@ def detalle(
 def prompt_preview(
     ayudante_id: str, db=Depends(get_db), tenant: Tenant = Depends(get_tenant)
 ) -> dict:
-    """El system prompt REAL con que corre este ayudante, ensamblado en el backend
-    (fuente única de verdad, no una copia en el front). Transparencia: el dueño ve
-    exactamente qué gobierna a su ayudante — la base de seguridad de fábrica arriba,
-    sus instrucciones y capacidades debajo."""
+    """Los system prompts REALES de este ayudante, ensamblados en el backend (fuente
+    única de verdad, no una copia en el front).
+
+    Son DOS, porque el interlocutor cambia y con él lo que el ayudante puede decir:
+
+    - ``chat``: cuando el DUEÑO le pregunta desde la consola. Acceso a lo suyo.
+    - ``corrida``: cuando redacta para un CLIENTE en la corrida. Es el que gobierna
+      lo que sale del negocio, y trae las correcciones del dueño reinyectadas.
+
+    Este endpoint devolvía solo el de chat mientras su docstring decía "el prompt REAL
+    con que corre". Enseñar el de chat como si fuera el de cobranza es justo el tipo de
+    fachada que aquí no va: el dueño revisa el prompt para saber qué le dice a sus
+    clientes."""
+    from aiuda_core.agents.cleo.prompt import build_system_prompt
     from aiuda_core.aiuditas.chat import chat_system_prompt
+    from aiuda_core.learning import recent_corrections
 
     a = _get_owned(db, tenant, ayudante_id)
     active = {aid: cfg for aid, cfg in (a.aiuditas or {}).items() if aiudita_por_id(aid)}
-    system = chat_system_prompt(a.name, tenant.name, active, instructions=a.instructions)
-    return {"system": system}
+    chat = chat_system_prompt(a.name, tenant.name, active, instructions=a.instructions)
+
+    config = tenant.config or {}
+    corrida = build_system_prompt(
+        business_name=tenant.name,
+        business_context=config.get("business_context", ""),
+        user_rules=list(((config.get("agent_config") or {}).get("mariana") or {}).get(
+            "user_rules"
+        ) or []) or None,
+        correcciones=recent_corrections(db, tenant, agent="mariana") or None,
+        ayudante_name=a.name,
+        persona=(a.instructions or "").strip() or None,
+    )
+    # `system` se conserva por compatibilidad con quien ya consuma el endpoint.
+    return {"system": chat, "chat": chat, "corrida": corrida}
 
 
 @router.put("/v1/ayudantes/{ayudante_id}")

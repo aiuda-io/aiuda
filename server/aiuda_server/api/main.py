@@ -880,11 +880,14 @@ def reject_reminder(
 @app.get("/v1/learning/summary")
 def learning_summary_endpoint(
     agent: str = Query(default="mariana"),
+    ayudante_id: str | None = Query(default=None),
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
 ):
-    """Qué está aprendiendo el agente: tasa de aprobación sin editar y últimas correcciones."""
-    return learning_summary(db, tenant, agent=agent)
+    """Qué está aprendiendo el ayudante: tasa de aprobación sin editar y últimas
+    correcciones. Con ``ayudante_id`` son las de ESE ayudante (atribución real por
+    Reminder.meta); sin él, las del slug de runtime."""
+    return learning_summary(db, tenant, agent=agent, ayudante_id=ayudante_id)
 
 
 @app.get("/v1/cartera")
