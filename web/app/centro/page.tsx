@@ -41,6 +41,10 @@ type WorkItem = {
   id: string; // prefijado (r-/c-/p-) para no chocar entre fuentes
   type: WorkType;
   agent: string;
+  // El ayudante que el DUEÑO creó y que redactó esto (Reminder.meta.ayudante_id).
+  // `agent` es el slug del runtime, interno: el dueño nunca creó a nadie con ese
+  // nombre, así que verlo en la tarjeta es ver un fantasma trabajando por él.
+  ayudante: string | null;
   kind: string;
   customer: string;
   customerId: string | null;
@@ -67,6 +71,7 @@ function fromReminder(r: ReminderItem): WorkItem {
     id: `r-${r.id}`,
     type: cotiz ? "cotizacion" : "recordatorio",
     agent: r.agent,
+    ayudante: r.propuesto_por ?? null,
     kind: cotiz ? "Cotización pedida" : correo ? "Respuesta de correo" : "Recordatorio de pago",
     customer: r.customer ?? r.title ?? "Sin nombre",
     customerId: r.customer_id,
@@ -83,6 +88,8 @@ function fromReconcile(item: ReconcileItem): WorkItem {
     id: `c-${item.id}`,
     type: "conciliacion",
     agent: "diego",
+    ayudante: null, // la conciliación todavía no se atribuye a un ayudante del dueño
+
     kind: "Conciliación de pago",
     customer: item.counterparty ?? sel?.customer ?? "Pago recibido",
     customerId: null, // el payload de conciliación no trae customer_id (es factura)
@@ -104,6 +111,8 @@ function fromPromise(p: PromiseItem): WorkItem {
     id: `p-${p.id}`,
     type: "promesa",
     agent: "mariana",
+    ayudante: null, // la promesa la registra el cliente, no la redacta un ayudante
+
     kind: "Promesa de pago",
     customer: p.customer,
     customerId: p.customer_id,
@@ -1056,7 +1065,10 @@ function TarjetaKanban({
         <span className="flex items-center gap-2">
           <Avatar slug={w.agent} size={18} />
           <span className="min-w-0 truncate text-apoyo text-ink-3">
-            de <span className="font-medium text-ink-2">{agentDisplayName(w.agent)}</span>
+            de{" "}
+            <span className="font-medium text-ink-2">
+              {w.ayudante || agentDisplayName(w.agent)}
+            </span>
           </span>
           {w.amount != null && (
             <span className="tnum ml-auto text-cuerpo font-semibold text-ink">{mxn(w.amount)}</span>
@@ -1519,7 +1531,9 @@ function ConfirmSend({
         <div className="flex items-center gap-2 text-cuerpo text-ink-3">
           por
           <Avatar slug={item.agent} size={16} />
-          <span className="font-medium text-ink-2">{agentDisplayName(item.agent)}</span>
+          <span className="font-medium text-ink-2">
+            {item.ayudante || agentDisplayName(item.agent)}
+          </span>
           {item.amount != null && (
             <span className="tnum ml-auto font-semibold text-ink">{mxn(item.amount)}</span>
           )}

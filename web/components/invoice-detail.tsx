@@ -337,7 +337,8 @@ export function InvoiceDetailContent({
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-ink-3" />
                 <Link href={`/centro?r=${r.id}`} className="group min-w-0">
                   <p className="text-cuerpo text-ink group-hover:text-accent-ink">
-                    {agentDisplayName(r.agent)} redactó un recordatorio
+                    {/* El ayudante que el dueño creó, no el slug del runtime. */}
+                    {r.propuesto_por || agentDisplayName(r.agent)} redactó un recordatorio
                     <span className="text-ink-3"> · {STATUS_LABEL[r.status] ?? r.status}</span>
                   </p>
                   <p className="text-apoyo text-ink-3">

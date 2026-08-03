@@ -169,6 +169,7 @@ export type InvoiceDetail = InvoiceItem & {
     message: string;
     sent_at: string | null;
     created_at: string | null;
+    propuesto_por: string | null;
   }[];
   promises: {
     id: string;

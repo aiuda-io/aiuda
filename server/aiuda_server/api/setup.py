@@ -28,7 +28,7 @@ from aiuda_core.engine.maquina import (
 from aiuda_core.engine.openai_compat import DEFAULT_BASE_URL
 from aiuda_core.engine.provider import credential_from_config, credential_from_store
 from aiuda_core.models import Ayudante, Customer, IntegrationCredential, Invoice, Tenant
-from aiuda_server.api.deps import get_db, get_tenant
+from aiuda_server.api.deps import DEFAULT_WORKSPACE_NAME, get_db, get_tenant
 
 router = APIRouter()
 
@@ -83,9 +83,27 @@ def estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
         select(func.count()).select_from(Ayudante).where(Ayudante.tenant_id == tenant.id)
     )
 
+    # El negocio está listo si TIENE nombre propio, no si el asistente anotó que pasó
+    # por ahí. La bandera `setup_negocio` solo la escribe el propio asistente, así que
+    # un workspace armado por cualquier otra vía (un script, la API, un respaldo
+    # restaurado) se quedaba bloqueado para siempre preguntando su nombre con el nombre
+    # ya escrito en el campo. Las otras tres secciones ya se derivaban de la realidad;
+    # esta era la única que se auto-reportaba.
+    negocio_listo = bool(config.get("setup_negocio")) or (
+        bool((tenant.name or "").strip()) and tenant.name != DEFAULT_WORKSPACE_NAME
+    )
+    datos_listo = bool(fuentes) or bool(clientes) or bool(facturas)
+    ayudantes_listo = bool(ayudantes)
+    # Y si ya no queda nada que preguntar, el asistente no tiene por qué salir. Un
+    # negocio con nombre, IA conectada, datos y un ayudante ya terminó, lo haya
+    # marcado o no.
+    terminado = bool(config.get("setup_terminado")) or (
+        negocio_listo and ia is not None and datos_listo and ayudantes_listo
+    )
+
     return {
         # Lo primero que se pregunta: cómo se llama el negocio.
-        "negocio": {"nombre": tenant.name, "listo": bool(config.get("setup_negocio"))},
+        "negocio": {"nombre": tenant.name, "listo": negocio_listo},
         # La IA: si hay un modelo local corriendo, es el camino sin fricción.
         "ia": {
             "conectada": ia is not None,
@@ -101,12 +119,12 @@ def estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
             "fuentes": fuentes,
             "clientes": int(clientes or 0),
             "facturas": int(facturas or 0),
-            "listo": bool(fuentes) or bool(clientes) or bool(facturas),
+            "listo": datos_listo,
         },
-        "ayudantes": {"total": int(ayudantes or 0), "listo": bool(ayudantes)},
+        "ayudantes": {"total": int(ayudantes or 0), "listo": ayudantes_listo},
         # Extras que aiuda detecta pero no exige.
         "extras": {"wacli": shutil.which(settings.wacli_bin) is not None},
-        "terminado": bool(config.get("setup_terminado")),
+        "terminado": terminado,
     }
 
 

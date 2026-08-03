@@ -2581,6 +2581,9 @@ def invoice_detail(
             {
                 "id": r.id,
                 "agent": r.agent,
+                # El ayudante que el DUEÑO creó. `agent` es el slug del runtime, y
+                # enseñárselo es enseñarle un trabajador que él nunca contrató.
+                "propuesto_por": (r.meta or {}).get("ayudante_name"),
                 "tone": r.tone,
                 "bucket": r.bucket,
                 "status": r.status,
