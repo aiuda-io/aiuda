@@ -490,6 +490,8 @@ function Integraciones() {
         </>
       )}
 
+      {vista !== "organigrama" && <LoQueRegreso />}
+
       {vista !== "organigrama" && (
         <ALaMedida
           custom={custom}
@@ -515,5 +517,93 @@ function Integraciones() {
         onSaved={refetchCustom}
       />
     </div>
+  );
+}
+
+
+/** Lo que aiuda REGRESÓ a tus sistemas.
+ *
+ *  La otra mitad del trabajo con integraciones, y la que no se veía en ningún lado: la
+ *  cola de write-back solo aparecía dentro de la ficha de un cliente o de una factura, o
+ *  sea que había que saber a cuál entrar. Un pago que no se pudo asentar en Odoo se
+ *  quedaba callado hasta que alguien abriera justo esa factura.
+ */
+function LoQueRegreso() {
+  const { data, loading, error, refetch } = useApi(() => api.writeback({}), []);
+  const entries = data?.entries ?? [];
+
+  if (loading && !data) return null;
+  if (error) return null; // secundario: no bloquea la página de conectar
+
+  const fallidas = entries.filter((e) => e.estado === "falló");
+  const pendientes = entries.filter((e) => e.estado === "pendiente");
+
+  return (
+    <section className="mt-8">
+      <h2 className="text-seccion font-semibold text-ink">Lo que regresó a tus sistemas</h2>
+      <p className="mt-0.5 text-cuerpo text-ink-3">
+        Tus fuentes siguen mandando: lo que confirmas aquí se asienta allá.
+      </p>
+
+      {entries.length === 0 ? (
+        <p className="mt-3 rounded-lg border border-dashed border-line bg-surface px-4 py-4 text-cuerpo text-ink-3">
+          Todavía nada. Cuando confirmes un pago o edites un cliente, aiuda lo regresa a
+          la fuente de donde vino y aquí queda el acuse.
+        </p>
+      ) : (
+        <>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Chip n={entries.length - fallidas.length - pendientes.length} label="asentadas" tono="ok" />
+            {pendientes.length > 0 && <Chip n={pendientes.length} label="en cola" tono="ink" />}
+            {fallidas.length > 0 && <Chip n={fallidas.length} label="no se pudieron" tono="danger" />}
+          </div>
+          {/* Lo que falló primero: es lo único que necesita al dueño. */}
+          {fallidas.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {fallidas.slice(0, 5).map((e) => (
+                <li
+                  key={e.id}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-danger/30 bg-danger-soft px-3.5 py-2.5 text-cuerpo"
+                >
+                  <span className="font-medium text-ink">
+                    {e.target_label ?? e.target}
+                  </span>
+                  <span className="text-ink-2">{e.folio ?? e.action.replace(/_/g, " ")}</span>
+                  <span className="text-danger">{e.last_error ?? "no se pudo"}</span>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.retryWriteback(e.id);
+                        toast("Reintentando.", "info");
+                        refetch();
+                      } catch (err) {
+                        toast((err as Error).message, "error");
+                      }
+                    }}
+                    className="ml-auto rounded-md border border-line bg-surface px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  >
+                    Reintentar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function Chip({ n, label, tono }: { n: number; label: string; tono: "ok" | "ink" | "danger" }) {
+  if (n <= 0) return null;
+  const cls = {
+    ok: "bg-ok-soft text-ok",
+    ink: "bg-panel text-ink-2",
+    danger: "bg-danger-soft text-danger",
+  }[tono];
+  return (
+    <span className={`rounded-full px-2.5 py-1 text-sello font-medium ${cls}`}>
+      <span className="tnum">{n}</span> {label}
+    </span>
   );
 }

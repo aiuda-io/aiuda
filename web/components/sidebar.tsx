@@ -83,7 +83,11 @@ const iconFor = (href: string): ReactNode => ICONS[ICON_FOR[href] ?? "dot"];
 
 // Vistas subsumidas por otras superficies: se ocultan de la nav derivada para no
 // duplicar. Las rutas siguen vivas (p.ej. /aprobaciones redirige al Centro de mando).
-const CONSOLIDADO = new Set(["/aprobaciones", "/conciliacion", "/promesas"]);
+// /aprobaciones vive dentro de Centro de mando. /conciliacion y /promesas SÍ vuelven al
+// menú: son 899 y 200 líneas de pantalla que el dueño no podía alcanzar desde ningún
+// lado (solo por un enlace del Resumen), y son justo el trabajo que sus ayudantes hacen
+// contra sus integraciones. "Consolidado en el Centro" acabó significando "escondido".
+const CONSOLIDADO = new Set(["/aprobaciones"]);
 
 // El menú muestra lo que el dueño puede DECIDIR, en sus palabras. "Proveedor de IA"
 // era jerga: lo que él eligió es qué inteligencia usa su negocio.
@@ -163,6 +167,8 @@ export function Sidebar() {
     () =>
       [
         { href: "/facturas", label: "Facturas" },
+        { href: "/conciliacion", label: "Conciliación" },
+        { href: "/promesas", label: "Promesas de pago" },
         { href: "/conversaciones", label: "Conversaciones" },
         { href: "/clientes", label: "Clientes" },
       ].filter((it) => !CONSOLIDADO.has(it.href)),

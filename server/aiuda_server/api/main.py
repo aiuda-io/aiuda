@@ -534,8 +534,11 @@ def sync_now(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     si el dueño eligió una fuente para su cartera/catálogo/etc., las demás no la pisan."""
     from aiuda_server.api.integrations import fuentes_preferidas
     from aiuda_core.engine.sync import sync_fuentes
+    from aiuda_core.observabilidad import abrir_run, contar_sync
 
-    r = sync_fuentes(db, tenant, fuente_prefs=fuentes_preferidas(db, tenant))
+    with abrir_run(db, tenant, disparo="sincronizacion") as run:
+        r = sync_fuentes(db, tenant, fuente_prefs=fuentes_preferidas(db, tenant))
+        contar_sync(run, r)
     return {
         "pedidos_importados": r.pedidos_importados,
         "pagos_confirmados": r.pagos_confirmados,

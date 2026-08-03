@@ -308,6 +308,21 @@ def _narrar(fila: Run) -> str:
         return "No pudo terminar."
 
     c = fila.conteos or {}
+    if fila.disparo == "sincronizacion":
+        trajo = [
+            (c.get("facturas"), "facturas"), (c.get("clientes"), "clientes"),
+            (c.get("productos"), "productos"), (c.get("citas"), "citas"),
+            (c.get("compras"), "órdenes de compra"), (c.get("cfdis"), "CFDIs"),
+            (c.get("correos"), "correos"),
+        ]
+        partes = [f"{n} {etiqueta}" for n, etiqueta in trajo if n]
+        pagos = c.get("pagos") or 0
+        if pagos:
+            partes.append(f"{pagos} pago{'s' if pagos != 1 else ''} por conciliar")
+        frase = ("Trajo " + ", ".join(partes) + ".") if partes else "Revisó tus fuentes: nada nuevo."
+        if c.get("inyectados"):
+            frase += f" Y regresó {c['inyectados']} a tu sistema."
+        return frase
     if fila.disparo == "chat":
         # Contestarte ES el trabajo aquí. Decir "no había nada que hacer" después de
         # responderte sería mentir en la única frase que el dueño lee.
@@ -337,6 +352,32 @@ def _sumar_tokens(db, fila: Run) -> None:
         ).where(RunTurn.run_id == fila.id)
     ).one()
     fila.input_tokens, fila.output_tokens = int(tot[0]), int(tot[1])
+
+
+def contar_sync(run: RunRecorder, reporte) -> None:
+    """Vuelca un SyncReport al run, en el idioma del dueño.
+
+    Traer la cartera ES el trabajo que el ayudante hace con tus integraciones, y era lo
+    más invisible del producto: entraban 147 facturas de Odoo y nadie te lo decía.
+
+    Sin reporte no cuenta nada y no truena: grabar jamás puede romper la corrida que
+    está observando."""
+    if reporte is None:
+        return
+    run.contar(
+        facturas=reporte.pedidos_importados,
+        clientes=reporte.clientes_importados,
+        productos=reporte.productos_importados,
+        citas=reporte.citas_importadas,
+        compras=reporte.ocs_importadas,
+        cfdis=reporte.cfdis_importados,
+        correos=reporte.correos_importados,
+        pagos=reporte.pagos_por_conciliar,
+    )
+    # Una fuente que no respondió no se esconde: es la diferencia entre "no había nada"
+    # y "no pude leer tu Odoo".
+    for aviso in reporte.avisos or []:
+        run.motivo("fuente_no_respondio", aviso)
 
 
 def envolver(runner, run: RunRecorder | None, db, tenant):

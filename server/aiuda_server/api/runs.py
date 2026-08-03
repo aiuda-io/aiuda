@@ -24,6 +24,7 @@ RETENCION_DEFAULT = 90
 
 DISPARO_LABEL = {
     "corrida": "Corrida del día",
+    "sincronizacion": "Leyó tus fuentes",
     "manual": "Lo corriste tú",
     "chat": "Le preguntaste",
     "entrante": "Contestó un mensaje",

@@ -800,7 +800,7 @@ def procesar_correo_pendientes(session, tenant, engine) -> int:
     return propuestas
 
 
-def _process_writebacks(session, tenant) -> None:
+def _process_writebacks(session, tenant):
     """Inyecta a los sistemas de origen lo confirmado en aiuda (si hay conector).
     Credenciales por tenant desde la tabla cifrada (fallback a config/settings)."""
     from aiuda_core.connectors.credentials import ctor_kwargs, get_credential
@@ -825,7 +825,7 @@ def _process_writebacks(session, tenant) -> None:
 
         gcal = GoogleCalendarClient(**ctor_kwargs("googlecalendar", gcal_creds))
     # tenant va siempre: habilita el ejecutor de conexiones a la medida (custom).
-    process_outbox(session, tenant, odoo_client=odoo, shopify_client=shopify, gcal_client=gcal)
+    return process_outbox(session, tenant, odoo_client=odoo, shopify_client=shopify, gcal_client=gcal)
 
 
 def process_writebacks_blocking(tenant_id: str) -> None:
@@ -909,9 +909,27 @@ def _run_daily_impl(
             #    propone, el humano confirma) y el outbox se inyecta de regreso.
             #    Lo sincronizado queda commiteado ANTES de tocar la IA.
             with session_scope() as session:
+                from aiuda_core.observabilidad import abrir_run, contar_sync
+
                 tenant = session.get(Tenant, tenant_id)
-                sync_fuentes(session, tenant, today=today, fuente_prefs=fuentes_preferidas(session, tenant))
-                _process_writebacks(session, tenant)
+                # Traer la cartera es trabajo, y era el más invisible: entraban 147
+                # facturas de Odoo y nadie se lo decía al dueño.
+                with abrir_run(session, tenant, disparo="sincronizacion") as run:
+                    reporte = sync_fuentes(
+                        session, tenant, today=today,
+                        fuente_prefs=fuentes_preferidas(session, tenant),
+                    )
+                    contar_sync(run, reporte)
+                    wb = _process_writebacks(session, tenant)
+                    # Lo que regresó a TU sistema (un pago asentado en Odoo, un cliente
+                    # creado allá). Es la otra mitad del trabajo con integraciones y
+                    # tampoco se veía. `getattr` porque contar no puede romper la corrida
+                    # si un ejecutor no devuelve reporte.
+                    if getattr(wb, "processed", 0):
+                        run.contar(inyectados=wb.processed)
+                    if getattr(wb, "failed", 0):
+                        run.contar(fallidos=wb.failed)
+                        run.motivo("inyeccion_fallida", "No se pudo regresar a tu sistema")
             # 2) Con la cartera al día, la redacción — salvo tope de IA agotado o
             #    cuenta no activa: corte honesto, la corrida NO llama a la IA y
             #    queda aviso. Un tropiezo aquí ya no revierte la etapa 1.
