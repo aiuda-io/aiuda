@@ -235,6 +235,7 @@ export function Sidebar() {
           <ul className="space-y-px">
             <li>{renderItem({ href: "/centro", label: "Centro de mando", badge: pending }, exp)}</li>
             <li>{renderItem({ href: "/", label: "Resumen" }, exp)}</li>
+            <li>{renderItem({ href: "/actividad", label: "Actividad" }, exp)}</li>
           </ul>
 
           {dataItems.length > 0 && (

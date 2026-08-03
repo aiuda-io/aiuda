@@ -355,11 +355,13 @@ def test_correr_produce_propuestas_atribuidas(client, demo_tenant, db_session, m
     """El ciclo completo de §8: ayudante creado → corre en el motor genérico con SU
     config → deja PROPUESTAS (HITL) visibles en la bandeja, atribuidas a él — y su
     plan de carrera las cuenta como acciones reales."""
-    import aiuda_core.engine.engine as engine_mod
+    import aiuda_server.metering as metering_mod
     from aiuda_core.config import settings
 
     monkeypatch.setattr(settings, "anthropic_api_key", "sk-prueba")  # hay credencial
-    monkeypatch.setattr(engine_mod, "make_runner", lambda *a, **k: _FakeRunner())
+    # El runner ahora sale de tenant_runner, que es lo que le engancha el tope de gasto
+    # y la grabación del run. Antes el endpoint construía el suyo y se SALTABA el tope.
+    monkeypatch.setattr(metering_mod, "make_runner", lambda *a, **k: _FakeRunner())
     _factura_vencida(db_session, demo_tenant)
 
     demo_login(client)

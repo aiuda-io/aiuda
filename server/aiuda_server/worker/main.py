@@ -127,7 +127,7 @@ def _tenant_sender(session, tenant: Tenant, wa=None):
     return get_whatsapp_sender(wa, window)
 
 
-def _build_engine(session, tenant: Tenant) -> CleoEngine:
+def _build_engine(session, tenant: Tenant, run=None) -> CleoEngine:
     from aiuda_server.metering import budget_check
 
     # Canal por tenant (wacli | whatsapp_cloud | evolution) — ver connectors/channel.py
@@ -136,6 +136,13 @@ def _build_engine(session, tenant: Tenant) -> CleoEngine:
         tenant,
         send_whatsapp=_tenant_sender(session, tenant),
     )
+    if run is not None:
+        # La corrida queda grabada: qué redactó, con qué prompt y cuánto tardó. El
+        # wrapper reenvía la asignación de abajo al runner de adentro; sin eso, el tope
+        # de gasto se apagaría en silencio.
+        from aiuda_core.observabilidad import envolver
+
+        engine.runner = envolver(engine.runner, run, session, tenant)
     # Tope de gasto de IA: se engancha al runner (mismo patrón que el usage_callback).
     # Con el tope agotado, NINGUNA llamada al proveedor sale de este engine.
     engine.runner.budget_check = budget_check(session, tenant)
@@ -910,27 +917,42 @@ def _run_daily_impl(
             #    queda aviso. Un tropiezo aquí ya no revierte la etapa 1.
             auto_aprobados: list[str] = []
             with session_scope() as session:
+                from aiuda_core.observabilidad import abrir_run
+
                 tenant = session.get(Tenant, tenant_id)
-                engine = _build_engine(session, tenant)
-                verdict = ia_budget(session, tenant)
-                if verdict["agotado"] or verdict["bloqueada"]:
-                    _aviso_tope(session, tenant, ia_budget_message(verdict))
-                    report["ia_cortada"] += 1
-                    drafted = []
-                else:
-                    try:
-                        drafted = engine.run_reminders(today)
-                        # Correos entrantes nuevos → el agente PROPONE la respuesta
-                        # (pending_approval, canal correo). Maneja el tope adentro.
-                        report["correo_propuestas"] += procesar_correo_pendientes(
-                            session, tenant, engine
-                        )
-                    except BudgetExceeded as exc:
-                        # El tope se agotó A MEDIA corrida: lo ya redactado y su uso
-                        # quedan registrados (se atrapa dentro del scope, sin rollback).
-                        _aviso_tope(session, tenant, str(exc))
+                # La corrida de la noche queda grabada. Es la que el dueño no vio pasar,
+                # así que es justo la que más necesita poder revisar en la mañana.
+                with abrir_run(session, tenant, disparo="corrida") as run:
+                    engine = _build_engine(session, tenant, run=run)
+                    verdict = ia_budget(session, tenant)
+                    if verdict["agotado"] or verdict["bloqueada"]:
+                        _aviso_tope(session, tenant, ia_budget_message(verdict))
                         report["ia_cortada"] += 1
+                        # `cortado`, no `done`: terminó sin error pero sin hacer el
+                        # trabajo. Antes esto se perdía en un contador del reporte.
+                        run.cortar(ia_budget_message(verdict))
                         drafted = []
+                    else:
+                        try:
+                            drafted = engine.run_reminders(today)
+                            # Correos entrantes nuevos → el agente PROPONE la respuesta
+                            # (pending_approval, canal correo). Maneja el tope adentro.
+                            report["correo_propuestas"] += procesar_correo_pendientes(
+                                session, tenant, engine
+                            )
+                        except BudgetExceeded as exc:
+                            # El tope se agotó A MEDIA corrida: lo ya redactado y su uso
+                            # quedan registrados (se atrapa dentro del scope, sin rollback).
+                            _aviso_tope(session, tenant, str(exc))
+                            report["ia_cortada"] += 1
+                            run.cortar(str(exc))
+                            drafted = []
+                    run.contar(propuestos=len(drafted))
+                    for r in drafted:
+                        run.liga("reminder", r.id, rol="propuso")
+                        if r.invoice_id:
+                            run.liga("invoice", r.invoice_id, rol="leyo")
+                        r.meta = {**(r.meta or {}), "run_id": run.id}
                 report["drafted"] += len(drafted)
                 auto_aprobados = [r.id for r in drafted if r.status == "approved"]
             # 3) Los auto-aprobados salen por el MISMO camino que todo envío

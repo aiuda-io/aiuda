@@ -3,6 +3,7 @@
 // el nombre de cada paso del camino. Las páginas de detalle declaran su propia
 // etiqueta humana con usePageTrail ("Factura M-107", el nombre del cliente, …).
 export const SECTION_LABELS: Record<string, string> = {
+  "/actividad": "Actividad",
   "/": "Resumen",
   "/centro": "Centro de mando",
   "/facturas": "Facturas",

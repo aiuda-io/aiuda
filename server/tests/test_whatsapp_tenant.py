@@ -556,7 +556,7 @@ def test_aprobar_por_whatsapp_a_cliente_dado_de_baja_no_pierde_la_respuesta(db_s
 
     respuestas: list = []
 
-    def fake_engine(session, tenant):
+    def fake_engine(session, tenant, run=None):
         from aiuda_core.engine.engine import CleoEngine
 
         engine = CleoEngine(session, tenant, runner=SimpleNamespace(_usage_callback=object()),

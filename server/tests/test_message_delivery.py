@@ -341,7 +341,7 @@ def test_worker_reconoce_al_dueno_por_ultimos_10_digitos(monkeypatch):
     monkeypatch.setattr(
         worker_main,
         "_build_engine",
-        lambda s, tenant: SimpleNamespace(send_whatsapp=lambda p, txt: sent.append((p, txt))),
+        lambda s, tenant, run=None: SimpleNamespace(send_whatsapp=lambda p, txt: sent.append((p, txt))),
     )
     called: list = []
     monkeypatch.setattr(
@@ -484,7 +484,7 @@ def test_send_reminder_falla_marca_failed_sin_propagar(monkeypatch):
 
             return send_approved_reminder(reminder, lambda text: sender(recipient, text))
 
-    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant: _FakeEngine())
+    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant, run=None: _FakeEngine())
 
     worker_main.send_reminder_blocking(t.id, r.id)  # no debe lanzar
     assert r.status == "failed"
@@ -740,7 +740,7 @@ def test_doble_disparo_no_manda_el_cobro_dos_veces(monkeypatch):
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
     monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
     monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
-    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant: _EngineDirecto())
+    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant, run=None: _EngineDirecto())
 
     sent: list = []
     monkeypatch.setattr(
@@ -773,7 +773,7 @@ def test_marca_en_vuelo_no_reenvia_a_ciegas(monkeypatch):
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
     monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
     monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
-    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant: _EngineDirecto())
+    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant, run=None: _EngineDirecto())
     sent: list = []
     monkeypatch.setattr(
         worker_main, "get_channel_sender",
@@ -794,7 +794,7 @@ def test_envio_normal_pone_y_limpia_la_marca_en_vuelo(monkeypatch):
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
     monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
     monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
-    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant: _EngineDirecto())
+    monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant, run=None: _EngineDirecto())
     en_vuelo: list = []
 
     def sender(channel, wa, window=None):

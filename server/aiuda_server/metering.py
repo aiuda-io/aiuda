@@ -54,12 +54,20 @@ def budget_check(db, tenant: Tenant):
     return _check
 
 
-def tenant_runner(db, tenant: Tenant) -> ProviderRunner:
+def tenant_runner(db, tenant: Tenant, run=None) -> ProviderRunner:
     """Runner del proveedor del tenant con metering y tope enganchados. Es la vía
-    canónica de la capa HTTP/worker; construir el runner a mano se salta el tope."""
+    canónica de la capa HTTP/worker; construir el runner a mano se salta el tope.
+
+    Con `run` (un RunRecorder abierto) queda además envuelto para grabar cada turno.
+    OJO con el orden: `budget_check` se asigna DESPUÉS de envolver, así que el wrapper
+    tiene que reenviar la asignación al runner de adentro o el tope de gasto se apaga en
+    silencio. Lo hace, y hay un test que lo fija."""
+    from aiuda_core.observabilidad import envolver
+
     runner = make_runner(
         resolve_credential(session=db, tenant_id=tenant.id),
         usage_callback=usage_recorder(db, tenant.id),
     )
+    runner = envolver(runner, run, db, tenant)
     runner.budget_check = budget_check(db, tenant)
     return runner

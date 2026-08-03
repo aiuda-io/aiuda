@@ -952,6 +952,52 @@ export type ProviderName = "claude" | "codex" | "local" | "claude_cli" | "codex_
 // por el CLI oficial del proveedor. Quien tiene suscripción usa "cli".
 export type ProviderMode = "api_key" | "cli";
 
+/** Lo que hizo un ayudante en una unidad de trabajo. La narrativa la escribe el
+ *  backend en español; el front no la arma para no poder contradecirla. */
+export type RunItem = {
+  id: string;
+  ayudante_id: string | null;
+  /** SNAPSHOT: el dueño renombra o borra y la bitácora no cambia lo que dice que pasó. */
+  ayudante: string | null;
+  aiudita: string | null;
+  disparo: string;
+  disparo_label: string;
+  status: "running" | "done" | "failed" | "cortado";
+  status_label: string;
+  started_at: string | null;
+  finished_at: string | null;
+  duracion_ms: number | null;
+  resumen: string | null;
+  conteos: Record<string, number>;
+  motivos: { codigo: string; n: number; detalle?: string }[];
+  input_tokens: number;
+  output_tokens: number;
+  costo_usd: number | null;
+  error: string | null;
+};
+
+export type RunDetalle = RunItem & {
+  toco: { tipo: string; id: string; rol: string; etiqueta: string }[];
+  /** Los turnos se podan; la narrativa se queda. Sin esto la pantalla ofrecería un
+   *  botón que no lleva a ningún lado. */
+  hay_transcripcion: boolean;
+};
+
+export type RunTurno = {
+  idx: number;
+  role: string;
+  task: string;
+  model: string;
+  system_prompt: string | null;
+  user_prompt: string | null;
+  output_text: string | null;
+  tools: { nombre: string; args: Record<string, unknown>; resultado_resumen: string; ms: number; error: string | null }[];
+  input_tokens: number;
+  output_tokens: number;
+  latencia_ms: number;
+  error: string | null;
+};
+
 /** Estado del proveedor de IA conectado (panel /proveedor). */
 export type ProviderState = {
   name: ProviderName;
@@ -1772,6 +1818,12 @@ export const api = {
   // El contexto del negocio es del NEGOCIO, no de un ayudante: entra al prompt de todos.
   // Se leía por /v1/agents/mariana/config, colgado de un slug de runtime que el dueño
   // nunca creó.
+  // Qué hizo cada ayudante. Dos profundidades: la lista y el detalle hablan en el
+  // idioma del dueño; los turnos son la transcripción para quien la busque.
+  runs: (ayudanteId?: string) =>
+    request<RunItem[]>(`/v1/runs${ayudanteId ? `?ayudante_id=${encodeURIComponent(ayudanteId)}` : ""}`),
+  run: (id: string) => request<RunDetalle>(`/v1/runs/${id}`),
+  runTurnos: (id: string) => request<RunTurno[]>(`/v1/runs/${id}/turnos`),
   businessContext: () => request<{ business_context: string }>("/v1/settings/contexto"),
   saveBusinessContext: (business_context: string) =>
     request<{ business_context: string }>("/v1/settings/contexto", {

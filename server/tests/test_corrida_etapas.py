@@ -63,8 +63,8 @@ def test_un_fallo_de_ia_no_revierte_lo_sincronizado(base_local, monkeypatch):
         ))
 
     monkeypatch.setattr(sync_mod, "sync_fuentes", fake_sync)
-    monkeypatch.setattr(worker_main, "_process_writebacks", lambda s, t: None)
-    monkeypatch.setattr(worker_main, "_build_engine", lambda s, t: _EngineIACaida())
+    monkeypatch.setattr(worker_main, "_process_writebacks", lambda s, t, run=None: None)
+    monkeypatch.setattr(worker_main, "_build_engine", lambda s, t, run=None: _EngineIACaida())
 
     report = worker_main._run_daily_impl(now=datetime(2026, 7, 27, 10, 5))
 

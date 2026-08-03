@@ -2871,6 +2871,10 @@ def inyectar_registro(
 
 # La consola exportada se sirve desde este mismo proceso (catch-all al final:
 # toda ruta /v1 registrada arriba gana). Ver aiuda_server/console.py.
+from aiuda_server.api.runs import router as runs_router  # noqa: E402
+
+app.include_router(runs_router)
+
 from aiuda_server.console import mount_console  # noqa: E402
 
 mount_console(app)
