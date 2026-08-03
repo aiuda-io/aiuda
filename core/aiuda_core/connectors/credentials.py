@@ -312,11 +312,54 @@ PROVIDERS: dict[str, dict] = {
     },
 }
 
-_SECRET_HINT = ("token", "key", "password", "secret")
+# Heurística de "esto huele a credencial", para proveedores que no declaran sus
+# campos. UNA sola definición: el API la importa de aquí. Tenerla duplicada fue
+# parte del bug que dejaba secretos en claro.
+SECRET_HINT = ("token", "key", "password", "secret")
 
 
 def _looks_secret(field: str) -> bool:
-    return any(h in field.lower() for h in _SECRET_HINT)
+    return any(h in field.lower() for h in SECRET_HINT)
+
+
+def purgar_secretos_en_claro(session) -> int:
+    """Borra de ``tenant.config['integrations']`` todo campo con pinta de credencial.
+
+    Cierra el residuo de un bug sistémico: bastaba con que una llave del catálogo no
+    tuviera entrada en ``PROVIDERS`` para que su config cayera a la vía legada y se
+    guardara SIN cifrar, mientras el resto iba con Fernet. Afectaba a ``whatsapp``,
+    ``excel`` y ``sat``, y se habría repetido con cualquier llave nueva.
+
+    NO intenta rescatar el valor ni moverlo a la fila cifrada: la llave no está en
+    ``PROVIDERS``, así que no hay a dónde moverlo sin adivinar el nombre del campo del
+    conector. El dueño lo vuelve a capturar por la vía cifrada, que es la única
+    correcta. Lo no secreto (``via``, ``instance``, rutas) se queda: lo lee
+    ``resolve_whatsapp`` y no es credencial.
+
+    Devuelve cuántos campos se borraron. Idempotente."""
+    borrados = 0
+    for tenant in session.scalars(select(Tenant)).all():
+        cfg = tenant.config or {}
+        integrations = cfg.get("integrations")
+        if not isinstance(integrations, dict):
+            continue
+        nuevas: dict = {}
+        en_este = 0
+        for key, valores in integrations.items():
+            if not isinstance(valores, dict):
+                nuevas[key] = valores
+                continue
+            limpio = {k: v for k, v in valores.items() if not _looks_secret(k)}
+            en_este += len(valores) - len(limpio)
+            nuevas[key] = limpio
+        if en_este:
+            # Reasignar el dict completo: SQLAlchemy no ve mutaciones in-place en JSON.
+            tenant.config = {**cfg, "integrations": nuevas}
+            session.add(tenant)
+            borrados += en_este
+    if borrados:
+        session.flush()
+    return borrados
 
 
 def _spec_of(provider: str) -> dict | None:

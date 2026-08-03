@@ -32,8 +32,10 @@ from aiuda_core.models import (
 
 router = APIRouter()
 
-# Campos que se ocultan al devolver la config (credenciales).
-SECRET_HINT = ("token", "key", "password", "secret")
+# Campos que se ocultan al devolver la config (credenciales). La definición vive en
+# core (connectors/credentials.py) y se importa: tenerla duplicada aquí fue parte del
+# bug que dejaba secretos en texto plano.
+SECRET_HINT = cred.SECRET_HINT
 
 # Dirección de flujo (define cómo se dibuja la arista):
 #   read     sistema -> aiuda   (aiuda jala datos)
@@ -941,14 +943,35 @@ def save_integration_config(
         )
         return {"key": key, "configured": True, "connected": True}
 
-    # Proveedores sin secreto en el registro: flujo legado en tenant.config.
+    # Proveedores sin secreto en el registro: flujo legado en tenant.config, EN CLARO.
+    #
+    # Falla cerrada: si llega algo con pinta de secreto por esta vía, se rechaza en vez
+    # de guardarlo sin cifrar. El bug que esto cierra era silencioso y sistémico: basta
+    # con que una llave del CATALOG no exista en cred.PROVIDERS para caer aquí, y el
+    # front inventa un campo "token" secreto para toda llave que no declare los suyos
+    # (fieldsFor en web/lib/integration-fields.ts). Así, `whatsapp`, `excel` y `sat`
+    # pedían un secreto y lo dejaban en texto plano en reposo mientras el resto iba
+    # cifrado con Fernet. La respuesta correcta a "esta fuente sí tiene secreto" es
+    # darle su entrada en PROVIDERS, no ensanchar esta rama.
+    ofensivos = sorted(
+        k for k, v in body.values.items() if v and any(h in k.lower() for h in SECRET_HINT)
+    )
+    if ofensivos:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"'{key}' no tiene registro de cifrado, así que no puede guardar "
+                f"credenciales ({', '.join(ofensivos)}). Guardarlas aquí las dejaría en "
+                "texto plano. Es un error de configuración de aiuda, no tuyo: repórtalo."
+            ),
+        )
+
     cfg = dict(tenant.config or {})
     integrations = dict(cfg.get("integrations") or {})
-    prev = integrations.get(key) or {}
+    # Reemplazo completo: cualquier secreto en claro que hubiera quedado de una versión
+    # anterior en ESTA llave se va con la sobreescritura. Los de otras llaves los limpia
+    # `purgar_secretos_en_claro`, que corre al arrancar.
     clean = {k: v for k, v in body.values.items() if v and v != "••••••"}
-    for k, v in prev.items():
-        if k not in clean and any(h in k.lower() for h in SECRET_HINT):
-            clean[k] = v  # conserva el secreto previo si no lo reescribieron
     integrations[key] = clean
     cfg["integrations"] = integrations
     tenant.config = cfg

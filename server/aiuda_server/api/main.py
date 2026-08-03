@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI):
     from aiuda_server import scheduler
 
     create_all()
+    _purgar_secretos_en_claro()
     if settings.scheduler_enabled:
         scheduler.start()
     _reabrir_red_local(app)
@@ -86,6 +87,32 @@ async def lifespan(app: FastAPI):
     from aiuda_server import red_local
 
     red_local.escucha.apagar(app)
+
+
+def _purgar_secretos_en_claro() -> None:
+    """Limpia credenciales que quedaron sin cifrar en tenant.config.
+
+    Residuo de un bug sistémico: una llave del catálogo sin entrada en PROVIDERS caía a
+    la vía legada y guardaba su secreto en texto plano. Corre en cada arranque porque es
+    idempotente y barato, y porque quien actualice desde una versión afectada no va a
+    correr un comando de mano. No aborta el arranque si falla: la consola tiene que
+    abrir aunque la limpieza no pueda.
+    """
+    try:
+        from aiuda_core.connectors.credentials import purgar_secretos_en_claro
+        from aiuda_core.db import get_sessionmaker
+
+        with get_sessionmaker()() as db:
+            borrados = purgar_secretos_en_claro(db)
+            if borrados:
+                db.commit()
+                log.warning(
+                    "Se borraron %d credenciales que estaban en texto plano en la config. "
+                    "Vuelve a capturarlas desde Integraciones: ahora se guardan cifradas.",
+                    borrados,
+                )
+    except Exception:
+        log.exception("no se pudo purgar secretos en claro")
 
 
 def _reabrir_red_local(app: FastAPI) -> None:

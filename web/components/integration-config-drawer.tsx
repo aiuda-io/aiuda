@@ -396,6 +396,23 @@ export function IntegrationConfigDrawer({
           </div>
         ) : loading ? (
           <div className="skeleton h-40 w-full rounded-lg" />
+        ) : fields.length === 0 ? (
+          // Una fuente que no declara campos no se conecta desde aquí (sat vive en su
+          // propia pantalla). Antes caía al formulario genérico y pedía un secreto
+          // inventado que se guardaba sin cifrar.
+          <div className="rounded-lg border border-line bg-panel/40 px-4 py-4 text-cuerpo leading-relaxed text-ink-2">
+            Esta fuente no se conecta capturando credenciales aquí.
+            {node.key === "sat" && (
+              <div className="mt-3">
+                <Link
+                  href="/sat"
+                  className="inline-block rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface hover:bg-accent-strong"
+                >
+                  Ir a SAT
+                </Link>
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <div className="space-y-3">

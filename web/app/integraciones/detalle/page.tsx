@@ -235,8 +235,11 @@ function IntegrationDetail() {
             </section>
           )}
 
-          {/* Credenciales + Probar conexión */}
-          {detail.key !== "excel" && (
+          {/* Credenciales + Probar conexión. Solo si la fuente declara campos: excel se
+              sube como archivo, whatsapp se empareja por QR y sat vive en su propia
+              pantalla. Antes esto era un `!== "excel"` clavado a mano y las otras dos
+              acababan pidiendo un secreto inventado. */}
+          {fields.length > 0 && (
             <section className="rounded-lg border border-line bg-surface px-4 py-3.5">
               <h2 className="text-cuerpo font-semibold text-ink">Credenciales</h2>
               <p className="mt-0.5 text-apoyo text-ink-3">
