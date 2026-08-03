@@ -62,7 +62,7 @@ const RADIOS: { m: number; label: string }[] = [
 ];
 
 const inputCls =
-  "w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+  "w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
 
 export default function BuscarNegociosPage() {
   usePageTrail("Buscar negocios");
@@ -190,7 +190,7 @@ export default function BuscarNegociosPage() {
           action={
             <Link
               href="/integraciones/detalle?key=denue"
-              className="inline-flex rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong"
+              className="inline-flex rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
             >
               Conectar DENUE · INEGI
             </Link>
@@ -206,7 +206,7 @@ export default function BuscarNegociosPage() {
           <form onSubmit={buscar} className="rounded-lg border border-line bg-surface p-4">
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-[220px] flex-1">
-                <label htmlFor="p-giro" className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
+                <label htmlFor="p-giro" className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
                   Giro o palabra clave
                 </label>
                 <input
@@ -218,7 +218,7 @@ export default function BuscarNegociosPage() {
                 />
               </div>
               <div className="w-48">
-                <label htmlFor="p-zona" className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
+                <label htmlFor="p-zona" className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
                   Zona
                 </label>
                 <select
@@ -238,7 +238,7 @@ export default function BuscarNegociosPage() {
               {zona === "propias" && (
                 <>
                   <div className="w-28">
-                    <label htmlFor="p-lat" className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
+                    <label htmlFor="p-lat" className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
                       Latitud
                     </label>
                     <input
@@ -251,7 +251,7 @@ export default function BuscarNegociosPage() {
                     />
                   </div>
                   <div className="w-28">
-                    <label htmlFor="p-lng" className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
+                    <label htmlFor="p-lng" className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
                       Longitud
                     </label>
                     <input
@@ -266,7 +266,7 @@ export default function BuscarNegociosPage() {
                 </>
               )}
               <div className="w-44">
-                <label htmlFor="p-radio" className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
+                <label htmlFor="p-radio" className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
                   Radio
                 </label>
                 <select
@@ -286,7 +286,7 @@ export default function BuscarNegociosPage() {
                 {buscando ? "Buscando…" : "Buscar negocios"}
               </PrimaryButton>
             </div>
-            <p className="mt-2.5 text-[11.5px] text-ink-3">
+            <p className="mt-2.5 text-apoyo text-ink-3">
               Búsqueda en vivo alrededor del punto elegido (así funciona la API pública del
               INEGI). Nada se guarda hasta que tú cargues.
             </p>
@@ -303,8 +303,8 @@ export default function BuscarNegociosPage() {
 
             {!buscando && errorBusqueda && (
               <div className="reveal rounded-lg border border-line bg-danger-soft px-4 py-3">
-                <p className="text-[12.5px] font-medium text-danger">La fuente no respondió</p>
-                <p className="mt-0.5 text-[12.5px] text-danger">{errorBusqueda}</p>
+                <p className="text-cuerpo font-medium text-danger">La fuente no respondió</p>
+                <p className="mt-0.5 text-cuerpo text-danger">{errorBusqueda}</p>
               </div>
             )}
 
@@ -326,7 +326,7 @@ export default function BuscarNegociosPage() {
             {!buscando && !errorBusqueda && resultado !== null && resultado.length > 0 && (
               <>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-[12.5px] text-ink-2">
+                  <p className="text-cuerpo text-ink-2">
                     <span className="tnum font-medium text-ink">{resultado.length}</span>{" "}
                     negocios · fuente DENUE · INEGI
                     {yaRegistrados > 0 && (
@@ -345,7 +345,7 @@ export default function BuscarNegociosPage() {
                 <div className="reveal overflow-x-auto rounded-lg border border-line bg-surface">
                   <table className="w-full min-w-[820px] text-left">
                     <thead>
-                      <tr className="border-b border-line bg-panel/60 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                      <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                         <th className="w-10 px-4 py-2.5">
                           <input
                             type="checkbox"
@@ -389,18 +389,18 @@ export default function BuscarNegociosPage() {
                             )}
                           </td>
                           <td className="px-4 py-2.5">
-                            <span className="block text-[12.5px] font-medium text-ink">{n.nombre}</span>
+                            <span className="block text-cuerpo font-medium text-ink">{n.nombre}</span>
                             {n.razon_social && n.razon_social !== n.nombre && (
-                              <span className="block text-[11.5px] text-ink-3">{n.razon_social}</span>
+                              <span className="block text-apoyo text-ink-3">{n.razon_social}</span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-[12px] text-ink-2">
+                          <td className="px-4 py-2.5 text-cuerpo text-ink-2">
                             {n.actividad || <span className="text-ink-3">·</span>}
                           </td>
-                          <td className="max-w-[240px] px-4 py-2.5 text-[12px] text-ink-2">
+                          <td className="max-w-[240px] px-4 py-2.5 text-cuerpo text-ink-2">
                             {n.direccion || <span className="text-ink-3">·</span>}
                           </td>
-                          <td className="px-4 py-2.5 text-[12px] text-ink-2">
+                          <td className="px-4 py-2.5 text-cuerpo text-ink-2">
                             {n.telefono ? (
                               <span className="tnum block">{n.telefono}</span>
                             ) : null}
@@ -411,7 +411,7 @@ export default function BuscarNegociosPage() {
                               <span className="text-ink-3">sin contacto</span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-[12px]">
+                          <td className="px-4 py-2.5 text-cuerpo">
                             {n.ya_registrado && n.cliente_id ? (
                               <Link
                                 href={`/clientes/detalle?id=${n.cliente_id}`}

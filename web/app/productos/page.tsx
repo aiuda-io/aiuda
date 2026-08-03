@@ -97,11 +97,11 @@ export default function ProductosPage() {
                     <RailRow key={p.id}>
                       <button
                         onClick={() => setSelected(p)}
-                        className="min-w-0 truncate text-left text-[12.5px] text-ink-2 transition-colors hover:text-accent-ink"
+                        className="min-w-0 truncate text-left text-cuerpo text-ink-2 transition-colors hover:text-accent-ink"
                       >
                         {p.name}
                       </button>
-                      <span className="tnum shrink-0 text-[11px] text-ink-3">
+                      <span className="tnum shrink-0 text-apoyo text-ink-3">
                         0{p.unit ? ` ${unidad(p.unit)}` : ""}
                       </span>
                     </RailRow>
@@ -117,7 +117,7 @@ export default function ProductosPage() {
           <div className="overflow-x-auto rounded-lg border border-line bg-surface">
             <table className="w-full min-w-[620px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                   <th className="px-4 py-2.5">Producto</th>
                   <th className="px-4 py-2.5">SKU</th>
                   <th className="px-4 py-2.5">Fuente</th>
@@ -138,23 +138,23 @@ export default function ProductosPage() {
                       {/* Botón real (no solo tr onClick): la ficha se abre con teclado. */}
                       <button
                         onClick={() => setSelected(p)}
-                        className="text-left text-[12.5px] font-medium text-ink hover:text-accent-ink"
+                        className="text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
                       >
                         {p.name}
                       </button>
                     </td>
-                    <td className="tnum px-4 py-2.5 text-[12px] text-ink-2">
+                    <td className="tnum px-4 py-2.5 text-cuerpo text-ink-2">
                       {p.sku ?? <span className="text-ink-3">·</span>}
                     </td>
-                    <td className="px-4 py-2.5 text-[12px]">
+                    <td className="px-4 py-2.5 text-cuerpo">
                       <span className="rounded bg-panel px-1.5 py-px font-medium text-ink-2">
                         {src ? (SOURCE_LABEL[src] ?? src) : "aiuda"}
                       </span>
                     </td>
-                    <td className="tnum px-4 py-2.5 text-right text-[12.5px] text-ink">
+                    <td className="tnum px-4 py-2.5 text-right text-cuerpo text-ink">
                       {p.price !== null ? mxn(p.price) : <span className="text-ink-3">·</span>}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-right text-[12.5px] text-ink-2">
+                    <td className="tnum px-4 py-2.5 text-right text-cuerpo text-ink-2">
                       {p.stock !== null ? (
                         <>
                           {p.stock}
@@ -169,7 +169,7 @@ export default function ProductosPage() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+                    <td colSpan={5} className="px-4 py-10 text-center text-cuerpo text-ink-3">
                       Sin resultados para tu búsqueda.
                     </td>
                   </tr>

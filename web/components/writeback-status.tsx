@@ -111,8 +111,8 @@ export function WritebackStatus({
 
   return (
     <section>
-      <h3 className="text-[12px] font-semibold text-ink">Regreso a la fuente</h3>
-      <p className="mt-0.5 text-[11.5px] text-ink-3">
+      <h3 className="text-cuerpo font-semibold text-ink">Regreso a la fuente</h3>
+      <p className="mt-0.5 text-apoyo text-ink-3">
         Lo que confirmas aquí se escribe de vuelta en el sistema de origen.
       </p>
       <ul className="mt-2.5 space-y-1.5">
@@ -125,15 +125,15 @@ export function WritebackStatus({
               {SOURCE_LOGO[e.target] ? (
                 <img src={SOURCE_LOGO[e.target]} alt="" className="h-4 w-4" />
               ) : (
-                <span className="flex h-4 w-4 items-center justify-center rounded bg-panel text-[9px] font-bold text-ink-2">
+                <span className="flex h-4 w-4 items-center justify-center rounded bg-panel text-sello font-bold text-ink-2">
                   {(SOURCE_LABEL[e.target] ?? e.target).slice(0, 2)}
                 </span>
               )}
-              <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink">
+              <span className="min-w-0 flex-1 truncate text-cuerpo font-medium text-ink">
                 {titulo(e)}
               </span>
               <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${CHIP[e.estado] ?? "bg-panel text-ink-2"}`}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-sello font-medium ${CHIP[e.estado] ?? "bg-panel text-ink-2"}`}
               >
                 {e.estado === "inyectada"
                   ? "Inyectada"
@@ -143,12 +143,12 @@ export function WritebackStatus({
               </span>
             </div>
             <div className="mt-1 flex items-start justify-between gap-3 pl-6.5">
-              <p className="text-[11.5px] leading-relaxed text-ink-3">{detalle(e)}</p>
+              <p className="text-apoyo leading-relaxed text-ink-3">{detalle(e)}</p>
               {e.estado === "falló" && (
                 <button
                   onClick={() => reintentar(e.id)}
                   disabled={busy !== null}
-                  className="shrink-0 rounded-md border border-line bg-surface px-2.5 py-1 text-[11.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                  className="shrink-0 rounded-md border border-line bg-surface px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
                 >
                   {busy === e.id ? "Reintentando…" : "Reintentar"}
                 </button>

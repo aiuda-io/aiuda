@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { api, type AgentState } from "@/lib/api";
-import { AGENT_NAV } from "@/lib/asistentes";
+import { api } from "@/lib/api";
 import { useAyudantes } from "@/lib/ayudantes-store";
 import { Avatar } from "@/components/avatar";
 import { normalizeAppearance } from "@/lib/look";
@@ -84,30 +83,40 @@ const iconFor = (href: string): ReactNode => ICONS[ICON_FOR[href] ?? "dot"];
 
 // Vistas subsumidas por otras superficies: se ocultan de la nav derivada para no
 // duplicar. Las rutas siguen vivas (p.ej. /aprobaciones redirige al Centro de mando).
-const CONSOLIDADO = new Set(["/aprobaciones", "/conciliacion", "/promesas"]);
+// /aprobaciones vive dentro de Centro de mando. /conciliacion y /promesas SÍ vuelven al
+// menú: son 899 y 200 líneas de pantalla que el dueño no podía alcanzar desde ningún
+// lado (solo por un enlace del Resumen), y son justo el trabajo que sus ayudantes hacen
+// contra sus integraciones. "Consolidado en el Centro" acabó significando "escondido".
+const CONSOLIDADO = new Set(["/aprobaciones"]);
 
-const PLATFORM = [
+// El menú muestra lo que el dueño puede DECIDIR, en sus palabras. "Proveedor de IA"
+// era jerga: lo que él eligió es qué inteligencia usa su negocio.
+//
+// `tecnico: true` = solo aparece con el modo técnico encendido (Configuración). La
+// regla es la del producto: el desarrollador instala, el usuario no técnico
+// implementa. La API existe y se documenta, pero no vive en el menú de alguien que
+// nunca va a escribir un curl; quien la busca, la prende.
+const PLATFORM: { href: string; label: string; tecnico?: boolean }[] = [
   { href: "/configuracion", label: "General" },
   { href: "/integraciones", label: "Integraciones" },
-  { href: "/proveedor", label: "Proveedor de IA" },
-  { href: "/aparatos", label: "Tus aparatos" },
+  { href: "/proveedor", label: "Tu IA" },
   { href: "/importar", label: "Importar datos" },
-  { href: "/desarrolladores", label: "API" },
+  { href: "/aparatos", label: "Tus aparatos" },
+  { href: "/desarrolladores", label: "API", tecnico: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  // Preferencia de ESTA consola, no config del negocio: quien quiere ver la API la
+  // prende para sí, y a los demás no les aparece.
+  const [tecnico, setTecnico] = useState(false);
+  useEffect(() => {
+    const leer = () => setTecnico(localStorage.getItem("aiuda-modo-tecnico") === "1");
+    leer();
+    window.addEventListener("modo-tecnico-cambio", leer);
+    return () => window.removeEventListener("modo-tecnico-cambio", leer);
+  }, []);
   const [pending, setPending] = useState<number | null>(null);
-  const [agents, setAgents] = useState<AgentState[]>([
-    {
-      slug: "mariana",
-      active: true,
-      actions: 0,
-      pending: 0,
-      sent: 0,
-      nivel: { nivel: "Aprendiz", siguiente: 10, progreso: 0 },
-    },
-  ]);
   const { ayudantes, loading: cargandoAyudantes } = useAyudantes();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("expanded");
@@ -131,7 +140,6 @@ export function Sidebar() {
 
   const load = useCallback(() => {
     api.cartera().then((c) => setPending(c.pending_approvals)).catch(() => setPending(null));
-    api.agents().then(setAgents).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -150,25 +158,22 @@ export function Sidebar() {
     };
   }, [load]);
 
-  const activeAgents = useMemo(() => agents.filter((a) => a.active), [agents]);
-
-  const dataItems = useMemo(() => {
-    const out: { href: string; label: string; owner: string }[] = [];
-    const seen = new Set<string>();
-    for (const state of activeAgents) {
-      const navDef = AGENT_NAV[state.slug];
-      if (!navDef) continue;
-      for (const item of navDef.items) {
-        // CONSOLIDADO en Centro de mando: la bandeja unificada subsume estas vistas;
-        // las rutas siguen vivas (deep-links), solo salen del menú.
-        if (item.href.startsWith("/agentes/") || seen.has(item.href) || CONSOLIDADO.has(item.href))
-          continue;
-        seen.add(item.href);
-        out.push({ href: item.href, label: item.label, owner: state.slug });
-      }
-    }
-    return out;
-  }, [activeAgents]);
+  // Los datos del NEGOCIO están siempre: son suyos, no de un ayudante. Antes esta lista
+  // se derivaba de un roster de agentes de fábrica, así que si esa petición fallaba (o si
+  // el dueño no tenía "activado" al agente correcto) su propia cartera desaparecía del
+  // menú. CONSOLIDADO en Centro de mando: /aprobaciones, /conciliacion y /promesas siguen
+  // vivas como deep-links, solo no repiten en el menú.
+  const dataItems = useMemo(
+    () =>
+      [
+        { href: "/facturas", label: "Facturas" },
+        { href: "/conciliacion", label: "Conciliación" },
+        { href: "/promesas", label: "Promesas de pago" },
+        { href: "/conversaciones", label: "Conversaciones" },
+        { href: "/clientes", label: "Clientes" },
+      ].filter((it) => !CONSOLIDADO.has(it.href)),
+    [],
+  );
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
@@ -185,7 +190,7 @@ export function Sidebar() {
       <Link
         href={href}
         title={!exp ? label : undefined}
-        className={`flex items-center rounded-md py-[6px] text-[13px] transition-colors ${
+        className={`flex items-center rounded-md py-[7px] text-cuerpo transition-colors ${
           exp ? "gap-2.5 px-2" : "justify-center px-0"
         } ${
           active
@@ -202,7 +207,7 @@ export function Sidebar() {
         {exp && <span className="flex-1 truncate">{label}</span>}
         {exp && badge != null && badge > 0 && (
           <span
-            className={`tnum rounded px-1.5 text-[11px] font-medium ${
+            className={`tnum rounded px-1.5 text-sello font-medium ${
               active ? "bg-surface text-accent-ink" : "bg-line/70 text-ink-2"
             }`}
           >
@@ -215,7 +220,7 @@ export function Sidebar() {
 
   const renderDivider = (label: string, exp: boolean) =>
     exp ? (
-      <p className="mb-1.5 mt-1 px-2 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+      <p className="mb-1.5 mt-1 px-2 text-rotulo font-semibold uppercase tracking-[0.08em] text-ink-3">
         {label}
       </p>
     ) : (
@@ -227,7 +232,7 @@ export function Sidebar() {
       <>
         <div className={`flex h-12 items-center ${exp ? "px-5" : "justify-center"}`}>
           <Link href="/" title="aiuda" className="flex items-baseline gap-1.5">
-            {exp && <span className="text-[17px] font-semibold tracking-tight text-ink">aiuda</span>}
+            {exp && <span className="text-seccion font-semibold tracking-tight text-ink">aiuda</span>}
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
           </Link>
         </div>
@@ -236,6 +241,7 @@ export function Sidebar() {
           <ul className="space-y-px">
             <li>{renderItem({ href: "/centro", label: "Centro de mando", badge: pending }, exp)}</li>
             <li>{renderItem({ href: "/", label: "Resumen" }, exp)}</li>
+            <li>{renderItem({ href: "/actividad", label: "Actividad" }, exp)}</li>
           </ul>
 
           {dataItems.length > 0 && (
@@ -243,7 +249,7 @@ export function Sidebar() {
               {renderDivider("Tu negocio", exp)}
               <ul className="space-y-px">
                 {dataItems.map((it) => (
-                  <li key={it.href}>{renderItem({ href: it.href, label: it.label, owner: it.owner }, exp)}</li>
+                  <li key={it.href}>{renderItem({ href: it.href, label: it.label }, exp)}</li>
                 ))}
               </ul>
             </div>
@@ -269,14 +275,14 @@ export function Sidebar() {
                   <Link
                     href="/ayudantes"
                     title="Crear un ayudante"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-line/60 text-[12px] font-medium text-ink-2 transition-colors hover:bg-accent-soft hover:text-accent-ink"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-line/60 text-cuerpo font-medium text-ink-2 transition-colors hover:bg-accent-soft hover:text-accent-ink"
                   >
                     +
                   </Link>
                 </div>
                 <Link
                   href="/ayudantes"
-                  className={`mt-1.5 block px-2 text-[11px] transition-colors ${
+                  className={`mt-1.5 block px-2 text-apoyo transition-colors ${
                     isActive("/ayudantes")
                       ? "font-medium text-accent-ink"
                       : "text-ink-3 hover:text-ink-2"
@@ -310,7 +316,7 @@ export function Sidebar() {
           <div>
             {renderDivider("Configuración", exp)}
             <ul className="space-y-px">
-              {PLATFORM.map((it) => (
+              {PLATFORM.filter((it) => !it.tecnico || tecnico).map((it) => (
                 <li key={it.href}>{renderItem(it, exp)}</li>
               ))}
             </ul>
@@ -327,14 +333,14 @@ export function Sidebar() {
                   onClick={() => setControlOpen(false)}
                 />
                 <div className="absolute bottom-full left-2 z-40 mb-1 w-48 rounded-lg border border-line bg-surface p-1 shadow-[0_4px_24px_rgba(13,45,62,0.12)]">
-                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="px-2 py-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                     Control del menú
                   </p>
                   {(["expanded", "collapsed", "hover"] as Mode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => pickMode(m)}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[12.5px] text-ink-2 transition-colors hover:bg-panel"
+                      className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-cuerpo text-ink-2 transition-colors hover:bg-panel"
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${mode === m ? "bg-accent" : "border border-line-strong"}`}
@@ -348,7 +354,7 @@ export function Sidebar() {
             <button
               onClick={() => setControlOpen((v) => !v)}
               title="Control del menú"
-              className={`flex items-center rounded-md py-1.5 text-[11.5px] text-ink-3 transition-colors hover:bg-line/45 hover:text-ink ${
+              className={`flex items-center rounded-md py-2 text-apoyo text-ink-3 transition-colors hover:bg-line/45 hover:text-ink ${
                 exp ? "w-full gap-2 px-2" : "w-full justify-center"
               }`}
             >
@@ -361,7 +367,7 @@ export function Sidebar() {
         {exp && (
           <a
             href="https://hanova.mx"
-            className="flex items-center gap-1.5 border-t border-line px-5 py-3 text-[10.5px] text-ink-3 transition-colors hover:text-ink-2"
+            className="flex items-center gap-1.5 border-t border-line px-5 py-3 text-rotulo text-ink-3 transition-colors hover:text-ink-2"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/hanova-icon-blue.svg" alt="" className="h-3 w-3 opacity-70" />

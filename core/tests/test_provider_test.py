@@ -3,10 +3,7 @@
 import anthropic
 import httpx
 
-from aiuda_core.engine.provider import (
-    CLAUDE_CODE_IDENTITY,
-    ProviderCredential,
-)
+from aiuda_core.engine.provider import ProviderCredential
 # Alias: pytest colectaría `test_credential` como caso de prueba por el prefijo `test_`.
 from aiuda_core.engine.provider import test_credential as check_credential
 
@@ -46,14 +43,6 @@ def test_exito_reporta_ok_y_latencia():
     assert r["mode"] == "api_key"
     assert "latency_ms" in r and r["latency_ms"] >= 0
     assert r["model"]  # el modelo probado
-
-
-def test_suscripcion_antepone_identidad_claude_code():
-    # Anthropic rechaza el token OAuth si el system no declara la identidad de Claude Code.
-    sink: list[dict] = []
-    r = check_credential(_sub(), client=_FakeClient(result=object(), sink=sink))
-    assert r["ok"] is True
-    assert sink and sink[0].get("system") == CLAUDE_CODE_IDENTITY
 
 
 def test_api_key_no_manda_prefijo():

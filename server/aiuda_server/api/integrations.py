@@ -32,8 +32,10 @@ from aiuda_core.models import (
 
 router = APIRouter()
 
-# Campos que se ocultan al devolver la config (credenciales).
-SECRET_HINT = ("token", "key", "password", "secret")
+# Campos que se ocultan al devolver la config (credenciales). La definición vive en
+# core (connectors/credentials.py) y se importa: tenerla duplicada aquí fue parte del
+# bug que dejaba secretos en texto plano.
+SECRET_HINT = cred.SECRET_HINT
 
 # Dirección de flujo (define cómo se dibuja la arista):
 #   read     sistema -> aiuda   (aiuda jala datos)
@@ -228,33 +230,6 @@ SOURCE_CAPS: dict[str, list[tuple[str, bool]]] = {
 for _item in CATALOG:
     _item["live"] = any(live for _, live in SOURCE_CAPS.get(_item["key"], []))
 
-# Qué capacidades necesita cada aiudante por su rol. Esto es LO ÚNICO que se
-# edita al sumar un agente; los sistemas a los que llega se derivan solos.
-AGENT_CAPS: dict[str, list[str]] = {
-    "mariana": ["cuentas_por_cobrar", "mensajeria", "confirmacion_pago"],
-    "carlos": ["catalogo_productos", "directorio_clientes", "cuentas_por_cobrar", "mensajeria"],
-    "lupita": ["cfdi", "expedientes", "mensajeria"],
-    "valeria": ["agenda", "mensajeria"],
-    "diego": ["confirmacion_pago", "cfdi", "cuentas_por_cobrar"],
-    "roberto": ["catalogo_productos", "compras", "directorio_clientes"],
-    "memo": ["avisos_equipo"],
-    "sofia": ["prospeccion", "directorio_clientes", "mensajeria"],
-}
-
-# (name, role). El nombre VISIBLE es el ROL: los nombres de persona
-# (Mariana/Carlos/Lupita…) se retiraron de la superficie del producto. El slug
-# interno se conserva (el front lo usa como key y para la apariencia curada).
-AGENT_META: dict[str, tuple[str, str]] = {
-    "mariana": ("Cobranza", "Cobranza"),
-    "carlos": ("Ventas", "Ventas"),
-    "lupita": ("Legal y fiscal", "Legal y fiscal"),
-    "valeria": ("Recepción", "Recepción"),
-    "diego": ("Conciliación", "Conciliación"),
-    "roberto": ("Compras", "Compras"),
-    "memo": ("Contenido", "Contenido"),
-    "sofia": ("Prospección", "Prospección"),
-}
-
 # Índice inverso: qué fuentes proveen cada capacidad, y si la capacidad ya
 # está viva en algún lado (al menos una fuente la corre hoy).
 _CAP_PROVIDERS: dict[str, list[str]] = {}
@@ -356,22 +331,6 @@ def fuentes_preferidas(db, tenant: Tenant) -> dict[str, str]:
     return prefs
 
 
-def _agent_systems(slug: str) -> list[str]:
-    """Sistemas a los que llega un agente = fuentes que proveen alguna de las
-    capacidades que necesita. Derivado, no hardcodeado."""
-    seen: list[str] = []
-    for cap in AGENT_CAPS.get(slug, []):
-        for src in _CAP_PROVIDERS.get(cap, []):
-            if src in CATALOG_KEYS and src not in seen:
-                seen.append(src)
-    return seen
-
-
-# Se deriva AGENT_SYSTEMS desde la capa de capacidades para no romper a quien
-# lo consume (mapas, endpoints). Ya no se mantiene a mano.
-AGENT_SYSTEMS: dict[str, list[str]] = {slug: _agent_systems(slug) for slug in AGENT_CAPS}
-
-
 def _capabilities_overview(connected: set[str]) -> list[dict]:
     """Catálogo de capacidades con su estado: si ya está viva en algún lado y
     si el tenant tiene una fuente conectada que la cumpla."""
@@ -391,11 +350,27 @@ def _capabilities_overview(connected: set[str]) -> list[dict]:
     return out
 
 
-def _agent_caps_detail(slug: str, connected: set[str]) -> tuple[list[str], list[str]]:
-    """Devuelve (needs, gaps) de un agente. Un gap es una capacidad que el
-    agente necesita y que ninguna fuente conectada le cumple todavía: eso es
-    lo que dispara "conecta algo" o "solicita aiuda" en el mapa."""
-    needs = AGENT_CAPS.get(slug, [])
+def capacidades_de(ayudante) -> list[str]:
+    """Las capacidades que necesita un ayudante, DERIVADAS de las aiuditas que su dueño
+    le activó (cada aiudita declara de qué capacidad lee).
+
+    Antes esto era una tabla fija de ocho roles de fábrica. El dueño no creó ninguno de
+    ellos, así que el mapa le enseñaba huecos de trabajadores que no existían."""
+    from aiuda_core.aiuditas.catalog import aiudita_por_id
+
+    caps: list[str] = []
+    for aid in (ayudante.aiuditas or {}):
+        spec = aiudita_por_id(aid)
+        cap = getattr(spec, "capacidad", "") if spec else ""
+        if cap and cap not in caps:
+            caps.append(cap)
+    return caps
+
+
+def _caps_detail(needs: list[str], connected: set[str]) -> tuple[list[str], list[str]]:
+    """Devuelve (needs, gaps). Un gap es una capacidad que el ayudante necesita y que
+    ninguna fuente conectada le cumple todavía: eso es lo que dispara "conecta algo" o
+    "solicita aiuda" en el mapa."""
     gaps = [
         cap
         for cap in needs
@@ -552,23 +527,31 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
         ).all()
     )
 
-    # TODO el equipo en el mapa (activos o no): cada agente trae si está
-    # activado, sus capacidades, los sistemas a los que llega (derivados) y los
-    # huecos (capacidades sin fuente conectada). Mostrar sólo los activos hacía
-    # que el mapa contradijera al resto de la consola (sidebar, /asistentes).
-    active_agents = set((tenant.config or {}).get("active_agents") or ["mariana"])
+    # El equipo del mapa son los ayudantes que el DUEÑO creó. Cada uno trae sus
+    # capacidades (derivadas de sus aiuditas), los sistemas a los que llega y los huecos
+    # (capacidades sin fuente conectada), que es lo que dispara "conecta algo".
     agents = []
-    for slug in AGENT_META:
-        name, role = AGENT_META[slug]
-        uses = [k for k in AGENT_SYSTEMS.get(slug, []) if k in CATALOG_KEYS]
-        needs, gaps = _agent_caps_detail(slug, connected_keys)
+    for a in db.scalars(
+        select(Ayudante).where(Ayudante.tenant_id == tenant.id).order_by(Ayudante.created_at)
+    ).all():
+        needs = capacidades_de(a)
+        _n, gaps = _caps_detail(needs, connected_keys)
+        uses = sorted(
+            {
+                s
+                for cap in needs
+                for s in _CAP_PROVIDERS.get(cap, [])
+                if s in CATALOG_KEYS
+            }
+        )
         agents.append(
             {
-                "slug": slug,
-                "name": name,
-                "role": role,
-                "avatar": f"/asistentes/{slug}.png",
-                "active": slug in active_agents,
+                "slug": a.id,
+                "name": a.name,
+                "role": ", ".join(CAPABILITIES.get(c, {}).get("label", c) for c in needs) or "Sin oficio todavía",
+                "avatar": None,  # la consola dibuja su mascota desde `appearance`
+                "appearance": a.appearance or {},
+                "active": True,  # existe porque el dueño lo creó
                 "systems": uses,
                 "needs": needs,
                 "gaps": gaps,
@@ -620,21 +603,29 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
     }
 
 
-@router.get("/v1/agents/{slug}/systems")
-def agent_systems(slug: str, tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Sistemas a los que llega un asistente: a cuáles ya está conectado y a
-    cuáles se podría conectar. Funciona para cualquier agente (activo o no)."""
-    if slug not in AGENT_META:
-        raise HTTPException(status_code=404, detail="Agente desconocido.")
+@router.get("/v1/ayudantes/{ayudante_id}/systems")
+def ayudante_systems(
+    ayudante_id: str, tenant: Tenant = Depends(get_tenant), db=Depends(get_db)
+):
+    """Sistemas a los que llega un ayudante: a cuáles ya está conectado y a cuáles se
+    podría conectar. Las capacidades salen de las aiuditas que su dueño le activó."""
+    a = db.get(Ayudante, ayudante_id)
+    if a is None or a.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Ese ayudante no existe.")
     active = _active_systems(db, tenant)
     connected_keys = {
         item["key"] for item in CATALOG if _is_connected(db, item["key"], tenant, active)
     }
     by_key = {item["key"]: item for item in CATALOG}
-    name, role = AGENT_META[slug]
-    needs, gaps = _agent_caps_detail(slug, connected_keys)
+    needs = capacidades_de(a)
+    _n, gaps = _caps_detail(needs, connected_keys)
+    name = a.name
+    role = ", ".join(CAPABILITIES.get(c, {}).get("label", c) for c in needs) or "Sin oficio"
+    alcanza = sorted(
+        {s2 for cap in needs for s2 in _CAP_PROVIDERS.get(cap, []) if s2 in CATALOG_KEYS}
+    )
     systems = []
-    for key in AGENT_SYSTEMS.get(slug, []):
+    for key in alcanza:
         item = by_key.get(key)
         if not item:
             continue
@@ -664,10 +655,10 @@ def agent_systems(slug: str, tenant: Tenant = Depends(get_tenant), db=Depends(ge
         )
 
     return {
-        "slug": slug,
+        "slug": a.id,
         "name": name,
         "role": role,
-        "avatar": f"/asistentes/{slug}.png",
+        "appearance": a.appearance or {},
         "systems": systems,
         "capabilities": capabilities,
         "needs": needs,
@@ -676,21 +667,29 @@ def agent_systems(slug: str, tenant: Tenant = Depends(get_tenant), db=Depends(ge
     }
 
 
-def _source_capabilities(tenant: Tenant, key: str) -> list[dict]:
-    """Qué capacidades provee una fuente, con qué aiudante activo usa cada una y
+def _source_capabilities(db, tenant: Tenant, key: str) -> list[dict]:
+    """Qué capacidades provee una fuente, qué ayudante del dueño usa cada una, y
     si el dueño la dejó prendida (para jalarla cuando se cablee la sync real).
     Las apagadas viven en config['integrations_caps'][key], aparte de las
     credenciales para no confundir el estado de 'conectado'."""
-    active = set((tenant.config or {}).get("active_agents") or ["mariana"])
     disabled = set(((tenant.config or {}).get("integrations_caps") or {}).get(key) or [])
+    # Quién usa cada capacidad: los ayudantes que el DUEÑO creó, según las aiuditas que
+    # les activó. Si todavía no tiene ninguno, la lista va vacía y la consola lo dice,
+    # en vez de inventar un equipo de fábrica que él nunca armó.
+    equipo = [
+        (a, capacidades_de(a))
+        for a in db.scalars(
+            select(Ayudante).where(Ayudante.tenant_id == tenant.id).order_by(Ayudante.created_at)
+        ).all()
+    ]
     out = []
     for cap, live in SOURCE_CAPS.get(key, []):
         if cap not in CAPABILITIES:
             continue
         agents = [
-            {"slug": slug, "name": AGENT_META[slug][0], "avatar": f"/asistentes/{slug}.png"}
-            for slug, caps in AGENT_CAPS.items()
-            if cap in caps and slug in active and slug in AGENT_META
+            {"slug": a.id, "name": a.name, "appearance": a.appearance or {}}
+            for a, caps in equipo
+            if cap in caps
         ]
         out.append(
             {
@@ -719,7 +718,7 @@ def integration_detail(key: str, tenant: Tenant = Depends(get_tenant), db=Depend
         **item,
         "connected": _is_connected(db, key, tenant, active),
         "configured": _is_configured(db, tenant, key),
-        "capabilities": _source_capabilities(tenant, key),
+        "capabilities": _source_capabilities(db, tenant, key),
     }
 
 
@@ -941,14 +940,35 @@ def save_integration_config(
         )
         return {"key": key, "configured": True, "connected": True}
 
-    # Proveedores sin secreto en el registro: flujo legado en tenant.config.
+    # Proveedores sin secreto en el registro: flujo legado en tenant.config, EN CLARO.
+    #
+    # Falla cerrada: si llega algo con pinta de secreto por esta vía, se rechaza en vez
+    # de guardarlo sin cifrar. El bug que esto cierra era silencioso y sistémico: basta
+    # con que una llave del CATALOG no exista en cred.PROVIDERS para caer aquí, y el
+    # front inventa un campo "token" secreto para toda llave que no declare los suyos
+    # (fieldsFor en web/lib/integration-fields.ts). Así, `whatsapp`, `excel` y `sat`
+    # pedían un secreto y lo dejaban en texto plano en reposo mientras el resto iba
+    # cifrado con Fernet. La respuesta correcta a "esta fuente sí tiene secreto" es
+    # darle su entrada en PROVIDERS, no ensanchar esta rama.
+    ofensivos = sorted(
+        k for k, v in body.values.items() if v and any(h in k.lower() for h in SECRET_HINT)
+    )
+    if ofensivos:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"'{key}' no tiene registro de cifrado, así que no puede guardar "
+                f"credenciales ({', '.join(ofensivos)}). Guardarlas aquí las dejaría en "
+                "texto plano. Es un error de configuración de aiuda, no tuyo: repórtalo."
+            ),
+        )
+
     cfg = dict(tenant.config or {})
     integrations = dict(cfg.get("integrations") or {})
-    prev = integrations.get(key) or {}
+    # Reemplazo completo: cualquier secreto en claro que hubiera quedado de una versión
+    # anterior en ESTA llave se va con la sobreescritura. Los de otras llaves los limpia
+    # `purgar_secretos_en_claro`, que corre al arrancar.
     clean = {k: v for k, v in body.values.items() if v and v != "••••••"}
-    for k, v in prev.items():
-        if k not in clean and any(h in k.lower() for h in SECRET_HINT):
-            clean[k] = v  # conserva el secreto previo si no lo reescribieron
     integrations[key] = clean
     cfg["integrations"] = integrations
     tenant.config = cfg

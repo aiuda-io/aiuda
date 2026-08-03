@@ -76,7 +76,7 @@ def test_corrida_diaria_aisla_un_tenant_que_falla(session, monkeypatch):
         yield session
 
     monkeypatch.setattr(worker, "session_scope", fake_scope)
-    monkeypatch.setattr(worker, "_build_engine", lambda s, t: _Engine())
+    monkeypatch.setattr(worker, "_build_engine", lambda s, t, run=None: _Engine())
 
     def fake_sync(s, t, today=None, fuente_prefs=None):
         if t.name == "Malo":
@@ -86,7 +86,7 @@ def test_corrida_diaria_aisla_un_tenant_que_falla(session, monkeypatch):
     import aiuda_core.engine.sync as sync_mod
 
     monkeypatch.setattr(sync_mod, "sync_fuentes", fake_sync)
-    monkeypatch.setattr(worker, "_process_writebacks", lambda s, t: None)
+    monkeypatch.setattr(worker, "_process_writebacks", lambda s, t, run=None: None)
 
     report = worker.run_daily_blocking()
     # El bueno se procesó pese a que el malo falló.

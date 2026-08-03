@@ -38,34 +38,34 @@ function AyudanteCard({ a, catalog }: { a: Ayudante; catalog: AiuditasCatalog | 
       <div className="flex items-center gap-3">
         <Avatar name={a.name} size={44} {...normalizeAppearance(a.appearance)} />
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-semibold text-ink group-hover:text-accent-ink">{a.name}</p>
-          <p className="truncate text-[11.5px] text-ink-3">{rol}</p>
+          <p className="text-cuerpo font-semibold text-ink group-hover:text-accent-ink">{a.name}</p>
+          <p className="truncate text-apoyo text-ink-3">{rol}</p>
         </div>
       </div>
 
       {specs.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {specs.slice(0, MAX).map((c) => (
-            <span key={c.id} className="rounded-md bg-panel px-2 py-0.5 text-[11px] text-ink-2">
+            <span key={c.id} className="rounded-md bg-panel px-2 py-0.5 text-sello text-ink-2">
               {c.label}
             </span>
           ))}
           {specs.length > MAX && (
-            <span className="rounded-md px-1.5 py-0.5 text-[11px] text-ink-3">
+            <span className="rounded-md px-1.5 py-0.5 text-sello text-ink-3">
               +{specs.length - MAX}
             </span>
           )}
         </div>
       ) : (
-        <p className="mt-3 text-[11.5px] text-ink-3">Sin aiuditas todavía</p>
+        <p className="mt-3 text-apoyo text-ink-3">Sin aiuditas todavía</p>
       )}
 
       <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-3">
-        <span className="text-[11px] text-ink-3">
+        <span className="text-apoyo text-ink-3">
           <span className="font-medium text-ink-2">{a.nivel.nivel}</span> · {a.acciones.total} acci
           {a.acciones.total === 1 ? "ón" : "ones"}
         </span>
-        <span className="text-[12px] font-medium text-accent-ink group-hover:underline">
+        <span className="text-cuerpo font-medium text-accent-ink group-hover:underline">
           Abrir &rarr;
         </span>
       </div>
@@ -95,8 +95,8 @@ function PlantillaCard({
     <div className={`flex items-center gap-3 rounded-lg border border-line bg-surface p-3 ${busy ? "ring-1 ring-accent/40" : ""}`}>
       <Avatar name={p.name} size={34} {...appearanceForSlug(p.slug)} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-ink">{p.name}</p>
-        <p className="text-[11px] text-ink-3">
+        <p className="truncate text-seccion font-semibold text-ink">{p.name}</p>
+        <p className="text-apoyo text-ink-3">
           {count} aiudita{count === 1 ? "" : "s"}
           {live > 0 ? ` · ${live} lista${live === 1 ? "" : "s"}` : " · por conectar"}
         </p>
@@ -126,8 +126,8 @@ function CrearAyudante({ onClose, count }: { onClose: () => void; count: number 
 
   return (
     <div className="rounded-lg border border-line bg-surface p-4">
-      <p className="text-[12.5px] font-medium text-ink">Nuevo ayudante</p>
-      <p className="mt-0.5 text-[11.5px] text-ink-3">
+      <p className="text-cuerpo font-medium text-ink">Nuevo ayudante</p>
+      <p className="mt-0.5 text-apoyo text-ink-3">
         Ponle un nombre corto. Luego le agregas las aiuditas que quieras.
       </p>
       <form
@@ -142,7 +142,7 @@ function CrearAyudante({ onClose, count }: { onClose: () => void; count: number 
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="abi"
-          className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+          className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
         />
         <PrimaryButton type="submit" disabled={saving}>
           {saving ? "Creando…" : "Crear ayudante"}
@@ -152,13 +152,13 @@ function CrearAyudante({ onClose, count }: { onClose: () => void; count: number 
         </SecondaryButton>
       </form>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] text-ink-3">Sugerencias:</span>
+        <span className="text-apoyo text-ink-3">Sugerencias:</span>
         {NOMBRES_SUGERIDOS.map((n) => (
           <button
             key={n}
             type="button"
             onClick={() => setName(n)}
-            className="rounded-full border border-line bg-panel/50 px-2 py-0.5 text-[11px] text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            className="rounded-full border border-line bg-panel/50 px-2 py-0.5 text-sello text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
           >
             {n}
           </button>
@@ -206,7 +206,7 @@ export default function AyudantesPage() {
       )}
 
       <section>
-        <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="mb-2.5 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
           Tus ayudantes · {ayudantes.length}
         </h2>
         {error ? (
@@ -236,10 +236,10 @@ export default function AyudantesPage() {
       </section>
 
       <section className="mt-9">
-        <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="mb-1 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
           Empieza desde una plantilla
         </h2>
-        <p className="mb-3.5 text-[12px] text-ink-3">
+        <p className="mb-3.5 text-cuerpo text-ink-3">
           Una plantilla es un rol ya armado con sus aiuditas. Úsala para no partir de cero:
           se crea un ayudante que luego nombras y ajustas a tu gusto. El catálogo completo de
           aiuditas se explora al agregarlas dentro de cada ayudante.

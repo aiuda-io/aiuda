@@ -169,6 +169,7 @@ export type InvoiceDetail = InvoiceItem & {
     message: string;
     sent_at: string | null;
     created_at: string | null;
+    propuesto_por: string | null;
   }[];
   promises: {
     id: string;
@@ -947,23 +948,55 @@ export type AgentSystems = {
 // tiene instalado y con su sesión iniciada. Se conecta con un clic: el secreto va
 // vacío porque no hay ninguno que guardar, la sesión vive dentro del propio programa.
 export type ProviderName = "claude" | "codex" | "local" | "claude_cli" | "codex_cli";
-export type ProviderMode = "api_key" | "subscription" | "cli";
+// Ya no existe "subscription": esa vía mandaba el token del dueño haciéndose pasar
+// por el CLI oficial del proveedor. Quien tiene suscripción usa "cli".
+export type ProviderMode = "api_key" | "cli";
 
-/** Arranque del device code de OpenAI: el código de un solo uso, la URL a abrir, el intervalo
- *  de sondeo (segundos) y la expiración (segundos, ~15 min). La consola sondea con estos. */
-export type OpenaiDeviceStart = {
-  device_code: string;
-  user_code: string;
-  verification_uri: string;
-  interval: number;
-  expires_in: number;
+/** Lo que hizo un ayudante en una unidad de trabajo. La narrativa la escribe el
+ *  backend en español; el front no la arma para no poder contradecirla. */
+export type RunItem = {
+  id: string;
+  ayudante_id: string | null;
+  /** SNAPSHOT: el dueño renombra o borra y la bitácora no cambia lo que dice que pasó. */
+  ayudante: string | null;
+  aiudita: string | null;
+  disparo: string;
+  disparo_label: string;
+  status: "running" | "done" | "failed" | "cortado";
+  status_label: string;
+  started_at: string | null;
+  finished_at: string | null;
+  duracion_ms: number | null;
+  resumen: string | null;
+  conteos: Record<string, number>;
+  motivos: { codigo: string; n: number; detalle?: string }[];
+  input_tokens: number;
+  output_tokens: number;
+  costo_usd: number | null;
+  error: string | null;
 };
 
-/** Un sondeo del device code: pendiente (sigue), listo (conectado + veredicto), o error. */
-export type OpenaiDevicePoll =
-  | { status: "pending" }
-  | { status: "success"; name: ProviderName; mode: ProviderMode; connected: boolean; test: ProviderTest }
-  | { status: "error"; detail: string };
+export type RunDetalle = RunItem & {
+  toco: { tipo: string; id: string; rol: string; etiqueta: string }[];
+  /** Los turnos se podan; la narrativa se queda. Sin esto la pantalla ofrecería un
+   *  botón que no lleva a ningún lado. */
+  hay_transcripcion: boolean;
+};
+
+export type RunTurno = {
+  idx: number;
+  role: string;
+  task: string;
+  model: string;
+  system_prompt: string | null;
+  user_prompt: string | null;
+  output_text: string | null;
+  tools: { nombre: string; args: Record<string, unknown>; resultado_resumen: string; ms: number; error: string | null }[];
+  input_tokens: number;
+  output_tokens: number;
+  latencia_ms: number;
+  error: string | null;
+};
 
 /** Estado del proveedor de IA conectado (panel /proveedor). */
 export type ProviderState = {
@@ -976,6 +1009,8 @@ export type ProviderState = {
   secret: string;
   /** Solo proveedor "local": base_url y modelo (no son secretos, se editan sin re-capturar). */
   local_config?: { base_url: string; model: string };
+  /** Venías de la vía retirada por suscripción: qué pasó y qué hacer, en una frase. */
+  aviso_retirado?: string;
 };
 
 /** Veredicto de la prueba de conexión REAL del proveedor (POST /v1/provider/test):
@@ -1214,10 +1249,7 @@ export const api = {
       { method: "DELETE" },
     ),
   satImportar: (form: FormData) =>
-    request<SatImportResult>("/v1/sat/importar", { method: "POST", body: form }),
-  agentSystems: (slug: string) => request<AgentSystems>(`/v1/agents/${slug}/systems`),
-  // Conexiones a la medida (conector genérico por API): campos por necesidad, probar en vivo,
-  // guardar (secreto cifrado en el backend), listar y borrar.
+    request<SatImportResult>("/v1/sat/importar", { method: "POST", body: form }),  // guardar (secreto cifrado en el backend), listar y borrar.
   customConnectorFields: () =>
     request<{ cap_fields: Record<string, string[]>; default: string[] }>("/v1/custom-connectors/fields"),
   listCustomConnectors: () => request<CustomConnector[]>("/v1/custom-connectors"),
@@ -1293,30 +1325,6 @@ export const api = {
   disconnectProvider: () =>
     request<{ connected: boolean; env_fallback: boolean }>("/v1/provider", { method: "DELETE" }),
   testProvider: () => request<ProviderTest>("/v1/provider/test", { method: "POST" }),
-  // OpenAI por SUSCRIPCIÓN, sin pegar nada: device code ("Iniciar sesión con ChatGPT"). start
-  // pide el código; la consola muestra el código + la URL y sondea poll según el intervalo
-  // hasta que el dueño autorice en su navegador. Al autorizar, el backend canjea, prueba y
-  // guarda el bundle CIFRADO por tenant. El bundle nunca toca el navegador.
-  startOpenaiDevice: () =>
-    request<OpenaiDeviceStart>("/v1/provider/openai/device/start", { method: "POST" }),
-  pollOpenaiDevice: (deviceCode: string, userCode: string) =>
-    request<OpenaiDevicePoll>("/v1/provider/openai/device/poll", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ device_code: deviceCode, user_code: userCode }),
-    }),
-  // OpenAI pegando el auth.json (fallback de power-user/self-host): el dueño corre `codex
-  // login` en SU máquina y pega el contenido; el bundle se guarda CIFRADO por tenant. Sin
-  // pegar nada, en self-host de una máquina el backend lee la sesión local. authJson opcional.
-  connectOpenai: (authJson?: string) =>
-    request<{ name: ProviderName; mode: ProviderMode; connected: boolean; test: ProviderTest }>(
-      "/v1/provider/openai/connect",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(authJson ? { auth_json: authJson } : {}),
-      },
-    ),
   testIntegration: (key: string) =>
     request<{ ok: boolean | null; message: string; details?: Record<string, number | string> }>(
       `/v1/integrations/${key}/test`,
@@ -1663,8 +1671,15 @@ export const api = {
   // Reenvía un aprobado que quedó varado (sombra apagada después de aprobarlo, o el
   // envío en segundo plano no completó). No re-aprueba: approved→approved no es válido.
   sendReminder: (id: string) => request(`/v1/reminders/${id}/send`, { method: "POST" }),
-  learningSummary: (agent = "mariana") =>
-    request<LearningSummary>(`/v1/learning/summary?agent=${encodeURIComponent(agent)}`),
+  // Con ayudanteId son las correcciones de ESE ayudante (atribución real por
+  // Reminder.meta). Sin él, las del slug de runtime, que no distingue entre dos
+  // ayudantes del mismo oficio.
+  learningSummary: (ayudanteId?: string) =>
+    request<LearningSummary>(
+      ayudanteId
+        ? `/v1/learning/summary?ayudante_id=${encodeURIComponent(ayudanteId)}`
+        : `/v1/learning/summary`,
+    ),
   pay: (invoiceId: string) => request(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
   remind: (invoiceId: string) =>
     request<{ id: string; status: string; message: string }>(
@@ -1719,8 +1734,13 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }),
+  // Son DOS prompts porque el interlocutor cambia: `chat` cuando el dueño le
+  // pregunta, `corrida` cuando redacta para un cliente. `system` es alias de `chat`
+  // y se conserva por compatibilidad.
   ayudantePrompt: (id: string) =>
-    request<{ system: string }>(`/v1/ayudantes/${id}/prompt`),
+    request<{ system: string; chat: string; corrida: string }>(
+      `/v1/ayudantes/${id}/prompt`,
+    ),
   cuaEstado: () => request<CuaEstado>("/v1/cua/estado"),
   cuaCapacidades: () => request<CuaCapacidad[]>("/v1/cua/capacidades"),
   cuaMisiones: () => request<CuaMision[]>("/v1/cua/misiones"),
@@ -1795,22 +1815,21 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, history }),
     }),
-  agents: () => request<AgentState[]>("/v1/agents"),
-  agentChat: (slug: string, message: string, history: { role: string; body: string }[]) =>
-    request<{ reply: string }>(`/v1/agents/${slug}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
-    }),
-  activateAgent: (slug: string) => request(`/v1/agents/${slug}/activate`, { method: "POST" }),
-  deactivateAgent: (slug: string) =>
-    request(`/v1/agents/${slug}/deactivate`, { method: "POST" }),
-  agentConfig: (slug: string) => request<AgentConfig>(`/v1/agents/${slug}/config`),
-  saveAgentConfig: (slug: string, body: Partial<AgentConfig>) =>
-    request<AgentConfig>(`/v1/agents/${slug}/config`, {
+  // El contexto del negocio es del NEGOCIO, no de un ayudante: entra al prompt de todos.
+  // Se leía por /v1/agents/mariana/config, colgado de un slug de runtime que el dueño
+  // nunca creó.
+  // Qué hizo cada ayudante. Dos profundidades: la lista y el detalle hablan en el
+  // idioma del dueño; los turnos son la transcripción para quien la busque.
+  runs: (ayudanteId?: string) =>
+    request<RunItem[]>(`/v1/runs${ayudanteId ? `?ayudante_id=${encodeURIComponent(ayudanteId)}` : ""}`),
+  run: (id: string) => request<RunDetalle>(`/v1/runs/${id}`),
+  runTurnos: (id: string) => request<RunTurno[]>(`/v1/runs/${id}/turnos`),
+  businessContext: () => request<{ business_context: string }>("/v1/settings/contexto"),
+  saveBusinessContext: (business_context: string) =>
+    request<{ business_context: string }>("/v1/settings/contexto", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ business_context }),
     }),
   takeover: (conversationId: string, takeover: boolean) =>
     request(`/v1/conversations/${conversationId}/takeover`, {

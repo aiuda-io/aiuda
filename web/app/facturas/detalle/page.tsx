@@ -50,8 +50,8 @@ function FacturaDetalle() {
       ) : data ? (
         <>
           <header className="mb-5">
-            <h1 className="tnum text-[18px] font-semibold tracking-tight text-ink">{folioTitulo(data.folio)}</h1>
-            <p className="mt-0.5 text-[13px] text-ink-3">{data.customer}</p>
+            <h1 className="tnum text-seccion font-semibold tracking-tight text-ink">{folioTitulo(data.folio)}</h1>
+            <p className="mt-0.5 text-cuerpo text-ink-3">{data.customer}</p>
           </header>
           <InvoiceDetailContent data={data} onChanged={refetch} rail />
         </>

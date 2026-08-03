@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader, useApi } from "@/components/ui";
 import { SettingsField, SettingsPage, SettingsSection, settingsInputCls } from "@/components/settings";
 import { TagManager } from "@/components/tags";
@@ -13,7 +13,7 @@ import { SHADOW_EVENT } from "@/components/shadow-banner";
 // pintaba su valor default (posiblemente FALSO) como si fuera el real.
 function SettingLoadError({ retry }: { retry: () => void }) {
   return (
-    <p className="text-[12.5px] text-ink-3">
+    <p className="text-cuerpo text-ink-3">
       No se pudo cargar este ajuste.{" "}
       <button onClick={retry} className="font-medium text-accent-ink hover:underline">
         Reintentar
@@ -71,7 +71,7 @@ function ModoSombra() {
           }`}
         />
       </button>
-      <span className="text-[12.5px] font-medium text-ink">
+      <span className="text-cuerpo font-medium text-ink">
         {active ? "Activado: nada sale a clientes reales" : "Desactivado: los envíos salen normal"}
       </span>
     </div>
@@ -82,7 +82,7 @@ function ModoSombra() {
  *  tus ayudantes (giro, politicas de pago, datos para deposito). Real: se guarda a
  *  nivel tenant y el redactor lo usa. Se guarda al salir del campo. */
 function ContextoNegocio() {
-  const { data, loading, error, refetch } = useApi(() => api.agentConfig("mariana"), []);
+  const { data, loading, error, refetch } = useApi(api.businessContext, []);
   const [value, setValue] = useState<string | null>(null);
   const [estado, setEstado] = useState<"idle" | "guardando" | "ok">("idle");
   const actual = value ?? data?.business_context ?? "";
@@ -92,7 +92,7 @@ function ContextoNegocio() {
     if (loading || limpio === (data?.business_context ?? "").trim()) return;
     setEstado("guardando");
     try {
-      await api.saveAgentConfig("mariana", { business_context: limpio });
+      await api.saveBusinessContext(limpio);
       setEstado("ok");
     } catch (e) {
       setEstado("idle");
@@ -128,7 +128,7 @@ function ContextoNegocio() {
         onBlur={guardar}
         placeholder="Ej. Aceptamos transferencia y depósito OXXO. Cuenta CLABE 0123…"
       />
-      <p className="mt-1 text-[11.5px] text-ink-3" aria-live="polite">
+      <p className="mt-1 text-apoyo text-ink-3" aria-live="polite">
         {estado === "guardando" ? "Guardando…" : estado === "ok" ? "Guardado" : ""}
       </p>
     </SettingsField>
@@ -182,12 +182,54 @@ function VentanaEnvio() {
         }}
         onBlur={guardar}
       />
-      <p className="mt-1 text-[11.5px] text-ink-3" aria-live="polite">
+      <p className="mt-1 text-apoyo text-ink-3" aria-live="polite">
         {estado === "guardando" ? "Guardando…" : estado === "ok" ? "Guardado" : ""}
       </p>
     </SettingsField>
   );
 }
+
+/** Modo técnico: enseña lo que solo le sirve a quien programa (hoy, la API).
+ *
+ *  La regla del producto: el desarrollador instala, el usuario no técnico implementa.
+ *  Que la API exista y esté documentada es bueno; que viva en el menú de alguien que
+ *  nunca va a escribir un curl, no. Quien la busca la prende. Es preferencia de ESTA
+ *  consola (localStorage), no config del negocio: no se la impone a los demás. */
+function ModoTecnico() {
+  const [activo, setActivo] = useState(false);
+  useEffect(() => setActivo(localStorage.getItem("aiuda-modo-tecnico") === "1"), []);
+  const alternar = () => {
+    const nuevo = !activo;
+    setActivo(nuevo);
+    localStorage.setItem("aiuda-modo-tecnico", nuevo ? "1" : "0");
+    window.dispatchEvent(new Event("modo-tecnico-cambio"));
+    toast(nuevo ? "Modo técnico activado: aparece la API en el menú." : "Modo técnico desactivado.", "info");
+  };
+  return (
+    <div className="flex items-center gap-4">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={activo}
+        aria-label="Modo técnico"
+        onClick={alternar}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+          activo ? "bg-accent" : "bg-line-strong"
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-surface shadow transition-transform ${
+            activo ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+      <span className="text-cuerpo font-medium text-ink">
+        {activo ? "Activado: la API aparece en el menú" : "Desactivado"}
+      </span>
+    </div>
+  );
+}
+
 
 export default function ConfiguracionPage() {
   const { data: session } = useApi(() => api.workspace(), []);
@@ -211,6 +253,13 @@ export default function ConfiguracionPage() {
           }
         >
           <ModoSombra />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Modo técnico"
+          desc="Enseña en el menú lo que solo le sirve a quien programa: hoy, la API de tu aiuda. Todo lo que ves en esta consola existe primero como API y corre en esta computadora; si no la necesitas, no tiene por qué estorbarte."
+        >
+          <ModoTecnico />
         </SettingsSection>
 
         <SettingsSection
@@ -238,7 +287,7 @@ export default function ConfiguracionPage() {
         >
           <Link
             href="/ayudantes"
-            className="inline-flex rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            className="inline-flex rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
           >
             Ir a tus ayudantes
           </Link>

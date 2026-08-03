@@ -14,11 +14,8 @@ dejan aviso en la bitácora y siguen sin IA.
 
 from __future__ import annotations
 
-import json
-from collections.abc import Callable
 
 from aiuda_server import costs
-from aiuda_core.connectors import credentials as cred
 from aiuda_core.engine.llm import BudgetExceeded, UsageCallback
 from aiuda_core.engine.provider import resolve_credential
 from aiuda_core.engine.runner import ProviderRunner, make_runner
@@ -57,26 +54,20 @@ def budget_check(db, tenant: Tenant):
     return _check
 
 
-def _codex_token_persist(db, tenant_id: str) -> Callable[[dict], None]:
-    """Persiste el bundle de token de Codex tras un refresh, re-cifrándolo POR TENANT.
-    Sin esto, la rotación del refresh_token de OpenAI se perdería y el tenant tendría que
-    reconectar cada hora. Conserva 'connected' (refresh_secret no toca el status)."""
-
-    def _persist(bundle: dict) -> None:
-        cred.refresh_secret(
-            db, tenant_id, "ia", {"secret": json.dumps(bundle, separators=(",", ":"))}
-        )
-
-    return _persist
-
-
-def tenant_runner(db, tenant: Tenant) -> ProviderRunner:
+def tenant_runner(db, tenant: Tenant, run=None) -> ProviderRunner:
     """Runner del proveedor del tenant con metering y tope enganchados. Es la vía
-    canónica de la capa HTTP/worker; construir el runner a mano se salta el tope."""
+    canónica de la capa HTTP/worker; construir el runner a mano se salta el tope.
+
+    Con `run` (un RunRecorder abierto) queda además envuelto para grabar cada turno.
+    OJO con el orden: `budget_check` se asigna DESPUÉS de envolver, así que el wrapper
+    tiene que reenviar la asignación al runner de adentro o el tope de gasto se apaga en
+    silencio. Lo hace, y hay un test que lo fija."""
+    from aiuda_core.observabilidad import envolver
+
     runner = make_runner(
         resolve_credential(session=db, tenant_id=tenant.id),
         usage_callback=usage_recorder(db, tenant.id),
-        token_persist=_codex_token_persist(db, tenant.id),
     )
+    runner = envolver(runner, run, db, tenant)
     runner.budget_check = budget_check(db, tenant)
     return runner

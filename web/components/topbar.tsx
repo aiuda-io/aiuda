@@ -57,9 +57,9 @@ export function Topbar() {
           onClick={() => setMenuOpen((v) => !v)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className="flex items-center gap-2 rounded-md px-2 py-1 text-[13px] font-medium text-ink transition-colors hover:bg-line/50"
+          className="flex items-center gap-2 rounded-md px-2 py-1 text-cuerpo font-medium text-ink transition-colors hover:bg-line/50"
         >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-accent text-[10px] font-semibold text-surface">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-accent text-sello font-semibold text-surface">
             {businessName[0]?.toUpperCase() ?? ""}
           </span>
           {/* Truncado con tope: en 390px el header debe caber en UNA línea. */}
@@ -80,20 +80,20 @@ export function Topbar() {
               className="absolute left-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-lg"
             >
               <div className="border-b border-line/60 px-3 py-2">
-                <p className="truncate text-[12.5px] font-medium text-ink">{businessName}</p>
-                <p className="truncate text-[11px] text-ink-3">Todo corre en esta computadora</p>
+                <p className="truncate text-cuerpo font-semibold text-ink">{businessName}</p>
+                <p className="truncate text-apoyo text-ink-3">Todo corre en esta computadora</p>
               </div>
               <a
                 href="/configuracion"
                 role="menuitem"
-                className="block px-3 py-1.5 text-[12.5px] text-ink-2 transition-colors hover:bg-line/40 hover:text-ink"
+                className="block px-3 py-2 text-cuerpo text-ink-2 transition-colors hover:bg-line/40 hover:text-ink"
               >
                 Configuración del negocio
               </a>
               <a
                 href="/perfil"
                 role="menuitem"
-                className="block px-3 py-1.5 text-[12.5px] text-ink-2 transition-colors hover:bg-line/40 hover:text-ink"
+                className="block px-3 py-2 text-cuerpo text-ink-2 transition-colors hover:bg-line/40 hover:text-ink"
               >
                 Datos del negocio
               </a>
@@ -102,7 +102,7 @@ export function Topbar() {
         )}
       </div>
 
-      <span className="shrink-0 rounded border border-line px-1.5 py-px text-[10.5px] font-medium uppercase tracking-wide text-ink-3">
+      <span className="shrink-0 rounded border border-line px-1.5 py-0.5 text-rotulo font-medium uppercase tracking-wide text-ink-3">
         local
       </span>
 
@@ -115,8 +115,8 @@ export function Topbar() {
           <circle cx="6" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.3" />
           <path d="m9.5 9.5 2.7 2.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </svg>
-        <span className="text-[12.5px]">Buscar cliente, folio…</span>
-        <kbd className="ml-auto rounded border border-line bg-panel px-1 text-[10px] text-ink-3">
+        <span className="text-cuerpo">Buscar cliente, folio…</span>
+        <kbd className="ml-auto rounded border border-line bg-panel px-1 text-sello text-ink-3">
           ⌘K
         </kbd>
       </button>
@@ -139,7 +139,7 @@ export function Topbar() {
           target="_blank" no abre nada y el enlace se sentiría muerto. */}
       <a
         href="/manual/index.html"
-        className="hidden text-[12.5px] font-medium text-ink-2 transition-colors hover:text-ink sm:inline"
+        className="hidden text-cuerpo font-medium text-ink-2 transition-colors hover:text-ink sm:inline"
       >
         Manual
       </a>

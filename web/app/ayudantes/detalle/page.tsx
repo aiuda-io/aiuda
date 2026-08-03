@@ -120,9 +120,9 @@ function AyudanteDetail() {
                 }
               }}
               aria-label="Nombre del ayudante"
-              className="-ml-1 w-full max-w-xs rounded-md border border-transparent bg-transparent px-1 py-0.5 text-[21px] font-semibold tracking-tight text-ink hover:border-line focus:border-accent focus:bg-surface focus:outline-none"
+              className="-ml-1 w-full max-w-xs rounded-md border border-transparent bg-transparent px-1 py-0.5 text-titulo font-semibold tracking-tight text-ink hover:border-line focus:border-accent focus:bg-surface focus:outline-none"
             />
-            <p className="mt-0.5 px-1 text-[12.5px] text-ink-2">
+            <p className="mt-0.5 px-1 text-cuerpo text-ink-2">
               {perfiles.length > 0
                 ? perfiles.map((p) => p.name).join(" · ")
                 : "Sin oficio todavía · elige qué quieres que haga"}
@@ -130,14 +130,14 @@ function AyudanteDetail() {
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 px-1">
               {/* Nivel y acciones REALES: los deriva el backend de sus propuestas en la
                   bandeja (trabajar sube, rechazado no cuenta). Info, no un juego. */}
-              <span className="rounded bg-accent-soft px-1.5 py-px text-[10.5px] font-semibold text-accent-ink">
+              <span className="rounded bg-accent-soft px-1.5 py-px text-sello font-semibold text-accent-ink">
                 {ayudante.nivel.nivel}
               </span>
-              <span className="rounded border border-line px-1.5 py-px text-[11px] text-ink-2">
+              <span className="rounded border border-line px-1.5 py-px text-sello text-ink-2">
                 <span className="tnum">{ayudante.acciones.total}</span> acci
                 {ayudante.acciones.total === 1 ? "ón" : "ones"}
               </span>
-              <span className="rounded border border-line px-1.5 py-px text-[11px] text-ink-2">
+              <span className="rounded border border-line px-1.5 py-px text-sello text-ink-2">
                 <span className="tnum">{activeCount}</span> aiudita{activeCount === 1 ? "" : "s"}
               </span>
               {fuentes.length > 0 && (
@@ -149,7 +149,7 @@ function AyudanteDetail() {
                     <span
                       key={f.key}
                       title={f.live ? `Lee de ${f.name}` : `${f.name}: por conectar`}
-                      className="inline-flex items-center gap-1.5 rounded border border-line px-1.5 py-px text-[11px] text-ink-2"
+                      className="inline-flex items-center gap-1.5 rounded border border-line px-1.5 py-px text-sello text-ink-2"
                     >
                       <span
                         className="h-1.5 w-1.5 rounded-full"
@@ -166,7 +166,7 @@ function AyudanteDetail() {
             <span className="flex shrink-0 items-center gap-2">
               <button
                 onClick={remove}
-                className="rounded-md border border-danger/40 bg-danger-soft px-3 py-1.5 text-[12.5px] font-medium text-danger transition-colors hover:bg-danger hover:text-surface"
+                className="rounded-md border border-danger/40 bg-danger-soft px-3 py-1.5 text-cuerpo font-medium text-danger transition-colors hover:bg-danger hover:text-surface"
               >
                 Eliminar
               </button>
@@ -181,15 +181,15 @@ function AyudanteDetail() {
       {reciénCreado && !guiaCerrada && (
         <div className="mb-4 flex shrink-0 items-start gap-3 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-accent-ink">
+            <p className="text-seccion font-semibold text-accent-ink">
               {ayudante.name} está listo
             </p>
-            <p className="mt-0.5 text-[12.5px] text-ink-2">
+            <p className="mt-0.5 text-cuerpo text-ink-2">
               {activeCount === 0
                 ? "Con «Agregar aiudita» le eliges lo que quieres que haga; cada una se explica y se configura a tu negocio."
                 : "Ahora ajusta sus aiuditas a tu negocio: de dónde lee, el tono y tus reglas. Ábrelas en «Lo que sabe hacer»."}
             </p>
-            <p className="mt-1.5 text-[12px] text-ink-3">
+            <p className="mt-1.5 text-cuerpo text-ink-3">
               Corre con tu propia IA.{" "}
               <Link href="/proveedor" className="font-medium text-accent-ink hover:underline">
                 Conecta tu proveedor
@@ -199,7 +199,7 @@ function AyudanteDetail() {
           </div>
           <button
             onClick={() => setGuiaCerrada(true)}
-            className="shrink-0 rounded-md px-2 py-1 text-[12px] font-medium text-accent-ink/80 transition-colors hover:text-accent-ink"
+            className="shrink-0 rounded-md px-2 py-1 text-sello font-medium text-accent-ink/80 transition-colors hover:text-accent-ink"
           >
             Entendido
           </button>
@@ -268,7 +268,7 @@ function AyudanteDetail() {
       {tab === "aprendizaje" && (
         <div key="aprendizaje" className="reveal">
           {/* Loop de aprendizaje: qué aprende de tus ediciones en el Centro */}
-          <LearningPanel />
+          <LearningPanel ayudanteId={id} />
         </div>
       )}
     </div>
@@ -296,40 +296,43 @@ function LearningStat({
 }) {
   return (
     <div>
-      <div className="text-[15px] font-semibold tabular-nums text-ink">
+      <div className="text-cuerpo font-semibold tabular-nums text-ink">
         {value === null ? "·" : <AnimatedNumber value={value} format={format} />}
       </div>
-      <div className="text-[11px] text-ink-3">{label}</div>
+      <div className="text-apoyo text-ink-3">{label}</div>
     </div>
   );
 }
 
 /** El loop de aprendizaje hecho visible: cuánto se aprueba sin editar y las últimas
- *  correcciones del dueño. Esas ediciones se reinyectan al prompt del agente (backend),
- *  así redacta cada vez más como él. Es de cobranza (Mariana), el runtime que aprende. */
-function LearningPanel() {
+ *  correcciones del dueño. Esas ediciones se reinyectan al prompt del ayudante (backend),
+ *  así redacta cada vez más como él.
+ *
+ *  Son las correcciones DE ESTE ayudante: antes se pedía siempre el slug de runtime, así
+ *  que la pestaña mostraba los mismos números en todos. Dato falso y silencioso. */
+function LearningPanel({ ayudanteId }: { ayudanteId: string }) {
   const [sum, setSum] = useState<LearningSummary | null>(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     api
-      .learningSummary("mariana")
+      .learningSummary(ayudanteId)
       .then(setSum)
       .catch(() => setSum(null))
       .finally(() => setLoaded(true));
-  }, []);
+  }, [ayudanteId]);
   if (!loaded) return null; // secundario: silencioso mientras carga
   const enviados = (sum?.approved ?? 0) + (sum?.edited ?? 0);
   return (
     <section className="mb-6">
-      <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+      <h2 className="mb-1 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
         Qué aprende de ti
       </h2>
-      <p className="mb-3 text-[12px] text-ink-3">
+      <p className="mb-3 text-cuerpo text-ink-3">
         Cuando editas un recordatorio en el Centro antes de enviarlo, tu ayudante aprende tu
         forma de escribir e imita esos cambios en los siguientes borradores.
       </p>
       {!sum || enviados === 0 ? (
-        <div className="rounded-lg border border-line bg-surface px-4 py-3 text-[12.5px] text-ink-3">
+        <div className="rounded-lg border border-line bg-surface px-4 py-3 text-cuerpo text-ink-3">
           Aún no hay señales. Cuando apruebes o edites recordatorios en el Centro, aquí verás
           qué está aprendiendo.
         </div>
@@ -346,12 +349,12 @@ function LearningPanel() {
           </div>
           {sum.recientes.length > 0 && (
             <div className="px-4 py-3">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+              <p className="mb-2 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                 Tus últimas correcciones
               </p>
               <ul className="space-y-2.5">
                 {sum.recientes.map((c, i) => (
-                  <li key={i} className="text-[12px] leading-relaxed">
+                  <li key={i} className="text-cuerpo leading-relaxed">
                     <p className="text-ink-3 line-through decoration-ink-3/40">{c.original}</p>
                     <p className="text-ink">{c.final}</p>
                   </li>
@@ -380,7 +383,8 @@ function PersonaEditor({
   const [value, setValue] = useState(instructions);
   const [estado, setEstado] = useState<"idle" | "guardando" | "ok">("idle");
   const [verGarantias, setVerGarantias] = useState(false);
-  const [prompt, setPrompt] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState<{ chat: string; corrida: string } | null>(null);
+  const [promptTab, setPromptTab] = useState<"corrida" | "chat">("corrida");
   const [cargandoPrompt, setCargandoPrompt] = useState(false);
 
   const dirty = value.trim() !== (instructions ?? "").trim();
@@ -401,7 +405,7 @@ function PersonaEditor({
     setCargandoPrompt(true);
     try {
       const r = await api.ayudantePrompt(id);
-      setPrompt(r.system);
+      setPrompt({ chat: r.chat, corrida: r.corrida });
     } finally {
       setCargandoPrompt(false);
     }
@@ -409,14 +413,14 @@ function PersonaEditor({
 
   return (
     <section className="mb-6">
-      <h2 className="mb-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+      <h2 className="mb-1 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
         Personalidad e instrucciones
       </h2>
       <div className="rounded-lg border border-line bg-surface px-4 py-3.5">
-        <label htmlFor="persona" className="text-[12.5px] font-medium text-ink">
+        <label htmlFor="persona" className="text-cuerpo font-medium text-ink">
           Cómo quieres que sea {name}
         </label>
-        <p className="mb-2 mt-0.5 text-[11.5px] leading-relaxed text-ink-3">
+        <p className="mb-2 mt-0.5 text-apoyo leading-relaxed text-ink-3">
           En tus palabras: su tono, en qué poner atención, qué evitar. Ej: «Trata de usted, sé
           breve y cálido, y prioriza a los clientes con más atraso.» Esto se suma a lo que ya
           sabe hacer; las garantías de fábrica siguen mandando.
@@ -432,10 +436,10 @@ function PersonaEditor({
           rows={4}
           maxLength={4000}
           placeholder="Escribe aquí la personalidad y las instrucciones de tu ayudante…"
-          className="w-full resize-y rounded-md border border-line bg-bg px-3 py-2 text-[12.5px] leading-relaxed text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+          className="w-full resize-y rounded-md border border-line bg-bg px-3 py-2 text-cuerpo leading-relaxed text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
         />
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11.5px] text-ink-3" aria-live="polite">
+          <span className="text-apoyo text-ink-3" aria-live="polite">
             {estado === "guardando"
               ? "Guardando…"
               : estado === "ok"
@@ -447,14 +451,14 @@ function PersonaEditor({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setVerGarantias((v) => !v)}
-              className="rounded-md border border-line px-2.5 py-1 text-[11.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+              className="rounded-md border border-line px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
             >
               {verGarantias ? "Ocultar garantías" : "Garantías de fábrica"}
             </button>
             <button
               onClick={verPrompt}
               disabled={cargandoPrompt}
-              className="rounded-md border border-line px-2.5 py-1 text-[11.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+              className="rounded-md border border-line px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
             >
               {cargandoPrompt ? "Cargando…" : prompt !== null ? "Ocultar prompt" : "Ver el prompt final"}
             </button>
@@ -463,12 +467,12 @@ function PersonaEditor({
 
         {verGarantias && (
           <div className="mt-3 rounded-md border border-line/70 bg-bg px-3 py-2.5">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="mb-1.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
               No se pueden quitar
             </p>
             <ul className="space-y-1">
               {GARANTIAS_FABRICA.map((g) => (
-                <li key={g} className="flex gap-2 text-[11.5px] leading-relaxed text-ink-2">
+                <li key={g} className="flex gap-2 text-apoyo leading-relaxed text-ink-2">
                   <span aria-hidden className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-3" />
                   {g}
                 </li>
@@ -479,11 +483,30 @@ function PersonaEditor({
 
         {prompt !== null && (
           <div className="mt-3">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
-              Prompt del sistema (así lo ve tu ayudante)
-            </p>
-            <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-line/70 bg-bg px-3 py-2.5 text-[11.5px] leading-relaxed text-ink-2">
-              {prompt}
+            {/* Son dos y no uno: lo que le dice a un CLIENTE no es lo que te contesta
+                a ti. Antes esta vista enseñaba el de chat rotulado como "el final". */}
+            <div className="mb-1.5 flex items-center gap-3">
+              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                Prompt del sistema
+              </p>
+              <div className="flex gap-1">
+                {(["corrida", "chat"] as const).map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setPromptTab(k)}
+                    className={`rounded px-1.5 py-px text-sello font-medium transition-colors ${
+                      promptTab === k
+                        ? "bg-accent-soft text-accent-ink"
+                        : "text-ink-3 hover:text-ink-2"
+                    }`}
+                  >
+                    {k === "corrida" ? "Cuando le escribe a un cliente" : "Cuando platicas con él"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-line/70 bg-bg px-3 py-2.5 text-apoyo leading-relaxed text-ink-2">
+              {prompt[promptTab]}
             </pre>
           </div>
         )}
@@ -543,14 +566,14 @@ function SkillsPanel({
     // siempre a la vista, aunque tenga muchas.
     <div className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface lg:h-full">
       <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
           Lo que sabe hacer
         </h2>
-        {specs.length > 0 && <span className="tnum text-[11px] text-ink-3">{specs.length}</span>}
+        {specs.length > 0 && <span className="tnum text-apoyo text-ink-3">{specs.length}</span>}
       </div>
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {specs.length === 0 ? (
-          <p className="px-1 py-6 text-center text-[12px] leading-relaxed text-ink-3">
+          <p className="px-1 py-6 text-center text-cuerpo leading-relaxed text-ink-3">
             Todavía no sabe hacer nada. Agrégale una aiudita para empezar; cada una se explica y
             se ajusta a tu negocio.
           </p>
@@ -569,7 +592,7 @@ function SkillsPanel({
       <div className="shrink-0 border-t border-line/60 p-3">
         <button
           onClick={onOpenPicker}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong px-3 py-2.5 text-[12.5px] font-medium text-accent-ink transition-colors hover:border-accent hover:bg-accent-soft"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-line-strong px-3 py-2.5 text-cuerpo font-medium text-accent-ink transition-colors hover:border-accent hover:bg-accent-soft"
         >
           <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
             <path d="M8 3v10M3 8h10" />
@@ -630,8 +653,8 @@ function AiuditaRow({
           <AiuditaIcon id={spec.id} tipo={tipo} className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium text-ink">{spec.label}</span>
-          <span className="mt-0.5 flex items-center gap-2 text-[11px]">
+          <span className="block truncate text-cuerpo font-medium text-ink">{spec.label}</span>
+          <span className="mt-0.5 flex items-center gap-2 text-apoyo">
             <span
               className="inline-flex items-center gap-1 font-semibold"
               style={{ color: spec.live ? "var(--color-ok)" : "var(--color-ink-3)" }}
@@ -665,8 +688,8 @@ function AiuditaRow({
               ))}
               {spec.reglas_libres && (
                 <div>
-                  <label className="text-[12px] font-medium text-ink">Reglas de tu negocio</label>
-                  <p className="mb-1 text-[11.5px] text-ink-3">
+                  <label className="text-cuerpo font-medium text-ink">Reglas de tu negocio</label>
+                  <p className="mb-1 text-apoyo text-ink-3">
                     En tus palabras, lo que debe o no debe hacer. Ej: «no menciones recargos».
                   </p>
                   <textarea
@@ -675,19 +698,19 @@ function AiuditaRow({
                       if (e.target.value !== reglas) guardar("reglas", e.target.value);
                     }}
                     rows={2}
-                    className="w-full resize-y rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                    className="w-full resize-y rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
                     placeholder="Escribe aquí tus reglas…"
                   />
                 </div>
               )}
             </>
           ) : (
-            <p className="text-[11.5px] leading-relaxed text-ink-3">{spec.linea}</p>
+            <p className="text-apoyo leading-relaxed text-ink-3">{spec.linea}</p>
           )}
           <div className="flex justify-end pt-1">
             <button
               onClick={onRemove}
-              className="rounded-md border border-line px-2 py-1 text-[11.5px] font-medium text-ink-2 transition-colors hover:border-danger/40 hover:text-danger"
+              className="rounded-md border border-line px-2 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-danger/40 hover:text-danger"
             >
               Quitar
             </button>
@@ -712,14 +735,14 @@ function PerillaField({
   return (
     <div className={muted ? "opacity-70" : undefined}>
       <div className="flex items-center gap-2">
-        <label className="text-[12px] font-medium text-ink">{p.label}</label>
+        <label className="text-cuerpo font-medium text-ink">{p.label}</label>
         {!p.live && (
-          <span className="rounded bg-line/50 px-1.5 py-px text-[10px] font-medium text-ink-3">
+          <span className="rounded bg-line/50 px-1.5 py-px text-sello font-medium text-ink-3">
             por conectar
           </span>
         )}
       </div>
-      {p.ayuda && <p className="mb-1 text-[11.5px] text-ink-3">{p.ayuda}</p>}
+      {p.ayuda && <p className="mb-1 text-apoyo text-ink-3">{p.ayuda}</p>}
 
       {p.tipo === "bool" ? (
         <button
@@ -742,7 +765,7 @@ function PerillaField({
             <button
               key={o.value}
               onClick={() => onSave(o.value)}
-              className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-sello font-medium transition-colors ${
                 value === o.value
                   ? "bg-accent-soft text-accent-ink"
                   : "border border-line text-ink-2 hover:border-line-strong hover:text-ink"
@@ -763,9 +786,9 @@ function PerillaField({
               const n = Number(e.target.value);
               if (!Number.isNaN(n) && n !== value) onSave(n);
             }}
-            className="w-24 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-ink focus:border-accent focus:outline-none"
+            className="w-24 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink focus:border-accent focus:outline-none"
           />
-          {p.unidad && <span className="text-[12px] text-ink-3">{p.unidad}</span>}
+          {p.unidad && <span className="text-cuerpo text-ink-3">{p.unidad}</span>}
         </div>
       ) : (
         // texto / hora
@@ -775,7 +798,7 @@ function PerillaField({
           onBlur={(e) => {
             if (e.target.value !== value) onSave(e.target.value);
           }}
-          className="w-full max-w-xs rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+          className="w-full max-w-xs rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
         />
       )}
     </div>
@@ -813,8 +836,8 @@ function FuenteField({
   const hayCua = fuentes.some((f) => f.experimental);
   return (
     <div>
-      <label className="text-[12px] font-medium text-ink">De dónde lee</label>
-      <p className="mb-1.5 text-[11.5px] text-ink-3">
+      <label className="text-cuerpo font-medium text-ink">De dónde lee</label>
+      <p className="mb-1.5 text-apoyo text-ink-3">
         {hayViva
           ? "La fuente de esta capacidad. Conecta otra para poder cambiarla."
           : hayCua
@@ -832,7 +855,7 @@ function FuenteField({
                   ? "Un agente de cómputo opera el portal. Experimental: aún no ejecuta en este entorno."
                   : undefined
               }
-              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sello font-medium transition-colors ${
                 value === f.key
                   ? "bg-accent-soft text-accent-ink ring-1 ring-accent/40"
                   : "border border-line text-ink-2 hover:border-line-strong hover:text-ink"
@@ -841,18 +864,18 @@ function FuenteField({
               <FuenteLogo f={f} muted={f.experimental} />
               {f.name}
               {f.experimental && (
-                <span className="rounded bg-line/50 px-1 py-px text-[10px] text-ink-3">experimental</span>
+                <span className="rounded bg-line/50 px-1 py-px text-sello text-ink-3">experimental</span>
               )}
             </button>
           ) : (
             <Link
               key={f.key}
               href={`/integraciones/detalle?key=${f.key}`}
-              className="flex items-center gap-1.5 rounded-md border border-dashed border-line px-2.5 py-1 text-[12px] font-medium text-ink-3 transition-colors hover:border-line-strong hover:text-ink-2"
+              className="flex items-center gap-1.5 rounded-md border border-dashed border-line px-2.5 py-1 text-sello font-medium text-ink-3 transition-colors hover:border-line-strong hover:text-ink-2"
             >
               <FuenteLogo f={f} muted />
               {f.name}
-              <span className="rounded bg-line/50 px-1 py-px text-[10px]">por conectar</span>
+              <span className="rounded bg-line/50 px-1 py-px text-sello">por conectar</span>
             </Link>
           ),
         )}
@@ -880,10 +903,10 @@ const AIUDITA_DE_CORRIDA = "cobranza.redactar_recordatorio";
 function WorkStat({ n, label }: { n: number; label: string }) {
   return (
     <div>
-      <div className="text-[16px] font-semibold leading-none tabular-nums text-ink">
+      <div className="text-seccion font-semibold leading-none tabular-nums text-ink">
         <AnimatedNumber value={n} />
       </div>
-      <div className="mt-1 text-[11px] text-ink-3">{label}</div>
+      <div className="mt-1 text-apoyo text-ink-3">{label}</div>
     </div>
   );
 }
@@ -937,7 +960,7 @@ function WorkSurface({
             {corriendo ? "Corriendo…" : "Correr ahora"}
           </PrimaryButton>
         ) : (
-          <span className="max-w-[190px] text-right text-[11px] leading-snug text-ink-3">
+          <span className="max-w-[190px] text-right text-apoyo leading-snug text-ink-3">
             Trabaja en el chat; para correr la cartera sola, agrégale «Redactar recordatorio».
           </span>
         )}
@@ -945,7 +968,7 @@ function WorkSurface({
 
       {resultado && (
         <p
-          className="shrink-0 border-b border-line bg-accent-soft/40 px-4 py-2 text-[12px] text-ink-2"
+          className="shrink-0 border-b border-line bg-accent-soft/40 px-4 py-2 text-cuerpo text-ink-2"
           aria-live="polite"
         >
           {resultado.propuestas > 0 ? (
@@ -1123,12 +1146,12 @@ function AppearancePicker({
   return (
     <section className="mb-6 rounded-lg border border-line bg-surface px-5 py-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
           Apariencia
         </h2>
         <button
           onClick={shuffle}
-          className="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-[11.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+          className="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
         >
           <DiceIcon />
           Al azar
@@ -1147,7 +1170,7 @@ function AppearancePicker({
                 role="tab"
                 aria-selected={tab === t.key}
                 onClick={() => setTab(t.key)}
-                className={`rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
+                className={`rounded-md px-2.5 py-1 text-sello font-medium transition-colors ${
                   tab === t.key
                     ? "bg-accent-soft text-accent-ink"
                     : "text-ink-3 hover:text-ink"

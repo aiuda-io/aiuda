@@ -9,7 +9,7 @@ import { SOURCE_LABEL, SOURCE_LOGO } from "@/components/ui";
 import { RailLayout } from "@/components/rail";
 import { WritebackStatus } from "@/components/writeback-status";
 import { InyectarButton } from "@/components/inyectar-button";
-import { agentDisplayName } from "@/lib/asistentes";
+import { oficioDe } from "@/lib/oficios";
 const STATUS_LABEL: Record<string, string> = {
   draft: "Borrador",
   pending_approval: "Por aprobar",
@@ -25,8 +25,8 @@ const fmtShort = (iso?: string) => (iso ? fechaDM(iso) : "");
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-[0.06em] text-ink-3">{label}</p>
-      <p className="mt-0.5 text-[12.5px] text-ink">{value}</p>
+      <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{label}</p>
+      <p className="mt-0.5 text-cuerpo text-ink">{value}</p>
     </div>
   );
 }
@@ -91,17 +91,17 @@ export function InvoiceDetailContent({
     /* Monto + estado */
     <div className="flex items-end justify-between">
       <div>
-        <p className="tnum text-[26px] font-semibold leading-none text-ink">{mxn(data.amount)}</p>
-        <p className="mt-1 text-[12px] text-ink-3">{data.currency}</p>
+        <p className="tnum text-cifra font-semibold leading-none text-ink">{mxn(data.amount)}</p>
+        <p className="mt-1 text-cuerpo text-ink-3">{data.currency}</p>
       </div>
       {data.status === "paid" ? (
-        <span className="rounded-full bg-ok-soft px-2.5 py-1 text-[11.5px] font-medium text-ok">Pagada</span>
+        <span className="rounded-full bg-ok-soft px-2.5 py-1 text-sello font-medium text-ok">Pagada</span>
       ) : data.payment_reported ? (
-        <span className="rounded-full bg-warn-soft px-2.5 py-1 text-[11.5px] font-medium text-warn">
+        <span className="rounded-full bg-warn-soft px-2.5 py-1 text-rotulo font-medium text-warn">
           Cliente reporta pago
         </span>
       ) : (
-        <span className="rounded-full bg-panel px-2.5 py-1 text-[11.5px] font-medium text-ink-2">
+        <span className="rounded-full bg-panel px-2.5 py-1 text-sello font-medium text-ink-2">
           {BUCKET_META[data.bucket]?.label ??
             (data.bucket === "cotizacion" ? "Cotización" : "Abierta")}
         </span>
@@ -116,7 +116,7 @@ export function InvoiceDetailContent({
       {activeReminder ? (
         <Link
           href={`/centro?r=${activeReminder.id}`}
-          className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong"
+          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
         >
           Ver recordatorio
         </Link>
@@ -124,7 +124,7 @@ export function InvoiceDetailContent({
         <button
           onClick={recordar}
           disabled={busy !== null}
-          className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
         >
           {busy === "remind" ? "Redactando…" : "Recordar"}
         </button>
@@ -132,7 +132,7 @@ export function InvoiceDetailContent({
       <button
         onClick={registrarPago}
         disabled={busy !== null}
-        className="rounded-md border border-line bg-surface px-3.5 py-1.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+        className="rounded-md border border-line bg-surface px-3.5 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
       >
         {busy === "pay" ? "Registrando…" : "Registrar pago"}
       </button>
@@ -181,24 +181,24 @@ export function InvoiceDetailContent({
   const cfdiSection = cfdi && (
         <section className="rounded-lg border border-line bg-panel/40 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-[12px] font-semibold text-ink">
+            <h3 className="text-cuerpo font-semibold text-ink">
               Comprobante fiscal{cfdi.version ? ` · CFDI ${cfdi.version}` : ""}
             </h3>
             {cfdiCuadra !== null &&
               (cfdiCuadra ? (
-                <span className="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok">
+                <span className="rounded-full bg-ok-soft px-2 py-0.5 text-rotulo font-medium text-ok">
                   Cuadra con el saldo
                 </span>
               ) : (
-                <span className="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn">
+                <span className="rounded-full bg-warn-soft px-2 py-0.5 text-rotulo font-medium text-warn">
                   No cuadra con el saldo
                 </span>
               ))}
           </div>
           <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
             <div className="col-span-2">
-              <p className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Folio fiscal (UUID)</p>
-              <p className="tnum mt-0.5 break-all text-[12px] text-ink">{cfdi.uuid}</p>
+              <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Folio fiscal (UUID)</p>
+              <p className="tnum mt-0.5 break-all text-cuerpo text-ink">{cfdi.uuid}</p>
             </div>
             <Field
               label="Emisor"
@@ -206,7 +206,7 @@ export function InvoiceDetailContent({
                 <>
                   {cfdi.emisor?.nombre ?? "·"}
                   {cfdi.emisor?.rfc && (
-                    <span className="tnum block text-[11px] text-ink-3">{cfdi.emisor.rfc}</span>
+                    <span className="tnum block text-apoyo text-ink-3">{cfdi.emisor.rfc}</span>
                   )}
                 </>
               }
@@ -217,7 +217,7 @@ export function InvoiceDetailContent({
                 <>
                   {cfdi.receptor?.nombre ?? "·"}
                   {cfdi.receptor?.rfc && (
-                    <span className="tnum block text-[11px] text-ink-3">{cfdi.receptor.rfc}</span>
+                    <span className="tnum block text-apoyo text-ink-3">{cfdi.receptor.rfc}</span>
                   )}
                 </>
               }
@@ -237,7 +237,7 @@ export function InvoiceDetailContent({
                   href={`/api/v1/invoices/${data.id}/cfdi.xml`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
                 >
                   Ver XML
                 </a>
@@ -247,7 +247,7 @@ export function InvoiceDetailContent({
                   href={`/api/v1/invoices/${data.id}/cfdi.pdf`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
                 >
                   Ver PDF
                 </a>
@@ -260,13 +260,13 @@ export function InvoiceDetailContent({
   const presencia = (
       /* Presencia multi-sistema */
       <section>
-        <h3 className="text-[12px] font-semibold text-ink">Dónde vive este registro</h3>
-        <p className="mt-0.5 text-[11.5px] text-ink-3">
+        <h3 className="text-cuerpo font-semibold text-ink">Dónde vive este registro</h3>
+        <p className="mt-0.5 text-apoyo text-ink-3">
           El mismo registro puede existir en varios sistemas. Salta a cualquiera.
         </p>
         <ul className="mt-2.5 space-y-1.5">
           {presence.length === 0 && (
-            <li className="text-[12px] text-ink-3">Origen: {SOURCE_LABEL[data.source] ?? data.source}</li>
+            <li className="text-cuerpo text-ink-3">Origen: {SOURCE_LABEL[data.source] ?? data.source}</li>
           )}
           {presence.map(([sys, info]) => (
             <li key={sys}>
@@ -279,21 +279,21 @@ export function InvoiceDetailContent({
                 {SOURCE_LOGO[sys] ? (
                   <img src={SOURCE_LOGO[sys]} alt="" className="h-4 w-4" />
                 ) : (
-                  <span className="flex h-4 w-4 items-center justify-center rounded bg-panel text-[9px] font-bold text-ink-2">
+                  <span className="flex h-4 w-4 items-center justify-center rounded bg-panel text-sello font-bold text-ink-2">
                     {(SOURCE_LABEL[sys] ?? sys).slice(0, 2)}
                   </span>
                 )}
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12.5px] font-medium text-ink">{SOURCE_LABEL[sys] ?? sys}</span>
+                  <span className="block text-cuerpo font-medium text-ink">{SOURCE_LABEL[sys] ?? sys}</span>
                   {(info.file || info.at) && (
-                    <span className="block truncate text-[11px] text-ink-3">
+                    <span className="block truncate text-apoyo text-ink-3">
                       {info.file}
                       {info.file && info.at ? " · " : ""}
                       {info.at ? `subido ${fmtShort(info.at)}` : ""}
                     </span>
                   )}
                 </span>
-                {info.ref && <span className="tnum text-[11.5px] text-ink-3">{info.ref}</span>}
+                {info.ref && <span className="tnum text-apoyo text-ink-3">{info.ref}</span>}
                 {info.url && (
                   <svg viewBox="0 0 12 12" className="h-3 w-3 text-ink-3 transition-transform group-hover:translate-x-0.5" fill="none">
                     <path d="M4 2h6v6M10 2 3 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -318,17 +318,17 @@ export function InvoiceDetailContent({
   const actividad = (data.reminders.length > 0 || data.promises.length > 0) && (
         /* Actividad del equipo */
         <section>
-          <h3 className="text-[12px] font-semibold text-ink">Actividad del equipo</h3>
+          <h3 className="text-cuerpo font-semibold text-ink">Actividad del equipo</h3>
           <ul className="mt-2.5 space-y-2.5">
             {data.promises.map((p) => (
               <li key={p.id} className="flex gap-2.5">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
                 <div>
-                  <p className="text-[12.5px] text-ink">
+                  <p className="text-cuerpo text-ink">
                     Promesa de pago para el {fmtDate(p.promised_date)}
                     {p.fulfilled && <span className="text-ok"> · cumplida</span>}
                   </p>
-                  {p.note && <p className="text-[11.5px] text-ink-3">“{p.note}”</p>}
+                  {p.note && <p className="text-apoyo text-ink-3">“{p.note}”</p>}
                 </div>
               </li>
             ))}
@@ -336,11 +336,12 @@ export function InvoiceDetailContent({
               <li key={r.id} className="flex gap-2.5">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-ink-3" />
                 <Link href={`/centro?r=${r.id}`} className="group min-w-0">
-                  <p className="text-[12.5px] text-ink group-hover:text-accent-ink">
-                    {agentDisplayName(r.agent)} redactó un recordatorio
+                  <p className="text-cuerpo text-ink group-hover:text-accent-ink">
+                    {/* El ayudante que el dueño creó, no el slug del runtime. */}
+                    {r.propuesto_por || oficioDe(r.agent)} redactó un recordatorio
                     <span className="text-ink-3"> · {STATUS_LABEL[r.status] ?? r.status}</span>
                   </p>
-                  <p className="text-[11.5px] text-ink-3">
+                  <p className="text-apoyo text-ink-3">
                     Tono {TONE_LABEL[r.tone] ?? r.tone}
                     {r.sent_at ? ` · enviado ${fmtDate(r.sent_at)}` : ""}
                   </p>
@@ -357,14 +358,14 @@ export function InvoiceDetailContent({
       {data.conversation_id && (
         <Link
           href={`/conversaciones?id=${data.conversation_id}`}
-          className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+          className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
         >
           Ver conversación
         </Link>
       )}
       <Link
         href={`/clientes/detalle?id=${data.customer_id}`}
-        className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
       >
         Ver cliente
       </Link>

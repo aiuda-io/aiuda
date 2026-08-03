@@ -25,8 +25,9 @@ Principios:
 - **Local-first.** Todo corre en tu máquina. Tus datos no viven en la nube de
   nadie.
 - **Tu IA.** Si ya tienes Claude Code o Codex instalados, aiuda los usa con un
-  clic. Si no, traes tu llave, tu suscripción o un modelo local con Ollama.
-  aiuda no incluye ni revende inferencia.
+  clic: el programa se identifica con tu propia sesión y aiuda nunca ve tu token.
+  Si no los tienes, traes tu llave o corres un modelo local con Ollama. aiuda no
+  incluye ni revende inferencia.
 - **Tus fuentes siguen mandando.** aiuda no es el sistema de registro: lee con
   procedencia y el write-back regresa a la fuente.
 - **Honestidad.** Lo que no está probado en vivo lo dice la consola y lo dicen
@@ -105,7 +106,7 @@ Opcionales:
 2. **Crea tu ayudante.** Nombre propio y oficio: la plantilla trae sus aiuditas
    listas y las perillas se ajustan a tu negocio.
 3. **Conecta tu IA.** Un clic si ya tienes Claude Code o Codex; si no, llave,
-   suscripción o modelo local.
+   o un modelo local.
 4. **Aprueba.** El ayudante sincroniza, redacta y deja todo en tu bandeja. Nada
    sale sin tu visto bueno y cada aprobación queda en la bitácora.
 5. **Cobra.** Lo aprobado sale por WhatsApp o correo, los pagos detectados entran
@@ -154,7 +155,7 @@ versiones que puedan contradecirse.
 | Documento | Para qué |
 |---|---|
 | [docs/INSTALAR.md](docs/INSTALAR.md) | Instalar la app o correr desde la terminal |
-| [docs/IA.md](docs/IA.md) | Conectar tu IA: el CLI que ya tienes, llave, suscripción o modelo local |
+| [docs/IA.md](docs/IA.md) | Conectar tu IA: el programa que ya tienes, tu llave, o un modelo local |
 | [docs/APARATOS.md](docs/APARATOS.md) | Tu teléfono y el de tu equipo, dentro de tu propia red |
 | [docs/DATOS.md](docs/DATOS.md) | Qué se guarda, dónde, cómo respaldar y cómo borrar |
 | [docs/SAT.md](docs/SAT.md) | Bóveda fiscal, e.firma y Descarga Masiva del SAT |

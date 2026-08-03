@@ -22,7 +22,7 @@ function BuscarNegociosLink() {
   return (
     <Link
       href="/prospectos/buscar"
-      className="inline-flex rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong"
+      className="inline-flex rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
     >
       Buscar negocios
     </Link>
@@ -99,10 +99,10 @@ export default function ProspectosPage() {
                 <RailSection label="Por origen">
                   {porOrigen.map(([origen, n]) => (
                     <RailRow key={origen}>
-                      <span className="truncate text-[12.5px] text-ink-2">
+                      <span className="truncate text-cuerpo text-ink-2">
                         {SOURCE_LABEL[origen] ?? origen}
                       </span>
-                      <span className="tnum shrink-0 text-[12.5px] font-medium text-ink">{n}</span>
+                      <span className="tnum shrink-0 text-cuerpo font-medium text-ink">{n}</span>
                     </RailRow>
                   ))}
                 </RailSection>
@@ -116,7 +116,7 @@ export default function ProspectosPage() {
           <div className="reveal overflow-x-auto rounded-lg border border-line bg-surface">
             <table className="w-full min-w-[560px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                   <th className="px-4 py-2.5">Prospecto</th>
                   <th className="px-4 py-2.5">Empresa</th>
                   <th className="px-4 py-2.5">Origen</th>
@@ -135,29 +135,29 @@ export default function ProspectosPage() {
                       <Link
                         href={`/clientes/detalle?id=${c.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[12.5px] font-medium text-ink hover:text-accent-ink hover:underline"
+                        className="text-cuerpo font-medium text-ink hover:text-accent-ink hover:underline"
                       >
                         {c.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-2.5 text-[12px] text-ink-2">
+                    <td className="px-4 py-2.5 text-cuerpo text-ink-2">
                       {c.meta?.empresa ?? <span className="text-ink-3">·</span>}
                     </td>
-                    <td className="px-4 py-2.5 text-[12px] text-ink-2">
+                    <td className="px-4 py-2.5 text-cuerpo text-ink-2">
                       {c.meta?.origen ? (
                         (SOURCE_LABEL[c.meta.origen] ?? c.meta.origen)
                       ) : (
                         <span className="text-ink-3">·</span>
                       )}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-[12px] text-ink-2">
+                    <td className="tnum px-4 py-2.5 text-cuerpo text-ink-2">
                       {c.phone ?? <span className="text-ink-3">sin teléfono</span>}
                     </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+                    <td colSpan={4} className="px-4 py-10 text-center text-cuerpo text-ink-3">
                       Sin resultados para tu búsqueda.
                     </td>
                   </tr>

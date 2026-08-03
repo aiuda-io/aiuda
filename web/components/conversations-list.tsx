@@ -86,8 +86,8 @@ export function ConversationsList() {
   return (
     <div className="flex h-full flex-col">
       <header className="shrink-0 px-4 pb-2.5 pt-3.5">
-        <h1 className="text-[15px] font-semibold tracking-tight text-ink">Conversaciones</h1>
-        <p className="mt-0.5 text-[11.5px] text-ink-3">WhatsApp y correo, en una bandeja.</p>
+        <h1 className="text-cuerpo font-semibold tracking-tight text-ink">Conversaciones</h1>
+        <p className="mt-0.5 text-apoyo text-ink-3">WhatsApp y correo, en una bandeja.</p>
       </header>
 
       {error ? (
@@ -132,7 +132,7 @@ export function ConversationsList() {
 
           <ul className="min-h-0 flex-1 divide-y divide-line/70 overflow-y-auto">
             {rows.length === 0 && (
-              <li className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+              <li className="px-4 py-10 text-center text-cuerpo text-ink-3">
                 Nada aquí{query ? " para tu búsqueda" : ""}.
               </li>
             )}
@@ -168,7 +168,7 @@ export function ConversationsList() {
 }
 
 const fieldCls =
-  "min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+  "min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
 
 function ConversationRow({
   c,
@@ -205,20 +205,20 @@ function ConversationRow({
           active ? "" : "hover:bg-panel/60"
         }`}
       >
-        <p className="flex items-center gap-2 text-[13px] font-medium text-ink">
+        <p className="flex items-center gap-2 text-cuerpo font-medium text-ink">
           <span className="min-w-0 flex-1 truncate">{title}</span>
-          {cuando !== "·" && <span className="shrink-0 text-[10.5px] font-normal text-ink-3">{cuando}</span>}
+          {cuando !== "·" && <span className="shrink-0 text-sello font-normal text-ink-3">{cuando}</span>}
         </p>
         <p className="mt-0.5 flex items-center gap-1.5">
-          <span className="shrink-0 rounded bg-panel px-1.5 py-px text-[10px] font-medium text-ink-2">
+          <span className="shrink-0 rounded bg-panel px-1.5 py-px text-sello font-medium text-ink-2">
             {esCorreo ? "Correo" : "WhatsApp"}
           </span>
           {c.human_takeover && (
-            <span className="shrink-0 rounded border border-line px-1.5 py-px text-[10px] font-medium text-ink-2">
+            <span className="shrink-0 rounded border border-line px-2 py-0.5 text-rotulo font-medium text-ink-2">
               tú al mando
             </span>
           )}
-          <span className="min-w-0 flex-1 truncate text-[11.5px] text-ink-3">{preview}</span>
+          <span className="min-w-0 flex-1 truncate text-apoyo text-ink-3">{preview}</span>
         </p>
       </Link>
 
@@ -226,7 +226,7 @@ function ConversationRow({
         {c.status === "identificado" && c.customer_id && (
           <Link
             href={`/clientes/detalle?id=${c.customer_id}`}
-            className="text-[11.5px] font-medium text-accent-ink transition-colors hover:underline"
+            className="text-apoyo font-medium text-accent-ink transition-colors hover:underline"
           >
             Ver ficha
           </Link>
@@ -235,7 +235,7 @@ function ConversationRow({
           <button
             onClick={() => setRegistering((v) => !v)}
             disabled={busy}
-            className="text-[11.5px] font-medium text-accent-ink transition-colors hover:underline disabled:opacity-50"
+            className="text-apoyo font-medium text-accent-ink transition-colors hover:underline disabled:opacity-50"
           >
             {registering ? "Cerrar" : "Registrar cliente"}
           </button>
@@ -243,7 +243,7 @@ function ConversationRow({
         <button
           onClick={c.status === "descartado" ? onUndismiss : onDismiss}
           disabled={busy}
-          className="ml-auto text-[11.5px] text-ink-3 transition-colors hover:text-ink disabled:opacity-50"
+          className="ml-auto text-apoyo text-ink-3 transition-colors hover:text-ink disabled:opacity-50"
         >
           {c.status === "descartado" ? "Deshacer" : "Descartar"}
         </button>
@@ -252,7 +252,7 @@ function ConversationRow({
       {/* Un contacto por identificar no es cliente aún: lígalo a uno que ya tengas o crea uno. */}
       {registering && c.status === "por_identificar" && (
         <div className="mx-2 mb-2 rounded-lg border border-line bg-panel/50 p-2.5">
-          <p className="text-[11px] leading-relaxed text-ink-3">
+          <p className="text-apoyo leading-relaxed text-ink-3">
             {esCorreo ? "El correo" : "El número"}{" "}
             <span className="tnum font-medium text-ink-2">{contacto}</span> aún no es de nadie.
           </p>

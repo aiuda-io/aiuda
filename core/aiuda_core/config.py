@@ -39,14 +39,8 @@ class Settings(BaseSettings):
     # Modelos por tarea: Haiku clasifica/triage, Sonnet redacta y razona cartera.
     model_triage: str = "claude-haiku-4-5"
     model_redaccion: str = "claude-sonnet-4-6"
-    # Redacción por SUSCRIPCIÓN: el token de Claude Code da tasa usable para haiku pero
-    # topa 429 duro con sonnet (verificado en vivo). Así la suscripción redacta gratis con
-    # el modelo que sí la deja pasar; la vía api_key conserva sonnet para quien la use.
-    model_redaccion_suscripcion: str = "claude-haiku-4-5"
-    # OpenAI vía suscripción de ChatGPT (Sign in with ChatGPT / Codex). La cuenta
-    # ChatGPT solo deja pasar los modelos gpt-5.x generales por el backend de Codex
-    # (los *-codex especializados los rechaza); gpt-5.5 es el default de codex. Un
-    # mismo modelo cubre triage y redaccion (no hay un "haiku" barato equivalente).
+    # OpenAI por la Responses API estándar. Un mismo modelo cubre triage y redacción
+    # (no hay un equivalente barato de haiku).
     model_codex: str = "gpt-5.5"
     model_codex_triage: str = "gpt-5.5"
 

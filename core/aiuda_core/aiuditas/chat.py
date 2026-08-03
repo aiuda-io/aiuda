@@ -66,7 +66,17 @@ class AyudanteChatExecutor:
     """Despacha cada tool al ejecutor del perfil que lo provee. Tenant obligatorio
     (un ayudante jamás ve datos de otro negocio). Solo herramientas de lectura."""
 
-    def __init__(self, session: Session, tenant: Tenant, aiudita_ids, today: date | None = None):
+    def __init__(
+        self,
+        session: Session,
+        tenant: Tenant,
+        aiudita_ids,
+        today: date | None = None,
+        caller_phone: str | None = None,
+    ):
+        """``caller_phone`` acota las consultas al cliente que está del otro lado cuando
+        el interlocutor NO es el dueño (un deudor por WhatsApp). Lo aplica cada
+        ToolExecutor; aquí solo se transporta."""
         self._dispatch: dict[str, ToolExecutor] = {}
         instancias: dict[type[ToolExecutor], ToolExecutor] = {}
         for aid in aiudita_ids:
@@ -75,7 +85,7 @@ class AyudanteChatExecutor:
                 continue
             schema, cls = entry
             if cls not in instancias:
-                instancias[cls] = cls(session, tenant, today=today)
+                instancias[cls] = cls(session, tenant, today=today, caller_phone=caller_phone)
             self._dispatch[schema["name"]] = instancias[cls]
 
     @property

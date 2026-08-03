@@ -374,6 +374,31 @@ class Ayudante(Base, TenantMixin, TimestampMixin):
     aiuditas: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class OptOut(Base, TenantMixin, TimestampMixin):
+    """El cliente pidió BAJA: no se le manda nada automatizado por ese medio.
+
+    Vivía en ``Tenant.config["optouts"]``, y ahí se perdía. Ese blob se guarda con
+    read-modify-write del JSON completo desde varios hilos a la vez: el sondeo de
+    entrantes (que es justo quien registra la baja, worker/main.py:236) y el latido
+    del scheduler cada 30 s (scheduler.py:108) escriben el mismo objeto, cada uno con
+    su sesión. El último commit gana y descarta en silencio la llave del otro.
+
+    O sea: una baja podía desaparecer y aiuda volvía a escribirle a quien dijo que no.
+    Eso no es un detalle de concurrencia, es la promesa central del producto y es
+    registro legal. Con fila propia, dos escrituras concurrentes ya no se pisan.
+
+    La llave es ``contact_key``: últimos 10 dígitos del teléfono (estable ante 52 vs
+    521) o el correo en minúsculas. La baja es POR MEDIO de contacto."""
+
+    __tablename__ = "optouts"
+    __table_args__ = (UniqueConstraint("tenant_id", "contact_key"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    contact_key: Mapped[str] = mapped_column(String(255), index=True)
+    # whatsapp | correo | consola. Por dónde llegó la baja.
+    via: Mapped[str] = mapped_column(String(16), default="whatsapp")
+
+
 class AgentFeedback(Base, TenantMixin, TimestampMixin):
     """Señal de aprendizaje: cómo el humano corrigió (o no) un borrador del agente.
 

@@ -114,15 +114,15 @@ export default function ClientesPage() {
                   {mayorSaldo.map((c, i) => (
                     <RailRow key={c.id}>
                       <span className="flex min-w-0 items-center gap-2.5">
-                        <span className="tnum w-3 shrink-0 text-[11px] text-ink-3">{i + 1}</span>
+                        <span className="tnum w-3 shrink-0 text-apoyo text-ink-3">{i + 1}</span>
                         <Link
                           href={`/clientes/detalle?id=${c.id}`}
-                          className="truncate text-[12.5px] text-ink-2 transition-colors hover:text-accent-ink hover:underline"
+                          className="truncate text-cuerpo text-ink-2 transition-colors hover:text-accent-ink hover:underline"
                         >
                           {c.name}
                         </Link>
                       </span>
-                      <span className="tnum shrink-0 text-[12.5px] font-medium text-ink">
+                      <span className="tnum shrink-0 text-cuerpo font-medium text-ink">
                         {mxn(c.open_total)}
                       </span>
                     </RailRow>
@@ -153,7 +153,7 @@ export default function ClientesPage() {
             <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[560px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                   <th className="px-4 py-2.5">Cliente</th>
                   <th className="px-4 py-2.5">WhatsApp</th>
                   <th className="px-4 py-2.5 text-right">Facturas abiertas</th>
@@ -172,7 +172,7 @@ export default function ClientesPage() {
                         <Link
                           href={`/clientes/detalle?id=${c.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="text-[12.5px] font-medium text-ink hover:text-accent-ink hover:underline"
+                          className="text-cuerpo font-medium text-ink hover:text-accent-ink hover:underline"
                         >
                           {c.name}
                         </Link>
@@ -184,20 +184,20 @@ export default function ClientesPage() {
                           ))}
                       </div>
                     </td>
-                    <td className="tnum px-4 py-2.5 text-[12px] text-ink-2">
+                    <td className="tnum px-4 py-2.5 text-cuerpo text-ink-2">
                       {c.phone ? telefonoMx(c.phone) : <span className="text-ink-3">sin teléfono</span>}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-right text-[12.5px] text-ink-2">
+                    <td className="tnum px-4 py-2.5 text-right text-cuerpo text-ink-2">
                       {c.open_invoices}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-right text-[12.5px] font-medium text-ink">
+                    <td className="tnum px-4 py-2.5 text-right text-cuerpo font-medium text-ink">
                       {c.open_total > 0 ? mxn(c.open_total) : <span className="text-ink-3">$0.00</span>}
                     </td>
                   </tr>
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+                    <td colSpan={4} className="px-4 py-10 text-center text-cuerpo text-ink-3">
                       Sin resultados para tu búsqueda.
                     </td>
                   </tr>
@@ -213,17 +213,17 @@ export default function ClientesPage() {
                   <Link href={`/clientes/detalle?id=${c.id}`} className="block px-4 py-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-medium text-ink">{c.name}</p>
-                        <p className="tnum mt-0.5 text-[11.5px] text-ink-3">
+                        <p className="truncate text-cuerpo font-medium text-ink">{c.name}</p>
+                        <p className="tnum mt-0.5 text-apoyo text-ink-3">
                           {c.phone ? telefonoMx(c.phone) : "sin teléfono"}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="tnum text-[13.5px] font-semibold text-ink">
+                        <p className="tnum text-seccion font-semibold text-ink">
                           {c.open_total > 0 ? mxn(c.open_total) : <span className="font-normal text-ink-3">$0.00</span>}
                         </p>
                         {c.open_invoices > 0 && (
-                          <p className="tnum mt-0.5 text-[11.5px] text-ink-3">
+                          <p className="tnum mt-0.5 text-apoyo text-ink-3">
                             {c.open_invoices} factura{c.open_invoices === 1 ? "" : "s"}
                           </p>
                         )}
@@ -233,7 +233,7 @@ export default function ClientesPage() {
                 </li>
               ))}
               {rows.length === 0 && (
-                <li className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+                <li className="px-4 py-10 text-center text-cuerpo text-ink-3">
                   Sin resultados para tu búsqueda.
                 </li>
               )}

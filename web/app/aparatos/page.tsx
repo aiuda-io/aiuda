@@ -16,11 +16,11 @@ import { SettingsPage, SettingsSection } from "@/components/settings";
 import { toast } from "@/components/toast";
 
 const BOTON_PRIMARIO =
-  "rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50";
+  "rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50";
 const BOTON_SUAVE =
-  "rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50";
+  "rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50";
 const BOTON_SACAR =
-  "rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger disabled:opacity-50";
+  "rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger disabled:opacity-50";
 
 function cuando(iso: string | null): string {
   if (!iso) return "nunca";
@@ -153,7 +153,7 @@ export default function AparatosPage() {
         subtitle="Conecta tu celular para aprobar sin estar frente a la computadora, y deja entrar a quien trabaje contigo. Sin instalar nada."
         right={
           red ? (
-            <span className="rounded-full border border-line px-2.5 py-1 text-[11.5px] text-ink-2">
+            <span className="rounded-full border border-line px-2.5 py-1 text-sello text-ink-2">
               {red.prendida ? `${dentro.length} dentro` : "Red apagada"}
             </span>
           ) : null
@@ -164,10 +164,10 @@ export default function AparatosPage() {
           empareja, pero la app que lee el código todavía no se publica. Sin este
           aviso la pantalla promete algo que hoy no pasa. */}
       <div className="mt-4 rounded-md border border-line bg-panel p-3.5">
-        <p className="text-[12.5px] font-medium text-ink">
+        <p className="text-cuerpo font-medium text-ink">
           Falta la app del teléfono
         </p>
-        <p className="mt-1 text-[12px] leading-relaxed text-ink-2">
+        <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
           Esta mitad ya está lista: la red, el código, los papeles y sacar aparatos. La app que
           lee el código todavía no se publica, así que hoy apuntarle la cámara no hace nada.{" "}
           <a className="underline hover:text-ink" href="/manual/aparatos.html">
@@ -199,7 +199,7 @@ export default function AparatosPage() {
                   {cambiando ? "Un momento…" : red?.prendida ? "Apagar" : "Prender"}
                 </button>
                 {red?.prendida && red.direccion ? (
-                  <span className="text-[12px] text-ink-3">
+                  <span className="text-cuerpo text-ink-3">
                     Esta computadora es <span className="tnum text-ink-2">{red.direccion}</span> en
                     tu red
                   </span>
@@ -210,10 +210,10 @@ export default function AparatosPage() {
                   macOS y después nada funciona sin explicación. */}
               {red?.prendida && red.permiso_del_sistema === false ? (
                 <div className="rounded-md border border-line bg-panel p-3.5">
-                  <p className="text-[12.5px] font-medium text-ink">
+                  <p className="text-cuerpo font-medium text-ink">
                     Tu Mac no está dejando que aiuda vea la red
                   </p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-ink-2">
+                  <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
                     Es el permiso que te pidió al prenderla. Sin él, tu teléfono no va a encontrar
                     esta computadora. Se prende en Ajustes, en Red local, dejando aiuda encendido.
                   </p>
@@ -229,7 +229,7 @@ export default function AparatosPage() {
               ) : null}
 
               {red?.prendida && red.permiso_del_sistema !== false && !red.anunciada ? (
-                <p className="text-[12px] leading-relaxed text-ink-3">
+                <p className="text-cuerpo leading-relaxed text-ink-3">
                   aiuda no pudo anunciarse en tu red. Todo sigue funcionando: el teléfono va a usar
                   la dirección que trae el QR.
                 </p>
@@ -242,7 +242,7 @@ export default function AparatosPage() {
             desc="Enséñale este código al teléfono que quieras meter. Dura cinco minutos y sirve una sola vez."
           >
             {!red?.prendida ? (
-              <p className="text-[12.5px] leading-relaxed text-ink-2">
+              <p className="text-cuerpo leading-relaxed text-ink-2">
                 Primero prende la red de tu negocio, arriba.
               </p>
             ) : invitacion ? (
@@ -255,7 +255,7 @@ export default function AparatosPage() {
                     className="h-52 w-52"
                   />
                 </div>
-                <p className="text-[12.5px] leading-relaxed text-ink-2">
+                <p className="text-cuerpo leading-relaxed text-ink-2">
                   Quien lo escanee entra como{" "}
                   <b>{invitacion.papel === "dueno" ? "dueño" : "invitado"}</b>
                   {invitacion.tope_aprobacion !== null
@@ -264,7 +264,7 @@ export default function AparatosPage() {
                   .
                 </p>
                 <div className="flex items-center gap-3">
-                  <span className="tnum text-[12px] text-ink-3">
+                  <span className="tnum text-cuerpo text-ink-3">
                     Caduca en {Math.floor(restan / 60)}:
                     {String(restan % 60).padStart(2, "0")}
                   </span>
@@ -289,10 +289,10 @@ export default function AparatosPage() {
                 </div>
                 {papel === "invitado" ? (
                   <div className="space-y-1.5">
-                    <label className="block text-[12.5px] font-medium text-ink" htmlFor="tope">
+                    <label className="block text-cuerpo font-medium text-ink" htmlFor="tope">
                       Hasta cuánto puede aprobar solo
                     </label>
-                    <p className="text-[11.5px] leading-relaxed text-ink-3">
+                    <p className="text-apoyo leading-relaxed text-ink-3">
                       Déjalo vacío si prefieres que solo vea y proponga, y que tú apruebes todo.
                     </p>
                     <input
@@ -301,11 +301,11 @@ export default function AparatosPage() {
                       placeholder="Sin límite de aprobación: vacío"
                       value={tope}
                       onChange={(e) => setTope(e.target.value)}
-                      className="w-56 rounded-md border border-line bg-surface px-3 py-2 text-[12.5px] text-ink"
+                      className="w-56 rounded-md border border-line bg-surface px-3 py-2 text-cuerpo text-ink"
                     />
                   </div>
                 ) : (
-                  <p className="text-[12px] leading-relaxed text-ink-3">
+                  <p className="text-cuerpo leading-relaxed text-ink-3">
                     Un aparato como dueño aprueba lo que sea y puede meter a otros. Dáselo solo a
                     tu propio teléfono.
                   </p>
@@ -322,7 +322,7 @@ export default function AparatosPage() {
             desc="Los aparatos emparejados con este aiuda. Sacar uno lo deja fuera de inmediato."
           >
             {dispositivos.length === 0 ? (
-              <p className="text-[12.5px] leading-relaxed text-ink-2">
+              <p className="text-cuerpo leading-relaxed text-ink-2">
                 Todavía no hay ningún aparato. Empieza por el tuyo.
               </p>
             ) : (
@@ -330,15 +330,15 @@ export default function AparatosPage() {
                 {dispositivos.map((d) => (
                   <li key={d.id} className="flex flex-wrap items-center gap-3 px-3.5 py-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-ink">
+                      <p className="truncate text-cuerpo font-medium text-ink">
                         {d.nombre}
                         {d.papel === "dueno" ? (
-                          <span className="ml-2 rounded-full bg-panel px-2 py-0.5 text-[11px] font-normal text-ink-2">
+                          <span className="ml-2 rounded-full bg-panel px-2 py-0.5 text-sello font-normal text-ink-2">
                             dueño
                           </span>
                         ) : null}
                       </p>
-                      <p className="text-[11.5px] text-ink-3">
+                      <p className="text-apoyo text-ink-3">
                         {d.activo
                           ? `${loQuePuede(d)} · visto ${cuando(d.ultimo_visto)}`
                           : `Fuera desde ${cuando(d.revocado_en)}`}
