@@ -683,13 +683,13 @@ def test_quitar_una_baja_deja_bitacora(client, db_session):
 
     t = _tenant(db_session, connected=True)
     c = _customer(db_session, t)
-    mark_opt_out(t, c.phone)
+    mark_opt_out(db_session, t, c.phone)
     db_session.add(t)
     db_session.flush()
 
     res = client.post(f"/v1/customers/{c.id}/optout", headers=HEADERS, json={"activo": False})
     assert res.status_code == 200
-    assert opted_out(t.config, c.phone) is None
+    assert opted_out(db_session, t, c.phone) is None
     fila = db_session.scalar(select(AuditLog).where(AuditLog.action == "customer.optout_clear"))
     assert fila is not None and fila.entity_id == c.id
 

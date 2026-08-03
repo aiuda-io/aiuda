@@ -101,16 +101,21 @@ def _purgar_secretos_en_claro() -> None:
     try:
         from aiuda_core.connectors.credentials import purgar_secretos_en_claro
         from aiuda_core.db import get_sessionmaker
+        from aiuda_core.optout import migrar_optouts_del_config
 
         with get_sessionmaker()() as db:
             borrados = purgar_secretos_en_claro(db)
-            if borrados:
+            movidas = migrar_optouts_del_config(db)
+            if borrados or movidas:
                 db.commit()
+            if borrados:
                 log.warning(
                     "Se borraron %d credenciales que estaban en texto plano en la config. "
                     "Vuelve a capturarlas desde Integraciones: ahora se guardan cifradas.",
                     borrados,
                 )
+            if movidas:
+                log.info("Se pasaron %d bajas de clientes del config a su tabla.", movidas)
     except Exception:
         log.exception("no se pudo purgar secretos en claro")
 
@@ -1696,7 +1701,11 @@ def list_customers(
     if kind in ("cliente", "prospecto"):
         query = query.where(Customer.kind == kind)
     customers = db.scalars(query.order_by(Customer.name)).all()
-    from aiuda_core.optout import opted_out
+    from aiuda_core.optout import claves_dadas_de_baja, contact_key
+
+    # En una consulta, no una por cliente: esta lista ya arrastra un N+1 por el conteo
+    # de facturas y no hay por qué agregarle otro.
+    bajas = claves_dadas_de_baja(db, tenant)
 
     out = []
     for cust in customers:
@@ -1719,7 +1728,7 @@ def list_customers(
                 # Quién pidió que no lo contacten. Sin esto, la lista no tiene
                 # forma de saberlo y una app puede ofrecer escribirle a alguien
                 # que ya dijo que no. La ficha sí lo mandaba; la lista no.
-                "opt_out": opted_out(tenant.config, cust.phone) is not None,
+                "opt_out": bool(cust.phone) and contact_key(cust.phone) in bajas,
                 "meta": cust.meta or {},
             }
         )
@@ -1919,7 +1928,7 @@ def customer_detail(
         "meta": cust.meta or {},
         # El cliente pidió no recibir mensajes (BAJA/STOP): {"at", "via"} o None.
         # Bloquea los envíos automatizados; el dueño puede reactivarlo desde aquí.
-        "opt_out": opted_out(tenant.config, cust.phone),
+        "opt_out": opted_out(db, tenant, cust.phone),
         "open_total": open_total,
         "open_count": sum(1 for i in invoices if i.status == "open"),
         "reminders": [
@@ -2087,12 +2096,11 @@ def set_customer_optout(
         raise HTTPException(status_code=404, detail="Cliente no encontrado.")
     if not cust.phone:
         raise HTTPException(status_code=400, detail="El cliente no tiene teléfono.")
-    antes = opted_out(tenant.config, cust.phone) is not None
+    antes = opted_out(db, tenant, cust.phone) is not None
     if body.activo:
-        mark_opt_out(tenant, cust.phone, via="consola")
+        mark_opt_out(db, tenant, cust.phone, via="consola")
     else:
-        clear_opt_out(tenant, cust.phone)
-    db.add(tenant)
+        clear_opt_out(db, tenant, cust.phone)
     db.flush()
     # Bitácora: la baja protege al cliente; quién la puso o la quitó debe poder
     # demostrarse igual que una aprobación.
@@ -2106,7 +2114,7 @@ def set_customer_optout(
         before={"opt_out": antes},
         after={"opt_out": body.activo},
     )
-    return {"opt_out": opted_out(tenant.config, cust.phone)}
+    return {"opt_out": opted_out(db, tenant, cust.phone)}
 
 
 class CustomerMessageBody(BaseModel):

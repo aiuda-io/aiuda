@@ -233,8 +233,7 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
         # Opt-out (BAJA/STOP) de un cliente: se registra, se confirma UNA vez con texto
         # determinista (sin LLM) y no se procesa más. El dueño nunca se auto-da de baja.
         if not is_owner and is_opt_out(message.body):
-            mark_opt_out(tenant, conversation.remote_phone, via="whatsapp")
-            session.add(tenant)
+            mark_opt_out(session, tenant, conversation.remote_phone, via="whatsapp")
             if engine.send_whatsapp is not None:
                 try:
                     engine.send_whatsapp(conversation.remote_phone, OPT_OUT_CONFIRMATION)
@@ -705,8 +704,7 @@ def procesar_correo_pendientes(session, tenant, engine) -> int:
 
         # BAJA por correo: registro determinista + confirmación única, sin LLM.
         if is_opt_out(msg.body):
-            mark_opt_out(tenant, remitente or conv.remote_phone, via="correo")
-            session.add(tenant)
+            mark_opt_out(session, tenant, remitente or conv.remote_phone, via="correo")
             correo = resolve_correo(session, tenant)
             if correo is not None and remitente:
                 headers = reply_headers(session, tenant, conv)

@@ -1,11 +1,21 @@
 """Opt-out de mensajes automatizados: el cliente escribe BAJA/STOP y no se le envía más.
 
-El registro vive en ``Tenant.config["optouts"]`` (sin migración): la llave es
-``contact_key`` del destinatario — ``match_key(teléfono)`` (últimos 10 dígitos,
-estable ante 52 vs 521) para WhatsApp/SMS, o el correo normalizado (minúsculas)
-para el canal de correo — y el valor ``{"at": iso, "via": "whatsapp"|"correo"}``.
-La baja es POR MEDIO de contacto: quien pide BAJA por correo deja de recibir
+El registro vive en la tabla ``optouts``, una fila por (tenant, contacto). La llave es
+``contact_key`` del destinatario — ``match_key(teléfono)`` (últimos 10 dígitos, estable
+ante 52 vs 521) para WhatsApp/SMS, o el correo normalizado (minúsculas) para el canal de
+correo. La baja es POR MEDIO de contacto: quien pide BAJA por correo deja de recibir
 correos automatizados; su WhatsApp es otra llave.
+
+POR QUÉ TABLA Y NO ``Tenant.config["optouts"]``, que es donde vivía: ese blob se guarda
+con read-modify-write del JSON completo. El sondeo de entrantes registra la baja
+(worker/main.py) mientras el latido del scheduler escribe ``ultima_corrida_horaria`` en
+el MISMO objeto cada 30 s, cada uno con su sesión. El último commit gana y descarta la
+llave del otro sin ruido. Una baja podía desaparecer y aiuda le volvía a escribir a
+quien dijo que no.
+
+TRANSICIÓN: la lectura consulta la tabla Y el blob legado. Se queda así a propósito
+hasta que ``migrar_optouts_del_config`` lleve semanas sin encontrar nada: equivocarse
+del lado de "no le escribas" es gratis, del otro lado no.
 
 Alcance honesto:
 - Bloquea los envíos AUTOMATIZADOS (recordatorios y seguimientos del agente).
@@ -19,8 +29,10 @@ Alcance honesto:
 from __future__ import annotations
 
 import unicodedata
-from datetime import datetime, timezone
 
+from sqlalchemy import select
+
+from aiuda_core.models import OptOut, Tenant
 from aiuda_core.phones import match_key
 
 
@@ -75,39 +87,105 @@ def is_opt_out(body: str) -> bool:
     return _normalize(body) in OPT_OUT_PHRASES
 
 
-def opted_out(config: dict | None, phone: str) -> dict | None:
-    """El registro de opt-out del destinatario (teléfono o correo) — ({"at", "via"})
-    o None si puede recibir."""
-    key = contact_key(phone)
-    if not key:
-        return None
-    entry = ((config or {}).get("optouts") or {}).get(key)
+def _legado(tenant, key: str) -> dict | None:
+    """La baja como estaba en el blob de config. Solo lectura, para la transición."""
+    entry = ((tenant.config or {}).get("optouts") or {}).get(key)
     return dict(entry) if isinstance(entry, dict) else None
 
 
-def mark_opt_out(tenant, phone: str, via: str = "whatsapp") -> bool:
-    """Registra la baja en tenant.config (reasigna el dict para que SQLAlchemy la
-    persista). Devuelve False si el destinatario no da una llave usable."""
+def opted_out(session, tenant, phone: str) -> dict | None:
+    """El registro de opt-out del destinatario (teléfono o correo) — ``{"at", "via"}``
+    o None si puede recibir. Consulta la tabla y, si no hay fila, el blob legado."""
+    key = contact_key(phone)
+    if not key:
+        return None
+    row = session.scalar(
+        select(OptOut).where(OptOut.tenant_id == tenant.id, OptOut.contact_key == key)
+    )
+    if row is not None:
+        return {"at": row.created_at.isoformat() if row.created_at else None, "via": row.via}
+    return _legado(tenant, key)
+
+
+def claves_dadas_de_baja(session, tenant) -> set[str]:
+    """Todas las ``contact_key`` con baja de este tenant, en una sola consulta.
+
+    Para listas: preguntar cliente por cliente con ``opted_out`` es un N+1. Compara
+    contra ``contact_key(...)`` del destinatario."""
+    filas = session.scalars(
+        select(OptOut.contact_key).where(OptOut.tenant_id == tenant.id)
+    ).all()
+    legado = (tenant.config or {}).get("optouts")
+    if isinstance(legado, dict):
+        return set(filas) | {k for k in legado if k}
+    return set(filas)
+
+
+def mark_opt_out(session, tenant, phone: str, via: str = "whatsapp") -> bool:
+    """Registra la baja. Devuelve False si el destinatario no da una llave usable.
+
+    Idempotente: si ya existe la fila no la duplica ni le mueve la fecha (la primera
+    vez que el cliente lo pidió es el dato que importa)."""
     key = contact_key(phone)
     if not key:
         return False
-    cfg = dict(tenant.config or {})
-    optouts = dict(cfg.get("optouts") or {})
-    optouts[key] = {"at": datetime.now(timezone.utc).isoformat(), "via": via}
-    cfg["optouts"] = optouts
-    tenant.config = cfg
+    ya = session.scalar(
+        select(OptOut).where(OptOut.tenant_id == tenant.id, OptOut.contact_key == key)
+    )
+    if ya is None:
+        session.add(OptOut(tenant_id=tenant.id, contact_key=key, via=via))
+        session.flush()
     return True
 
 
-def clear_opt_out(tenant, phone: str) -> bool:
+def clear_opt_out(session, tenant, phone: str) -> bool:
     """Quita la baja (el dueño reactiva desde la ficha, p.ej. si el cliente se lo
-    pidió). Devuelve True si había registro que quitar."""
+    pidió). Devuelve True si había registro que quitar, por cualquiera de las dos vías."""
     key = contact_key(phone)
+    if not key:
+        return False
+    habia = False
+    row = session.scalar(
+        select(OptOut).where(OptOut.tenant_id == tenant.id, OptOut.contact_key == key)
+    )
+    if row is not None:
+        session.delete(row)
+        habia = True
+    # Y del blob legado, si quedó algo ahí: si no, reactivar no reactivaría nada.
     cfg = dict(tenant.config or {})
     optouts = dict(cfg.get("optouts") or {})
-    if key not in optouts:
-        return False
-    optouts.pop(key)
-    cfg["optouts"] = optouts
-    tenant.config = cfg
-    return True
+    if optouts.pop(key, None) is not None:
+        cfg["optouts"] = optouts
+        tenant.config = cfg
+        session.add(tenant)
+        habia = True
+    if habia:
+        session.flush()
+    return habia
+
+
+def migrar_optouts_del_config(session) -> int:
+    """Pasa las bajas del blob legado a la tabla. Idempotente; devuelve cuántas movió.
+
+    NO borra el blob: la lectura sigue consultándolo mientras dure la transición, y una
+    baja perdida es exactamente lo que este cambio viene a evitar. Se limpia después,
+    cuando esta función lleve semanas devolviendo cero."""
+    movidas = 0
+    for tenant in session.scalars(select(Tenant)).all():
+        optouts = (tenant.config or {}).get("optouts")
+        if not isinstance(optouts, dict):
+            continue
+        for key, entry in optouts.items():
+            if not key:
+                continue
+            ya = session.scalar(
+                select(OptOut).where(OptOut.tenant_id == tenant.id, OptOut.contact_key == key)
+            )
+            if ya is not None:
+                continue
+            via = entry.get("via") if isinstance(entry, dict) else None
+            session.add(OptOut(tenant_id=tenant.id, contact_key=key, via=via or "whatsapp"))
+            movidas += 1
+    if movidas:
+        session.flush()
+    return movidas
