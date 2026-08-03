@@ -13,7 +13,7 @@ import { ErrorState, Skeleton } from "@/components/ui";
 import { usePageTrail } from "@/components/rastro";
 import { toast } from "@/components/toast";
 import { fieldsFor, EMAIL_PRESETS } from "@/lib/integration-fields";
-import { agentDisplayName } from "@/lib/asistentes";
+import { oficioDe } from "@/lib/oficios";
 import { ConnectionTester } from "@/components/connection-tester";
 
 export default function IntegrationPage() {
@@ -224,7 +224,7 @@ function IntegrationDetail() {
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={a.avatar} alt="" className="h-3.5 w-3.5 rounded-full" />
-                            {agentDisplayName(a.slug)}
+                            {oficioDe(a.slug)}
                           </Link>
                         ))}
                       </div>

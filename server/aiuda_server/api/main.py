@@ -32,7 +32,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
-from aiuda_core.carrera import nivel_por_acciones
 from aiuda_core.cartera.aging import aging_summary, classify
 from aiuda_core.config import settings
 from aiuda_core.connectors.evolution import parse_webhook
@@ -956,11 +955,9 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
 
 # ---------- Agentes: la plataforma es modular; cada tenant activa los suyos ----------
 
-KNOWN_AGENTS = ["mariana", "carlos", "lupita", "valeria", "diego", "roberto", "memo", "sofia"]
-
-
-def _active_agents(tenant: Tenant) -> list[str]:
-    return (tenant.config or {}).get("active_agents", ["mariana"])
+# Estaba importado a media función para esquivar un ciclo; el ciclo se fue con el
+# sistema legado, así que vuelve arriba donde se puede ver.
+from aiuda_server.api.text import plain_text as _plain_text  # noqa: E402
 
 
 def _update_config(db, tenant: Tenant, **changes) -> None:
@@ -969,225 +966,40 @@ def _update_config(db, tenant: Tenant, **changes) -> None:
     db.add(tenant)
 
 
-@app.get("/v1/agents")
-def list_agents(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Estado del equipo. `actions` acumula el trabajo del agente: con el tiempo
-    sube de nivel — la antigüedad se nota (ver pitch: plan de carrera del agente)."""
-    active = _active_agents(tenant)
-    out = []
-    for slug in KNOWN_AGENTS:
-        is_active = slug in active
-        pending = sent = actions = 0
-        if is_active:
-            pending = int(
-                db.scalar(
-                    select(func.count(Reminder.id)).where(
-                        Reminder.tenant_id == tenant.id,
-                        Reminder.agent == slug,
-                        Reminder.status == "pending_approval",
-                    )
-                )
-                or 0
-            )
-            sent = int(
-                db.scalar(
-                    select(func.count(Reminder.id)).where(
-                        Reminder.tenant_id == tenant.id,
-                        Reminder.agent == slug,
-                        Reminder.status == "sent",
-                    )
-                )
-                or 0
-            )
-            actions = pending + sent
-            if slug == "mariana":
-                actions += int(
-                    db.scalar(
-                        select(func.count(Message.id)).where(
-                            Message.tenant_id == tenant.id,
-                            Message.direction == "out",
-                            Message.author == "agent",
-                        )
-                    )
-                    or 0
-                )
-                actions += int(
-                    db.scalar(
-                        select(func.count(PaymentPromise.id)).where(
-                            PaymentPromise.tenant_id == tenant.id
-                        )
-                    )
-                    or 0
-                )
-        out.append(
-            {
-                "slug": slug,
-                "active": is_active,
-                "actions": actions,
-                "pending": pending,
-                "sent": sent,
-                # Plan de carrera: el nivel se deriva de las acciones reales de arriba
-                # (conteos de filas), en el backend — una sola escala para todos.
-                "nivel": nivel_por_acciones(actions),
-            }
-        )
-    return out
+# Aquí vivía el equipo de fábrica: ocho slugs fijos (mariana, carlos, lupita, valeria,
+# diego, roberto, memo, sofia) con sus endpoints /v1/agents/*. Era un SEGUNDO sistema de
+# agentes conviviendo con los ayudantes que el dueño crea, y el que la consola enseñaba:
+# las propuestas decían "de Cobranza", el sidebar derivaba su navegación de un roster que
+# el dueño nunca armó, y cuatro de los ocho ni siquiera tenían perfil detrás.
+#
+# Se borró. El equipo es el que el dueño crea (tabla ayudantes, /v1/ayudantes/*), y sus
+# capacidades salen de las aiuditas que le activó. `Reminder.agent` conserva el slug del
+# runtime que redactó, que es dato interno de atribución, no un trabajador.
+
+class ContextoBody(BaseModel):
+    business_context: str = ""
 
 
-@app.post("/v1/agents/{slug}/activate")
-def activate_agent(slug: str, tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    if slug not in KNOWN_AGENTS:
-        raise HTTPException(status_code=404, detail="Agente desconocido")
-    active = _active_agents(tenant)
-    if slug not in active:
-        _update_config(db, tenant, active_agents=[*active, slug])
-    return {"slug": slug, "active": True}
+@app.get("/v1/settings/contexto")
+def get_business_context(tenant: Tenant = Depends(get_tenant)):
+    """El contexto del negocio: giro, políticas de pago, datos para depósito.
+
+    Es del NEGOCIO, no de un ayudante: entra al system prompt de todos. Se leía por
+    /v1/agents/mariana/config, o sea colgado de un slug de runtime que el dueño nunca
+    creó; por eso ahora vive con los demás ajustes."""
+    return {"business_context": (tenant.config or {}).get("business_context", "")}
 
 
-@app.post("/v1/agents/{slug}/deactivate")
-def deactivate_agent(slug: str, tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    if slug == "mariana":
-        raise HTTPException(status_code=409, detail="Cobranza es tu agente base en el piloto")
-    active = [a for a in _active_agents(tenant) if a != slug]
-    _update_config(db, tenant, active_agents=active)
-    return {"slug": slug, "active": False}
-
-
-# Saneo de salida (cero emojis, sin markdown). Vive en api/text.py para que el chat
-# de ayudantes lo reuse sin import circular con main.
-from aiuda_server.api.text import plain_text as _plain_text  # noqa: E402
-
-
-class AgentChatTurn(BaseModel):
-    role: str  # "user" | "agent"
-    body: str
-
-
-class AgentChatBody(BaseModel):
-    message: str
-    history: list[AgentChatTurn] = []
-
-
-@app.post("/v1/agents/{slug}/chat")
-def agent_chat(
-    slug: str,
-    body: AgentChatBody,
+@app.put("/v1/settings/contexto")
+def put_business_context(
+    body: ContextoBody,
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
+    _: object = Depends(require_role("admin")),
 ):
-    """Hablar con un agente (aiudante). El dueño le pregunta o le da contexto;
-    el agente responde con su persona. Soberanía humana: el agente no envía nada
-    a clientes desde aquí, solo conversa y propone."""
-    from aiuda_server.api.integrations import AGENT_META
-
-    if slug not in AGENT_META:
-        raise HTTPException(status_code=404, detail="Agente desconocido.")
-    if not body.message.strip():
-        raise HTTPException(status_code=400, detail="Mensaje vacío")
-
-    from aiuda_core.engine.provider import resolve_credential
-
-    name, role = AGENT_META[slug]
-    credential = resolve_credential(session=db, tenant_id=tenant.id)
-    if credential is None:
-        return {
-            "reply": f"Soy tu asistente de {role}. Para que pueda responderte, "
-            "conecta tu proveedor de IA en /proveedor. Mientras, sigo registrando todo."
-        }
-
-    # Chat por rol/plantilla: usa el MISMO motor capability-first que el chat de un
-    # ayudante (un solo sistema de chat). El rol se mapea a las aiuditas de chat de su
-    # perfil; las reglas del dueño viven en config a nivel tenant (agent_config[slug]).
-    from aiuda_core.aiuditas.chat import (
-        AyudanteChatExecutor,
-        PERSONA_PERFIL,
-        chat_aiuditas_de_perfil,
-        chat_system_prompt,
-        chat_tools,
-    )
-    from aiuda_server.metering import BudgetExceeded, tenant_runner
-
-    perfil = PERSONA_PERFIL.get(slug)
-    aiudita_ids = chat_aiuditas_de_perfil(perfil) if perfil else []
-    active = {aid: {} for aid in aiudita_ids}
-    system = chat_system_prompt(name, tenant.name, active)
-    user_rules = ((tenant.config or {}).get("agent_config") or {}).get(slug, {}).get("user_rules") or []
-    if user_rules:
-        system += "\n\nReglas que te puso el dueño (respétalas siempre):\n" + "\n".join(
-            f"- {r}" for r in user_rules
-        )
-    turns = "\n".join(
-        f"{'Dueño' if t.role == 'user' else name}: {t.body}" for t in body.history[-8:]
-    )
-    user = (f"{turns}\n" if turns else "") + f"Dueño: {body.message.strip()}\n{name}:"
-
-    # Runner con metering (UsageEvent por llamada) y tope de gasto enganchados.
-    runner = tenant_runner(db, tenant)
-    tools = chat_tools(aiudita_ids)
-    try:
-        if tools:
-            reply = runner.run_tool_loop(
-                system=system,
-                user_message=user,
-                tools=tools,
-                execute_tool=AyudanteChatExecutor(db, tenant, aiudita_ids),
-                role="redaccion",
-                task="agent_chat",
-                max_iterations=6,
-            )
-        else:
-            reply = runner.complete(
-                system=system, user=user, role="redaccion", task="agent_chat", max_tokens=400
-            )
-    except BudgetExceeded as exc:
-        # Corte honesto: el tope del mes se alcanzó; no se llamó a la IA.
-        raise HTTPException(status_code=402, detail=str(exc))
-    except Exception:
-        raise HTTPException(status_code=502, detail="El asistente no está disponible ahora.")
+    _update_config(db, tenant, business_context=body.business_context.strip())
     db.flush()
-    return {"reply": _plain_text(reply) or "…"}
-
-
-class AgentConfigBody(BaseModel):
-    user_rules: list[str] | None = None
-    auto_send_buckets: list[str] | None = None
-    business_context: str | None = None
-
-
-@app.get("/v1/agents/{slug}/config")
-def get_agent_config(slug: str, tenant: Tenant = Depends(get_tenant)):
-    config = tenant.config or {}
-    agent_config = (config.get("agent_config") or {}).get(slug, {})
-    return {
-        "slug": slug,
-        "user_rules": agent_config.get("user_rules", []),
-        "auto_send_buckets": config.get("auto_send_buckets", []),
-        "business_context": config.get("business_context", ""),
-    }
-
-
-@app.put("/v1/agents/{slug}/config")
-def put_agent_config(
-    slug: str,
-    body: AgentConfigBody,
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-):
-    """La configuración que ves es la que el agente usa: las reglas del usuario se
-    inyectan al system prompt (encima de los safeguards de fábrica, nunca en lugar de)."""
-    config = dict(tenant.config or {})
-    agent_config = dict(config.get("agent_config") or {})
-    mine = dict(agent_config.get(slug) or {})
-    if body.user_rules is not None:
-        mine["user_rules"] = [r.strip() for r in body.user_rules if r.strip()][:12]
-    agent_config[slug] = mine
-    changes: dict = {"agent_config": agent_config}
-    if body.auto_send_buckets is not None:
-        changes["auto_send_buckets"] = [b for b in body.auto_send_buckets if b != "critica"]
-    if body.business_context is not None:
-        changes["business_context"] = body.business_context.strip()
-    _update_config(db, tenant, **changes)
-    return get_agent_config(slug, tenant)
+    return {"business_context": (tenant.config or {}).get("business_context", "")}
 
 
 class ShadowBody(BaseModel):

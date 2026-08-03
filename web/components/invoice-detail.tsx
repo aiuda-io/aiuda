@@ -9,7 +9,7 @@ import { SOURCE_LABEL, SOURCE_LOGO } from "@/components/ui";
 import { RailLayout } from "@/components/rail";
 import { WritebackStatus } from "@/components/writeback-status";
 import { InyectarButton } from "@/components/inyectar-button";
-import { agentDisplayName } from "@/lib/asistentes";
+import { oficioDe } from "@/lib/oficios";
 const STATUS_LABEL: Record<string, string> = {
   draft: "Borrador",
   pending_approval: "Por aprobar",
@@ -338,7 +338,7 @@ export function InvoiceDetailContent({
                 <Link href={`/centro?r=${r.id}`} className="group min-w-0">
                   <p className="text-cuerpo text-ink group-hover:text-accent-ink">
                     {/* El ayudante que el dueño creó, no el slug del runtime. */}
-                    {r.propuesto_por || agentDisplayName(r.agent)} redactó un recordatorio
+                    {r.propuesto_por || oficioDe(r.agent)} redactó un recordatorio
                     <span className="text-ink-3"> · {STATUS_LABEL[r.status] ?? r.status}</span>
                   </p>
                   <p className="text-apoyo text-ink-3">

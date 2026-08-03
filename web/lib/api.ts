@@ -1203,10 +1203,7 @@ export const api = {
       { method: "DELETE" },
     ),
   satImportar: (form: FormData) =>
-    request<SatImportResult>("/v1/sat/importar", { method: "POST", body: form }),
-  agentSystems: (slug: string) => request<AgentSystems>(`/v1/agents/${slug}/systems`),
-  // Conexiones a la medida (conector genérico por API): campos por necesidad, probar en vivo,
-  // guardar (secreto cifrado en el backend), listar y borrar.
+    request<SatImportResult>("/v1/sat/importar", { method: "POST", body: form }),  // guardar (secreto cifrado en el backend), listar y borrar.
   customConnectorFields: () =>
     request<{ cap_fields: Record<string, string[]>; default: string[] }>("/v1/custom-connectors/fields"),
   listCustomConnectors: () => request<CustomConnector[]>("/v1/custom-connectors"),
@@ -1772,22 +1769,15 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, history }),
     }),
-  agents: () => request<AgentState[]>("/v1/agents"),
-  agentChat: (slug: string, message: string, history: { role: string; body: string }[]) =>
-    request<{ reply: string }>(`/v1/agents/${slug}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
-    }),
-  activateAgent: (slug: string) => request(`/v1/agents/${slug}/activate`, { method: "POST" }),
-  deactivateAgent: (slug: string) =>
-    request(`/v1/agents/${slug}/deactivate`, { method: "POST" }),
-  agentConfig: (slug: string) => request<AgentConfig>(`/v1/agents/${slug}/config`),
-  saveAgentConfig: (slug: string, body: Partial<AgentConfig>) =>
-    request<AgentConfig>(`/v1/agents/${slug}/config`, {
+  // El contexto del negocio es del NEGOCIO, no de un ayudante: entra al prompt de todos.
+  // Se leía por /v1/agents/mariana/config, colgado de un slug de runtime que el dueño
+  // nunca creó.
+  businessContext: () => request<{ business_context: string }>("/v1/settings/contexto"),
+  saveBusinessContext: (business_context: string) =>
+    request<{ business_context: string }>("/v1/settings/contexto", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ business_context }),
     }),
   takeover: (conversationId: string, takeover: boolean) =>
     request(`/v1/conversations/${conversationId}/takeover`, {

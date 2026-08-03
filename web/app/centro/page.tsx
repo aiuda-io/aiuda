@@ -27,7 +27,7 @@ import { BucketPill, EmptyState, ErrorState, SecondaryLink, Skeleton, SourceBadg
 import { WaText } from "@/components/wa-text";
 import { Avatar as Mascota } from "@/components/avatar";
 import { appearanceForSlug } from "@/lib/look";
-import { agentDisplayName } from "@/lib/asistentes";
+import { oficioDe } from "@/lib/oficios";
 import { toast } from "@/components/toast";
 import { Drawer } from "@/components/drawer";
 import { Modal } from "@/components/modal";
@@ -172,12 +172,11 @@ export default function CentroPage() {
 function CentroDeMando() {
   usePageTrail("Centro de mando");
   const { data, error, loading, refetch, refetchQuiet } = useApi(async () => {
-    const [pendientes, recon, promesas, agentes, enviados, aprobados, rechazados, fallidos, sombra] =
+    const [pendientes, recon, promesas, enviados, aprobados, rechazados, fallidos, sombra] =
       await Promise.all([
         api.reminders("pending_approval"),
         api.reconciliation(),
         api.promises("active"),
-        api.agents(),
         api.reminders("sent"),
         // Aprobados-pero-no-enviados: en modo sombra TODO queda aquí (nunca llega a "sent").
         // Sin esto, al aprobar el recordatorio desaparecía de todas las colas.
@@ -192,7 +191,6 @@ function CentroDeMando() {
       pendientes,
       recon: recon.pending,
       promesas,
-      agentes,
       enviados,
       aprobados,
       rechazados,
@@ -372,7 +370,7 @@ function CentroDeMando() {
             <div className="flex flex-wrap items-center gap-1.5 text-cuerpo text-ink-3">
               por
               <Avatar slug={selected.agent} size={18} />
-              <span className="font-medium text-ink-2">{agentDisplayName(selected.agent)}</span>
+              <span className="font-medium text-ink-2">{oficioDe(selected.agent)}</span>
               {/* Trazabilidad HITL: qué ayudante del dueño gobernó esta propuesta */}
               {selected.reminder?.propuesto_por && (
                 <span className="truncate">· de tu ayudante {selected.reminder.propuesto_por}</span>
@@ -1067,7 +1065,7 @@ function TarjetaKanban({
           <span className="min-w-0 truncate text-apoyo text-ink-3">
             de{" "}
             <span className="font-medium text-ink-2">
-              {w.ayudante || agentDisplayName(w.agent)}
+              {w.ayudante || oficioDe(w.agent)}
             </span>
           </span>
           {w.amount != null && (
@@ -1247,7 +1245,7 @@ function FilterBar({
         {agents.length > 1 && (
           <FilterChip
             label="Ayudante"
-            valueLabel={fAgent ? agentDisplayName(fAgent) : null}
+            valueLabel={fAgent ? oficioDe(fAgent) : null}
             onClear={() => setFagent(null)}
             onPick={(k) => setFagent(k || null)}
             options={[
@@ -1257,7 +1255,7 @@ function FilterBar({
                 node: (
                   <span className="flex items-center gap-2">
                     <Avatar slug={a} size={16} />
-                    {agentDisplayName(a)}
+                    {oficioDe(a)}
                   </span>
                 ),
               })),
@@ -1532,7 +1530,7 @@ function ConfirmSend({
           por
           <Avatar slug={item.agent} size={16} />
           <span className="font-medium text-ink-2">
-            {item.ayudante || agentDisplayName(item.agent)}
+            {item.ayudante || oficioDe(item.agent)}
           </span>
           {item.amount != null && (
             <span className="tnum ml-auto font-semibold text-ink">{mxn(item.amount)}</span>

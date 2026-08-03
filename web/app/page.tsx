@@ -5,7 +5,6 @@ import {
   api,
   BUCKET_META,
   mxn,
-  type AgentState,
   type AiuditasCatalog,
   type AyudanteDTO,
   type Cartera,
@@ -21,7 +20,6 @@ import { perfilesActivos } from "@/lib/perfiles";
 export default function ResumenPage() {
   const cartera = useApi<Cartera>(api.cartera);
   const reminders = useApi<ReminderItem[]>(() => api.reminders());
-  const agents = useApi<AgentState[]>(api.agents);
   const { ayudantes } = useAyudantes();
   const { catalog } = useCatalog();
 
@@ -46,7 +44,7 @@ export default function ResumenPage() {
         <FirstRunChecklist
           hasSource={Object.keys(data.by_source ?? {}).length > 0}
           hasAssistant={ayudantes.length > 0}
-          hasApproval={(agents.data ?? []).some((a) => a.sent > 0)}
+          hasApproval={(reminders.data ?? []).some((r) => r.status === "sent")}
         />
       )}
 
@@ -54,19 +52,7 @@ export default function ResumenPage() {
       <section
         className="reveal-stagger mb-6 grid grid-cols-1 gap-4 md:grid-cols-2"
       >
-        {agents.error ? (
-          <p className="rounded-lg border border-line bg-surface px-4 py-3 text-cuerpo text-ink-3 md:col-span-2">
-            No pudimos cargar a tu equipo.{" "}
-            <button
-              onClick={agents.refetch}
-              className="font-medium text-accent-ink hover:underline"
-            >
-              Reintentar
-            </button>
-          </p>
-        ) : agents.loading ? (
-          <Skeleton className="h-24 w-full md:col-span-2" />
-        ) : ayudantes.length > 0 ? (
+        {ayudantes.length > 0 ? (
           ayudantes.map((a) => <AyudanteCard key={a.id} a={a} catalog={catalog} />)
         ) : (
           <SinEquipo />

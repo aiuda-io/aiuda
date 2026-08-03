@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { api, type AgentState } from "@/lib/api";
-import { AGENT_NAV } from "@/lib/asistentes";
+import { api } from "@/lib/api";
 import { useAyudantes } from "@/lib/ayudantes-store";
 import { Avatar } from "@/components/avatar";
 import { normalizeAppearance } from "@/lib/look";
@@ -114,16 +113,6 @@ export function Sidebar() {
     return () => window.removeEventListener("modo-tecnico-cambio", leer);
   }, []);
   const [pending, setPending] = useState<number | null>(null);
-  const [agents, setAgents] = useState<AgentState[]>([
-    {
-      slug: "mariana",
-      active: true,
-      actions: 0,
-      pending: 0,
-      sent: 0,
-      nivel: { nivel: "Aprendiz", siguiente: 10, progreso: 0 },
-    },
-  ]);
   const { ayudantes, loading: cargandoAyudantes } = useAyudantes();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("expanded");
@@ -147,7 +136,6 @@ export function Sidebar() {
 
   const load = useCallback(() => {
     api.cartera().then((c) => setPending(c.pending_approvals)).catch(() => setPending(null));
-    api.agents().then(setAgents).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -166,25 +154,20 @@ export function Sidebar() {
     };
   }, [load]);
 
-  const activeAgents = useMemo(() => agents.filter((a) => a.active), [agents]);
-
-  const dataItems = useMemo(() => {
-    const out: { href: string; label: string; owner: string }[] = [];
-    const seen = new Set<string>();
-    for (const state of activeAgents) {
-      const navDef = AGENT_NAV[state.slug];
-      if (!navDef) continue;
-      for (const item of navDef.items) {
-        // CONSOLIDADO en Centro de mando: la bandeja unificada subsume estas vistas;
-        // las rutas siguen vivas (deep-links), solo salen del menú.
-        if (item.href.startsWith("/agentes/") || seen.has(item.href) || CONSOLIDADO.has(item.href))
-          continue;
-        seen.add(item.href);
-        out.push({ href: item.href, label: item.label, owner: state.slug });
-      }
-    }
-    return out;
-  }, [activeAgents]);
+  // Los datos del NEGOCIO están siempre: son suyos, no de un ayudante. Antes esta lista
+  // se derivaba de un roster de agentes de fábrica, así que si esa petición fallaba (o si
+  // el dueño no tenía "activado" al agente correcto) su propia cartera desaparecía del
+  // menú. CONSOLIDADO en Centro de mando: /aprobaciones, /conciliacion y /promesas siguen
+  // vivas como deep-links, solo no repiten en el menú.
+  const dataItems = useMemo(
+    () =>
+      [
+        { href: "/facturas", label: "Facturas" },
+        { href: "/conversaciones", label: "Conversaciones" },
+        { href: "/clientes", label: "Clientes" },
+      ].filter((it) => !CONSOLIDADO.has(it.href)),
+    [],
+  );
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
@@ -259,7 +242,7 @@ export function Sidebar() {
               {renderDivider("Tu negocio", exp)}
               <ul className="space-y-px">
                 {dataItems.map((it) => (
-                  <li key={it.href}>{renderItem({ href: it.href, label: it.label, owner: it.owner }, exp)}</li>
+                  <li key={it.href}>{renderItem({ href: it.href, label: it.label }, exp)}</li>
                 ))}
               </ul>
             </div>

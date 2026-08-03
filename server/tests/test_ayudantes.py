@@ -458,25 +458,26 @@ def test_nivel_sube_de_verdad_y_se_deriva_de_filas(client, demo_tenant, db_sessi
     assert client.get(f"/v1/ayudantes/{aid}").json()["nivel"]["nivel"] == "Aprendiz"
 
 
-def test_agents_del_equipo_traen_nivel(client, demo_tenant, db_session, demo_login):
-    """El plan de carrera del equipo (/v1/agents) sale del backend con la misma
-    escala: acciones reales → nivel. Mariana sube al acumular trabajo."""
+
+def test_el_nivel_del_ayudante_sale_de_su_trabajo_real(client, demo_tenant, db_session, demo_login):
+    """El plan de carrera es del ayudante que el DUEÑO creó, no de un slug de fábrica:
+    acciones reales atribuidas a él (Reminder.meta.ayudante_id) suben su nivel."""
     from aiuda_core.models import Reminder
 
     demo_login(client)
-    antes = client.get("/v1/agents").json()
-    mariana = next(x for x in antes if x["slug"] == "mariana")
-    assert mariana["nivel"]["nivel"] == "Aprendiz"
+    a = client.post("/v1/ayudantes", json={"name": "Male"}).json()
+    assert a["nivel"]["nivel"] == "Aprendiz" and a["acciones"]["total"] == 0
 
     db_session.add_all(
         Reminder(
-            tenant_id=demo_tenant.id, agent="mariana", bucket="vencida", tone="firme",
-            message=f"m{i}", status="pending_approval",
+            tenant_id=demo_tenant.id, bucket="vencida", tone="firme",
+            message=f"m{i}", status="sent", channel="whatsapp",
+            meta={"ayudante_id": a["id"], "ayudante_name": "Male"},
         )
         for i in range(12)
     )
     db_session.flush()
-    despues = client.get("/v1/agents").json()
-    mariana = next(x for x in despues if x["slug"] == "mariana")
-    assert mariana["actions"] >= 12
-    assert mariana["nivel"]["nivel"] == "Junior"
+
+    despues = client.get(f"/v1/ayudantes/{a['id']}").json()
+    assert despues["acciones"]["total"] == 12
+    assert despues["nivel"]["nivel"] != "Aprendiz", "el trabajo real sube el nivel"

@@ -82,7 +82,7 @@ function ModoSombra() {
  *  tus ayudantes (giro, politicas de pago, datos para deposito). Real: se guarda a
  *  nivel tenant y el redactor lo usa. Se guarda al salir del campo. */
 function ContextoNegocio() {
-  const { data, loading, error, refetch } = useApi(() => api.agentConfig("mariana"), []);
+  const { data, loading, error, refetch } = useApi(api.businessContext, []);
   const [value, setValue] = useState<string | null>(null);
   const [estado, setEstado] = useState<"idle" | "guardando" | "ok">("idle");
   const actual = value ?? data?.business_context ?? "";
@@ -92,7 +92,7 @@ function ContextoNegocio() {
     if (loading || limpio === (data?.business_context ?? "").trim()) return;
     setEstado("guardando");
     try {
-      await api.saveAgentConfig("mariana", { business_context: limpio });
+      await api.saveBusinessContext(limpio);
       setEstado("ok");
     } catch (e) {
       setEstado("idle");

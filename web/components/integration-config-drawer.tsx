@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type SourceCap } from "@/lib/api";
-import { agentDisplayName } from "@/lib/asistentes";
+import { oficioDe } from "@/lib/oficios";
 import { Drawer } from "@/components/drawer";
 import { toast } from "@/components/toast";
 import { INTEGRATION_HELP } from "@/lib/integration-help";
@@ -367,7 +367,7 @@ export function IntegrationConfigDrawer({
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={ag.avatar} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
-                            {agentDisplayName(ag.slug)}
+                            {oficioDe(ag.slug)}
                           </span>
                         ))}
                       </div>
