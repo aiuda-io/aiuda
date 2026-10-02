@@ -66,7 +66,13 @@ def mount_console(app: FastAPI) -> None:
 
     # Catch-all al FINAL: las rutas /v1, /health y /docs ya están registradas y
     # ganan; todo lo demás es la consola (páginas, /_next/*, .txt de RSC, media).
-    @app.get("/{full_path:path}", include_in_schema=False)
+    #
+    # HEAD además de GET: Next.js prefetchea los links con HEAD, y sin esto TODOS los
+    # prefetch contestaban 405. La consola seguía funcionando, pero cada navegación
+    # empezaba de cero en vez de estar ya traída. Es la diferencia entre que se sienta
+    # instantánea y que no. Starlette contesta HEAD sin cuerpo a partir del mismo
+    # handler.
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     def _consola(full_path: str):
         target = _resolve(root, full_path)
         if target is not None:

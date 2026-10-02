@@ -144,8 +144,8 @@ def test_el_resumen_de_las_8_sale_cuando_la_laptop_desperto_a_las_11(base_local,
     _negocio(base_local)
     enviados: list[str] = []
     monkeypatch.setattr(sync_mod, "sync_fuentes", lambda *a, **k: None)
-    monkeypatch.setattr(worker_main, "_process_writebacks", lambda s, t: None)
-    monkeypatch.setattr(worker_main, "_build_engine", lambda s, t: _EngineResumenALas8(enviados))
+    monkeypatch.setattr(worker_main, "_process_writebacks", lambda s, t, run=None: None)
+    monkeypatch.setattr(worker_main, "_build_engine", lambda s, t, run=None: _EngineResumenALas8(enviados))
 
     despierta = datetime(2026, 7, 27, 11, 5)
     # Sin decirle qué horas cubre, a las 11 el resumen de las 8 no existe.

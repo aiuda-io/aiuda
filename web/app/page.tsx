@@ -5,22 +5,23 @@ import {
   api,
   BUCKET_META,
   mxn,
-  type AgentState,
+  type AiuditasCatalog,
+  type AyudanteDTO,
   type Cartera,
   type ReminderItem,
 } from "@/lib/api";
 import { BucketPill, ErrorState, PageHeader, Skeleton, useApi } from "@/components/ui";
 import { AnimatedNumber } from "@/components/motion";
 import { Avatar } from "@/components/avatar";
-import { appearanceForSlug } from "@/lib/look";
-import { AGENT_NAV, getAsistente } from "@/lib/asistentes";
-import { useAyudantes } from "@/lib/ayudantes-store";
+import { normalizeAppearance } from "@/lib/look";
+import { useAyudantes, useCatalog } from "@/lib/ayudantes-store";
+import { perfilesActivos } from "@/lib/perfiles";
 
 export default function ResumenPage() {
   const cartera = useApi<Cartera>(api.cartera);
   const reminders = useApi<ReminderItem[]>(() => api.reminders());
-  const agents = useApi<AgentState[]>(api.agents);
   const { ayudantes } = useAyudantes();
+  const { catalog } = useCatalog();
 
   if (cartera.error) return <ErrorState message={cartera.error} retry={cartera.refetch} />;
   const data = cartera.data;
@@ -31,7 +32,9 @@ export default function ResumenPage() {
     month: "long",
   });
 
-  const team = (agents.data ?? []).filter((a) => a.active);
+  // El equipo son los ayudantes que el DUEÑO creó, no el roster de slugs del motor.
+  // Antes esta sección pintaba "Cobranza", un trabajador que él nunca contrató, y su
+  // ayudante real solo aparecía en un rincón del sidebar.
 
   return (
     <div className="min-w-0">
@@ -41,7 +44,7 @@ export default function ResumenPage() {
         <FirstRunChecklist
           hasSource={Object.keys(data.by_source ?? {}).length > 0}
           hasAssistant={ayudantes.length > 0}
-          hasApproval={(agents.data ?? []).some((a) => a.sent > 0)}
+          hasApproval={(reminders.data ?? []).some((r) => r.status === "sent")}
         />
       )}
 
@@ -49,20 +52,10 @@ export default function ResumenPage() {
       <section
         className="reveal-stagger mb-6 grid grid-cols-1 gap-4 md:grid-cols-2"
       >
-        {agents.error ? (
-          <p className="rounded-lg border border-line bg-surface px-4 py-3 text-[12.5px] text-ink-3 md:col-span-2">
-            No pudimos cargar a tu equipo.{" "}
-            <button
-              onClick={agents.refetch}
-              className="font-medium text-accent-ink hover:underline"
-            >
-              Reintentar
-            </button>
-          </p>
-        ) : agents.loading ? (
-          <Skeleton className="h-24 w-full md:col-span-2" />
+        {ayudantes.length > 0 ? (
+          ayudantes.map((a) => <AyudanteCard key={a.id} a={a} catalog={catalog} />)
         ) : (
-          team.map((state) => <AgentCard key={state.slug} state={state} cartera={data} />)
+          <SinEquipo />
         )}
       </section>
 
@@ -101,8 +94,8 @@ export default function ResumenPage() {
         {/* Antigüedad */}
         <section className="lg:col-span-3">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-[13.5px] font-semibold text-ink">Antigüedad de cartera</h2>
-            <Link href="/facturas" className="text-[12px] font-medium text-accent-ink hover:underline">
+            <h2 className="text-seccion font-semibold text-ink">Antigüedad de cartera</h2>
+            <Link href="/facturas" className="text-cuerpo font-medium text-accent-ink hover:underline">
               Ver facturas
             </Link>
           </div>
@@ -112,10 +105,10 @@ export default function ResumenPage() {
             ) : (
               <>
                 <div className="mb-2.5 flex items-baseline justify-between">
-                  <span className="tnum text-[18px] font-semibold text-ink">
+                  <span className="tnum text-seccion font-semibold text-ink">
                     <AnimatedNumber value={data.open_total} format={mxn} />
                   </span>
-                  <span className="tnum text-[12px] text-ink-3">
+                  <span className="tnum text-cuerpo text-ink-3">
                     por cobrar · {data.open_count} {data.open_count === 1 ? "factura" : "facturas"}
                   </span>
                 </div>
@@ -141,19 +134,19 @@ export default function ResumenPage() {
                         key={l.bucket}
                         className="flex items-center justify-between border-b border-line/60 py-2 last:border-0"
                       >
-                        <span className="flex items-center gap-2 text-[12.5px] text-ink-2">
+                        <span className="flex items-center gap-2 text-cuerpo text-ink-2">
                           <span className={`h-2 w-2 rounded-[3px] ${BUCKET_META[l.bucket].bar}`} />
                           {BUCKET_META[l.bucket].label}
-                          <span className="tnum text-[11.5px] text-ink-3">· {l.count}</span>
+                          <span className="tnum text-apoyo text-ink-3">· {l.count}</span>
                         </span>
-                        <span className="tnum text-[12.5px] font-medium text-ink">
+                        <span className="tnum text-cuerpo font-medium text-ink">
                           {mxn(l.total)}
                         </span>
                       </li>
                     ))}
                 </ul>
                 {/* Procedencia: estos números existen por una razón rastreable */}
-                <p className="mt-3 border-t border-line/60 pt-2.5 text-[11px] text-ink-3">
+                <p className="mt-3 border-t border-line/60 pt-2.5 text-apoyo text-ink-3">
                   Fuentes:{" "}
                   {Object.entries(data.by_source)
                     .map(
@@ -172,10 +165,10 @@ export default function ResumenPage() {
         {/* Por aprobar */}
         <section className="lg:col-span-2">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-[13.5px] font-semibold text-ink">Esperan tu aprobación</h2>
+            <h2 className="text-seccion font-semibold text-ink">Esperan tu aprobación</h2>
             <Link
               href="/centro"
-              className="text-[12px] font-medium text-accent-ink hover:underline"
+              className="text-cuerpo font-medium text-accent-ink hover:underline"
             >
               Revisar todo
             </Link>
@@ -188,7 +181,7 @@ export default function ResumenPage() {
               </div>
             ) : reminders.error ? (
               // Un error NO es una bandeja limpia: decirlo evita una falsa calma.
-              <p className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+              <p className="px-4 py-10 text-center text-cuerpo text-ink-3">
                 No pudimos cargar tus aprobaciones.{" "}
                 <button
                   onClick={reminders.refetch}
@@ -198,7 +191,7 @@ export default function ResumenPage() {
                 </button>
               </p>
             ) : (reminders.data ?? []).length === 0 ? (
-              <p className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+              <p className="px-4 py-10 text-center text-cuerpo text-ink-3">
                 Bandeja limpia. Tu equipo redacta lo siguiente cuando sincronices tus fuentes.
               </p>
             ) : (
@@ -209,14 +202,15 @@ export default function ResumenPage() {
                       href={`/centro?r=${r.id}`}
                       className="flex items-center gap-2.5 px-4 py-2.5 transition-colors hover:bg-panel/60"
                     >
-                      <span title={getAsistente(r.agent)?.role ?? "Ayudante"}>
-                        <Avatar name="" size={24} {...appearanceForSlug(r.agent)} />
+                      {/* Quién la redactó: el ayudante del dueño, no el slug del motor. */}
+                      <span title={r.propuesto_por ? `de ${r.propuesto_por}` : "Tu ayudante"}>
+                        <Avatar name={r.propuesto_por ?? ""} size={24} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12.5px] font-medium text-ink">
+                        <p className="truncate text-cuerpo font-medium text-ink">
                           {r.customer ?? r.title}
                         </p>
-                        <p className="tnum truncate text-[11.5px] text-ink-3">
+                        <p className="tnum truncate text-apoyo text-ink-3">
                           {r.folio && r.amount != null
                             ? `${r.folio} · ${mxn(r.amount)}`
                             : "cotización"}
@@ -235,54 +229,68 @@ export default function ResumenPage() {
   );
 }
 
-function AgentCard({ state, cartera }: { state: AgentState; cartera: Cartera | null }) {
-  const a = getAsistente(state.slug);
-  if (!a) return null;
-  const nav = AGENT_NAV[state.slug];
-  const headline =
-    state.slug === "mariana"
-      ? cartera
-        ? `${mxn(cartera.recovered_this_month)} recuperados este mes`
-        : ""
-      : `${state.sent} enviada${state.sent === 1 ? "" : "s"} · ${state.pending} por aprobar`;
-
+function AyudanteCard({ a, catalog }: { a: AyudanteDTO; catalog: AiuditasCatalog | null }) {
+  // El oficio se deriva de las aiuditas que tiene activas, igual que en su ficha: es
+  // lo que de verdad sabe hacer, no una etiqueta fija.
+  const perfiles = catalog ? perfilesActivos(catalog, a.aiuditas) : [];
+  const app = normalizeAppearance(a.appearance);
+  const detalle = `/ayudantes/detalle?id=${a.id}`;
   return (
     <div className="rounded-lg border border-line bg-surface p-4">
       <div className="flex items-center gap-3">
-        <Link href={"/ayudantes"} className="shrink-0">
+        <Link href={detalle} className="shrink-0">
           <Avatar
-            name={a.role}
+            name={a.name}
             size={44}
-            {...appearanceForSlug(state.slug)}
+            {...app}
             className="transition-transform hover:scale-105"
           />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Link
-              href={"/ayudantes"}
-              className="text-[13.5px] font-semibold text-ink hover:text-accent-ink"
+              href={detalle}
+              className="text-seccion font-semibold text-ink hover:text-accent-ink"
             >
               {a.name}
             </Link>
             {/* Dato neutro de trayectoria: acciones reales, sin nivel ni barra de
                 juego (nada de gamificación cerca de montos). */}
-            <span className="tnum text-[11px] text-ink-3">
-              {state.actions} {state.actions === 1 ? "acción" : "acciones"}
+            <span className="tnum text-apoyo text-ink-3">
+              {a.acciones.total} {a.acciones.total === 1 ? "acción" : "acciones"}
             </span>
           </div>
-          <p className="tnum truncate text-[12px] text-ink-2">{headline}</p>
+          <p className="truncate text-cuerpo text-ink-2">
+            {perfiles.length > 0
+              ? perfiles.map((p) => p.name).join(" · ")
+              : "Sin oficio todavía · elige qué quieres que haga"}
+          </p>
         </div>
       </div>
-      {/* Accesos directos de este agente */}
       <div className="mt-3 flex flex-wrap gap-1.5">
-        {state.pending > 0 && (
-          <Quick href="/centro" label={`Bandeja (${state.pending})`} accent />
+        {a.acciones.pendientes > 0 && (
+          <Quick href="/centro" label={`Bandeja (${a.acciones.pendientes})`} accent />
         )}
-        {nav?.items.slice(0, 3).map((item) => (
-          <Quick key={item.href} href={item.href} label={item.label} />
-        ))}
+        <Quick href={detalle} label="Su trabajo" />
       </div>
+    </div>
+  );
+}
+
+/** Todavía no hay a quién delegarle nada. Un solo camino, no tres. */
+function SinEquipo() {
+  return (
+    <div className="rounded-lg border border-dashed border-line bg-surface px-4 py-5 md:col-span-2">
+      <p className="text-cuerpo font-medium text-ink">Todavía no tienes ayudantes</p>
+      <p className="mt-0.5 text-cuerpo text-ink-3">
+        Un ayudante lee tus fuentes, propone el trabajo y espera tu visto bueno.
+      </p>
+      <Link
+        href="/ayudantes"
+        className="mt-3 inline-block rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
+      >
+        Crear el primero
+      </Link>
     </div>
   );
 }
@@ -291,7 +299,7 @@ function Quick({ href, label, accent }: { href: string; label: string; accent?: 
   return (
     <Link
       href={href}
-      className={`rounded-md px-2 py-1 text-[11.5px] font-medium transition-colors ${
+      className={`rounded-md px-2 py-1 text-sello font-medium transition-colors ${
         accent
           ? "bg-accent-soft text-accent-ink hover:bg-accent hover:text-surface"
           : "bg-panel text-ink-2 hover:bg-line/60 hover:text-ink"
@@ -319,19 +327,19 @@ function Figure({
 }) {
   const inner = (
     <div className="px-5 py-4">
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-ink-3">{label}</p>
+      <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">{label}</p>
       {value === null ? (
         <Skeleton className="mt-2 h-7 w-24" />
       ) : (
         <p
-          className={`hero-num mt-1.5 text-[26px] font-semibold leading-none ${
+          className={`hero-num mt-1.5 text-cifra font-semibold leading-none ${
             accent ? "text-warn" : "text-ink"
           }`}
         >
           <AnimatedNumber value={value} format={format} />
         </p>
       )}
-      <p className="mt-2 text-[11.5px] text-ink-3">{caption}</p>
+      <p className="mt-2 text-apoyo text-ink-3">{caption}</p>
     </div>
   );
   return href ? (
@@ -383,12 +391,12 @@ function FirstRunChecklist({
     <section className="mb-6 overflow-hidden rounded-lg border border-line bg-surface">
       <div className="flex items-center justify-between gap-3 border-b border-line/60 px-5 py-3.5">
         <div>
-          <h2 className="text-[13.5px] font-semibold text-ink">Primeros pasos</h2>
-          <p className="mt-0.5 text-[12px] text-ink-3">
+          <h2 className="text-seccion font-semibold text-ink">Primeros pasos</h2>
+          <p className="mt-0.5 text-cuerpo text-ink-3">
             Tres pasos para poner a trabajar tu primer ayudante.
           </p>
         </div>
-        <span className="tnum shrink-0 rounded-full bg-panel px-2.5 py-1 text-[11.5px] font-medium text-ink-2">
+        <span className="tnum shrink-0 rounded-full bg-panel px-2.5 py-1 text-sello font-medium text-ink-2">
           {doneCount} de {steps.length}
         </span>
       </div>
@@ -400,7 +408,7 @@ function FirstRunChecklist({
               className="group flex items-center gap-3.5 px-5 py-3.5 transition-colors hover:bg-panel/60"
             >
               <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11.5px] font-semibold ${
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-apoyo font-semibold ${
                   s.done
                     ? "bg-ok text-surface"
                     : "border border-line-strong text-ink-3 transition-colors group-hover:border-accent group-hover:text-accent-ink"
@@ -422,16 +430,16 @@ function FirstRunChecklist({
               </span>
               <div className="min-w-0 flex-1">
                 <p
-                  className={`text-[13px] font-medium ${
+                  className={`text-cuerpo font-medium ${
                     s.done ? "text-ink-3 line-through" : "text-ink"
                   }`}
                 >
                   {s.title}
                 </p>
-                <p className="mt-0.5 text-[12px] text-ink-3">{s.desc}</p>
+                <p className="mt-0.5 text-cuerpo text-ink-3">{s.desc}</p>
               </div>
               {!s.done && (
-                <span className="hidden shrink-0 items-center gap-1 text-[12px] font-medium text-accent-ink sm:flex">
+                <span className="hidden shrink-0 items-center gap-1 text-cuerpo font-medium text-accent-ink sm:flex">
                   {s.cta}
                   <svg
                     viewBox="0 0 12 12"

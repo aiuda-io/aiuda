@@ -20,11 +20,12 @@ export const EMAIL_PRESETS: Record<string, Record<string, string>> = {
 };
 
 export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
-  whatsapp: [
-    { key: "instance", label: "Instancia", placeholder: "mi-negocio" },
-    { key: "base_url", label: "URL de Evolution API", placeholder: "https://evo.midominio.com" },
-    { key: "token", label: "Token de la instancia", secret: true },
-  ],
+  // WhatsApp con tu número se conecta por QR (como WhatsApp Web), no capturando
+  // credenciales: por eso aquí no hay campos. Los tres que había (instance, base_url,
+  // token de Evolution) no los leía nadie —channel.py construye EvolutionClient() sin
+  // argumentos, o sea que toma settings.evolution_* del entorno— y el token acababa en
+  // texto plano en tenant.config. Se quitaron.
+  whatsapp: [],
   whatsapp_cloud: [
     {
       key: "access_token",
@@ -226,5 +227,10 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
 };
 
 export function fieldsFor(key: string): FieldDef[] {
-  return INTEGRATION_FIELDS[key] ?? [{ key: "token", label: "Token o credencial", secret: true }];
+  // Sin invento: una integración que no declara sus campos NO pide nada. El fallback
+  // anterior devolvía un campo "token" secreto para cualquier llave desconocida, y como
+  // esas llaves tampoco existen en el registro de cifrado del servidor, lo capturado se
+  // guardaba en texto plano. Le pasaba a `excel` y a `sat`. Si una fuente pide
+  // credencial, se declara aquí Y en PROVIDERS (core/aiuda_core/connectors/credentials.py).
+  return INTEGRATION_FIELDS[key] ?? [];
 }

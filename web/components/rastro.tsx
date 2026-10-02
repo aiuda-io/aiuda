@@ -114,9 +114,9 @@ export function RastroBack({ className = "" }: { className?: string }) {
   return (
     <Link
       href={back.href}
-      className={`inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-ink transition-colors hover:underline ${className}`}
+      className={`inline-flex items-center gap-1 text-cuerpo font-medium text-accent-ink transition-colors hover:underline ${className}`}
     >
-      <span aria-hidden className="text-[14px] leading-none">‹</span>
+      <span aria-hidden className="text-cuerpo leading-none">‹</span>
       Volver a {back.label}
     </Link>
   );

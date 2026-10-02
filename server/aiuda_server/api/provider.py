@@ -1,24 +1,25 @@
-"""Panel de proveedor de IA: conectar Claude u OpenAI, simétricos (API key o suscripción).
+"""Panel de la IA del negocio: conectar Claude, OpenAI, el CLI que ya tienes, u Ollama.
 
-OpenAI se conecta de tres formas:
-  - Suscripción por device code ("Iniciar sesión con ChatGPT"): /v1/provider/openai/device/
-    start + /device/poll. El dueño aprueba un código en su navegador; nada se pega ni se corre
-    en el servidor. Es la vía recomendada para suscripción.
-  - API key (sk-...): por PUT /v1/provider (name=codex, mode=api_key), igual que la API key de
-    Claude. La vía soportada y facturada por OpenAI; el motor habla la Responses API estándar.
-  - Pegar auth.json: /v1/provider/openai/connect, fallback de power-user/self-host.
+Tres vías, todas legítimas y sin letras chicas:
+
+  - Tu API key (Claude u OpenAI), por PUT /v1/provider con mode=api_key.
+  - El binario que YA tienes instalado (`claude`, `codex`), con mode=cli. Lo lanzamos como
+    subproceso y él se autentica con TU sesión: aiuda nunca ve tu token. Es la vía de un
+    clic para quien ya paga una suscripción.
+  - Un modelo en tu computadora (Ollama, LM Studio, vLLM), con name=local.
 
 El secreto del proveedor se guarda CIFRADO por tenant en IntegrationCredential
 (provider='ia'), con la misma maquinaria que las integraciones — nunca en texto
 plano. `name` y `mode` van en public_config (no secretos). La resolución efectiva
 (fila cifrada → config legado → entorno) vive en core (aiuda_core.engine.provider).
 
-Nota de honestidad: el modo "subscription" usa el token OAuth de `claude setup-token`,
-que queda fuera de los términos de suscripción de Anthropic. Es opt-in; la consola lo
-advierte.
+QUÉ SE QUITÓ. Existió un modo `subscription` que tomaba el token OAuth de
+`claude setup-token` y, del lado de OpenAI, un device flow contra chatgpt.com. Los dos
+sostenían la afirmación de ser un cliente oficial para que el backend aceptara el token.
+Eso no se reparte en un proyecto abierto. Quien quiera usar su suscripción instala el CLI
+y lo elige aquí: mismo clic, y sin que aiuda toque su credencial.
 """
 
-import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -29,7 +30,6 @@ from aiuda_server.api.deps import get_db, get_tenant, require_role
 from aiuda_core.config import settings
 from aiuda_core.connectors import credentials as cred
 from aiuda_core.engine import codex
-from aiuda_core.engine.codex import CodexRunner
 from aiuda_core.engine.provider import (
     VALID_MODES,
     VALID_NAMES,
@@ -90,15 +90,30 @@ def _state(db, tenant: Tenant) -> dict:
     # El CLI del dueño no tiene secreto que guardar: está conectado si eso es lo
     # que eligió (su sesión vive dentro del propio CLI).
     conectado = has_secret or v["mode"] == "cli"
+    # Camino de actualización: quien venía del modo suscripción se quedaría sin IA de un
+    # día para otro y sin explicación (el resolver ya no acepta ese modo, a propósito).
+    # No se le apaga en silencio: se le dice qué pasó y cuál es la vía equivalente.
+    retirado = v["mode"] == "subscription"
+    if retirado:
+        conectado = False
     state = {
         "name": v["name"],
-        "mode": v["mode"],
+        "mode": "api_key" if retirado else v["mode"],
         "connected": conectado,
         # Honestidad: sin credencial en el panel pero con API key en el entorno,
         # la app igual funciona. La UI lo muestra como "activo por variable de entorno".
         "env_fallback": (not conectado) and bool(settings.anthropic_api_key),
-        "secret": MASK if has_secret else "",
+        "secret": "" if retirado else (MASK if has_secret else ""),
     }
+    if retirado:
+        state["aviso_retirado"] = (
+            "La conexión por suscripción se retiró: para que el proveedor aceptara ese "
+            "token, aiuda tenía que declararse como su programa oficial, y eso no es algo "
+            "que podamos pedirte que corras. Si ya tienes Claude Code o Codex instalados, "
+            "conéctalos aquí con un clic: se autentican con tu propia sesión y aiuda nunca "
+            "ve tu token. También puedes pegar tu API key o usar un modelo de esta "
+            "computadora."
+        )
     if v["name"] == "local" and has_secret:
         # base_url y modelo NO son secretos: la UI los muestra para editar sin
         # re-capturar. La api_key opcional del endpoint sí queda enmascarada.
@@ -156,16 +171,8 @@ def save_provider(
         raise HTTPException(status_code=400, detail="Proveedor desconocido.")
     if mode not in VALID_MODES:
         raise HTTPException(status_code=400, detail="Modo de conexión inválido.")
-    if name == "codex" and mode == "subscription":
-        # OpenAI por SUSCRIPCIÓN no se conecta pegando un secreto: se hace por OAuth (device
-        # code, "Iniciar sesión con ChatGPT"), en /v1/provider/openai/device/*. La vía API key
-        # (sk-...) sí es un secreto y pasa por aquí, igual que la API key de Claude.
-        raise HTTPException(
-            status_code=400,
-            detail="Conecta la suscripción de OpenAI con 'Iniciar sesión con ChatGPT', no pegando un secreto.",
-        )
     if name == "local" and mode != "api_key":
-        raise HTTPException(status_code=400, detail="La IA local no usa suscripción.")
+        raise HTTPException(status_code=400, detail="La IA local se conecta con su dirección.")
     if name in ("claude_cli", "codex_cli"):
         # Un clic: el dueño ya tiene su CLI instalado y con su sesión iniciada.
         # aiuda no guarda ninguna credencial suya, solo anota qué usar.
@@ -225,156 +232,6 @@ def save_provider(
         after={"name": name, "mode": mode},  # nunca el secreto
     )
     return {"name": name, "mode": mode, "connected": True}
-
-
-class OpenAIConnectBody(BaseModel):
-    """El dueño corre `codex login` en SU máquina (OAuth en su propio navegador) y pega aquí
-    el contenido de ~/.codex/auth.json — o los tokens sueltos. En self-host de una sola
-    máquina puede omitirse todo: se lee el archivo local."""
-
-    auth_json: str = ""
-    access_token: str = ""
-    refresh_token: str = ""
-    account_id: str = ""
-
-
-def _bundle_desde_body(body: OpenAIConnectBody) -> dict | None:
-    """Extrae el bundle {access_token, refresh_token, account_id} de lo que pegó el dueño."""
-    if body.auth_json.strip():
-        return codex.tokens_from_json(body.auth_json)
-    if body.access_token.strip():
-        return {
-            "access_token": body.access_token.strip(),
-            "refresh_token": body.refresh_token.strip(),
-            "account_id": body.account_id.strip(),
-        }
-    return None
-
-
-def _save_codex_bundle(db, tenant: Tenant, bundle: dict, actor) -> None:
-    """Persiste el bundle de suscripción de OpenAI CIFRADO por tenant (name=codex,
-    mode=subscription). Único punto de guardado, reusado por el pegado de auth.json y por el
-    device code — el runner autentica con este bundle, no con un archivo global."""
-    secret = json.dumps(
-        {
-            "access_token": bundle["access_token"],
-            "refresh_token": bundle.get("refresh_token", ""),
-            "account_id": bundle.get("account_id", ""),
-        },
-        separators=(",", ":"),
-    )
-    cred.set_credential(db, tenant.id, IA, {"name": "codex", "mode": "subscription", "secret": secret})
-    _scrub_legacy(db, tenant)
-    db.flush()
-    audit.record(
-        db,
-        tenant_id=tenant.id,
-        action="provider.update",
-        entity_type="provider",
-        entity_id=IA,
-        principal=actor,
-        after={"name": "codex", "mode": "subscription"},
-    )
-
-
-@router.post("/v1/provider/openai/connect")
-def connect_openai(
-    body: OpenAIConnectBody | None = None,
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-    actor=Depends(require_role("admin")),
-):
-    """Conecta OpenAI (Sign in with ChatGPT) guardando el bundle de token CIFRADO POR TENANT.
-
-    Varios workspaces: el dueño corre `codex login` en SU máquina y pega el auth.json (o los
-    tokens). Self-host de una máquina: si no pega nada, se lee el ~/.codex/auth.json local.
-    NUNCA se ejecuta `codex login` en el servidor (mutaría un archivo global compartido entre
-    tenants — la fuga que este cambio cierra). Verifica con una llamada REAL usando ESTE
-    bundle antes de guardar; persiste el bundle completo cifrado (name=codex, mode=subscription)."""
-    body = body or OpenAIConnectBody()
-    bundle = _bundle_desde_body(body)
-    if bundle is None and (body.auth_json.strip() or body.access_token.strip()):
-        raise HTTPException(status_code=400, detail="Lo pegado no trae un access_token válido de OpenAI.")
-    if bundle is None:
-        # Self-host: la sesión local de codex de esta máquina.
-        bundle = codex.read_tokens()
-    if bundle is None:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "No hay sesión de OpenAI. En tu máquina corre `codex login`, autoriza en el "
-                "navegador, y pega aquí el contenido de ~/.codex/auth.json."
-            ),
-        )
-
-    # Verifica con el bundle DE ESTE TENANT (no el archivo global): no guardamos lo que no responde.
-    verdict = codex.test_codex(CodexRunner(tokens=bundle))
-    if not verdict.get("ok"):
-        raise HTTPException(status_code=502, detail=verdict.get("error", "OpenAI no respondió."))
-
-    _save_codex_bundle(db, tenant, bundle, actor)
-    return {"name": "codex", "mode": "subscription", "connected": True, "test": verdict}
-
-
-class OpenAIDevicePollBody(BaseModel):
-    """Lo que la consola reenvía en cada sondeo: el código de dispositivo y el user_code que
-    recibió al arrancar (OpenAI exige ambos en el poll)."""
-
-    device_code: str = ""
-    user_code: str = ""
-
-
-@router.post("/v1/provider/openai/device/start")
-def openai_device_start(
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-    _: object = Depends(require_role("admin")),
-):
-    """Arranca "Iniciar sesión con ChatGPT" (device code). Devuelve el código de un solo uso,
-    la URL que el dueño abre, el intervalo de sondeo y la expiración (~15 min). La consola
-    sondea /device/poll con esos datos hasta que el dueño autorice en su navegador. No se pega
-    ningún secreto ni se corre `codex login` en el servidor."""
-    try:
-        return codex.device_start()
-    except codex.CodexError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
-
-
-@router.post("/v1/provider/openai/device/poll")
-def openai_device_poll(
-    body: OpenAIDevicePollBody,
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-    actor=Depends(require_role("admin")),
-):
-    """Sondea el device code una vez (la consola llama esto en bucle según el intervalo).
-    Responde {status:pending} hasta que el dueño autorice; al autorizar, canjea la sesión, la
-    PRUEBA con una llamada REAL (mismo camino del motor) y la guarda CIFRADA por tenant
-    (name=codex, mode=subscription), igual que la vía de pegar auth.json. Devuelve 200 en los
-    tres casos (pending/error/success) para que la consola no trate el sondeo como fallo."""
-    device_code = body.device_code.strip()
-    user_code = body.user_code.strip()
-    if not device_code or not user_code:
-        raise HTTPException(status_code=400, detail="Falta el código de dispositivo. Reinicia el inicio de sesión.")
-
-    result = codex.device_poll(device_code, user_code)
-    status = result.get("status")
-    if status == "pending":
-        return {"status": "pending"}
-    if status != "success":
-        return {"status": "error", "detail": result.get("error", "No se pudo autorizar con OpenAI.")}
-
-    bundle = result.get("bundle") or {}
-    if not (bundle.get("access_token") or "").strip():
-        return {"status": "error", "detail": "OpenAI autorizó pero no devolvió una sesión utilizable."}
-
-    # Verifica con el bundle DE ESTE TENANT antes de guardar: no persistimos lo que no responde.
-    verdict = codex.test_codex(CodexRunner(tokens=bundle))
-    if not verdict.get("ok"):
-        return {"status": "error", "detail": verdict.get("error", "La sesión de OpenAI no respondió.")}
-
-    _save_codex_bundle(db, tenant, bundle, actor)
-    return {"status": "success", "name": "codex", "mode": "subscription", "connected": True, "test": verdict}
 
 
 @router.delete("/v1/provider")

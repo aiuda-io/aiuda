@@ -19,7 +19,6 @@ from aiuda_core.engine.provider import (
     ProviderCredential,
     build_anthropic_client,
     default_credential,
-    oauth_system_prefix,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +31,6 @@ logger = logging.getLogger(__name__)
 # suscripción va con max_retries=0). Agotadas las esperas, o si el token se rechaza (401/403),
 # se cae a la API key de respaldo (si hay una). Un error de red o un 5xx NO disparan nada: son
 # transitorios, no "esta credencial no sirve".
-_RATE_RETRY_BACKOFF: tuple[int, ...] = (4, 10, 20)
 
 # Regla dura de aiuda: cero emojis en la salida del LLM. Red de seguridad sobre
 # todo lo que el modelo redacta (recordatorios, chat, etc.).
@@ -89,8 +87,6 @@ class ClaudeRunner:
         client: anthropic.Anthropic | None = None,
         usage_callback: UsageCallback | None = None,
         credential: ProviderCredential | None = None,
-        fallback_credential: ProviderCredential | None = None,
-        fallback_client: anthropic.Anthropic | None = None,
         rate_backoff: tuple[int, ...] | None = None,
         budget_check: BudgetCheck | None = None,
     ):
@@ -107,57 +103,21 @@ class ClaudeRunner:
                 # SDK espera hasta 10 minutos por llamada reteniendo la corrida.
                 else anthropic.Anthropic(api_key=settings.anthropic_api_key, timeout=LLM_TIMEOUT_S)
             )
-        # El prefijo de identidad solo lo dispara una credencial de suscripción explícita
-        # (el fallback de entorno siempre es api_key, nunca suscripción).
-        self._system_prefix: str | None = oauth_system_prefix(credential)
         self._usage_callback = usage_callback
         # Tope de gasto: público y asignable después de construir (la capa cloud lo
         # engancha igual que el usage_callback). None = sin tope (self-host, tests).
         self.budget_check: BudgetCheck | None = budget_check
 
-        # Fallback: si la vía primaria es suscripción y hay una API key de respaldo, el
-        # cliente cede a ella cuando el token se rechaza o el plan agota su ráfaga. Construir
-        # el cliente no hace red (solo arma config), así que es barato tenerlo listo.
-        self._fallback_client: anthropic.Anthropic | None = fallback_client
-        if self._fallback_client is None and fallback_credential is not None:
-            self._fallback_client = build_anthropic_client(fallback_credential)
-        # Bandera pública: quedó True si en esta instancia se cayó a la API key (telemetría).
-        self.fell_back: bool = False
-
-        # ¿La vía primaria es suscripción? Determina el modelo de redacción (haiku, el que su
-        # token deja pasar) y el backoff ante 429 (solo la suscripción lo necesita; la api_key
-        # ya trae los reintentos del SDK). Inyectable para tests, que pasan () o esperas de 0s.
-        self._primary_subscription = credential is not None and credential.mode == "subscription"
-        default_backoff = _RATE_RETRY_BACKOFF if self._primary_subscription else ()
-        self._rate_backoff: tuple[int, ...] = (
-            default_backoff if rate_backoff is None else rate_backoff
-        )
-
-    def _with_prefix(self, system: str) -> str:
-        """En modo suscripción antepone la identidad de Claude Code al system."""
-        return f"{self._system_prefix}\n\n{system}" if self._system_prefix else system
-
-    def _switch_to_fallback(self) -> bool:
-        """Conmuta (permanente para la instancia) al cliente de API key de respaldo. Devuelve
-        True si había uno sin usar. La API key no lleva el preámbulo de identidad de Claude
-        Code, así que se suelta al conmutar."""
-        if self._fallback_client is None or self.fell_back:
-            return False
-        logger.warning("IA: la vía suscripción cede a la API key de respaldo.")
-        self.fell_back = True
-        self._client = self._fallback_client
-        self._system_prefix = None
-        return True
+        # Backoff ante 429. Vacío por default: con API key el SDK ya trae sus reintentos.
+        # Inyectable para tests y para quien tenga una cuenta con ráfaga apretada.
+        self._rate_backoff: tuple[int, ...] = rate_backoff or ()
 
     def _create(self, **kwargs: Any):
-        """Una llamada a messages.create resiliente al 429 de ráfaga de la suscripción.
+        """Una llamada a messages.create, con espera opcional ante el 429 de ráfaga.
 
-        Ante un 429 espera un backoff largo y reintenta el MISMO cliente (la redacción es
-        asíncrona: no hay prisa). Agotadas las esperas —o si el token se rechaza (401/403)—
-        cae a la API key de respaldo si hay. La conmutación es permanente: dentro de un loop de
-        tools no reintenta la suscripción rate-limiteada, y reintentar solo la llamada fallida
-        (no el loop) evita re-ejecutar tools con efectos (registrar_pago, etc.). Un error de red
-        o un 5xx NO disparan nada de esto: son transitorios, no 'credencial inválida'."""
+        Reintenta la MISMA llamada, no el loop: reintentar el loop re-ejecutaría tools con
+        efectos (registrar_pago, etc.). Un error de red o un 5xx NO disparan nada de esto:
+        son transitorios, no 'credencial inválida'."""
         # Corte honesto del tope de gasto: si el tenant agotó su presupuesto de IA, la
         # llamada NO sale (ni en el primer turno ni a media iteración de un tool loop).
         if self.budget_check is not None:
@@ -166,18 +126,10 @@ class ClaudeRunner:
             try:
                 return self._client.messages.create(**kwargs)
             except anthropic.RateLimitError:
-                if delay is not None and not self.fell_back:
-                    logger.warning("IA: 429 de ráfaga; espero %ss y reintento el mismo plan.", delay)
-                    time.sleep(delay)
-                    continue
-                if self._switch_to_fallback():
-                    return self._client.messages.create(**kwargs)
-                raise
-            except (anthropic.AuthenticationError, anthropic.PermissionDeniedError):
-                # Token rechazado: reintentar no ayuda. Directo al respaldo si hay.
-                if self._switch_to_fallback():
-                    return self._client.messages.create(**kwargs)
-                raise
+                if delay is None:
+                    raise
+                logger.warning("IA: 429 de ráfaga; espero %ss y reintento.", delay)
+                time.sleep(delay)
 
     def model_for(self, role: str) -> str:
         """Model id de un rol ('triage'|'redaccion') para el proveedor activo.
@@ -188,12 +140,7 @@ class ClaudeRunner:
         if role == "triage":
             return settings.model_triage
         if role == "redaccion":
-            # La suscripción topa 429 duro con sonnet; usa el modelo que su token deja pasar.
-            return (
-                settings.model_redaccion_suscripcion
-                if self._primary_subscription
-                else settings.model_redaccion
-            )
+            return settings.model_redaccion
         raise ValueError(f"Rol de modelo desconocido: {role}")
 
     def _record(self, model: str, task: str, usage: Any) -> None:
@@ -220,7 +167,7 @@ class ClaudeRunner:
         response = self._create(
             model=model,
             max_tokens=max_tokens,
-            system=self._with_prefix(system),
+            system=system,
             messages=[{"role": "user", "content": user}],
         )
         self._record(model, task, response.usage)
@@ -258,7 +205,7 @@ class ClaudeRunner:
             response = self._create(
                 model=model,
                 max_tokens=2048,
-                system=self._with_prefix(system),
+                system=system,
                 tools=tools,
                 messages=messages,
             )

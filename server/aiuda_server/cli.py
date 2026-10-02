@@ -193,6 +193,23 @@ def cmd_daily(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_mcp(_args: argparse.Namespace) -> int:
+    """Sirve el negocio como herramientas MCP por stdio.
+
+    No lo corre una persona: lo lanza el arnés del dueño (`claude`, `codex`) como
+    subproceso, y el alcance llega por variables de entorno (AIUDA_TENANT_ID,
+    AIUDA_AYUDANTE_ID), nunca por argv, porque argv se ve en `ps`.
+
+    stdout queda reservado para JSON-RPC: aquí no se imprime nada más.
+    """
+    from aiuda_core.db import create_all
+    from aiuda_core.mcp import correr
+
+    create_all()
+    correr()
+    return 0
+
+
 def _check(label: str, ok: bool, detail: str) -> None:
     mark = "ok" if ok else "--"
     print(f"  [{mark}] {label}: {detail}")
@@ -302,6 +319,9 @@ def main(argv: list[str] | None = None) -> int:
     p_start.set_defaults(fn=cmd_start)
 
     sub.add_parser("daily", help="corre la corrida de cobranza ahora").set_defaults(fn=cmd_daily)
+    sub.add_parser(
+        "mcp", help="sirve tus datos como herramientas MCP (lo lanza tu IA, no tú)"
+    ).set_defaults(fn=cmd_mcp)
     sub.add_parser("doctor", help="revisa la instalación").set_defaults(fn=cmd_doctor)
     sub.add_parser("version", help="versión instalada").set_defaults(fn=cmd_version)
 

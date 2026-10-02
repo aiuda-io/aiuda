@@ -186,7 +186,7 @@ function ClienteDetalle() {
   }
 
   const inputCls =
-    "w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+    "w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
 
   return (
     <div className="min-w-0">
@@ -214,26 +214,26 @@ function ClienteDetalle() {
             <div className="mb-5 max-w-3xl rounded-lg border border-line bg-surface p-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Nombre</label>
+                  <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Nombre</label>
                   <input className={`mt-1 ${inputCls}`} value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.06em] text-ink-3">WhatsApp</label>
+                  <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">WhatsApp</label>
                   <input className={`mt-1 ${inputCls}`} value={draft.phone} placeholder="opcional" onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Correo</label>
+                  <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Correo</label>
                   <input className={`mt-1 ${inputCls}`} value={draft.email} onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))} placeholder="opcional" />
                 </div>
               </div>
 
               {/* Datos extra editables: tan flexible como tu Excel, no solo 3 campos */}
               <div className="mt-4 border-t border-line/60 pt-3">
-                <p className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Datos extra</p>
+                <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Datos extra</p>
                 <div className="mt-2 space-y-2">
                   {Object.entries(draft.meta).map(([key, value]) => (
                     <div key={key} className="grid grid-cols-[8rem_1fr_auto] items-center gap-2">
-                      <span className="truncate text-[12px] text-ink-2" title={key}>
+                      <span className="truncate text-cuerpo text-ink-2" title={key}>
                         {key}
                       </span>
                       <input
@@ -246,7 +246,7 @@ function ClienteDetalle() {
                       <button
                         onClick={() => removeField(key)}
                         title="Quitar campo"
-                        className="rounded-md border border-line px-2.5 py-1.5 text-[13px] leading-none text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                        className="rounded-md border border-line px-2.5 py-1.5 text-cuerpo leading-none text-ink-3 transition-colors hover:border-danger hover:text-danger"
                       >
                         ×
                       </button>
@@ -280,7 +280,7 @@ function ClienteDetalle() {
 
               {/* Solo se edita aquí lo nativo de aiuda (prospecto o registro creado aquí);
                   un espejo se edita en su fuente, así que no llega a este formulario. */}
-              <p className="mt-3 text-[11.5px] leading-relaxed text-ink-3">
+              <p className="mt-3 text-apoyo leading-relaxed text-ink-3">
                 {data.kind === "prospecto"
                   ? "Un prospecto vive en aiuda hasta que se vuelva cliente; el cambio se guarda aquí y no se inyecta a Odoo ni a tu tienda."
                   : "Este registro nació en aiuda; aquí es la fuente de verdad. El cambio se guarda directo."}
@@ -306,10 +306,10 @@ function ClienteDetalle() {
               {data.opt_out && (
                 <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-warn/40 bg-warn-soft/40 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12.5px] font-medium text-ink">
+                    <p className="text-cuerpo font-medium text-ink">
                       Pidió no recibir mensajes ({data.opt_out.via === "whatsapp" ? "escribió BAJA por WhatsApp" : "marcado desde la consola"})
                     </p>
-                    <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-2">
+                    <p className="mt-0.5 text-apoyo leading-relaxed text-ink-2">
                       Desde el {fechaDM(data.opt_out.at)} no se le envían recordatorios ni
                       seguimientos automáticos. Tú puedes seguir escribiéndole en persona.
                     </p>
@@ -333,9 +333,9 @@ function ClienteDetalle() {
               <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <h1 className="text-[17px] font-semibold tracking-tight text-ink">{data.name}</h1>
+                    <h1 className="text-seccion font-semibold tracking-tight text-ink">{data.name}</h1>
                     {data.kind === "prospecto" && (
-                      <span className="rounded bg-panel px-1.5 py-px text-[11px] font-medium uppercase tracking-[0.04em] text-ink-3">
+                      <span className="rounded bg-panel px-1.5 py-px text-rotulo font-medium uppercase tracking-[0.04em] text-ink-3">
                         Prospecto
                       </span>
                     )}
@@ -363,7 +363,7 @@ function ClienteDetalle() {
                       />
                     )}
                   </div>
-                  <p className="tnum mt-0.5 text-[13px] text-ink-3">
+                  <p className="tnum mt-0.5 text-cuerpo text-ink-3">
                     {data.phone ? `WhatsApp · ${data.phone}` : "Sin teléfono aún"}
                     {data.email ? ` · ${data.email}` : ""}
                   </p>
@@ -378,8 +378,8 @@ function ClienteDetalle() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="hero-num text-[22px] font-semibold leading-none text-ink">{mxn(data.open_total)}</p>
-                <p className="text-[11.5px] text-ink-3">
+                <p className="hero-num text-titulo font-semibold leading-none text-ink">{mxn(data.open_total)}</p>
+                <p className="text-apoyo text-ink-3">
                   por cobrar · {data.open_count} {data.open_count === 1 ? "factura" : "facturas"}
                 </p>
               </div>
@@ -394,13 +394,13 @@ function ClienteDetalle() {
                 <>
                   {data.payments.length > 0 && (
                     <section>
-                      <h2 className="mb-2 text-[13px] font-semibold text-ink">Pagos recibidos</h2>
+                      <h2 className="mb-2 text-seccion font-semibold text-ink">Pagos recibidos</h2>
                       <ul className="overflow-hidden rounded-lg border border-line bg-surface">
                         {data.payments.map((p) => (
                           <li key={p.id} className="flex items-center gap-2 border-b border-line/60 px-4 py-2.5 last:border-0">
-                            <span className="tnum text-[12.5px] font-medium text-ink">{mxn(p.amount)}</span>
-                            {p.folio && <span className="tnum text-[11px] text-ink-3">{p.folio}</span>}
-                            <span className="ml-auto text-[11px] text-ink-3">{fechaDM(p.paid_at)}</span>
+                            <span className="tnum text-cuerpo font-medium text-ink">{mxn(p.amount)}</span>
+                            {p.folio && <span className="tnum text-apoyo text-ink-3">{p.folio}</span>}
+                            <span className="ml-auto text-apoyo text-ink-3">{fechaDM(p.paid_at)}</span>
                           </li>
                         ))}
                       </ul>
@@ -409,13 +409,13 @@ function ClienteDetalle() {
 
                   {data.reminders.length > 0 && (
                     <section>
-                      <h2 className="mb-2 text-[13px] font-semibold text-ink">Recordatorios</h2>
+                      <h2 className="mb-2 text-seccion font-semibold text-ink">Recordatorios</h2>
                       <ul className="overflow-hidden rounded-lg border border-line bg-surface">
                         {data.reminders.map((r) => (
                           <li key={r.id} className="flex items-center gap-2 border-b border-line/60 px-4 py-2.5 last:border-0">
-                            {r.folio && <span className="tnum text-[12px] font-medium text-ink">{r.folio}</span>}
-                            <span className="text-[11px] text-ink-3">{REMINDER_ESTADO[r.status] ?? r.status}</span>
-                            <span className="ml-auto text-[11px] text-ink-3">{fechaDM(r.created_at)}</span>
+                            {r.folio && <span className="tnum text-cuerpo font-medium text-ink">{r.folio}</span>}
+                            <span className="text-apoyo text-ink-3">{REMINDER_ESTADO[r.status] ?? r.status}</span>
+                            <span className="ml-auto text-apoyo text-ink-3">{fechaDM(r.created_at)}</span>
                           </li>
                         ))}
                       </ul>
@@ -424,13 +424,13 @@ function ClienteDetalle() {
 
                   {data.promises.length > 0 && (
                     <section>
-                      <h2 className="mb-2 text-[13px] font-semibold text-ink">Promesas de pago</h2>
+                      <h2 className="mb-2 text-seccion font-semibold text-ink">Promesas de pago</h2>
                       <ul className="overflow-hidden rounded-lg border border-line bg-surface">
                         {data.promises.map((p) => (
                           <li key={p.id} className="flex items-center gap-2 border-b border-line/60 px-4 py-2.5 last:border-0">
-                            <span className="text-[12px] text-ink">Prometió {fechaDM(p.promised_date)}</span>
-                            {p.folio && <span className="tnum text-[11px] text-ink-3">{p.folio}</span>}
-                            <span className={`ml-auto text-[11px] font-medium ${p.fulfilled ? "text-ok" : "text-ink-3"}`}>
+                            <span className="text-cuerpo text-ink">Prometió {fechaDM(p.promised_date)}</span>
+                            {p.folio && <span className="tnum text-apoyo text-ink-3">{p.folio}</span>}
+                            <span className={`ml-auto text-apoyo font-medium ${p.fulfilled ? "text-ok" : "text-ink-3"}`}>
                               {p.fulfilled ? "Cumplida" : "Pendiente"}
                             </span>
                           </li>
@@ -441,12 +441,12 @@ function ClienteDetalle() {
 
                   {data.citas.length > 0 && (
                     <section>
-                      <h2 className="mb-2 text-[13px] font-semibold text-ink">Citas</h2>
+                      <h2 className="mb-2 text-seccion font-semibold text-ink">Citas</h2>
                       <ul className="overflow-hidden rounded-lg border border-line bg-surface">
                         {data.citas.map((c) => (
                           <li key={c.id} className="flex items-center gap-2 border-b border-line/60 px-4 py-2.5 last:border-0">
-                            <span className="truncate text-[12px] text-ink">{c.title}</span>
-                            {c.starts_at && <span className="ml-auto shrink-0 text-[11px] text-ink-3">{fechaDM(c.starts_at)}</span>}
+                            <span className="truncate text-cuerpo text-ink">{c.title}</span>
+                            {c.starts_at && <span className="ml-auto shrink-0 text-apoyo text-ink-3">{fechaDM(c.starts_at)}</span>}
                           </li>
                         ))}
                       </ul>
@@ -455,10 +455,10 @@ function ClienteDetalle() {
 
                   {!editing && Object.keys(data.meta ?? {}).length > 0 && (
                     <section>
-                      <h2 className="mb-2 text-[13px] font-semibold text-ink">Datos extra</h2>
+                      <h2 className="mb-2 text-seccion font-semibold text-ink">Datos extra</h2>
                       <dl className="space-y-1.5 rounded-lg border border-line bg-surface px-4 py-3">
                         {Object.entries(data.meta).map(([k, v]) => (
-                          <div key={k} className="flex justify-between gap-3 text-[12.5px]">
+                          <div key={k} className="flex justify-between gap-3 text-cuerpo">
                             <dt className="text-ink-3">{k}</dt>
                             <dd className="font-medium text-ink">{v}</dd>
                           </div>
@@ -479,9 +479,9 @@ function ClienteDetalle() {
             >
               {/* Cartera al frente: es lo que importa de un cliente en cobranza. */}
               <section>
-                <h2 className="mb-2 text-[13px] font-semibold text-ink">Facturas</h2>
+                <h2 className="mb-2 text-seccion font-semibold text-ink">Facturas</h2>
                 {data.invoices.length === 0 ? (
-                  <p className="rounded-lg border border-line bg-surface px-4 py-6 text-center text-[12.5px] text-ink-3">
+                  <p className="rounded-lg border border-line bg-surface px-4 py-6 text-center text-cuerpo text-ink-3">
                     Sin facturas registradas.
                   </p>
                 ) : (
@@ -492,13 +492,13 @@ function ClienteDetalle() {
                           href={`/facturas/detalle?id=${inv.id}`}
                           className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-panel/40"
                         >
-                          <span className="tnum text-[13px] font-medium text-ink">{inv.folio}</span>
+                          <span className="tnum text-cuerpo font-medium text-ink">{inv.folio}</span>
                           {inv.status === "paid" ? (
-                            <span className="rounded bg-ok-soft px-1.5 py-px text-[11px] font-medium text-ok">Pagada</span>
+                            <span className="rounded bg-ok-soft px-1.5 py-px text-sello font-medium text-ok">Pagada</span>
                           ) : (
                             <BucketPill bucket={inv.bucket} />
                           )}
-                          <span className="tnum ml-auto text-[13px] font-medium text-ink">{mxn(inv.amount)}</span>
+                          <span className="tnum ml-auto text-cuerpo font-medium text-ink">{mxn(inv.amount)}</span>
                         </Link>
                       </li>
                     ))}
@@ -510,7 +510,7 @@ function ClienteDetalle() {
             {/* Conversación en la misma vista, debajo de la cartera. Chatter acotado (no llena
                 la pantalla): es un registro de cliente con su hilo a la mano, no un chat a solas. */}
             <section className="reveal mt-8">
-              <h2 className="mb-2.5 text-[13px] font-semibold text-ink">
+              <h2 className="mb-2.5 text-seccion font-semibold text-ink">
                 Conversación
                 {messages.length > 0 && (
                   <span className="tnum ml-1.5 font-normal text-ink-3">· {messages.length}</span>

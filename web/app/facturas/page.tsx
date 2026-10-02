@@ -184,19 +184,19 @@ export default function FacturasPage() {
         subtitle="Cada registro carga su origen y verificación. Un dicho no es un pago: tú confirmas."
         right={
           <span className="flex items-center gap-3">
-            {syncMsg && <span className="text-[11.5px] text-ink-3">{syncMsg}</span>}
+            {syncMsg && <span className="text-apoyo text-ink-3">{syncMsg}</span>}
             <ExportButton entidad="facturas" filtros={{ status: tab, bucket, q: query }} />
             <button
               onClick={syncNow}
               disabled={syncing}
               title="Trae pedidos por cobrar de tus fuentes y confirma pagos contra banco/Stripe"
-              className="rounded-md border border-line bg-surface px-2.5 py-1 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-60"
+              className="rounded-md border border-line bg-surface px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-60"
             >
               {syncing ? "Sincronizando…" : "Sincronizar fuentes"}
             </button>
             <button
               onClick={() => setAgregar(true)}
-              className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-medium text-surface transition-colors hover:bg-accent-strong"
+              className="rounded-md bg-accent px-2.5 py-1 text-sello font-medium text-surface transition-colors hover:bg-accent-strong"
             >
               Agregar factura
             </button>
@@ -228,10 +228,10 @@ export default function FacturasPage() {
         />
       ) : (
         <div className="mb-4 flex items-baseline gap-2.5">
-          <span className="hero-num text-[26px] font-semibold leading-none text-ink">
+          <span className="hero-num text-cifra font-semibold leading-none text-ink">
             <AnimatedNumber value={grandTotal} format={mxn} />
           </span>
-          <span className="text-[12px] text-ink-3">
+          <span className="text-cuerpo text-ink-3">
             cobrado · {grandCount} {grandCount === 1 ? "factura" : "facturas"}
           </span>
         </div>
@@ -258,7 +258,7 @@ export default function FacturasPage() {
                 <Skeleton className="h-7 w-full" />
               </div>
             ) : rows.length === 0 ? (
-              <div className="mx-auto max-w-md px-4 py-12 text-center text-[12.5px] leading-relaxed text-ink-3">
+              <div className="mx-auto max-w-md px-4 py-12 text-center text-cuerpo leading-relaxed text-ink-3">
                 {query || bucket
                   ? "Sin resultados para este filtro."
                   : tab === "open"
@@ -284,9 +284,9 @@ export default function FacturasPage() {
             ) : (
               <>
                 <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full min-w-[640px]">
+                  <table className="w-full min-w-[720px]">
                     <thead>
-                      <tr className="border-b border-line bg-panel/60 text-[11px] font-semibold text-ink-3">
+                      <tr className="border-b border-line bg-panel/60 text-apoyo font-semibold text-ink-3">
                         <Th label="Folio" sortKey="folio" />
                         <Th label="Cliente" sortKey="customer" />
                         <Th label="Monto" sortKey="amount" right />
@@ -306,7 +306,7 @@ export default function FacturasPage() {
                             {/* Botón real (no solo tr onClick): el detalle se abre con teclado. */}
                             <button
                               onClick={() => setOpenId(inv.id)}
-                              className="tnum block text-left text-[12.5px] font-medium text-ink hover:text-accent-ink"
+                              className="tnum block text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
                             >
                               {inv.folio}
                             </button>
@@ -317,12 +317,12 @@ export default function FacturasPage() {
                             />
                           </td>
                           <td className="px-4 py-2.5">
-                            <span className="text-[12.5px] font-medium text-ink">{inv.customer}</span>
+                            <span className="text-cuerpo font-medium text-ink">{inv.customer}</span>
                           </td>
-                          <td className="tnum px-4 py-2.5 text-right text-[12.5px] font-medium text-ink">
+                          <td className="tnum px-4 py-2.5 text-right text-cuerpo font-medium text-ink">
                             {mxn(inv.amount)}
                           </td>
-                          <td className="tnum px-4 py-2.5 text-right text-[12px]">
+                          <td className="tnum px-4 py-2.5 text-right text-cuerpo">
                             {tab === "paid" ? (
                               <span className="text-ink-2">
                                 {inv.paid_at ? fechaDM(inv.paid_at) : "·"}
@@ -335,13 +335,13 @@ export default function FacturasPage() {
                           </td>
                           <td className="px-4 py-2.5">
                             {tab === "paid" ? (
-                              <span className="inline-flex items-center rounded bg-ok-soft px-1.5 py-px text-[11px] font-medium text-ok">
+                              <span className="inline-flex items-center rounded bg-ok-soft px-1.5 py-px text-sello font-medium text-ok">
                                 Pagada
                               </span>
                             ) : inv.payment_reported ? (
                               <span
                                 title="El cliente dice que ya pagó. La factura sigue abierta hasta que tú lo confirmes."
-                                className="inline-flex items-center rounded bg-warn-soft px-1.5 py-px text-[11px] font-medium text-warn"
+                                className="inline-flex items-center rounded bg-warn-soft px-2 py-0.5 text-rotulo font-medium text-warn"
                               >
                                 Cliente reporta pago
                               </span>
@@ -352,7 +352,7 @@ export default function FacturasPage() {
                           {tab === "open" && (
                             <td className="px-4 py-2.5 text-right">
                               {done[inv.id] ? (
-                                <span className="text-[11.5px] font-medium text-ok">{done[inv.id]}</span>
+                                <span className="text-apoyo font-medium text-ok">{done[inv.id]}</span>
                               ) : inv.payment_reported ? (
                                 <button
                                   disabled={!!busy[inv.id]}
@@ -360,7 +360,7 @@ export default function FacturasPage() {
                                     e.stopPropagation();
                                     act(inv, "pay");
                                   }}
-                                  className="rounded border border-ok/40 bg-ok-soft px-2 py-1 text-[11.5px] font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
+                                  className="rounded border border-ok/40 bg-ok-soft px-2 py-1 text-sello font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
                                 >
                                   {busy[inv.id] ? "…" : "Confirmar pago"}
                                 </button>
@@ -394,10 +394,10 @@ export default function FacturasPage() {
                     <li key={inv.id} onClick={() => setOpenId(inv.id)} className="cursor-pointer px-4 py-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-ink">{inv.customer}</p>
-                          <p className="tnum mt-0.5 text-[11.5px] text-ink-3">{inv.folio}</p>
+                          <p className="text-cuerpo font-medium text-ink">{inv.customer}</p>
+                          <p className="tnum mt-0.5 text-apoyo text-ink-3">{inv.folio}</p>
                         </div>
-                        <p className="tnum shrink-0 text-[13.5px] font-semibold text-ink">{mxn(inv.amount)}</p>
+                        <p className="tnum shrink-0 text-seccion font-semibold text-ink">{mxn(inv.amount)}</p>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                         <SourceBadge
@@ -406,20 +406,20 @@ export default function FacturasPage() {
                           presence={tab === "open" ? inv.presence : undefined}
                         />
                         {tab === "paid" ? (
-                          <span className="inline-flex items-center rounded bg-ok-soft px-1.5 py-px text-[11px] font-medium text-ok">
+                          <span className="inline-flex items-center rounded bg-ok-soft px-1.5 py-px text-sello font-medium text-ok">
                             Pagada
                           </span>
                         ) : inv.payment_reported ? (
-                          <span className="inline-flex items-center rounded bg-warn-soft px-1.5 py-px text-[11px] font-medium text-warn">
+                          <span className="inline-flex items-center rounded bg-warn-soft px-2 py-0.5 text-rotulo font-medium text-warn">
                             Cliente reporta pago
                           </span>
                         ) : (
                           <>
                             <BucketPill bucket={inv.bucket} />
                             {inv.days_overdue > 0 ? (
-                              <span className="tnum text-[11.5px] font-medium text-danger">{inv.days_overdue} d de atraso</span>
+                              <span className="tnum text-apoyo font-medium text-danger">{inv.days_overdue} d de atraso</span>
                             ) : (
-                              <span className="tnum text-[11.5px] text-ink-3">vence en {-inv.days_overdue} d</span>
+                              <span className="tnum text-apoyo text-ink-3">vence en {-inv.days_overdue} d</span>
                             )}
                           </>
                         )}
@@ -427,7 +427,7 @@ export default function FacturasPage() {
                       {tab === "open" && (
                         <div className="mt-2.5">
                           {done[inv.id] ? (
-                            <span className="text-[11.5px] font-medium text-ok">{done[inv.id]}</span>
+                            <span className="text-apoyo font-medium text-ok">{done[inv.id]}</span>
                           ) : inv.payment_reported ? (
                             <button
                               disabled={!!busy[inv.id]}
@@ -435,7 +435,7 @@ export default function FacturasPage() {
                                 e.stopPropagation();
                                 act(inv, "pay");
                               }}
-                              className="w-full rounded-md border border-ok/40 bg-ok-soft py-2 text-[12px] font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
+                              className="w-full rounded-md border border-ok/40 bg-ok-soft py-2 text-cuerpo font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
                             >
                               {busy[inv.id] ? "…" : "Confirmar pago"}
                             </button>
@@ -447,7 +447,7 @@ export default function FacturasPage() {
                                   e.stopPropagation();
                                   act(inv, "remind");
                                 }}
-                                className="flex-1 rounded-md border border-line bg-surface py-2 text-[12px] font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
+                                className="flex-1 rounded-md border border-line bg-surface py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
                               >
                                 {busy[inv.id] === "remind" ? "Redactando…" : "Recordar"}
                               </button>
@@ -457,7 +457,7 @@ export default function FacturasPage() {
                                   e.stopPropagation();
                                   act(inv, "pay");
                                 }}
-                                className="flex-1 rounded-md border border-line bg-surface py-2 text-[12px] font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
+                                className="flex-1 rounded-md border border-line bg-surface py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
                               >
                                 {busy[inv.id] === "pay" ? "…" : "Registrar pago"}
                               </button>
@@ -501,17 +501,17 @@ function AgingResumen({
     <div className="reveal elev-sm mb-4 rounded-lg border border-line bg-surface px-4 py-3.5">
       <div className="flex items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-2.5">
-          <span className="hero-num text-[26px] font-semibold leading-none text-ink">
+          <span className="hero-num text-cifra font-semibold leading-none text-ink">
             <AnimatedNumber value={total} format={mxn} />
           </span>
-          <span className="text-[12px] text-ink-3">
+          <span className="text-cuerpo text-ink-3">
             por cobrar · {count} {count === 1 ? "factura" : "facturas"}
           </span>
         </div>
         {active && (
           <button
             onClick={() => onPick(null)}
-            className="shrink-0 text-[11.5px] text-ink-3 transition-colors hover:text-ink"
+            className="shrink-0 text-apoyo text-ink-3 transition-colors hover:text-ink"
           >
             Ver todas
           </button>
@@ -545,9 +545,9 @@ function AgingResumen({
               }`}
             >
               <span className={`h-2 w-2 rounded-[3px] ${BUCKET_META[l.bucket].bar}`} />
-              <span className="text-[12px] text-ink-2 group-hover:text-ink">{BUCKET_META[l.bucket].label}</span>
-              <span className="tnum text-[12px] font-medium text-ink">{mxn(l.total)}</span>
-              <span className="tnum text-[11px] text-ink-3">· {l.count}</span>
+              <span className="text-cuerpo text-ink-2 group-hover:text-ink">{BUCKET_META[l.bucket].label}</span>
+              <span className="tnum text-cuerpo font-medium text-ink">{mxn(l.total)}</span>
+              <span className="tnum text-apoyo text-ink-3">· {l.count}</span>
             </button>
           );
         })}
@@ -581,29 +581,29 @@ function FacturasRail({
         {deudores.map((d, i) => (
           <RailRow key={d.customer}>
             <span className="flex min-w-0 items-center gap-2.5">
-              <span className="tnum w-3 shrink-0 text-[11px] text-ink-3">{i + 1}</span>
-              <span className="truncate text-[12.5px] text-ink-2">{d.customer}</span>
+              <span className="tnum w-3 shrink-0 text-apoyo text-ink-3">{i + 1}</span>
+              <span className="truncate text-cuerpo text-ink-2">{d.customer}</span>
             </span>
-            <span className="tnum shrink-0 text-[12.5px] font-medium text-ink">{mxn(d.total)}</span>
+            <span className="tnum shrink-0 text-cuerpo font-medium text-ink">{mxn(d.total)}</span>
           </RailRow>
         ))}
       </RailSection>
 
       <RailSection label="Vence esta semana">
         {porVencer.length === 0 ? (
-          <p className="text-[12px] leading-relaxed text-ink-3">
+          <p className="text-cuerpo leading-relaxed text-ink-3">
             Nada vence en los próximos 7 días. Vas al corriente.
           </p>
         ) : (
           porVencer.map((inv) => (
             <RailRow key={inv.id}>
               <span className="min-w-0">
-                <span className="block truncate text-[12.5px] text-ink-2">{inv.customer}</span>
-                <span className="text-[11px] text-ink-3">
+                <span className="block truncate text-cuerpo text-ink-2">{inv.customer}</span>
+                <span className="text-apoyo text-ink-3">
                   {inv.days_overdue === 0 ? "vence hoy" : `en ${-inv.days_overdue} d`}
                 </span>
               </span>
-              <span className="tnum shrink-0 text-[12.5px] font-medium text-ink">{mxn(inv.amount)}</span>
+              <span className="tnum shrink-0 text-cuerpo font-medium text-ink">{mxn(inv.amount)}</span>
             </RailRow>
           ))
         )}
@@ -631,7 +631,7 @@ function RowAction({
         e.stopPropagation();
         onClick();
       }}
-      className="rounded border border-line bg-surface px-2 py-1 text-[11.5px] font-medium text-ink-2 opacity-100 transition-all hover:border-accent hover:text-accent-ink focus-visible:opacity-100 disabled:opacity-60 md:opacity-60 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+      className="rounded border border-line bg-surface px-2 py-1 text-sello font-medium text-ink-2 opacity-100 transition-all hover:border-accent hover:text-accent-ink focus-visible:opacity-100 disabled:opacity-60 md:opacity-60 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
     >
       {label}
     </button>

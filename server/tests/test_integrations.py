@@ -90,16 +90,10 @@ def test_integrations_marca_conectados(client, demo_tenant, demo_login):
     # algo no tocado queda disponible
     assert by_key["stripe"]["connected"] is False
     assert body["connected_count"] >= 2
-    # el mapa muestra TODO el equipo (activos o no), marcando cuáles lo están
-    from aiuda_server.api.integrations import AGENT_META
-
-    assert len(body["agents"]) == len(AGENT_META)
-    by_agent = {a["slug"]: a for a in body["agents"]}
-    assert by_agent["mariana"]["active"] is True  # default cuando no hay config
-    assert by_agent["carlos"]["active"] is False  # en el equipo pero sin activar
-    # "Lo usa tu equipo" en un sistema sólo cuenta agentes activos
-    assert "mariana" in by_key["whatsapp"]["agents"]
-    assert "carlos" not in by_key["odoo"]["agents"]
+    # El mapa muestra el equipo del DUEÑO. Sin ayudantes creados va vacío, y ningún
+    # sistema le atribuye uso a nadie: antes inventaba ocho roles de fábrica.
+    assert body["agents"] == []
+    assert by_key["whatsapp"]["agents"] == []
 
 
 def test_integrations_responde_local(client, demo_tenant):
@@ -169,36 +163,25 @@ def test_config_integracion_desconocida(client, demo_tenant, demo_login):
 # --- Capa de capacidades ----------------------------------------------------
 
 
-def test_agent_systems_se_derivan_de_capacidades():
-    """La relación aiudante<->fuente sale de cruzar lo que necesita con lo que
-    cada fuente provee. No se mantiene a mano."""
-    from aiuda_server.api.integrations import (
-        AGENT_CAPS,
-        AGENT_SYSTEMS,
-        _CAP_PROVIDERS,
-        _agent_systems,
+def test_las_capacidades_salen_de_las_aiuditas_del_ayudante(db_session, demo_tenant):
+    """La relación ayudante<->fuente sale de cruzar lo que sus aiuditas necesitan con lo
+    que cada fuente provee. Ya no hay tabla de roles de fábrica que mantener a mano."""
+    from aiuda_core.models import Ayudante
+    from aiuda_server.api.integrations import _CAP_PROVIDERS, capacidades_de
+
+    a = Ayudante(
+        tenant_id=demo_tenant.id, name="Male", appearance={},
+        aiuditas={"cobranza.consultar_cartera": {}, "cobranza.redactar_recordatorio": {}},
     )
+    caps = capacidades_de(a)
+    assert "cuentas_por_cobrar" in caps
+    # Y de ahí salen las fuentes que le sirven, sin listarlas a mano.
+    fuentes = {f for c in caps for f in _CAP_PROVIDERS.get(c, [])}
+    assert {"odoo", "excel"} <= fuentes
 
-    # Cobranza no necesita CFDI: facturama/facturapi no deben aparecer.
-    assert "facturapi" not in AGENT_SYSTEMS["mariana"]
-    assert "facturama" not in AGENT_SYSTEMS["mariana"]
-    # Pero sí toda fuente de cartera, canal y confirmación de pago.
-    assert {"excel", "odoo", "shopify", "woocommerce"} <= set(AGENT_SYSTEMS["mariana"])
-    assert "whatsapp" in AGENT_SYSTEMS["mariana"]
-    assert {"belvo", "stripe"} <= set(AGENT_SYSTEMS["mariana"])
-    # Una fuente sirve a varios agentes: Odoo provee cartera (Mariana) y, en
-    # cuanto se habilite, catálogo (Carlos). Por eso aparece en ambos.
-    assert "odoo" in AGENT_SYSTEMS["mariana"]
-    assert "odoo" in AGENT_SYSTEMS["carlos"]
-    # La derivación es exactamente la intersección capacidad<->fuente.
-    for slug in AGENT_CAPS:
-        esperado = []
-        for cap in AGENT_CAPS[slug]:
-            for src in _CAP_PROVIDERS.get(cap, []):
-                if src not in esperado:
-                    esperado.append(src)
-        assert _agent_systems(slug) == esperado
-
+    # Un ayudante sin aiuditas no necesita nada: no se le inventa un oficio.
+    vacio = Ayudante(tenant_id=demo_tenant.id, name="Nuevo", appearance={}, aiuditas={})
+    assert capacidades_de(vacio) == []
 
 def test_integrations_devuelve_capacidades_y_huecos(client, demo_tenant, demo_login):
     demo_login(client)
@@ -219,11 +202,9 @@ def test_integrations_devuelve_capacidades_y_huecos(client, demo_tenant, demo_lo
     assert odoo_caps["cuentas_por_cobrar"] is True
     assert odoo_caps["catalogo_productos"] is True  # sync_catalogo ya lee de Odoo
 
-    # Mariana: necesita confirmación de pago pero nada conectado la cumple.
-    mariana = next(a for a in body["agents"] if a["slug"] == "mariana")
-    assert "confirmacion_pago" in mariana["needs"]
-    assert "confirmacion_pago" in mariana["gaps"]
-    assert "cuentas_por_cobrar" not in mariana["gaps"]  # shopify la cubre
+    # El equipo del mapa son los ayudantes que el dueño creó. Sin ninguno, va vacío:
+    # no se inventa un equipo de fábrica para llenar la pantalla.
+    assert body["agents"] == []
 
 
 def test_integration_detail_da_capacidades_con_toggles(client, demo_tenant, demo_login):
@@ -236,8 +217,8 @@ def test_integration_detail_da_capacidades_con_toggles(client, demo_tenant, demo
     assert caps["cuentas_por_cobrar"]["toggleable"] is True
     assert caps["catalogo_productos"]["live"] is True
     assert caps["catalogo_productos"]["toggleable"] is True
-    # En el tenant demo solo Mariana está activa: ella usa la cartera.
-    assert any(a["slug"] == "mariana" for a in caps["cuentas_por_cobrar"]["agents"])
+    # Sin ayudantes creados, la capacidad no le atribuye el uso a nadie.
+    assert caps["cuentas_por_cobrar"]["agents"] == []
 
 
 def test_live_de_capacidades_es_una_sola_verdad():
@@ -344,17 +325,24 @@ def test_probar_conexion_fuentes_cableadas_piden_credenciales(client, demo_tenan
         assert "credenciales" in body["message"].lower(), key
 
 
-def test_agent_systems_endpoint_incluye_capacidades(client, demo_tenant, demo_login):
+def test_systems_del_ayudante_solo_trae_lo_que_ese_ayudante_usa(client, demo_tenant, demo_login):
     demo_login(client)
-    body = client.get("/v1/agents/mariana/systems").json()
-    assert body["needs"] == ["cuentas_por_cobrar", "mensajeria", "confirmacion_pago"]
-    assert body["gaps"] == ["confirmacion_pago"]
-    caps = {c["key"]: c for c in body["capabilities"]}
-    assert caps["mensajeria"]["connected"] is True
-    # Cada sistema sólo muestra las capacidades que ESTE agente usa.
+    a = client.post(
+        "/v1/ayudantes",
+        json={"name": "Male", "aiuditas": ["cobranza.consultar_cartera"]},
+    ).json()
+    body = client.get(f"/v1/ayudantes/{a['id']}/systems").json()
+
+    assert body["name"] == "Male"
+    assert "cuentas_por_cobrar" in body["needs"]
+    # Cada sistema sólo muestra las capacidades que ESTE ayudante usa.
     by_key = {s["key"]: s for s in body["systems"]}
     assert all(p["cap"] in body["needs"] for p in by_key["odoo"]["provides"])
 
+
+def test_systems_de_un_ayudante_ajeno_da_404(client, demo_tenant, demo_login):
+    demo_login(client)
+    assert client.get("/v1/ayudantes/no-existe/systems").status_code == 404
 
 def test_instalacion_nueva_no_presume_fuentes_conectadas(client, db_session):
     """Un negocio recién instalado NO tiene ninguna fuente conectada.

@@ -57,11 +57,11 @@ export function Toaster() {
           <svg viewBox="0 0 12 12" className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${COLOR[t.variant]}`} fill="none">
             <path d={ICON[t.variant]} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <p className="flex-1 text-[12.5px] leading-snug text-ink">{t.message}</p>
+          <p className="flex-1 text-cuerpo leading-snug text-ink">{t.message}</p>
           <button
             onClick={() => setItems((prev) => prev.filter((x) => x.id !== t.id))}
             aria-label="Cerrar"
-            className="-mr-1 -mt-0.5 shrink-0 px-1 text-[14px] leading-none text-ink-3 hover:text-ink"
+            className="-mr-1 -mt-0.5 shrink-0 px-1 text-cuerpo leading-none text-ink-3 hover:text-ink"
           >
             &times;
           </button>

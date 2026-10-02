@@ -332,25 +332,25 @@ function ListaPendientes({
             <div className="grid grid-cols-1 items-stretch sm:grid-cols-[1fr_auto_1fr]">
               {/* PAGO RECIBIDO — el dinero que entró */}
               <div className="bg-accent-soft/40 p-4">
-                <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-accent-ink">
+                <p className="flex items-center gap-1.5 text-rotulo font-semibold uppercase tracking-[0.07em] text-accent-ink">
                   {IconDeposit} Pago recibido
                 </p>
-                <p className="tnum mt-2 text-[20px] font-semibold leading-none text-ink">
+                <p className="tnum mt-2 text-titulo font-semibold leading-none text-ink">
                   {mxn(item.amount)}
                 </p>
-                <p className="mt-1.5 text-[11.5px] text-ink-3">
+                <p className="mt-1.5 text-apoyo text-ink-3">
                   {CONCILIACION_ORIGEN[item.source] ?? item.source} · {fechaDM(item.paid_at)}
                 </p>
                 {item.origen && (
-                  <p className="mt-0.5 text-[11px] text-ink-3">{item.origen}</p>
+                  <p className="mt-0.5 text-apoyo text-ink-3">{item.origen}</p>
                 )}
                 {item.counterparty && (
-                  <p className="mt-0.5 truncate text-[12px] text-ink-2" title={item.counterparty}>
+                  <p className="mt-0.5 truncate text-cuerpo text-ink-2" title={item.counterparty}>
                     {item.counterparty}
                   </p>
                 )}
                 {item.reference && (
-                  <p className="mt-0.5 truncate text-[11.5px] text-ink-3" title={item.reference}>
+                  <p className="mt-0.5 truncate text-apoyo text-ink-3" title={item.reference}>
                     ref. {item.reference}
                   </p>
                 )}
@@ -359,7 +359,7 @@ function ListaPendientes({
               {/* Indicador de match: compara los montos */}
               <div className="flex items-center justify-center border-line bg-panel/30 px-3 py-1 sm:flex-col sm:border-x">
                 <span
-                  className={`tnum rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  className={`tnum rounded-full px-2.5 py-1 text-sello font-semibold ${
                     !sel
                       ? "bg-panel text-ink-3"
                       : sel.cuadra
@@ -383,23 +383,23 @@ function ListaPendientes({
 
               {/* LO QUE LIQUIDA — factura sola o grupo */}
               <div className="border-t border-line p-4 sm:border-t-0">
-                <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+                <p className="flex items-center gap-1.5 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
                   {IconDoc} {sel && sel.invoiceIds.length > 1 ? "Facturas por cobrar" : "Factura por cobrar"}
                 </p>
                 {sel ? (
                   <>
-                    <p className="mt-2 text-[14px] font-semibold leading-tight text-ink">
+                    <p className="mt-2 text-cuerpo font-semibold leading-tight text-ink">
                       {sel.etiqueta}
                     </p>
-                    <p className="tnum mt-1 text-[12.5px] text-ink-2">{mxn(sel.monto)}</p>
-                    <p className="mt-0.5 text-[11.5px] text-ink-3">{sel.detalle}</p>
+                    <p className="tnum mt-1 text-cuerpo text-ink-2">{mxn(sel.monto)}</p>
+                    <p className="mt-0.5 text-apoyo text-ink-3">{sel.detalle}</p>
                   </>
                 ) : item.ambiguo ? (
-                  <p className="mt-2 text-[12.5px] text-ink-2">
+                  <p className="mt-2 text-cuerpo text-ink-2">
                     {opts.length} opciones parejas. Elige abajo cuál liquida este pago.
                   </p>
                 ) : (
-                  <p className="mt-2 text-[12.5px] text-ink-3">
+                  <p className="mt-2 text-cuerpo text-ink-3">
                     Tu ayudante no encontró una factura abierta que coincida.
                   </p>
                 )}
@@ -408,7 +408,7 @@ function ListaPendientes({
 
             {/* Ambiguo: el ayudante lo dice y no elige */}
             {item.ambiguo && (
-              <p className="border-t border-line bg-warn-soft/40 px-4 py-2 text-[12px] text-warn">
+              <p className="border-t border-line bg-warn-soft/40 px-4 py-2 text-cuerpo text-warn">
                 {item.nota}
               </p>
             )}
@@ -416,7 +416,7 @@ function ListaPendientes({
             {/* Opciones (radio): facturas solas y grupos, cada una con su evidencia */}
             {opts.length > (item.ambiguo ? 0 : 1) && (
               <div className="border-t border-line px-4 py-3">
-                <p className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-ink-3">
+                <p className="text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
                   {item.ambiguo ? "Elige la que corresponde" : "¿Es otra? Cámbiala"}
                 </p>
                 <div className="mt-2 space-y-1.5">
@@ -437,21 +437,21 @@ function ListaPendientes({
                         className="mt-1 accent-[var(--color-accent)]"
                       />
                       <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-baseline gap-x-2 text-[12.5px] font-medium text-ink">
+                        <span className="flex flex-wrap items-baseline gap-x-2 text-cuerpo font-medium text-ink">
                           {o.etiqueta}
                           <span className="tnum font-normal text-ink-2">{mxn(o.monto)}</span>
                           {o.parcial && (
-                            <span className="rounded bg-warn-soft px-1.5 text-[10.5px] font-semibold text-warn">
+                            <span className="rounded bg-warn-soft px-1.5 text-sello font-semibold text-warn">
                               abono
                             </span>
                           )}
                           {o.invoiceIds.length > 1 && (
-                            <span className="rounded bg-line/60 px-1.5 text-[10.5px] font-semibold text-ink-2">
+                            <span className="rounded bg-line/60 px-1.5 text-sello font-semibold text-ink-2">
                               {o.invoiceIds.length} facturas
                             </span>
                           )}
                         </span>
-                        <span className="mt-0.5 block text-[11.5px] leading-snug text-ink-3">
+                        <span className="mt-0.5 block text-apoyo leading-snug text-ink-3">
                           {o.reason}
                         </span>
                       </span>
@@ -465,13 +465,13 @@ function ListaPendientes({
             <div className="flex flex-wrap items-center gap-2 border-t border-line bg-panel/20 px-4 py-3">
               <div className="mr-auto min-w-0">
                 {sel?.reason && opts.length <= 1 && (
-                  <p className="text-[11.5px] text-ink-3">
+                  <p className="text-apoyo text-ink-3">
                     <span className="font-medium text-ink-2">Por qué: </span>
                     {sel.reason}
                   </p>
                 )}
                 {sel?.parcial && (
-                  <p className="text-[11.5px] text-warn">
+                  <p className="text-apoyo text-warn">
                     Pago parcial: se abonan {mxn(item.amount)} y la factura queda abierta con
                     saldo de {mxn(sel.saldoRestante)}.
                   </p>
@@ -480,7 +480,7 @@ function ListaPendientes({
               <button
                 onClick={() => sel && onConfirm(item, sel)}
                 disabled={busy !== null || !sel}
-                className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
               >
                 {busy === item.id
                   ? "Conciliando…"
@@ -491,7 +491,7 @@ function ListaPendientes({
               <button
                 onClick={() => onReject(item)}
                 disabled={busy !== null}
-                className="rounded-md border border-line bg-surface px-3 py-1.5 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
               >
                 Rechazar
               </button>
@@ -528,17 +528,17 @@ function ListaDichos({
         <li key={d.invoice_id} className="rounded-xl border border-line bg-surface p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[13.5px] font-semibold text-ink">
+              <p className="text-seccion font-semibold text-ink">
                 {d.folio}
                 <span className="font-normal text-ink-2"> · {d.customer}</span>
               </p>
-              <p className="tnum mt-0.5 text-[12.5px] text-ink-2">
+              <p className="tnum mt-0.5 text-cuerpo text-ink-2">
                 {d.saldo < d.amount
                   ? `saldo ${mxn(d.saldo)} de ${mxn(d.amount)}`
                   : mxn(d.amount)}
                 <span className="text-ink-3"> · vence {fechaDM(d.due_date)}</span>
               </p>
-              <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+              <p className="mt-2 text-cuerpo leading-relaxed text-ink-3">
                 El cliente dice que ya pagó.{" "}
                 {d.respaldo ? (
                   <span className="text-ok">
@@ -558,12 +558,12 @@ function ListaDichos({
               <button
                 onClick={() => onConciliar(d)}
                 disabled={busy !== null}
-                className="shrink-0 rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                className="shrink-0 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
               >
                 {busy === d.invoice_id ? "Conciliando…" : "Conciliar y cerrar"}
               </button>
             ) : (
-              <span className="shrink-0 rounded-full bg-panel px-2.5 py-1 text-[11px] font-semibold text-ink-3">
+              <span className="shrink-0 rounded-full bg-panel px-2.5 py-1 text-rotulo font-semibold text-ink-3">
                 sin respaldo aún
               </span>
             )}
@@ -598,14 +598,14 @@ function ListaResueltos({ data, loading }: { data: ReconcileResuelto[]; loading:
       {data.map((r) => (
         <li key={r.id} className="rounded-xl border border-line bg-surface px-4 py-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p className="tnum text-[13.5px] font-semibold text-ink">
+            <p className="tnum text-seccion font-semibold text-ink">
               {mxn(r.amount)}
-              <span className="ml-2 text-[11.5px] font-normal text-ink-3">
+              <span className="ml-2 text-apoyo font-normal text-ink-3">
                 {CONCILIACION_ORIGEN[r.source] ?? r.source} · {fechaDM(r.paid_at)}
               </span>
             </p>
             <span
-              className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+              className={`rounded-full px-2.5 py-0.5 text-sello font-semibold ${
                 r.status === "conciliado" ? "bg-ok-soft text-ok" : "bg-line/60 text-ink-2"
               }`}
             >
@@ -613,11 +613,11 @@ function ListaResueltos({ data, loading }: { data: ReconcileResuelto[]; loading:
             </span>
           </div>
           {r.counterparty && (
-            <p className="mt-0.5 truncate text-[11.5px] text-ink-3">{r.counterparty}</p>
+            <p className="mt-0.5 truncate text-apoyo text-ink-3">{r.counterparty}</p>
           )}
-          {r.origen && <p className="mt-0.5 text-[11px] text-ink-3">{r.origen}</p>}
+          {r.origen && <p className="mt-0.5 text-apoyo text-ink-3">{r.origen}</p>}
           {r.aplicaciones.length > 0 && (
-            <p className="mt-1.5 text-[12px] text-ink-2">
+            <p className="mt-1.5 text-cuerpo text-ink-2">
               {r.aplicaciones
                 .map((a) =>
                   a.cerrada
@@ -708,14 +708,14 @@ function RegistrarPagoSheet({
       subtitle="Un depósito que no llegó solo (efectivo, transferencia directa)"
     >
       <div className="space-y-3">
-        <p className="rounded-lg border border-line bg-panel/40 px-3.5 py-3 text-[12px] leading-relaxed text-ink-2">
+        <p className="rounded-lg border border-line bg-panel/40 px-3.5 py-3 text-cuerpo leading-relaxed text-ink-2">
           El pago entra a la bandeja de conciliación como cualquier movimiento del banco: tu
           ayudante de conciliación propone la factura que liquida y tú confirmas. Nada se
           cierra solo.
         </p>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Monto</span>
+            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Monto</span>
             <input
               className={`${settingsInputCls} mt-1`}
               inputMode="decimal"
@@ -725,7 +725,7 @@ function RegistrarPagoSheet({
             />
           </label>
           <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Fecha</span>
+            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Fecha</span>
             <input
               className={`${settingsInputCls} mt-1`}
               type="date"
@@ -734,7 +734,7 @@ function RegistrarPagoSheet({
             />
           </label>
           <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Referencia</span>
+            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Referencia</span>
             <input
               className={`${settingsInputCls} mt-1`}
               value={referencia}
@@ -743,7 +743,7 @@ function RegistrarPagoSheet({
             />
           </label>
           <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.06em] text-ink-3">Quién depositó</span>
+            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Quién depositó</span>
             <input
               className={`${settingsInputCls} mt-1`}
               value={quien}
@@ -753,7 +753,7 @@ function RegistrarPagoSheet({
           </label>
         </div>
         <label className="block">
-          <span className="text-[11px] uppercase tracking-[0.06em] text-ink-3">
+          <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
             Factura (opcional, como pista)
           </span>
           <select
@@ -792,9 +792,9 @@ function FuentesRail({
         {Object.entries(fuentes).map(([key, f]) => (
           <div key={key} className="border-b border-line/50 pb-2 last:border-0">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[12px] text-ink-2">{FUENTE_LABEL[key] ?? key}</span>
+              <span className="text-cuerpo text-ink-2">{FUENTE_LABEL[key] ?? key}</span>
               <span
-                className={`text-[11px] font-semibold ${f.configurada ? "text-ok" : "text-ink-3"}`}
+                className={`text-apoyo font-semibold ${f.configurada ? "text-ok" : "text-ink-3"}`}
               >
                 {f.configurada ? "conectada" : "sin conectar"}
               </span>
@@ -802,7 +802,7 @@ function FuentesRail({
             {/* Honestidad: el conector existe y tiene contrato, pero nunca ha corrido
                 contra la API real del proveedor. */}
             {!f.verificada_en_vivo && (
-              <p className="mt-0.5 text-[11px] text-ink-3">pendiente de verificar en vivo</p>
+              <p className="mt-0.5 text-apoyo text-ink-3">pendiente de verificar en vivo</p>
             )}
           </div>
         ))}
@@ -850,13 +850,13 @@ function ToleranciaRail({
 
   return (
     <RailSection label="Tolerancia de monto">
-      <p className="text-[11.5px] leading-relaxed text-ink-3">
+      <p className="text-apoyo leading-relaxed text-ink-3">
         Cuánta diferencia entre pago y factura sigue contando como match (redondeos,
         comisiones). Se toma la mayor de las dos.
       </p>
       <div className="mt-2.5 space-y-2">
         <label className="flex items-center justify-between gap-2">
-          <span className="text-[12px] text-ink-2">Porcentaje</span>
+          <span className="text-cuerpo text-ink-2">Porcentaje</span>
           <span className="flex items-center gap-1">
             <input
               type="number"
@@ -865,22 +865,22 @@ function ToleranciaRail({
               step="0.5"
               value={pct}
               onChange={(e) => setPct(e.target.value)}
-              className="tnum w-16 rounded-md border border-line bg-surface px-2 py-1 text-right text-[12px] text-ink focus:border-accent focus:outline-none"
+              className="tnum w-16 rounded-md border border-line bg-surface px-2 py-1 text-right text-sello text-ink focus:border-accent focus:outline-none"
             />
-            <span className="text-[11.5px] text-ink-3">%</span>
+            <span className="text-apoyo text-ink-3">%</span>
           </span>
         </label>
         <label className="flex items-center justify-between gap-2">
-          <span className="text-[12px] text-ink-2">Mínimo en pesos</span>
+          <span className="text-cuerpo text-ink-2">Mínimo en pesos</span>
           <span className="flex items-center gap-1">
-            <span className="text-[11.5px] text-ink-3">$</span>
+            <span className="text-apoyo text-ink-3">$</span>
             <input
               type="number"
               min="0"
               step="1"
               value={abs}
               onChange={(e) => setAbs(e.target.value)}
-              className="tnum w-16 rounded-md border border-line bg-surface px-2 py-1 text-right text-[12px] text-ink focus:border-accent focus:outline-none"
+              className="tnum w-16 rounded-md border border-line bg-surface px-2 py-1 text-right text-sello text-ink focus:border-accent focus:outline-none"
             />
           </span>
         </label>
@@ -888,7 +888,7 @@ function ToleranciaRail({
           <button
             onClick={guardar}
             disabled={saving}
-            className="w-full rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+            className="w-full rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
           >
             {saving ? "Guardando…" : "Guardar tolerancia"}
           </button>

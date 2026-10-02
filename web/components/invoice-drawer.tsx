@@ -83,7 +83,7 @@ export function InvoiceDrawer({
         <div className="space-y-4">
           <Link
             href={`/facturas/detalle?id=${data.id}`}
-            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-accent-ink hover:underline"
+            className="inline-flex items-center gap-1.5 text-cuerpo font-medium text-accent-ink hover:underline"
           >
             <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">
               <path d="M2 7v3h3M10 5V2H7M10 2 6.5 5.5M2 10l3.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />

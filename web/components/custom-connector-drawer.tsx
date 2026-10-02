@@ -55,8 +55,8 @@ const PAGING_OPTIONS: { v: string; label: string }[] = [
 function Campo({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="text-[12px] font-medium text-ink">{label}</span>
-      {hint && <span className="ml-2 text-[11px] text-ink-3">{hint}</span>}
+      <span className="text-cuerpo font-medium text-ink">{label}</span>
+      {hint && <span className="ml-2 text-apoyo text-ink-3">{hint}</span>}
       <div className="mt-1">{children}</div>
     </label>
   );
@@ -227,7 +227,7 @@ export function CustomConnectorDrawer({
       }
     >
       <div className="space-y-4">
-        <p className="rounded-lg border border-line bg-panel/40 px-3.5 py-3 text-[12px] leading-relaxed text-ink-2">
+        <p className="rounded-lg border border-line bg-panel/40 px-3.5 py-3 text-cuerpo leading-relaxed text-ink-2">
           Si tu sistema tiene una API, dinos su URL y qué campo del JSON es cada dato. aiuda la lee
           en cada corrida como cualquier otra fuente, con su procedencia. Tu clave se guarda
           cifrada, nunca en claro. ¿Tu sistema no tiene API? El siguiente escalón es que aiuda
@@ -295,14 +295,14 @@ export function CustomConnectorDrawer({
         </Campo>
 
         <div>
-          <p className="text-[12px] font-semibold text-ink">Mapea los campos</p>
-          <p className="mb-2 mt-0.5 text-[11.5px] text-ink-3">
+          <p className="text-cuerpo font-semibold text-ink">Mapea los campos</p>
+          <p className="mb-2 mt-0.5 text-apoyo text-ink-3">
             Qué campo del JSON es cada dato de aiuda. Usa puntos para anidar (ej. tel.movil).
           </p>
           <div className="space-y-2">
             {fields.map((f) => (
               <div key={f} className="flex items-center gap-2">
-                <span className="w-24 shrink-0 text-[12px] text-ink-2">{FIELD_LABEL[f] ?? f}</span>
+                <span className="w-24 shrink-0 text-cuerpo text-ink-2">{FIELD_LABEL[f] ?? f}</span>
                 <input
                   className={settingsInputCls}
                   value={mapping[f] ?? ""}
@@ -318,10 +318,10 @@ export function CustomConnectorDrawer({
           <button
             type="button"
             onClick={() => setAvanzado(!avanzado)}
-            className="flex w-full items-center justify-between px-3.5 py-2.5 text-left text-[12px] font-medium text-ink transition-colors hover:bg-panel/40"
+            className="flex w-full items-center justify-between px-3.5 py-2.5 text-left text-cuerpo font-medium text-ink transition-colors hover:bg-panel/40"
           >
             Avanzado: paginación, red y escritura
-            <span className="text-[11px] font-normal text-ink-3">
+            <span className="text-apoyo font-normal text-ink-3">
               {avanzado ? "ocultar" : "mostrar"}
             </span>
           </button>
@@ -370,7 +370,7 @@ export function CustomConnectorDrawer({
                   <input className={settingsInputCls} inputMode="numeric" value={pauseMs} onChange={(e) => setPauseMs(e.target.value)} />
                 </Campo>
               </div>
-              <p className="text-[11px] leading-relaxed text-ink-3">
+              <p className="text-apoyo leading-relaxed text-ink-3">
                 aiuda acota todo con topes duros (máx. 60 s, 5 reintentos, 500 por página) y
                 respeta el Retry-After de tu API si limita peticiones.
               </p>
@@ -392,14 +392,14 @@ export function CustomConnectorDrawer({
           <button
             onClick={probar}
             disabled={!baseUrl.trim() || busy !== ""}
-            className="rounded-md border border-line bg-surface px-3.5 py-2 text-[12.5px] font-medium text-ink-2 transition-colors hover:border-line-strong disabled:opacity-50"
+            className="rounded-md border border-line bg-surface px-3.5 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong disabled:opacity-50"
           >
             {busy === "test" ? "Probando…" : "Probar conexión"}
           </button>
           <button
             onClick={guardar}
             disabled={!baseUrl.trim() || !name.trim() || busy !== ""}
-            className="rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+            className="rounded-md bg-accent px-3.5 py-2 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
           >
             {busy === "save" ? "Guardando…" : editar ? "Guardar cambios" : "Guardar conexión"}
           </button>
@@ -407,18 +407,18 @@ export function CustomConnectorDrawer({
 
         {result &&
           (result.ok ? (
-            <div className="rounded-lg border border-ok/30 bg-ok-soft/40 px-3.5 py-3 text-[12px]">
+            <div className="rounded-lg border border-ok/30 bg-ok-soft/40 px-3.5 py-3 text-cuerpo">
               <p className="font-medium text-ok">
                 Funciona · {result.count} registro{result.count === 1 ? "" : "s"} de muestra
               </p>
               {result.sample.length > 0 && (
-                <pre className="mt-2 max-h-56 overflow-auto rounded bg-surface/80 p-2 text-[11px] leading-relaxed text-ink-2">
+                <pre className="mt-2 max-h-56 overflow-auto rounded bg-surface/80 p-2 text-apoyo leading-relaxed text-ink-2">
                   {JSON.stringify(result.sample, null, 2)}
                 </pre>
               )}
             </div>
           ) : (
-            <div className="rounded-lg border border-danger/30 bg-danger-soft/40 px-3.5 py-3 text-[12px] text-danger">
+            <div className="rounded-lg border border-danger/30 bg-danger-soft/40 px-3.5 py-3 text-cuerpo text-danger">
               {result.error}
             </div>
           ))}

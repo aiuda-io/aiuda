@@ -515,7 +515,7 @@ def test_la_lista_de_clientes_dice_quien_pidio_que_no_lo_contacten(client, db_se
     quiere = Customer(tenant_id=tenant.id, name="Sí quiere", phone="+522291110000")
     no_quiere = Customer(tenant_id=tenant.id, name="No quiere", phone="+522292220000")
     db_session.add_all([quiere, no_quiere])
-    assert mark_opt_out(tenant, no_quiere.phone)
+    assert mark_opt_out(db_session, tenant, no_quiere.phone)
     db_session.add(tenant)
     db_session.commit()
 

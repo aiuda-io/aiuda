@@ -5,13 +5,10 @@ from conftest import FakeResponse
 from aiuda_core.config import settings
 from aiuda_core.engine.llm import ClaudeRunner
 from aiuda_core.engine.provider import (
-    CLAUDE_CODE_IDENTITY,
-    OAUTH_BETA,
     ProviderCredential,
     build_anthropic_client,
     credential_from_config,
     default_credential,
-    oauth_system_prefix,
     resolve_credential,
 )
 
@@ -24,29 +21,17 @@ def test_build_client_api_key_usa_x_api_key():
     assert "authorization" not in headers
 
 
-def test_build_client_subscription_usa_bearer_y_beta():
-    cred = ProviderCredential(name="claude", mode="subscription", secret="oauth-xyz")
-    client = build_anthropic_client(cred)
-    headers = {k.lower(): v for k, v in client.auth_headers.items()}
-    assert headers.get("authorization") == "Bearer oauth-xyz"
-    assert "x-api-key" not in headers
-    # El header beta de OAuth viaja como default header.
-    default = {k.lower(): v for k, v in client.default_headers.items()}
-    assert default.get("anthropic-beta") == OAUTH_BETA
-
-
-def test_oauth_system_prefix_solo_en_suscripcion():
-    sub = ProviderCredential(name="claude", mode="subscription", secret="x")
-    api = ProviderCredential(name="claude", mode="api_key", secret="x")
-    assert oauth_system_prefix(sub) == CLAUDE_CODE_IDENTITY
-    assert oauth_system_prefix(api) is None
-    assert oauth_system_prefix(None) is None
-
-
 def test_credential_from_config():
-    cfg = {"provider": {"name": "claude", "mode": "subscription", "secret": "oauth-z"}}
+    cfg = {"provider": {"name": "claude", "mode": "api_key", "secret": "sk-ant-z"}}
     cred = credential_from_config(cfg)
-    assert cred == ProviderCredential("claude", "subscription", "oauth-z")
+    assert cred == ProviderCredential("claude", "api_key", "sk-ant-z")
+
+
+def test_una_credencial_de_suscripcion_guardada_ya_no_resuelve():
+    """El modo suscripción se retiró: hacía pasar a aiuda por Claude Code para que
+    Anthropic aceptara el token. Una config vieja NO revive por accidente."""
+    cfg = {"provider": {"name": "claude", "mode": "subscription", "secret": "oauth-z"}}
+    assert credential_from_config(cfg) is None
     # Sin secreto o sin provider → None
     assert credential_from_config({"provider": {"name": "claude", "mode": "api_key"}}) is None
     assert credential_from_config({}) is None
@@ -67,17 +52,6 @@ def test_resolve_credential_panel_gana_al_entorno(monkeypatch):
     cfg = {"provider": {"name": "claude", "mode": "api_key", "secret": "sk-panel"}}
     assert resolve_credential(cfg).secret == "sk-panel"  # el panel manda
     assert resolve_credential({}).secret == "sk-env"  # sin panel, el entorno
-
-
-def test_runner_antepone_identidad_en_suscripcion(fake_client_factory):
-    # Cliente fake + credencial de suscripción explícita: el system lleva el prefijo.
-    client = fake_client_factory(FakeResponse("ok"))
-    cred = ProviderCredential("claude", "subscription", "oauth-z")
-    runner = ClaudeRunner(client=client, credential=cred)
-    runner.complete(system="Eres el asistente.", user="hola", model="m", task="t")
-    sent = client.messages.requests[0]["system"]
-    assert sent.startswith(CLAUDE_CODE_IDENTITY)
-    assert "Eres el asistente." in sent
 
 
 def test_runner_sin_credencial_no_antepone_nada(fake_client_factory):

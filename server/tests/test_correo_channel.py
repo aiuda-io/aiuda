@@ -405,7 +405,7 @@ def test_baja_por_correo_marca_optout_y_confirma_sin_llm(monkeypatch):
     n = worker_main.procesar_correo_pendientes(session, t, engine)
 
     assert n == 0 and engine.llamadas == []  # sin LLM
-    assert opted_out(t.config, "ana@cliente.mx") is not None
+    assert opted_out(session, t, "ana@cliente.mx") is not None
     [e] = enviados
     assert e["texto"] == OPT_OUT_CONFIRMATION and e["para"] == "ana@cliente.mx"
     # La confirmación quedó en el hilo.
@@ -424,8 +424,7 @@ def test_optout_por_correo_bloquea_el_envio_aprobado(monkeypatch):
     t = _tenant(session)
     _ana(session, t)
     conv = _hilo_correo(session, t)
-    mark_opt_out(t, "ana@cliente.mx", via="correo")
-    session.add(t)
+    mark_opt_out(session, t, "ana@cliente.mx", via="correo")
     r = Reminder(tenant_id=t.id, bucket="respuesta_correo", tone="amable",
                  message="Hola", channel="correo", status="approved",
                  meta={"correo": {"para": "ana@cliente.mx", "conversation_id": conv.id}})

@@ -84,8 +84,8 @@ export default function PerfilPage() {
       <SettingsPage>
         <PageHeader title="Tu perfil" />
         <div className="mt-2 rounded-lg border border-line bg-surface px-6 py-12 text-center">
-          <p className="text-[13.5px] font-medium text-danger">Sin conexión con el API</p>
-          <p className="mt-1 text-[12.5px] text-ink-3">{fetchError}</p>
+          <p className="text-cuerpo font-medium text-danger">Sin conexión con el API</p>
+          <p className="mt-1 text-cuerpo text-ink-3">{fetchError}</p>
         </div>
       </SettingsPage>
     );
@@ -158,7 +158,7 @@ export default function PerfilPage() {
 
         {/* Acciones */}
         <div className="flex items-center justify-end gap-3 border-t border-line py-6">
-          {savedFeedback && <span className="text-[12px] text-ok">Guardado</span>}
+          {savedFeedback && <span className="text-cuerpo text-ok">Guardado</span>}
           <PrimaryButton onClick={handleSave} disabled={!isDirty || saving}>
             {saving ? "Guardando…" : "Guardar"}
           </PrimaryButton>

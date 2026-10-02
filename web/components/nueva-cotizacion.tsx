@@ -93,10 +93,10 @@ export function NuevaCotizacion({
     <Drawer open={open} onClose={onClose} title="Nueva cotización" subtitle="Se arma con tus precios reales">
       {creada ? (
         <div className="flex flex-col items-start gap-3">
-          <p className="text-[13px] text-ink-2">
+          <p className="text-cuerpo text-ink-2">
             Tu cotización quedó redactada y espera tu aprobación. Revísala, ajústala si quieres y envíala.
           </p>
-          <Link href="/centro" className="text-[13px] font-medium text-accent-ink hover:underline">
+          <Link href="/centro" className="text-cuerpo font-medium text-accent-ink hover:underline">
             Ir a Aprobaciones →
           </Link>
           <SecondaryButton onClick={onClose}>Cerrar</SecondaryButton>
@@ -105,11 +105,11 @@ export function NuevaCotizacion({
         <div className="space-y-5">
           {/* Cliente */}
           <div>
-            <label className="text-[12px] font-semibold text-ink">Cliente</label>
+            <label className="text-cuerpo font-semibold text-ink">Cliente</label>
             {cliente ? (
               <div className="mt-1.5 flex items-center justify-between rounded-md border border-line bg-panel/40 px-3 py-2">
-                <span className="text-[13px] text-ink">{cliente.name}</span>
-                <button onClick={() => setCliente(null)} className="text-[12px] text-ink-3 hover:text-ink">
+                <span className="text-cuerpo text-ink">{cliente.name}</span>
+                <button onClick={() => setCliente(null)} className="text-cuerpo text-ink-3 hover:text-ink">
                   Cambiar
                 </button>
               </div>
@@ -119,7 +119,7 @@ export function NuevaCotizacion({
                   value={buscaCliente}
                   onChange={(e) => setBuscaCliente(e.target.value)}
                   placeholder="Busca un cliente…"
-                  className="w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                  className="w-full rounded-md border border-line bg-surface px-3 py-2 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
                 />
                 {clientesFiltrados.length > 0 && (
                   <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-line bg-surface shadow-lg">
@@ -127,7 +127,7 @@ export function NuevaCotizacion({
                       <button
                         key={c.id}
                         onClick={() => { setCliente(c); setBuscaCliente(""); }}
-                        className="block w-full px-3 py-2 text-left text-[13px] text-ink hover:bg-accent-soft"
+                        className="block w-full px-3 py-2 text-left text-cuerpo text-ink hover:bg-accent-soft"
                       >
                         {c.name}
                       </button>
@@ -140,13 +140,13 @@ export function NuevaCotizacion({
 
           {/* Productos */}
           <div>
-            <label className="text-[12px] font-semibold text-ink">Productos</label>
+            <label className="text-cuerpo font-semibold text-ink">Productos</label>
             <div className="relative mt-1.5">
               <input
                 value={buscaProd}
                 onChange={(e) => setBuscaProd(e.target.value)}
                 placeholder="Busca un producto para agregar…"
-                className="w-full rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                className="w-full rounded-md border border-line bg-surface px-3 py-2 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
               />
               {prodsFiltrados.length > 0 && (
                 <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-line bg-surface shadow-lg">
@@ -154,7 +154,7 @@ export function NuevaCotizacion({
                     <button
                       key={p.id}
                       onClick={() => agregar(p)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-[13px] text-ink hover:bg-accent-soft"
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-cuerpo text-ink hover:bg-accent-soft"
                     >
                       <span>{p.name}</span>
                       <span className="text-ink-3">{p.price != null ? mxn(p.price) : "sin precio"}</span>
@@ -168,15 +168,15 @@ export function NuevaCotizacion({
               <div className="mt-2.5 space-y-1.5">
                 {lineas.map((l) => (
                   <div key={l.product.id} className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{l.product.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-cuerpo text-ink">{l.product.name}</span>
                     <input
                       type="number"
                       min={1}
                       value={l.cantidad}
                       onChange={(e) => setCantidad(l.product.id, Number(e.target.value))}
-                      className="w-14 rounded border border-line bg-surface px-1.5 py-1 text-right text-[12.5px] text-ink focus:border-accent focus:outline-none"
+                      className="w-14 rounded border border-line bg-surface px-1.5 py-1 text-right text-sello text-ink focus:border-accent focus:outline-none"
                     />
-                    <span className="w-20 text-right text-[12.5px] text-ink-2">
+                    <span className="w-20 text-right text-cuerpo text-ink-2">
                       {mxn((l.product.price ?? 0) * l.cantidad)}
                     </span>
                     <button onClick={() => quitar(l.product.id)} aria-label="Quitar" className="text-ink-3 hover:text-danger">
@@ -190,7 +190,7 @@ export function NuevaCotizacion({
 
           {/* Descuento + total */}
           <div className="flex items-center justify-between gap-3">
-            <label className="text-[12px] font-semibold text-ink">
+            <label className="text-cuerpo font-semibold text-ink">
               Descuento
               <input
                 type="number"
@@ -198,16 +198,16 @@ export function NuevaCotizacion({
                 max={100}
                 value={descuento}
                 onChange={(e) => setDescuento(Number(e.target.value))}
-                className="ml-2 w-16 rounded border border-line bg-surface px-1.5 py-1 text-right text-[12.5px] text-ink focus:border-accent focus:outline-none"
+                className="ml-2 w-16 rounded border border-line bg-surface px-1.5 py-1 text-right text-sello text-ink focus:border-accent focus:outline-none"
               />
-              <span className="ml-1 text-[12px] text-ink-3">%</span>
+              <span className="ml-1 text-cuerpo text-ink-3">%</span>
             </label>
             <div className="text-right">
-              <p className="text-[11px] text-ink-3">Subtotal</p>
-              <p className="text-[15px] font-semibold tabular-nums text-ink">{mxn(subtotal)}</p>
+              <p className="text-apoyo text-ink-3">Subtotal</p>
+              <p className="text-cuerpo font-semibold tabular-nums text-ink">{mxn(subtotal)}</p>
             </div>
           </div>
-          <p className="text-[11px] text-ink-3">
+          <p className="text-apoyo text-ink-3">
             El descuento se topa al máximo que configuraste; el IVA y la vigencia salen de las perillas
             de la aiudita. Tú apruebas antes de enviar.
           </p>

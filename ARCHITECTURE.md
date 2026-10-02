@@ -45,7 +45,8 @@ funciona en la terminal funciona en la app, y al revés.
   `~/.aiuda/key`. El modo cliente-servidor se conserva (HTTP interno), así que la
   app de escritorio y una instancia operada por un integrador usan este mismo
   código.
-- **BYO-IA.** aiuda no incluye ni revende inferencia. API key, suscripción
+- **BYO-IA.** aiuda no incluye ni revende inferencia. API key, el CLI que el dueño
+  ya tiene instalado (se autentica con SU sesión; aiuda nunca ve su token),
   personal (bajo tu riesgo, la UI lo dice) o un modelo local con Ollama, la única
   vía donde ningún dato sale de tu máquina. Ver [docs/IA.md](docs/IA.md).
 - **Canales honestos.** WhatsApp con tu número (protocolo de WhatsApp Web, el

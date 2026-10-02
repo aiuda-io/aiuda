@@ -69,7 +69,7 @@ export function BancoUpload({
     return (
       <div className={className}>
         <div className="rounded-md bg-panel px-3.5 py-3">
-          <p className="text-[12px] text-ink">
+          <p className="text-cuerpo text-ink">
             Importé <span className="font-semibold text-accent-ink">{result.creados}</span>{" "}
             {result.creados === 1 ? "depósito" : "depósitos"} de tu estado de{" "}
             {result.banco}
@@ -77,7 +77,7 @@ export function BancoUpload({
             {result.omitidos > 0 && ` ${result.omitidos} ya estaban y no se duplicaron.`}
           </p>
           {result.cargos_ignorados > 0 && (
-            <p className="mt-1 text-[11.5px] text-ink-3">
+            <p className="mt-1 text-apoyo text-ink-3">
               Los {result.cargos_ignorados} cargos del estado no entran: la conciliación es de
               dinero que te llega.
             </p>
@@ -95,21 +95,21 @@ export function BancoUpload({
     return (
       <div className={className}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[12.5px] font-medium text-ink">
+          <p className="text-cuerpo font-medium text-ink">
             {previa.banco}
             {previa.periodo && <span className="font-normal text-ink-2"> · {previa.periodo}</span>}{" "}
             <span className="font-normal text-ink-3">
               · {METODO_LABEL[previa.metodo] ?? previa.metodo}
             </span>
           </p>
-          <button onClick={reset} className="text-[11.5px] text-ink-3 hover:text-ink">
+          <button onClick={reset} className="text-apoyo text-ink-3 hover:text-ink">
             Cancelar
           </button>
         </div>
 
         {/* El cuadre: la evidencia de que se leyó completo */}
         <div
-          className={`mt-3 rounded-md px-3.5 py-2.5 text-[12px] ${
+          className={`mt-3 rounded-md px-3.5 py-2.5 text-cuerpo ${
             previa.cuadra ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"
           }`}
         >
@@ -128,12 +128,12 @@ export function BancoUpload({
           )}
         </div>
         {previa.avisos.map((a) => (
-          <p key={a} className="mt-1.5 text-[11.5px] text-warn">
+          <p key={a} className="mt-1.5 text-apoyo text-warn">
             {a}
           </p>
         ))}
 
-        <p className="mt-3 text-[12px] text-ink-2">
+        <p className="mt-3 text-cuerpo text-ink-2">
           {previa.depositos.n} {previa.depositos.n === 1 ? "depósito" : "depósitos"} por{" "}
           <span className="tnum font-medium text-ink">{mxn(previa.depositos.total)}</span>{" "}
           entrarían a conciliación. Los {previa.retiros.n} retiros solo se muestran, no entran.
@@ -148,12 +148,12 @@ export function BancoUpload({
                   m.abono === null ? "opacity-55" : ""
                 }`}
               >
-                <span className="tnum shrink-0 text-[11px] text-ink-3">{fechaDM(m.fecha)}</span>
-                <span className="min-w-0 flex-1 truncate text-[11.5px] text-ink-2" title={m.concepto}>
+                <span className="tnum shrink-0 text-apoyo text-ink-3">{fechaDM(m.fecha)}</span>
+                <span className="min-w-0 flex-1 truncate text-apoyo text-ink-2" title={m.concepto}>
                   {m.concepto || "(sin concepto)"}
                 </span>
                 <span
-                  className={`tnum shrink-0 text-[12px] font-medium ${
+                  className={`tnum shrink-0 text-cuerpo font-medium ${
                     m.abono !== null ? "text-ok" : "text-ink-3"
                   }`}
                 >
@@ -167,7 +167,7 @@ export function BancoUpload({
         <button
           onClick={importar}
           disabled={busy || !previa.cuadra || previa.depositos.n === 0}
-          className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+          className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
         >
           {busy
             ? "Importando…"
@@ -175,7 +175,7 @@ export function BancoUpload({
               ? "Sin depósitos que importar"
               : `Importar ${previa.depositos.n} ${previa.depositos.n === 1 ? "depósito" : "depósitos"} a conciliación`}
         </button>
-        {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
+        {error && <p className="mt-2 text-cuerpo text-danger">{error}</p>}
       </div>
     );
   }
@@ -199,10 +199,10 @@ export function BancoUpload({
           arrastrando ? "border-accent bg-accent-soft/30" : "border-line"
         }`}
       >
-        <p className="text-[12.5px] font-medium text-ink">
+        <p className="text-cuerpo font-medium text-ink">
           Arrastra aquí el PDF de tu estado de cuenta
         </p>
-        <p className="mx-auto mt-1 max-w-md text-[11.5px] leading-relaxed text-ink-3">
+        <p className="mx-auto mt-1 max-w-md text-apoyo leading-relaxed text-ink-3">
           BBVA y Banorte se leen directo. Cualquier otro banco lo lee tu IA. Ves la previa con el
           cuadre y apruebas; solo entonces los depósitos entran a conciliación.
         </p>
@@ -221,7 +221,7 @@ export function BancoUpload({
           {busy ? "Leyendo tu estado de cuenta…" : "Elegir archivo (.pdf)"}
         </SecondaryButton>
       </div>
-      {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
+      {error && <p className="mt-2 text-cuerpo text-danger">{error}</p>}
     </div>
   );
 }

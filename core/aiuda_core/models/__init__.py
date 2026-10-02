@@ -1,4 +1,5 @@
 from aiuda_core.models.base import Base, TenantMixin, TimestampMixin, new_id, utcnow
+from aiuda_core.models.observabilidad import Run, RunLink, RunTurn
 from aiuda_core.models.entities import (
     AgentFeedback,
     Appointment,
@@ -6,6 +7,7 @@ from aiuda_core.models.entities import (
     CfdiBoveda,
     Conversation,
     CuaMission,
+    OptOut,
     OutboxEntry,
     Customer,
     Invoice,
@@ -38,6 +40,10 @@ __all__ = [
     "Payment",
     "PaymentPromise",
     "Conversation",
+    "OptOut",
+    "Run",
+    "RunLink",
+    "RunTurn",
     "OutboxEntry",
     "Message",
     "WhatsappChat",

@@ -93,13 +93,13 @@ export function Drawer({
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-6 py-4">
           <div className="min-w-0">
-            <h2 className="truncate text-[15px] font-semibold tracking-tight text-ink">{title}</h2>
-            {subtitle && <p className="mt-0.5 truncate text-[12px] text-ink-3">{subtitle}</p>}
+            <h2 className="truncate text-cuerpo font-semibold tracking-tight text-ink">{title}</h2>
+            {subtitle && <p className="mt-0.5 truncate text-cuerpo text-ink-3">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="-mr-1.5 -mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-[19px] leading-none text-ink-3 transition-colors hover:bg-panel hover:text-ink"
+            className="-mr-1.5 -mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-titulo leading-none text-ink-3 transition-colors hover:bg-panel hover:text-ink"
           >
             &times;
           </button>

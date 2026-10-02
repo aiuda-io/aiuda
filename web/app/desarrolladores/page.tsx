@@ -453,7 +453,7 @@ function Copiar({ texto }: { texto: string }) {
       type="button"
       onClick={copiar}
       title={texto}
-      className={`shrink-0 rounded-md border px-2 py-1 text-[11.5px] font-medium transition-colors ${
+      className={`shrink-0 rounded-md border px-2 py-1 text-sello font-medium transition-colors ${
         estado === "ok"
           ? "border-ok bg-ok-soft text-ok"
           : estado === "falla"
@@ -470,13 +470,13 @@ function EndpointRow({ e, base }: { e: Endpoint; base: string }) {
   return (
     <div className="flex items-start gap-3 border-b border-line/60 px-4 py-2.5 last:border-b-0">
       <span
-        className={`mt-px w-[52px] shrink-0 rounded px-1 py-0.5 text-center text-[10px] font-semibold tracking-[0.04em] ${METODO_CLS[e.m]}`}
+        className={`mt-px w-[52px] shrink-0 rounded px-1 py-0.5 text-center text-sello font-semibold tracking-[0.04em] ${METODO_CLS[e.m]}`}
       >
         {e.m}
       </span>
       <div className="min-w-0 flex-1">
-        <code className="block break-all font-mono text-[12px] text-ink">{e.path}</code>
-        <p className="mt-0.5 text-[11.5px] leading-snug text-ink-3">{e.desc}</p>
+        <code className="block break-all font-mono text-cuerpo text-ink">{e.path}</code>
+        <p className="mt-0.5 text-apoyo leading-snug text-ink-3">{e.desc}</p>
       </div>
       <Copiar texto={curlDe(base, e)} />
     </div>
@@ -521,49 +521,49 @@ export default function DesarrolladoresPage() {
         title="API"
         subtitle="Todo lo que ves en esta consola existe primero como API, y corre en esta computadora. Construye encima."
         right={
-          <span className="tnum text-[12px] text-ink-3">
+          <span className="tnum text-cuerpo text-ink-3">
             <span className="font-medium text-ink">{TOTAL}</span> endpoints
           </span>
         }
       />
 
       <section className="rounded-lg border border-line bg-surface">
-        <h2 className="border-b border-line px-5 py-3 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+        <h2 className="border-b border-line px-5 py-3 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
           Cómo consultarlo desde tu terminal
         </h2>
         <div className="grid grid-cols-1 gap-1 border-b border-line/60 px-5 py-4 md:grid-cols-[190px_1fr] md:gap-6">
-          <p className="text-[12.5px] font-medium text-ink">Dirección</p>
-          <code className="self-center break-all font-mono text-[12.5px] text-ink-2">{base}</code>
+          <p className="text-cuerpo font-medium text-ink">Dirección</p>
+          <code className="self-center break-all font-mono text-cuerpo text-ink-2">{base}</code>
         </div>
         <div className="grid grid-cols-1 gap-1 border-b border-line/60 px-5 py-4 md:grid-cols-[190px_1fr] md:gap-6">
-          <p className="text-[12.5px] font-medium text-ink">Cómo te identificas</p>
-          <div className="text-[12.5px] leading-relaxed text-ink-2">
+          <p className="text-cuerpo font-medium text-ink">Cómo te identificas</p>
+          <div className="text-cuerpo leading-relaxed text-ink-2">
             <p>
               No hay cuentas ni API keys: cada arranque de{" "}
-              <code className="font-mono text-[12px] text-ink">aiuda start</code> genera un token
+              <code className="font-mono text-cuerpo text-ink">aiuda start</code> genera un token
               de sesión y lo imprime en la terminal, dentro de la liga de la consola
-              (<code className="font-mono text-[12px] text-ink">?token=…</code>). Ese mismo token
+              (<code className="font-mono text-cuerpo text-ink">?token=…</code>). Ese mismo token
               va en los ejemplos de abajo.
             </p>
-            <pre className="mt-2 overflow-x-auto rounded-md bg-panel px-3 py-2 font-mono text-[12px] leading-relaxed text-ink-2">
+            <pre className="mt-2 overflow-x-auto rounded-md bg-panel px-3 py-2 font-mono text-cuerpo leading-relaxed text-ink-2">
               {"export AIUDA_TOKEN=\"el-token-de-tu-arranque\""}
             </pre>
-            <p className="mt-2 text-[12px] text-ink-3">
-              Si arrancas con <code className="font-mono text-[12px]">aiuda start --no-token</code>,
+            <p className="mt-2 text-cuerpo text-ink-3">
+              Si arrancas con <code className="font-mono text-cuerpo">aiuda start --no-token</code>,
               el parámetro sobra. El servidor escucha solo en 127.0.0.1: nada de esto sale de tu
               computadora.
             </p>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-1 border-b border-line/60 px-5 py-4 md:grid-cols-[190px_1fr] md:gap-6">
-          <p className="text-[12.5px] font-medium text-ink">Primer request</p>
-          <pre className="overflow-x-auto self-center font-mono text-[12px] leading-relaxed text-ink-2">
+          <p className="text-cuerpo font-medium text-ink">Primer request</p>
+          <pre className="overflow-x-auto self-center font-mono text-cuerpo leading-relaxed text-ink-2">
             {curlDe(base, { m: "GET", path: "/v1/cartera", desc: "" })}
           </pre>
         </div>
         <div className="grid grid-cols-1 gap-1 px-5 py-4 md:grid-cols-[190px_1fr] md:gap-6">
-          <p className="text-[12.5px] font-medium text-ink">Referencia completa</p>
-          <p className="self-center text-[12.5px] leading-relaxed text-ink-2">
+          <p className="text-cuerpo font-medium text-ink">Referencia completa</p>
+          <p className="self-center text-cuerpo leading-relaxed text-ink-2">
             El esquema OpenAPI que sirve el propio servidor, con los cuerpos y respuestas de cada
             endpoint:{" "}
             <a
@@ -594,7 +594,7 @@ export default function DesarrolladoresPage() {
           onChange={setQ}
           placeholder="Busca por ruta o por lo que hace"
         />
-        <span className="tnum text-[11.5px] text-ink-3">
+        <span className="tnum text-apoyo text-ink-3">
           {buscando
             ? `${encontrados} de ${TOTAL} endpoints`
             : "Abre un tema para ver sus endpoints"}
@@ -617,10 +617,10 @@ export default function DesarrolladoresPage() {
                 className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-panel/40"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-ink">{g.title}</p>
-                  <p className="text-[11.5px] text-ink-3">{g.hint}</p>
+                  <p className="text-seccion font-semibold text-ink">{g.title}</p>
+                  <p className="text-apoyo text-ink-3">{g.hint}</p>
                 </div>
-                <span className="tnum shrink-0 text-[11.5px] text-ink-3">
+                <span className="tnum shrink-0 text-apoyo text-ink-3">
                   {g.items.length} endpoint{g.items.length === 1 ? "" : "s"}
                 </span>
                 <svg
@@ -650,16 +650,16 @@ export default function DesarrolladoresPage() {
 
         {buscando && filtrados.length === 0 && (
           <div className="rounded-lg border border-line bg-surface px-6 py-10 text-center">
-            <p className="text-[13px] font-medium text-ink">Nada con &ldquo;{q}&rdquo;</p>
-            <p className="mt-1 text-[12px] text-ink-3">
+            <p className="text-cuerpo font-medium text-ink">Nada con &ldquo;{q}&rdquo;</p>
+            <p className="mt-1 text-cuerpo text-ink-3">
               Prueba con una ruta (invoices, cua) o con lo que quieres lograr (pago, recordatorio).
             </p>
           </div>
         )}
       </div>
 
-      <p className="mt-4 text-[12px] leading-relaxed text-ink-3">
-        Las rutas con <code className="font-mono text-[11.5px]">{"{llaves}"}</code> esperan un id:
+      <p className="mt-4 text-cuerpo leading-relaxed text-ink-3">
+        Las rutas con <code className="font-mono text-apoyo">{"{llaves}"}</code> esperan un id:
         sustitúyelo antes de correr el comando. aiuda es abierto (Apache-2.0): los mismos
         conectores que usa esta consola los puedes usar tú.
       </p>

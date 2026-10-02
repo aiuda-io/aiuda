@@ -127,7 +127,7 @@ def _tenant_sender(session, tenant: Tenant, wa=None):
     return get_whatsapp_sender(wa, window)
 
 
-def _build_engine(session, tenant: Tenant) -> CleoEngine:
+def _build_engine(session, tenant: Tenant, run=None) -> CleoEngine:
     from aiuda_server.metering import budget_check
 
     # Canal por tenant (wacli | whatsapp_cloud | evolution) — ver connectors/channel.py
@@ -136,6 +136,13 @@ def _build_engine(session, tenant: Tenant) -> CleoEngine:
         tenant,
         send_whatsapp=_tenant_sender(session, tenant),
     )
+    if run is not None:
+        # La corrida queda grabada: qué redactó, con qué prompt y cuánto tardó. El
+        # wrapper reenvía la asignación de abajo al runner de adentro; sin eso, el tope
+        # de gasto se apagaría en silencio.
+        from aiuda_core.observabilidad import envolver
+
+        engine.runner = envolver(engine.runner, run, session, tenant)
     # Tope de gasto de IA: se engancha al runner (mismo patrón que el usage_callback).
     # Con el tope agotado, NINGUNA llamada al proveedor sale de este engine.
     engine.runner.budget_check = budget_check(session, tenant)
@@ -233,8 +240,7 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
         # Opt-out (BAJA/STOP) de un cliente: se registra, se confirma UNA vez con texto
         # determinista (sin LLM) y no se procesa más. El dueño nunca se auto-da de baja.
         if not is_owner and is_opt_out(message.body):
-            mark_opt_out(tenant, conversation.remote_phone, via="whatsapp")
-            session.add(tenant)
+            mark_opt_out(session, tenant, conversation.remote_phone, via="whatsapp")
             if engine.send_whatsapp is not None:
                 try:
                     engine.send_whatsapp(conversation.remote_phone, OPT_OUT_CONFIRMATION)
@@ -705,8 +711,7 @@ def procesar_correo_pendientes(session, tenant, engine) -> int:
 
         # BAJA por correo: registro determinista + confirmación única, sin LLM.
         if is_opt_out(msg.body):
-            mark_opt_out(tenant, remitente or conv.remote_phone, via="correo")
-            session.add(tenant)
+            mark_opt_out(session, tenant, remitente or conv.remote_phone, via="correo")
             correo = resolve_correo(session, tenant)
             if correo is not None and remitente:
                 headers = reply_headers(session, tenant, conv)
@@ -795,7 +800,7 @@ def procesar_correo_pendientes(session, tenant, engine) -> int:
     return propuestas
 
 
-def _process_writebacks(session, tenant) -> None:
+def _process_writebacks(session, tenant):
     """Inyecta a los sistemas de origen lo confirmado en aiuda (si hay conector).
     Credenciales por tenant desde la tabla cifrada (fallback a config/settings)."""
     from aiuda_core.connectors.credentials import ctor_kwargs, get_credential
@@ -820,7 +825,7 @@ def _process_writebacks(session, tenant) -> None:
 
         gcal = GoogleCalendarClient(**ctor_kwargs("googlecalendar", gcal_creds))
     # tenant va siempre: habilita el ejecutor de conexiones a la medida (custom).
-    process_outbox(session, tenant, odoo_client=odoo, shopify_client=shopify, gcal_client=gcal)
+    return process_outbox(session, tenant, odoo_client=odoo, shopify_client=shopify, gcal_client=gcal)
 
 
 def process_writebacks_blocking(tenant_id: str) -> None:
@@ -904,35 +909,68 @@ def _run_daily_impl(
             #    propone, el humano confirma) y el outbox se inyecta de regreso.
             #    Lo sincronizado queda commiteado ANTES de tocar la IA.
             with session_scope() as session:
+                from aiuda_core.observabilidad import abrir_run, contar_sync
+
                 tenant = session.get(Tenant, tenant_id)
-                sync_fuentes(session, tenant, today=today, fuente_prefs=fuentes_preferidas(session, tenant))
-                _process_writebacks(session, tenant)
+                # Traer la cartera es trabajo, y era el más invisible: entraban 147
+                # facturas de Odoo y nadie se lo decía al dueño.
+                with abrir_run(session, tenant, disparo="sincronizacion") as run:
+                    reporte = sync_fuentes(
+                        session, tenant, today=today,
+                        fuente_prefs=fuentes_preferidas(session, tenant),
+                    )
+                    contar_sync(run, reporte)
+                    wb = _process_writebacks(session, tenant)
+                    # Lo que regresó a TU sistema (un pago asentado en Odoo, un cliente
+                    # creado allá). Es la otra mitad del trabajo con integraciones y
+                    # tampoco se veía. `getattr` porque contar no puede romper la corrida
+                    # si un ejecutor no devuelve reporte.
+                    if getattr(wb, "processed", 0):
+                        run.contar(inyectados=wb.processed)
+                    if getattr(wb, "failed", 0):
+                        run.contar(fallidos=wb.failed)
+                        run.motivo("inyeccion_fallida", "No se pudo regresar a tu sistema")
             # 2) Con la cartera al día, la redacción — salvo tope de IA agotado o
             #    cuenta no activa: corte honesto, la corrida NO llama a la IA y
             #    queda aviso. Un tropiezo aquí ya no revierte la etapa 1.
             auto_aprobados: list[str] = []
             with session_scope() as session:
+                from aiuda_core.observabilidad import abrir_run
+
                 tenant = session.get(Tenant, tenant_id)
-                engine = _build_engine(session, tenant)
-                verdict = ia_budget(session, tenant)
-                if verdict["agotado"] or verdict["bloqueada"]:
-                    _aviso_tope(session, tenant, ia_budget_message(verdict))
-                    report["ia_cortada"] += 1
-                    drafted = []
-                else:
-                    try:
-                        drafted = engine.run_reminders(today)
-                        # Correos entrantes nuevos → el agente PROPONE la respuesta
-                        # (pending_approval, canal correo). Maneja el tope adentro.
-                        report["correo_propuestas"] += procesar_correo_pendientes(
-                            session, tenant, engine
-                        )
-                    except BudgetExceeded as exc:
-                        # El tope se agotó A MEDIA corrida: lo ya redactado y su uso
-                        # quedan registrados (se atrapa dentro del scope, sin rollback).
-                        _aviso_tope(session, tenant, str(exc))
+                # La corrida de la noche queda grabada. Es la que el dueño no vio pasar,
+                # así que es justo la que más necesita poder revisar en la mañana.
+                with abrir_run(session, tenant, disparo="corrida") as run:
+                    engine = _build_engine(session, tenant, run=run)
+                    verdict = ia_budget(session, tenant)
+                    if verdict["agotado"] or verdict["bloqueada"]:
+                        _aviso_tope(session, tenant, ia_budget_message(verdict))
                         report["ia_cortada"] += 1
+                        # `cortado`, no `done`: terminó sin error pero sin hacer el
+                        # trabajo. Antes esto se perdía en un contador del reporte.
+                        run.cortar(ia_budget_message(verdict))
                         drafted = []
+                    else:
+                        try:
+                            drafted = engine.run_reminders(today)
+                            # Correos entrantes nuevos → el agente PROPONE la respuesta
+                            # (pending_approval, canal correo). Maneja el tope adentro.
+                            report["correo_propuestas"] += procesar_correo_pendientes(
+                                session, tenant, engine
+                            )
+                        except BudgetExceeded as exc:
+                            # El tope se agotó A MEDIA corrida: lo ya redactado y su uso
+                            # quedan registrados (se atrapa dentro del scope, sin rollback).
+                            _aviso_tope(session, tenant, str(exc))
+                            report["ia_cortada"] += 1
+                            run.cortar(str(exc))
+                            drafted = []
+                    run.contar(propuestos=len(drafted))
+                    for r in drafted:
+                        run.liga("reminder", r.id, rol="propuso")
+                        if r.invoice_id:
+                            run.liga("invoice", r.invoice_id, rol="leyo")
+                        r.meta = {**(r.meta or {}), "run_id": run.id}
                 report["drafted"] += len(drafted)
                 auto_aprobados = [r.id for r in drafted if r.status == "approved"]
             # 3) Los auto-aprobados salen por el MISMO camino que todo envío

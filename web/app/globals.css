@@ -47,6 +47,44 @@
   --shadow-lg: 0 10px 34px oklch(0.35 0.03 235 / 0.11);
 
   --font-sans: "Avenir Next", "Avenir", -apple-system, "Segoe UI", system-ui, sans-serif;
+
+  /* ESCALA TIPOGRÁFICA: siete niveles con nombre, y ninguno más.
+   *
+   * Aquí está lo que separa una consola que se puede usar de una que se ve
+   * "profesional" en la pantalla del que la programó. El dueño de una taquería
+   * puede tener 50 años y presbicia, y abre esto en su monitor, no pegado a él.
+   * Si tiene que acercarse a leer, el producto ya falló: eso es un fallo de uso,
+   * no de gusto.
+   *
+   * Las pantallas piden el PAPEL del texto, nunca un número:
+   *
+   *   text-cifra    el número protagonista de la pantalla (un total, un KPI)
+   *   text-titulo   el título de la pantalla
+   *   text-seccion  el título de una sección, una tarjeta o una fila
+   *   text-cuerpo   TODO lo que hay que leer. El piso: nada baja de aquí.
+   *   text-apoyo    dato secundario al lado de un cuerpo (fecha, folio, meta)
+   *   text-rotulo   etiqueta corta: encabezado de tabla, botón chico, rótulo
+   *   text-sello    etiqueta de UNA palabra (pill, badge). Nunca prosa.
+   *
+   * Regla dura: 12px (sello) es el suelo absoluto y solo para una palabra. Si un
+   * texto se lee en renglones, es cuerpo o apoyo. Punto.
+   */
+  --text-cifra: 28px;
+  --text-cifra--line-height: 1.1;
+  --text-cifra--letter-spacing: -0.02em;
+  --text-titulo: 21px;
+  --text-titulo--line-height: 1.25;
+  --text-titulo--letter-spacing: -0.01em;
+  --text-seccion: 17px;
+  --text-seccion--line-height: 1.35;
+  --text-cuerpo: 15px;
+  --text-cuerpo--line-height: 1.55;
+  --text-apoyo: 14px;
+  --text-apoyo--line-height: 1.5;
+  --text-rotulo: 13px;
+  --text-rotulo--line-height: 1.4;
+  --text-sello: 12px;
+  --text-sello--line-height: 1.35;
 }
 
 /* Tokens de movimiento: pocas duraciones y curvas, usadas en TODA la app para que el
@@ -149,8 +187,10 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 0.8125rem; /* 13px: densidad de consola */
-  line-height: 1.5;
+  /* El piso de la app, no la densidad de una terminal: lo que herede sin clase
+     se lee igual que el cuerpo. Antes era 13px y era el origen del problema. */
+  font-size: var(--text-cuerpo);
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility; /* kerning/ligaduras: texto más nítido */
 }

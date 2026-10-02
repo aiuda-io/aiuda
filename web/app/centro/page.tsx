@@ -27,7 +27,7 @@ import { BucketPill, EmptyState, ErrorState, SecondaryLink, Skeleton, SourceBadg
 import { WaText } from "@/components/wa-text";
 import { Avatar as Mascota } from "@/components/avatar";
 import { appearanceForSlug } from "@/lib/look";
-import { agentDisplayName } from "@/lib/asistentes";
+import { oficioDe } from "@/lib/oficios";
 import { toast } from "@/components/toast";
 import { Drawer } from "@/components/drawer";
 import { Modal } from "@/components/modal";
@@ -41,6 +41,10 @@ type WorkItem = {
   id: string; // prefijado (r-/c-/p-) para no chocar entre fuentes
   type: WorkType;
   agent: string;
+  // El ayudante que el DUEÑO creó y que redactó esto (Reminder.meta.ayudante_id).
+  // `agent` es el slug del runtime, interno: el dueño nunca creó a nadie con ese
+  // nombre, así que verlo en la tarjeta es ver un fantasma trabajando por él.
+  ayudante: string | null;
   kind: string;
   customer: string;
   customerId: string | null;
@@ -67,6 +71,7 @@ function fromReminder(r: ReminderItem): WorkItem {
     id: `r-${r.id}`,
     type: cotiz ? "cotizacion" : "recordatorio",
     agent: r.agent,
+    ayudante: r.propuesto_por ?? null,
     kind: cotiz ? "Cotización pedida" : correo ? "Respuesta de correo" : "Recordatorio de pago",
     customer: r.customer ?? r.title ?? "Sin nombre",
     customerId: r.customer_id,
@@ -83,6 +88,8 @@ function fromReconcile(item: ReconcileItem): WorkItem {
     id: `c-${item.id}`,
     type: "conciliacion",
     agent: "diego",
+    ayudante: null, // la conciliación todavía no se atribuye a un ayudante del dueño
+
     kind: "Conciliación de pago",
     customer: item.counterparty ?? sel?.customer ?? "Pago recibido",
     customerId: null, // el payload de conciliación no trae customer_id (es factura)
@@ -104,6 +111,8 @@ function fromPromise(p: PromiseItem): WorkItem {
     id: `p-${p.id}`,
     type: "promesa",
     agent: "mariana",
+    ayudante: null, // la promesa la registra el cliente, no la redacta un ayudante
+
     kind: "Promesa de pago",
     customer: p.customer,
     customerId: p.customer_id,
@@ -121,7 +130,7 @@ function Avatar({ slug, size = 32 }: { slug?: string; size?: number }) {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">{children}</p>
+    <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">{children}</p>
   );
 }
 
@@ -137,16 +146,16 @@ function MontoLinea({
   return (
     <div>
       <div className="flex items-baseline gap-3">
-        <span className="tnum text-[24px] font-semibold tracking-tight text-ink">{monto}</span>
+        <span className="tnum text-cifra font-semibold tracking-tight text-ink">{monto}</span>
         {estado && (
           <span
-            className={`text-[12.5px] font-medium ${estado.tone === "warn" ? "text-warn" : estado.tone === "ok" ? "text-ok" : "text-ink-3"}`}
+            className={`text-cuerpo font-medium ${estado.tone === "warn" ? "text-warn" : estado.tone === "ok" ? "text-ok" : "text-ink-3"}`}
           >
             {estado.label}
           </span>
         )}
       </div>
-      {fuente && <div className="mt-1.5 text-[12px] text-ink-3">{fuente}</div>}
+      {fuente && <div className="mt-1.5 text-cuerpo text-ink-3">{fuente}</div>}
     </div>
   );
 }
@@ -163,12 +172,11 @@ export default function CentroPage() {
 function CentroDeMando() {
   usePageTrail("Centro de mando");
   const { data, error, loading, refetch, refetchQuiet } = useApi(async () => {
-    const [pendientes, recon, promesas, agentes, enviados, aprobados, rechazados, fallidos, sombra] =
+    const [pendientes, recon, promesas, enviados, aprobados, rechazados, fallidos, sombra] =
       await Promise.all([
         api.reminders("pending_approval"),
         api.reconciliation(),
         api.promises("active"),
-        api.agents(),
         api.reminders("sent"),
         // Aprobados-pero-no-enviados: en modo sombra TODO queda aquí (nunca llega a "sent").
         // Sin esto, al aprobar el recordatorio desaparecía de todas las colas.
@@ -183,7 +191,6 @@ function CentroDeMando() {
       pendientes,
       recon: recon.pending,
       promesas,
-      agentes,
       enviados,
       aprobados,
       rechazados,
@@ -321,8 +328,8 @@ function CentroDeMando() {
     // global del shell.
     <div className="flex h-[calc(100dvh-8.5rem)] min-h-[480px] flex-col gap-2.5 text-ink">
       <div className="shrink-0">
-        <h1 className="text-[15px] font-semibold tracking-tight text-ink">Despacha tu día</h1>
-        <p className="mt-0.5 text-[12px] text-ink-3">Lo que tu equipo dejó listo. Tú decides.</p>
+        <h1 className="text-titulo font-semibold text-ink">Despacha tu día</h1>
+        <p className="text-cuerpo text-ink-2">Lo que tu equipo dejó listo. Tú decides.</p>
       </div>
 
       {loading && !data ? (
@@ -360,10 +367,10 @@ function CentroDeMando() {
           subtitle={selected.customer}
         >
           <div key={selected.id} className="page-enter-fwd space-y-5">
-            <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-3">
+            <div className="flex flex-wrap items-center gap-1.5 text-cuerpo text-ink-3">
               por
               <Avatar slug={selected.agent} size={18} />
-              <span className="font-medium text-ink-2">{agentDisplayName(selected.agent)}</span>
+              <span className="font-medium text-ink-2">{oficioDe(selected.agent)}</span>
               {/* Trazabilidad HITL: qué ayudante del dueño gobernó esta propuesta */}
               {selected.reminder?.propuesto_por && (
                 <span className="truncate">· de tu ayudante {selected.reminder.propuesto_por}</span>
@@ -438,7 +445,7 @@ function Mesa({
           {!readOnly && editing === null && (
             <button
               onClick={() => setDraft({ id: item.id, text: r.message })}
-              className="text-[11.5px] text-ink-3 underline-offset-2 hover:text-ink hover:underline"
+              className="text-apoyo text-ink-3 underline-offset-2 hover:text-ink hover:underline"
             >
               Editar
             </button>
@@ -446,7 +453,7 @@ function Mesa({
         </div>
         {editing === null ? (
           <div className="mt-2.5 max-w-md rounded-2xl rounded-tl-sm border border-line bg-panel/50 px-4 py-3">
-            <WaText className="text-[13.5px] leading-relaxed text-ink">{r.message}</WaText>
+            <WaText className="text-cuerpo leading-relaxed text-ink">{r.message}</WaText>
           </div>
         ) : (
           <div className="mt-2.5 max-w-md">
@@ -455,9 +462,9 @@ function Mesa({
               onChange={(e) => setDraft({ id: item.id, text: e.target.value })}
               rows={4}
               autoFocus
-              className="w-full resize-y rounded-2xl rounded-tl-sm border border-accent/40 bg-panel/50 px-4 py-3 text-[13.5px] leading-relaxed text-ink outline-none focus:border-accent"
+              className="w-full resize-y rounded-2xl rounded-tl-sm border border-accent/40 bg-panel/50 px-4 py-3 text-cuerpo leading-relaxed text-ink outline-none focus:border-accent"
             />
-            <div className="mt-1 flex items-center gap-2 text-[11px] text-ink-3">
+            <div className="mt-1 flex items-center gap-2 text-apoyo text-ink-3">
               <span>Tú lo editas; tu ayudante aprende de tus cambios.</span>
               <button
                 onClick={() => setDraft(null)}
@@ -471,14 +478,14 @@ function Mesa({
         {!readOnly && (
           <>
             <div className="mt-4 flex flex-wrap items-center gap-1.5">
-              <span className="text-[11.5px] text-ink-3">Enviar por</span>
+              <span className="text-apoyo text-ink-3">Enviar por</span>
               {r.channels.map((c) => (
                 <button
                   key={c.key}
                   disabled={!c.connected}
                   onClick={() => c.connected && setChannelSel((s) => ({ ...s, [item.id]: c.key }))}
                   title={c.connected ? c.label : `${c.label} · por conectar`}
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                  className={`rounded-full px-2 py-0.5 text-sello font-medium transition-colors ${
                     !c.connected
                       ? "cursor-default border border-dashed border-line text-ink-3"
                       : sel === c.key
@@ -530,7 +537,7 @@ function Mesa({
         {readOnly &&
           (r.status === "failed" ? (
             <div className="mt-5">
-              <p className="text-[12px] text-danger">
+              <p className="text-cuerpo text-danger">
                 No se pudo enviar a {r.correo?.para ?? r.customer_phone ?? "el destinatario"}
                 {r.motivo_fallo ? `: ${r.motivo_fallo}` : ""}. Revisa el canal y reintenta.
               </p>
@@ -546,7 +553,7 @@ function Mesa({
                     )
                   }
                   disabled={busy}
-                  className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                 >
                   {busy ? "Reintentando…" : "Reintentar envío"}
                 </button>
@@ -555,7 +562,7 @@ function Mesa({
             </div>
           ) : r.status === "approved" && !sombra ? (
             <div className="mt-5">
-              <p className="text-[12px] text-ink-3">
+              <p className="text-cuerpo text-ink-3">
                 {r.pendiente ??
                   `Aprobado. Aún no se ha enviado a ${r.correo?.para ?? r.customer_phone ?? "el destinatario"}.`}
               </p>
@@ -569,7 +576,7 @@ function Mesa({
                     )
                   }
                   disabled={busy}
-                  className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                 >
                   {busy ? "Enviando…" : "Enviar ahora"}
                 </button>
@@ -577,7 +584,7 @@ function Mesa({
               </div>
             </div>
           ) : (
-            <p className="mt-5 text-[12px] text-ink-3">
+            <p className="mt-5 text-cuerpo text-ink-3">
               {r.status === "rejected"
                 ? "Lo descartaste. Si quieres recordarle, pídelo de nuevo desde la factura."
                 : r.status === "approved"
@@ -602,18 +609,18 @@ function Mesa({
         <Label>Tu ayudante encontró a qué factura corresponde este depósito</Label>
         <div className="mt-3 grid grid-cols-1 items-stretch gap-2.5 sm:grid-cols-[1fr_auto_1fr]">
           <div className="rounded-xl border border-line bg-ok-soft/40 px-4 py-3">
-            <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-ink-3">
+            <p className="text-rotulo font-medium uppercase tracking-[0.05em] text-ink-3">
               Pago recibido
             </p>
-            <p className="tnum mt-1 text-[18px] font-semibold text-ink">{mxn(it.amount)}</p>
-            <p className="mt-0.5 text-[12px] text-ink-3">
+            <p className="tnum mt-1 text-seccion font-semibold text-ink">{mxn(it.amount)}</p>
+            <p className="mt-0.5 text-cuerpo text-ink-3">
               {CONCILIACION_ORIGEN[it.source] ?? it.source} · {fechaDM(it.paid_at)}
               {it.counterparty ? ` · ${it.counterparty}` : ""}
             </p>
           </div>
           <div className="flex items-center justify-center">
             <span
-              className={`tnum rounded-full px-2 py-1 text-[12px] font-semibold ${
+              className={`tnum rounded-full px-2 py-1 text-sello font-semibold ${
                 !sel
                   ? "bg-panel text-ink-3"
                   : sel.cuadra
@@ -625,22 +632,22 @@ function Mesa({
             </span>
           </div>
           <div className="rounded-xl border border-line bg-surface px-4 py-3">
-            <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-ink-3">
+            <p className="text-rotulo font-medium uppercase tracking-[0.05em] text-ink-3">
               Factura por cobrar
             </p>
             {sel ? (
               <>
-                <p className="tnum mt-1 text-[15px] font-semibold text-ink">
+                <p className="tnum mt-1 text-cuerpo font-semibold text-ink">
                   {sel.folio} · {mxn(sel.amount)}
                 </p>
-                <p className="mt-0.5 text-[12px] text-ink-3">
+                <p className="mt-0.5 text-cuerpo text-ink-3">
                   {sel.customer} · vence {fechaDM(sel.due_date)}
                 </p>
                 {opts.length > 1 && !readOnly && (
                   <select
                     value={selectedId}
                     onChange={(e) => setInvoiceSel((s) => ({ ...s, [item.id]: e.target.value }))}
-                    className="mt-2 w-full rounded-md border border-line bg-surface px-2 py-1 text-[12px] text-ink focus:border-accent focus:outline-none"
+                    className="mt-2 w-full rounded-md border border-line bg-surface px-2 py-1 text-cuerpo text-ink focus:border-accent focus:outline-none"
                   >
                     {opts.map((c) => (
                       <option key={c.invoice_id} value={c.invoice_id}>
@@ -651,12 +658,12 @@ function Mesa({
                 )}
               </>
             ) : (
-              <p className="mt-1 text-[12.5px] text-ink-3">Sin factura abierta que coincida.</p>
+              <p className="mt-1 text-cuerpo text-ink-3">Sin factura abierta que coincida.</p>
             )}
           </div>
         </div>
         {sel?.reason && (
-          <p className="mt-5 max-w-lg text-[12.5px] leading-relaxed text-ink-2">
+          <p className="mt-5 max-w-lg text-cuerpo leading-relaxed text-ink-2">
             <span className="font-medium text-ink">¿Por qué cuadra?</span> {sel.reason}
           </p>
         )}
@@ -703,11 +710,11 @@ function Mesa({
       <div className="mt-7">
         <Label>La promesa</Label>
       </div>
-      <div className="mt-2.5 max-w-md rounded-xl border border-line bg-surface px-4 py-3 text-[13px] leading-relaxed text-ink-2">
+      <div className="mt-2.5 max-w-md rounded-xl border border-line bg-surface px-4 py-3 text-cuerpo leading-relaxed text-ink-2">
         {p.customer} prometió pagar <span className="tnum font-medium text-ink">{mxn(p.amount)}</span>{" "}
         de la factura {p.folio} para el{" "}
         <span className="font-medium text-ink">{fechaDM(p.promised_date)}</span>.
-        {p.note && <span className="mt-1 block text-[12px] text-ink-3">“{p.note}”</span>}
+        {p.note && <span className="mt-1 block text-cuerpo text-ink-3">“{p.note}”</span>}
       </div>
       {!readOnly && (
         <Actions
@@ -747,7 +754,7 @@ function Actions({
       <button
         onClick={onPrimary}
         disabled={busy || disabledPrimary}
-        className="rounded-md bg-accent px-4 py-2 text-[13px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+        className="rounded-md bg-accent px-4 py-2 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
       >
         {primary}
       </button>
@@ -755,7 +762,7 @@ function Actions({
         <button
           onClick={secondary.onClick}
           disabled={busy}
-          className="rounded-md border border-line bg-surface px-3.5 py-2 text-[13px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+          className="rounded-md border border-line bg-surface px-3.5 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
         >
           {secondary.label}
         </button>
@@ -763,7 +770,7 @@ function Actions({
       {link && (
         <Link
           href={link.href}
-          className="rounded-md border border-line bg-surface px-3.5 py-2 text-[13px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+          className="rounded-md border border-line bg-surface px-3.5 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
         >
           {link.label}
         </Link>
@@ -937,17 +944,17 @@ function Tablero({
                 <header className="flex shrink-0 items-center gap-2 px-1.5 pb-2 pt-1">
                   <span className={`h-2 w-2 rounded-full ${col.dot}`} />
                   <span
-                    className={`text-[12px] font-semibold ${col.key === "rechazados" ? "text-ink-3" : "text-ink"}`}
+                    className={`text-cuerpo font-semibold ${col.key === "rechazados" ? "text-ink-3" : "text-ink"}`}
                   >
                     {col.title}
                   </span>
-                  <span className="tnum ml-auto rounded-full border border-line bg-surface px-2 py-px text-[11px] font-semibold text-ink-3">
+                  <span className="tnum ml-auto rounded-full border border-line bg-surface px-2 py-px text-sello font-semibold text-ink-3">
                     {col.items.length}
                   </span>
                 </header>
                 <div className="reveal-stagger space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
                   {col.items.length === 0 ? (
-                    <p className="px-1.5 py-4 text-[11.5px] text-ink-3">
+                    <p className="px-1.5 py-4 text-apoyo text-ink-3">
                       {isOver
                         ? "Suéltala aquí"
                         : nFilters > 0
@@ -983,7 +990,7 @@ function Tablero({
       </div>
 
       {/* Guardrail HITL, ahora que SÍ se arrastra: el gesto abre un confirm, no envía solo. */}
-      <p className="flex shrink-0 items-center gap-2 border-t border-line px-3.5 py-2 text-[11.5px] leading-relaxed text-ink-2">
+      <p className="flex shrink-0 items-center gap-2 border-t border-line px-3.5 py-2 text-apoyo leading-relaxed text-ink-2">
         <ShieldIcon />
         <span>Arrastra o toca una tarjeta y confirmas antes de que salga.</span>
       </p>
@@ -1034,9 +1041,9 @@ function TarjetaKanban({
   const act = busy || leaving; // no re-accionar un trabajo que ya se está resolviendo
   const canal = r ? (r.channels.filter((c) => c.connected)[0]?.key ?? r.channel) : "whatsapp";
   const okBtn =
-    "flex-1 rounded-md bg-accent px-2.5 py-1.5 text-[11.5px] font-semibold text-surface transition-colors hover:bg-accent-strong disabled:opacity-50";
+    "flex-1 rounded-md bg-accent px-2.5 py-1.5 text-apoyo font-semibold text-surface transition-colors hover:bg-accent-strong disabled:opacity-50";
   const ghBtn =
-    "rounded-md border border-line bg-panel px-2.5 py-1.5 text-[11.5px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50";
+    "rounded-md border border-line bg-panel px-2.5 py-1.5 text-apoyo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50";
   return (
     <div
       draggable={draggable}
@@ -1055,32 +1062,35 @@ function TarjetaKanban({
       <button type="button" onClick={() => onOpen(w.id)} className="block w-full text-left">
         <span className="flex items-center gap-2">
           <Avatar slug={w.agent} size={18} />
-          <span className="min-w-0 truncate text-[11.5px] text-ink-3">
-            de <span className="font-medium text-ink-2">{agentDisplayName(w.agent)}</span>
+          <span className="min-w-0 truncate text-apoyo text-ink-3">
+            de{" "}
+            <span className="font-medium text-ink-2">
+              {w.ayudante || oficioDe(w.agent)}
+            </span>
           </span>
           {w.amount != null && (
-            <span className="tnum ml-auto text-[12.5px] font-semibold text-ink">{mxn(w.amount)}</span>
+            <span className="tnum ml-auto text-cuerpo font-semibold text-ink">{mxn(w.amount)}</span>
           )}
         </span>
-        <span className="mt-1.5 block truncate text-[13px] font-semibold text-ink">{w.customer}</span>
+        <span className="mt-1.5 block text-seccion font-semibold leading-snug text-ink">{w.customer}</span>
         <span className="mt-1 flex flex-wrap items-center gap-1.5">
           {w.type === "recordatorio" && r ? (
             <>
               <BucketPill bucket={r.bucket} />
               {w.tag && (
-                <span className={`rounded px-1.5 py-px text-[10.5px] font-medium ${tagCls[w.tag.tone]}`}>
+                <span className={`rounded px-1.5 py-px text-sello font-medium ${tagCls[w.tag.tone]}`}>
                   {w.tag.label}
                 </span>
               )}
             </>
           ) : (
             w.tag && (
-              <span className={`rounded px-1.5 py-px text-[10.5px] font-medium ${tagCls[w.tag.tone]}`}>
+              <span className={`rounded px-1.5 py-px text-sello font-medium ${tagCls[w.tag.tone]}`}>
                 {w.tag.label}
               </span>
             )
           )}
-          <span className="ml-auto truncate text-[10.5px] text-ink-3">{w.kind}</span>
+          <span className="ml-auto text-apoyo text-ink-3">{w.kind}</span>
         </span>
       </button>
 
@@ -1149,7 +1159,7 @@ function TarjetaKanban({
 
       {/* Hecho: solo lectura, con el sello de la hora real de envío */}
       {col === "enviados" && (
-        <p className="mt-2 inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-ok">
+        <p className="mt-2 inline-flex items-center gap-1.5 text-sello font-semibold text-ok">
           <span className="h-1.5 w-1.5 rounded-full bg-ok" />
           Enviado {r?.sent_at ? haceTiempo(r.sent_at) : w.time}
         </p>
@@ -1235,7 +1245,7 @@ function FilterBar({
         {agents.length > 1 && (
           <FilterChip
             label="Ayudante"
-            valueLabel={fAgent ? agentDisplayName(fAgent) : null}
+            valueLabel={fAgent ? oficioDe(fAgent) : null}
             onClear={() => setFagent(null)}
             onPick={(k) => setFagent(k || null)}
             options={[
@@ -1245,7 +1255,7 @@ function FilterBar({
                 node: (
                   <span className="flex items-center gap-2">
                     <Avatar slug={a} size={16} />
-                    {agentDisplayName(a)}
+                    {oficioDe(a)}
                   </span>
                 ),
               })),
@@ -1279,7 +1289,7 @@ function FilterBar({
                 node: (
                   <span className="flex flex-col leading-tight">
                     <span className="text-ink">{o.label}</span>
-                    <span className="text-[11px] text-ink-3">{o.sub}</span>
+                    <span className="text-apoyo text-ink-3">{o.sub}</span>
                   </span>
                 ),
               })),
@@ -1290,12 +1300,12 @@ function FilterBar({
         {nFilters > 0 && (
           <button
             onClick={onReset}
-            className="text-[12px] font-medium text-accent-ink transition-colors hover:text-accent-strong"
+            className="text-cuerpo font-medium text-accent-ink transition-colors hover:text-accent-strong"
           >
             Limpiar
           </button>
         )}
-        <span className="tnum ml-auto shrink-0 text-[11.5px] text-ink-3">{total} en el tablero</span>
+        <span className="tnum ml-auto shrink-0 text-apoyo text-ink-3">{total} en el tablero</span>
       </div>
     </div>
   );
@@ -1349,7 +1359,7 @@ function ClienteBuscador({
         onFocus={() => setOpen(true)}
         placeholder="Buscar cliente…"
         aria-label="Buscar cliente"
-        className="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-7 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+        className="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-7 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
       />
       {value && (
         <button
@@ -1358,7 +1368,7 @@ function ClienteBuscador({
             setOpen(false);
           }}
           aria-label="Limpiar búsqueda"
-          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1 text-[14px] leading-none text-ink-3 transition-colors hover:text-ink"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1 text-cuerpo leading-none text-ink-3 transition-colors hover:text-ink"
         >
           &times;
         </button>
@@ -1366,7 +1376,7 @@ function ClienteBuscador({
       {open && clientes.length > 0 && (
         <div className="absolute left-0 top-full z-30 mt-1.5 max-h-64 w-full min-w-[220px] overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-[0_12px_32px_-12px_oklch(0.3_0.04_235/0.28)]">
           {shown.length === 0 ? (
-            <p className="px-2 py-2 text-[12px] text-ink-3">Ningún cliente coincide.</p>
+            <p className="px-2 py-2 text-cuerpo text-ink-3">Ningún cliente coincide.</p>
           ) : (
             shown.map((c) => (
               <button
@@ -1375,17 +1385,17 @@ function ClienteBuscador({
                   onChange(c.name);
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-ink transition-colors hover:bg-panel"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-cuerpo text-ink transition-colors hover:bg-panel"
               >
                 <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                <span className="tnum shrink-0 rounded-full bg-panel px-1.5 py-px text-[10.5px] text-ink-3">
+                <span className="tnum shrink-0 rounded-full bg-panel px-1.5 py-px text-sello text-ink-3">
                   {c.count}
                 </span>
               </button>
             ))
           )}
           {matches.length > shown.length && (
-            <p className="px-2 py-1 text-[11px] text-ink-3">
+            <p className="px-2 py-1 text-apoyo text-ink-3">
               +{matches.length - shown.length} más · sigue escribiendo para acotar
             </p>
           )}
@@ -1430,7 +1440,7 @@ function FilterChip({
   return (
     <div ref={ref} className="relative shrink-0">
       <div
-        className={`flex items-center rounded-full border text-[12px] font-medium transition-colors ${
+        className={`flex items-center rounded-full border text-cuerpo font-medium transition-colors ${
           active
             ? "border-accent/40 bg-accent-soft text-accent-ink"
             : "border-line bg-surface text-ink-2 hover:border-line-strong"
@@ -1457,7 +1467,7 @@ function FilterChip({
           <button
             onClick={onClear}
             aria-label={`Quitar filtro ${label}`}
-            className="pr-2 text-[14px] leading-none text-ink-3 transition-colors hover:text-ink"
+            className="pr-2 text-cuerpo leading-none text-ink-3 transition-colors hover:text-ink"
           >
             &times;
           </button>
@@ -1472,7 +1482,7 @@ function FilterChip({
                 onPick(o.key);
                 setOpen(false);
               }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] text-ink transition-colors hover:bg-panel"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-cuerpo text-ink transition-colors hover:bg-panel"
             >
               {o.node}
             </button>
@@ -1516,10 +1526,12 @@ function ConfirmSend({
       subtitle={item.customer}
     >
       <div className="space-y-3.5">
-        <div className="flex items-center gap-2 text-[12px] text-ink-3">
+        <div className="flex items-center gap-2 text-cuerpo text-ink-3">
           por
           <Avatar slug={item.agent} size={16} />
-          <span className="font-medium text-ink-2">{agentDisplayName(item.agent)}</span>
+          <span className="font-medium text-ink-2">
+            {item.ayudante || oficioDe(item.agent)}
+          </span>
           {item.amount != null && (
             <span className="tnum ml-auto font-semibold text-ink">{mxn(item.amount)}</span>
           )}
@@ -1527,12 +1539,12 @@ function ConfirmSend({
         {editing === null ? (
           <div>
             <div className="rounded-2xl rounded-tl-sm border border-line bg-panel/50 px-4 py-3">
-              <WaText className="text-[13px] leading-relaxed text-ink">{r.message}</WaText>
+              <WaText className="text-cuerpo leading-relaxed text-ink">{r.message}</WaText>
             </div>
             {enviar && (
               <button
                 onClick={() => setEditing(r.message)}
-                className="mt-1.5 text-[11.5px] text-ink-3 underline-offset-2 hover:text-ink hover:underline"
+                className="mt-1.5 text-apoyo text-ink-3 underline-offset-2 hover:text-ink hover:underline"
               >
                 Editar
               </button>
@@ -1545,9 +1557,9 @@ function ConfirmSend({
               onChange={(e) => setEditing(e.target.value)}
               rows={5}
               autoFocus
-              className="w-full resize-y rounded-2xl rounded-tl-sm border border-accent/40 bg-panel/50 px-4 py-3 text-[13px] leading-relaxed text-ink outline-none focus:border-accent"
+              className="w-full resize-y rounded-2xl rounded-tl-sm border border-accent/40 bg-panel/50 px-4 py-3 text-cuerpo leading-relaxed text-ink outline-none focus:border-accent"
             />
-            <div className="mt-1 flex items-center gap-2 text-[11px] text-ink-3">
+            <div className="mt-1 flex items-center gap-2 text-apoyo text-ink-3">
               <span>Tú lo editas; tu ayudante aprende de tus cambios.</span>
               <button
                 onClick={() => setEditing(null)}
@@ -1558,7 +1570,7 @@ function ConfirmSend({
             </div>
           </div>
         )}
-        <p className="text-[12px] leading-relaxed text-ink-3">
+        <p className="text-cuerpo leading-relaxed text-ink-3">
           {enviar
             ? sombra
               ? `Modo prueba: se aprueba pero NO se envía a ${dest}. Queda en En curso.`
@@ -1573,7 +1585,7 @@ function ConfirmSend({
               )
             }
             disabled={busy}
-            className={`rounded-md px-4 py-2 text-[13px] font-medium text-surface transition-colors disabled:opacity-50 ${
+            className={`rounded-md px-4 py-2 text-cuerpo font-medium text-surface transition-colors disabled:opacity-50 ${
               enviar ? "bg-accent hover:bg-accent-strong" : "bg-ink hover:bg-ink/90"
             }`}
           >
@@ -1585,7 +1597,7 @@ function ConfirmSend({
           </button>
           <button
             onClick={onCancel}
-            className="rounded-md border border-line bg-surface px-3.5 py-2 text-[13px] font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            className="rounded-md border border-line bg-surface px-3.5 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
           >
             Cancelar
           </button>
@@ -1670,7 +1682,7 @@ function ContextoInline({
   const presence = customer?.presence ?? item.reminder?.procedencia?.presence ?? null;
   const nombre = customer?.name ?? item.customer;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line bg-panel/40 px-4 py-2.5 text-[12px]">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line bg-panel/40 px-4 py-2.5 text-cuerpo">
       {customerId ? (
         <Link
           href={`/clientes/detalle?id=${customerId}`}

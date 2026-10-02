@@ -20,19 +20,6 @@ class ProviderUnavailable(Exception):
     """El proveedor solicitado no está disponible todavía (ej. Codex)."""
 
 
-def _fallback_credential(cred: ProviderCredential | None) -> ProviderCredential | None:
-    """Credencial de respaldo cuando la vía primaria es suscripción.
-
-    Solo la suscripción cede: su token OAuth puede rechazarse y su plan personal agota
-    ráfaga. La API key del entorno (con tope de gasto bajo) toma el relevo. La vía api_key
-    no necesita respaldo: ya trae reintentos y es la vía soportada."""
-    if cred is not None and cred.mode == "subscription":
-        env = default_credential()
-        if env is not None and env.secret != cred.secret:
-            return env
-    return None
-
-
 @runtime_checkable
 class ProviderRunner(Protocol):
     """Lo que el engine necesita de cualquier proveedor de IA. ClaudeRunner ya lo cumple."""
@@ -69,35 +56,25 @@ class ProviderRunner(Protocol):
 def make_runner(
     credential: ProviderCredential | None,
     usage_callback: UsageCallback | None = None,
-    token_persist: Callable[[dict], None] | None = None,
 ) -> ProviderRunner:
-    """Runner del proveedor de la credencial (o el fallback de entorno si es None).
+    """Runner del proveedor de la credencial (o la API key del entorno si es None).
 
-    claude / sin credencial → ClaudeRunner (con caída a la API key de entorno si la vía es
-    suscripción). codex → CodexRunner: con API key (mode=api_key) habla la Responses API
-    ESTÁNDAR de OpenAI; con suscripción usa el bundle de token DEL TENANT (cifrado), que
-    refresca en memoria y persiste vía ``token_persist`` (no comparte el archivo global).
+    claude / sin credencial → ClaudeRunner con la llave del dueño.
+    codex → CodexRunner contra la Responses API ESTÁNDAR de OpenAI (api.openai.com).
+    claude_cli / codex_cli → el binario que el dueño ya tiene, con SU sesión.
+    local → cualquier endpoint OpenAI-compatible (Ollama, LM Studio, vLLM).
     """
     cred = credential or default_credential()
     name = cred.name if cred else "claude"
     if name == "claude":
-        return ClaudeRunner(
-            credential=cred,
-            usage_callback=usage_callback,
-            fallback_credential=_fallback_credential(cred),
-        )
+        return ClaudeRunner(credential=cred, usage_callback=usage_callback)
     if name == "codex":
         from aiuda_core.engine.codex import CodexRunner
-        from aiuda_core.engine.provider import codex_tokens
 
-        if cred is not None and cred.mode == "api_key":
-            # sk-...: la Responses API estándar (api.openai.com). No hay token que refrescar.
-            return CodexRunner(credential=cred, usage_callback=usage_callback, api_key=cred.secret)
         return CodexRunner(
             credential=cred,
             usage_callback=usage_callback,
-            tokens=codex_tokens(cred),
-            on_refresh=token_persist,
+            api_key=cred.secret if cred else "",
         )
     if name in ("claude_cli", "codex_cli"):
         # El CLI del dueño, tal cual: su sesión, su cuenta, sin credenciales

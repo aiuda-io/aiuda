@@ -667,6 +667,22 @@ def commit(
         for k, v in (mapping or {}).items()
         if k in ENTITY_FIELDS[entity] and v in headers
     }
+    # Sin mapeo utilizable no se importa NADA, y hasta ahora eso salía como
+    # "created: 0, skipped: N, errors: []": el dueño subía su Excel, no entraba una
+    # sola fila y la consola no le decía por qué. Un no-op silencioso en el camino
+    # más publicitado del producto. Ahora se dice, y se dice en su idioma.
+    if not clean:
+        columnas = ", ".join(headers[:6]) or "ninguna"
+        return ImportReport(
+            entity=entity,
+            entity_label=ENTITY_LABEL.get(entity, ""),
+            skipped=len(rows),
+            errors=[
+                f"No se importó nada porque no quedó claro qué columna es cuál. "
+                f"El archivo trae: {columnas}. Dinos qué columna corresponde a "
+                f"{', '.join(ENTITY_FIELDS[entity])} y lo cargamos."
+            ],
+        )
     used = set(clean.values())
     extra_cols = [c for c in (extras or []) if c in headers and c not in used]
     report = ImportReport(
@@ -677,4 +693,17 @@ def commit(
         session, tenant_id, rows, clean, extra_cols, origin
     )
     report.created, report.skipped, report.errors = created, skipped, errors
+    # Red de seguridad: "no entró nada y no hay error" no es una respuesta. Si el
+    # ingestor se saltó todo sin explicar, se explica aquí antes de contestarle al
+    # dueño, que lo único que ve es que su archivo no hizo nada.
+    if created == 0 and skipped > 0 and not errors:
+        faltantes = [c for c in ENTITY_FIELDS[entity] if c not in clean]
+        detalle = (
+            f" Puede que falte decir cuál columna es {', '.join(faltantes[:3])}."
+            if faltantes
+            else " Puede que ya estuvieran cargados."
+        )
+        report.errors = [
+            f"No se cargó ninguno de los {skipped} renglones del archivo.{detalle}"
+        ]
     return report

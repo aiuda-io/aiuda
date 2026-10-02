@@ -17,12 +17,12 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-x-10 gap-y-4 border-t border-line py-7 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+    <section className="grid gap-x-10 gap-y-4 border-t border-line py-7 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
       <div>
-        <h2 className="text-[14px] font-semibold text-ink">{title}</h2>
-        {desc && <div className="mt-1.5 text-[12.5px] leading-relaxed text-ink-3">{desc}</div>}
+        <h2 className="text-seccion font-semibold text-ink">{title}</h2>
+        {desc && <div className="mt-1.5 text-cuerpo text-ink-2">{desc}</div>}
       </div>
-      <div className="min-w-0 max-w-xl">{children}</div>
+      <div className="min-w-0 max-w-2xl">{children}</div>
     </section>
   );
 }
@@ -39,8 +39,8 @@ export function SettingsField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-[12.5px] font-medium text-ink">{label}</label>
-      {hint && <p className="text-[11.5px] leading-relaxed text-ink-3">{hint}</p>}
+      <label className="block text-cuerpo font-semibold text-ink">{label}</label>
+      {hint && <p className="text-apoyo text-ink-3">{hint}</p>}
       {children}
     </div>
   );

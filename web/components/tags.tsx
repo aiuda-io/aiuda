@@ -37,7 +37,7 @@ export function TagChip({
   const c = colorOf(tag.color);
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full font-medium ${small ? "px-1.5 py-px text-[10.5px]" : "px-2 py-0.5 text-[11.5px]"}`}
+      className={`inline-flex items-center gap-1 rounded-full font-medium ${small ? "px-1.5 py-px text-sello" : "px-2 py-0.5 text-apoyo"}`}
       style={{ background: c.bg, color: c.fg }}
     >
       {tag.name}
@@ -91,7 +91,7 @@ export function TagPicker({
     <div ref={ref} className="relative inline-block">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong px-2 py-0.5 text-[11.5px] font-medium text-ink-3 transition-colors hover:border-accent hover:text-accent-ink"
+        className="inline-flex items-center gap-1 rounded-full border border-dashed border-line-strong px-2 py-0.5 text-sello font-medium text-ink-3 transition-colors hover:border-accent hover:text-accent-ink"
       >
         + Etiqueta
       </button>
@@ -99,7 +99,7 @@ export function TagPicker({
         <div className="absolute left-0 top-full z-20 mt-1.5 w-56 rounded-lg border border-line bg-surface p-2 shadow-[0_4px_24px_rgba(13,45,62,0.12)]">
           <div className="max-h-48 space-y-0.5 overflow-y-auto">
             {allTags.length === 0 && (
-              <p className="px-1.5 py-2 text-[11.5px] text-ink-3">Aún no hay etiquetas. Crea la primera.</p>
+              <p className="px-1.5 py-2 text-apoyo text-ink-3">Aún no hay etiquetas. Crea la primera.</p>
             )}
             {allTags.map((t) => {
               const on = selectedIds.includes(t.id);
@@ -108,7 +108,7 @@ export function TagPicker({
                 <button
                   key={t.id}
                   onClick={() => onToggle(t.id)}
-                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[12px] transition-colors hover:bg-panel/60"
+                  className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-cuerpo transition-colors hover:bg-panel/60"
                 >
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: c.fg }} />
                   <span className="flex-1 text-ink">{t.name}</span>
@@ -127,12 +127,12 @@ export function TagPicker({
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && create()}
               placeholder="Nueva etiqueta…"
-              className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2 py-1 text-[12px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+              className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2 py-1 text-sello text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
             />
             <button
               onClick={create}
               disabled={!draft.trim() || creating}
-              className="rounded-md bg-accent px-2 py-1 text-[11.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+              className="rounded-md bg-accent px-2 py-1 text-sello font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
             >
               Crear
             </button>
@@ -191,19 +191,19 @@ export function TagManager() {
       {dialog}
       <ul className="space-y-1.5">
         {tags.length === 0 && (
-          <li className="text-[12.5px] text-ink-3">Aún no hay etiquetas. Crea la primera abajo.</li>
+          <li className="text-cuerpo text-ink-3">Aún no hay etiquetas. Crea la primera abajo.</li>
         )}
         {tags.map((t) => (
           <li key={t.id} className="flex items-center gap-2.5 border-b border-line/50 py-1.5 last:border-0">
             <button onClick={() => recolor(t)} title="Cambiar color">
               <TagChip tag={t} />
             </button>
-            <span className="tnum text-[11.5px] text-ink-3">
+            <span className="tnum text-apoyo text-ink-3">
               {t.count ?? 0} {t.count === 1 ? "cliente" : "clientes"}
             </span>
             <button
               onClick={() => remove(t)}
-              className="ml-auto text-[12px] text-ink-3 transition-colors hover:text-danger"
+              className="ml-auto text-cuerpo text-ink-3 transition-colors hover:text-danger"
             >
               Eliminar
             </button>
@@ -216,17 +216,17 @@ export function TagManager() {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="Nueva etiqueta (ej. VIP, Mayoreo, Moroso)…"
-          className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+          className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
         />
         <button
           onClick={add}
           disabled={!draft.trim() || busy}
-          className="rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+          className="rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
         >
           Crear
         </button>
       </div>
-      <p className="mt-2 text-[11px] text-ink-3">Toca una etiqueta para cambiar su color. Las etiquetas son del negocio y se asignan en cada cliente.</p>
+      <p className="mt-2 text-apoyo text-ink-3">Toca una etiqueta para cambiar su color. Las etiquetas son del negocio y se asignan en cada cliente.</p>
     </div>
   );
 }

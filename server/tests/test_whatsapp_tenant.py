@@ -209,8 +209,11 @@ def test_inbound_baja_marca_optout_y_confirma_sin_llm(db_session, monkeypatch):
     )
     worker_main.process_incoming_message_blocking(t.id, msg.id)
 
-    # Quedó registrado por match_key y visible en config del negocio.
-    assert "5587654321" in (t.config or {}).get("optouts", {})
+    # Quedó registrado por match_key, en su propia tabla (ya no en el blob de config,
+    # donde dos hilos escribiendo el mismo JSON podían borrar la baja).
+    from aiuda_core.optout import claves_dadas_de_baja
+
+    assert "5587654321" in claves_dadas_de_baja(db_session, t)
     # Confirmación determinista enviada y registrada en el hilo (sin tocar el LLM).
     assert len(enviados) == 1
     out = db_session.scalars(
@@ -239,7 +242,7 @@ def test_recordatorio_a_cliente_dado_de_baja_falla_con_motivo(db_session, monkey
                  message="Recordatorio", status="approved")
     db_session.add(r)
     db_session.flush()
-    mark_opt_out(t, c.phone)
+    mark_opt_out(db_session, t, c.phone)
 
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
     llamadas: list = []
@@ -435,7 +438,7 @@ def test_ficha_muestra_opt_out_y_el_dueno_puede_reactivar(client, db_session):
     c = Customer(tenant_id=t.id, name="Cliente", phone="5215587654321")
     db_session.add(c)
     db_session.flush()
-    mark_opt_out(t, c.phone)
+    mark_opt_out(db_session, t, c.phone)
     db_session.add(t)
     db_session.flush()
 
@@ -540,7 +543,7 @@ def test_aprobar_por_whatsapp_a_cliente_dado_de_baja_no_pierde_la_respuesta(db_s
                  message="Recordatorio", status="approved")
     db_session.add(r)
     db_session.flush()
-    mark_opt_out(t, c.phone)
+    mark_opt_out(db_session, t, c.phone)
 
     conv = Conversation(tenant_id=t.id, remote_phone="5215512345678")  # el dueño
     db_session.add(conv)
@@ -553,7 +556,7 @@ def test_aprobar_por_whatsapp_a_cliente_dado_de_baja_no_pierde_la_respuesta(db_s
 
     respuestas: list = []
 
-    def fake_engine(session, tenant):
+    def fake_engine(session, tenant, run=None):
         from aiuda_core.engine.engine import CleoEngine
 
         engine = CleoEngine(session, tenant, runner=SimpleNamespace(_usage_callback=object()),

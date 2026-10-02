@@ -560,33 +560,6 @@ def test_canales_disponibles_por_recordatorio():
     sin_tel = Customer(tenant_id="t", name="Y", phone="", email=None)
     chs2 = {c["key"]: c for c in _available_channels(sin_tel, None)}
     assert chs2["whatsapp"]["connected"] is False  # sin dato de contacto
-
-
-def test_agent_chat_sin_key_responde_gracioso(client, tenant, monkeypatch):
-    from aiuda_core.config import settings
-
-    monkeypatch.setattr(settings, "anthropic_api_key", "")
-    res = client.post(
-        "/v1/agents/mariana/chat",
-        headers={"X-API-Key": "k-demo"},
-        json={"message": "hola", "history": []},
-    )
-    assert res.status_code == 200
-    # Sin nombres de persona en la superficie: la identidad visible es el rol.
-    reply = res.json()["reply"]
-    assert "Cobranza" in reply
-    assert "Mariana" not in reply
-
-
-def test_agent_chat_agente_desconocido(client, tenant):
-    res = client.post(
-        "/v1/agents/inventado/chat",
-        headers={"X-API-Key": "k-demo"},
-        json={"message": "hola", "history": []},
-    )
-    assert res.status_code == 404
-
-
 def test_editar_cliente_encola_writeback(client, db_session, tenant):
     from aiuda_core.models import OutboxEntry
     headers = {"X-API-Key": "k-demo"}
@@ -623,11 +596,16 @@ def test_editar_cliente_telefono_duplicado_409(client, db_session, tenant):
     assert res.status_code == 409
 
 
-def test_agent_systems(client, tenant):
-    res = client.get("/v1/agents/mariana/systems", headers={"X-API-Key": "k-demo"})
+def test_systems_del_ayudante(client, tenant):
+    """A qué sistemas llega un ayudante. Sale de sus aiuditas, no de un rol de fábrica."""
+    a = client.post(
+        "/v1/ayudantes",
+        json={"name": "Male", "aiuditas": ["cobranza.consultar_cartera"]},
+        headers={"X-API-Key": "k-demo"},
+    ).json()
+    res = client.get(f"/v1/ayudantes/{a['id']}/systems", headers={"X-API-Key": "k-demo"})
     assert res.status_code == 200
     body = res.json()
-    # El name visible del payload es el ROL (los nombres de persona se retiraron).
-    assert body["name"] == "Cobranza"
-    assert any(s["key"] == "whatsapp" for s in body["systems"])
-    assert client.get("/v1/agents/zzz/systems", headers={"X-API-Key": "k-demo"}).status_code == 404
+    assert body["name"] == "Male"
+    assert any(s["key"] == "odoo" for s in body["systems"])
+    assert client.get("/v1/ayudantes/zzz/systems", headers={"X-API-Key": "k-demo"}).status_code == 404

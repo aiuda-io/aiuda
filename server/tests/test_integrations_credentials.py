@@ -224,3 +224,74 @@ def test_fallback_legado_en_claro_se_sigue_leyendo(client, db_session, demo):
     graph = client.get("/v1/integrations").json()
     slack = next(s for s in graph["systems"] if s["key"] == "slack")
     assert slack["connected"] is True
+
+
+# --- Secretos que se guardaban en texto plano (bug sistémico) -----------------
+#
+# Bastaba con que una llave del CATALOG no tuviera entrada en PROVIDERS para que su
+# config cayera a la vía legada y se guardara SIN cifrar, mientras el resto iba con
+# Fernet. Le pasaba a `whatsapp`, `excel` y `sat`, y el front lo empeoraba inventando
+# un campo "token" secreto para toda llave que no declarara los suyos.
+
+
+def test_via_legada_rechaza_secretos_en_vez_de_guardarlos_en_claro(client, db_session, demo):
+    res = client.put(
+        "/v1/integrations/whatsapp/config",
+        json={"values": {"instance": "mi-negocio", "token": "EVO-SECRETA"}},
+    )
+    assert res.status_code == 400
+    assert "token" in res.json()["detail"]
+
+    # Y no quedó rastro del secreto por ninguna vía.
+    db_session.refresh(demo)
+    assert "EVO-SECRETA" not in str(demo.config)
+    assert _row(db_session, demo, "whatsapp") is None
+
+
+def test_via_legada_sigue_aceptando_lo_que_no_es_secreto(client, db_session, demo):
+    res = client.put(
+        "/v1/integrations/whatsapp/config",
+        json={"values": {"instance": "mi-negocio", "via": "wacli"}},
+    )
+    assert res.status_code == 200
+    db_session.refresh(demo)
+    assert demo.config["integrations"]["whatsapp"] == {"instance": "mi-negocio", "via": "wacli"}
+
+
+def test_purga_borra_lo_secreto_y_conserva_el_ruteo(db_session, demo):
+    from aiuda_core.connectors.credentials import purgar_secretos_en_claro
+
+    demo.config = {
+        **demo.config,
+        "integrations": {
+            # via/instance NO son credencial: los lee resolve_whatsapp y se quedan.
+            "whatsapp": {"via": "evolution", "instance": "mi-negocio", "token": "EVO-SECRETA"},
+            "sat": {"token": "efirma-secreta"},
+            "excel": {"api_key": "no-deberia-existir"},
+        },
+    }
+    db_session.add(demo)
+    db_session.flush()
+
+    assert purgar_secretos_en_claro(db_session) == 3
+
+    db_session.refresh(demo)
+    integraciones = demo.config["integrations"]
+    assert integraciones["whatsapp"] == {"via": "evolution", "instance": "mi-negocio"}
+    assert integraciones["sat"] == {}
+    assert integraciones["excel"] == {}
+    assert "EVO-SECRETA" not in str(demo.config)
+    assert "efirma-secreta" not in str(demo.config)
+
+
+def test_purga_es_idempotente_y_no_toca_lo_limpio(db_session, demo):
+    from aiuda_core.connectors.credentials import purgar_secretos_en_claro
+
+    demo.config = {**demo.config, "integrations": {"whatsapp": {"via": "wacli"}}}
+    db_session.add(demo)
+    db_session.flush()
+
+    assert purgar_secretos_en_claro(db_session) == 0
+    assert purgar_secretos_en_claro(db_session) == 0
+    db_session.refresh(demo)
+    assert demo.config["integrations"] == {"whatsapp": {"via": "wacli"}}

@@ -123,7 +123,7 @@ export default function PromesasPage() {
           <div className="overflow-x-auto rounded-lg border border-line bg-surface">
             <table className="w-full min-w-[560px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                   <th className="px-4 py-2.5">Cliente</th>
                   <th className="px-4 py-2.5">Factura</th>
                   <th className="px-4 py-2.5 text-right">Monto</th>
@@ -152,16 +152,16 @@ export default function PromesasPage() {
                           e.stopPropagation();
                           setOpenId(p.invoice_id);
                         }}
-                        className="text-left text-[12.5px] font-medium text-ink hover:text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        className="text-left text-cuerpo font-medium text-ink hover:text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                       >
                         {p.customer}
                       </button>
                     </td>
-                    <td className="tnum px-4 py-2.5 text-[12.5px] text-ink">{p.folio}</td>
-                    <td className="tnum px-4 py-2.5 text-right text-[12.5px] font-medium text-ink">
+                    <td className="tnum px-4 py-2.5 text-cuerpo text-ink">{p.folio}</td>
+                    <td className="tnum px-4 py-2.5 text-right text-cuerpo font-medium text-ink">
                       {mxn(p.amount)}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-[12px]">
+                    <td className="tnum px-4 py-2.5 text-cuerpo">
                       {tab === "active" ? (
                         <span className={p.days_left < 0 ? "font-medium text-danger" : "text-ink-2"}>
                           {fecha(p.promised_date)}
@@ -186,7 +186,7 @@ export default function PromesasPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-[12px] text-ink-3">{p.note ?? "·"}</td>
+                    <td className="px-4 py-2.5 text-cuerpo text-ink-3">{p.note ?? "·"}</td>
                     {tab === "active" && (
                       <td className="px-4 py-2.5 text-right">
                         <button
@@ -196,7 +196,7 @@ export default function PromesasPage() {
                           }}
                           disabled={leaving.has(p.id)}
                           title="El cliente cumplió: pasa al historial de cumplidas"
-                          className="rounded border border-line bg-surface px-2 py-1 text-[11.5px] font-medium text-ink-2 opacity-100 transition-all hover:border-ok hover:text-ok focus-visible:opacity-100 disabled:opacity-60 md:opacity-60 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+                          className="rounded border border-line bg-surface px-2 py-1 text-sello font-medium text-ink-2 opacity-100 transition-all hover:border-ok hover:text-ok focus-visible:opacity-100 disabled:opacity-60 md:opacity-60 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                         >
                           Marcar cumplida
                         </button>
@@ -206,7 +206,7 @@ export default function PromesasPage() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-[12.5px] text-ink-3">
+                    <td colSpan={6} className="px-4 py-10 text-center text-cuerpo text-ink-3">
                       Sin resultados para tu búsqueda.
                     </td>
                   </tr>

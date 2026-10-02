@@ -13,7 +13,7 @@ import { ErrorState, Skeleton } from "@/components/ui";
 import { usePageTrail } from "@/components/rastro";
 import { toast } from "@/components/toast";
 import { fieldsFor, EMAIL_PRESETS } from "@/lib/integration-fields";
-import { agentDisplayName } from "@/lib/asistentes";
+import { oficioDe } from "@/lib/oficios";
 import { ConnectionTester } from "@/components/connection-tester";
 
 export default function IntegrationPage() {
@@ -94,7 +94,7 @@ function IntegrationDetail() {
 
   const fields = detail ? fieldsFor(detail.key) : [];
   const inputCls =
-    "w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+    "w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
 
   function setField(fk: string, val: string) {
     setValues((v) => {
@@ -124,17 +124,17 @@ function IntegrationDetail() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={detail.logo} alt="" className="h-7 w-7 object-contain" />
               ) : (
-                <span className="text-[15px] font-bold" style={{ color: detail.color }}>
+                <span className="text-cuerpo font-bold" style={{ color: detail.color }}>
                   {detail.name.slice(0, 2)}
                 </span>
               )}
             </span>
             <div className="min-w-0 flex-1">
-              <h1 className="text-[18px] font-semibold tracking-tight text-ink">{detail.name}</h1>
-              <p className="text-[12px] text-ink-3">{detail.rol}</p>
+              <h1 className="text-seccion font-semibold tracking-tight text-ink">{detail.name}</h1>
+              <p className="text-cuerpo text-ink-3">{detail.rol}</p>
             </div>
             <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-medium ${
+              className={`shrink-0 rounded-full px-2.5 py-1 text-sello font-medium ${
                 detail.connected ? "bg-ok-soft text-ok" : "bg-panel text-ink-2"
               }`}
             >
@@ -155,7 +155,7 @@ function IntegrationDetail() {
                   strokeLinejoin="round"
                 />
               </svg>
-              <div className="text-[12px] leading-relaxed text-ink-2">
+              <div className="text-cuerpo leading-relaxed text-ink-2">
                 <span className="font-semibold text-warn">Antes de conectar.</span>{" "}
                 {detail.warning}
               </div>
@@ -165,20 +165,20 @@ function IntegrationDetail() {
           {/* ¿Cómo aiuda? */}
           {detail.does && (
             <section className="rounded-lg border border-line bg-panel/40 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                 ¿Cómo <span className="italic normal-case">aiuda</span>?
               </p>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-ink-2">{detail.does}</p>
+              <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{detail.does}</p>
             </section>
           )}
 
           {/* Qué obtener: capacidades como tarjetas con su aiudante y toggle */}
           {detail.capabilities.length > 0 && (
             <section>
-              <h2 className="text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+              <h2 className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                 Qué obtener de {detail.name}
               </h2>
-              <p className="mt-1 text-[11.5px] text-ink-3">
+              <p className="mt-1 text-apoyo text-ink-3">
                 Elige qué le da esta fuente a tu equipo. Empieza a obtenerse cuando la conectes.
               </p>
               <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -190,7 +190,7 @@ function IntegrationDetail() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-[12.5px] font-medium text-ink">{c.label}</p>
+                      <p className="text-cuerpo font-medium text-ink">{c.label}</p>
                       {c.toggleable ? (
                         <button
                           onClick={() => toggleCap(c)}
@@ -208,23 +208,23 @@ function IntegrationDetail() {
                           />
                         </button>
                       ) : (
-                        <span className="shrink-0 rounded bg-panel px-1.5 py-px text-[10px] font-medium uppercase tracking-[0.04em] text-ink-3">
+                        <span className="shrink-0 rounded bg-panel px-1.5 py-px text-rotulo font-medium uppercase tracking-[0.04em] text-ink-3">
                           Por conectar
                         </span>
                       )}
                     </div>
-                    {c.desc && <p className="mt-1 text-[11.5px] leading-relaxed text-ink-3">{c.desc}</p>}
+                    {c.desc && <p className="mt-1 text-apoyo leading-relaxed text-ink-3">{c.desc}</p>}
                     {c.agents.length > 0 && (
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         {c.agents.map((a) => (
                           <Link
                             key={a.slug}
                             href="/ayudantes"
-                            className="flex items-center gap-1.5 rounded-full bg-panel px-1.5 py-0.5 text-[11px] text-ink-2 transition-colors hover:text-ink"
+                            className="flex items-center gap-1.5 rounded-full bg-panel px-1.5 py-0.5 text-sello text-ink-2 transition-colors hover:text-ink"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={a.avatar} alt="" className="h-3.5 w-3.5 rounded-full" />
-                            {agentDisplayName(a.slug)}
+                            {oficioDe(a.slug)}
                           </Link>
                         ))}
                       </div>
@@ -235,17 +235,20 @@ function IntegrationDetail() {
             </section>
           )}
 
-          {/* Credenciales + Probar conexión */}
-          {detail.key !== "excel" && (
+          {/* Credenciales + Probar conexión. Solo si la fuente declara campos: excel se
+              sube como archivo, whatsapp se empareja por QR y sat vive en su propia
+              pantalla. Antes esto era un `!== "excel"` clavado a mano y las otras dos
+              acababan pidiendo un secreto inventado. */}
+          {fields.length > 0 && (
             <section className="rounded-lg border border-line bg-surface px-4 py-3.5">
-              <h2 className="text-[12px] font-semibold text-ink">Credenciales</h2>
-              <p className="mt-0.5 text-[11.5px] text-ink-3">
+              <h2 className="text-cuerpo font-semibold text-ink">Credenciales</h2>
+              <p className="mt-0.5 text-apoyo text-ink-3">
                 Viven cifradas en tu negocio y solo se usan para conectar este sistema.
               </p>
               <div className="mt-3 space-y-3">
                 {fields.map((f) => (
                   <div key={f.key}>
-                    <label className="text-[11px] uppercase tracking-[0.06em] text-ink-3">{f.label}</label>
+                    <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{f.label}</label>
                     {f.type === "select" ? (
                       <select
                         className={`mt-1 ${inputCls}`}
@@ -267,7 +270,7 @@ function IntegrationDetail() {
                         onChange={(e) => setField(f.key, e.target.value)}
                       />
                     )}
-                    {f.hint && <p className="mt-1 text-[11px] leading-relaxed text-ink-3">{f.hint}</p>}
+                    {f.hint && <p className="mt-1 text-apoyo leading-relaxed text-ink-3">{f.hint}</p>}
                   </div>
                 ))}
               </div>
@@ -275,7 +278,7 @@ function IntegrationDetail() {
                 <button
                   onClick={save}
                   disabled={saving}
-                  className="rounded-md bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
                 >
                   {saving ? "Guardando…" : configured ? "Guardar cambios" : "Conectar"}
                 </button>
@@ -283,7 +286,7 @@ function IntegrationDetail() {
                 {configured && (
                   <button
                     onClick={disconnect}
-                    className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                    className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
                   >
                     Desconectar
                   </button>

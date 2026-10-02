@@ -170,16 +170,40 @@ def detalle(
 def prompt_preview(
     ayudante_id: str, db=Depends(get_db), tenant: Tenant = Depends(get_tenant)
 ) -> dict:
-    """El system prompt REAL con que corre este ayudante, ensamblado en el backend
-    (fuente única de verdad, no una copia en el front). Transparencia: el dueño ve
-    exactamente qué gobierna a su ayudante — la base de seguridad de fábrica arriba,
-    sus instrucciones y capacidades debajo."""
+    """Los system prompts REALES de este ayudante, ensamblados en el backend (fuente
+    única de verdad, no una copia en el front).
+
+    Son DOS, porque el interlocutor cambia y con él lo que el ayudante puede decir:
+
+    - ``chat``: cuando el DUEÑO le pregunta desde la consola. Acceso a lo suyo.
+    - ``corrida``: cuando redacta para un CLIENTE en la corrida. Es el que gobierna
+      lo que sale del negocio, y trae las correcciones del dueño reinyectadas.
+
+    Este endpoint devolvía solo el de chat mientras su docstring decía "el prompt REAL
+    con que corre". Enseñar el de chat como si fuera el de cobranza es justo el tipo de
+    fachada que aquí no va: el dueño revisa el prompt para saber qué le dice a sus
+    clientes."""
+    from aiuda_core.agents.cleo.prompt import build_system_prompt
     from aiuda_core.aiuditas.chat import chat_system_prompt
+    from aiuda_core.learning import recent_corrections
 
     a = _get_owned(db, tenant, ayudante_id)
     active = {aid: cfg for aid, cfg in (a.aiuditas or {}).items() if aiudita_por_id(aid)}
-    system = chat_system_prompt(a.name, tenant.name, active, instructions=a.instructions)
-    return {"system": system}
+    chat = chat_system_prompt(a.name, tenant.name, active, instructions=a.instructions)
+
+    config = tenant.config or {}
+    corrida = build_system_prompt(
+        business_name=tenant.name,
+        business_context=config.get("business_context", ""),
+        user_rules=list(((config.get("agent_config") or {}).get("mariana") or {}).get(
+            "user_rules"
+        ) or []) or None,
+        correcciones=recent_corrections(db, tenant, agent="mariana") or None,
+        ayudante_name=a.name,
+        persona=(a.instructions or "").strip() or None,
+    )
+    # `system` se conserva por compatibilidad con quien ya consuma el endpoint.
+    return {"system": chat, "chat": chat, "corrida": corrida}
 
 
 @router.put("/v1/ayudantes/{ayudante_id}")
@@ -292,12 +316,26 @@ def correr(
     from datetime import datetime
 
     from aiuda_core.engine.engine import MX_TZ, CleoEngine
+    from aiuda_core.observabilidad import abrir_run
+    from aiuda_server.metering import tenant_runner
 
-    engine = CleoEngine(db, tenant, ayudante_id=a.id)
-    try:
-        drafted = engine.run_reminders(datetime.now(MX_TZ).date())
-    except Exception:
-        raise HTTPException(status_code=502, detail="No pude correr al ayudante ahora.")
+    # Todo lo que pase aquí queda grabado: qué leyó, qué propuso, cuánto costó y por qué
+    # no hizo el resto. Sin esto el dueño solo ve un número y tiene que confiar.
+    with abrir_run(db, tenant, ayudante=a, aiudita=corribles[0], disparo="manual") as run:
+        engine = CleoEngine(db, tenant, ayudante_id=a.id, runner=tenant_runner(db, tenant, run=run))
+        try:
+            drafted = engine.run_reminders(datetime.now(MX_TZ).date())
+        except Exception as exc:
+            import logging
+            logging.getLogger("aiuda.api").exception("correr falló")
+            raise HTTPException(status_code=502, detail="No pude correr al ayudante ahora.") from exc
+        run.contar(propuestos=len(drafted))
+        for r in drafted:
+            run.liga("reminder", r.id, rol="propuso")
+            if r.invoice_id:
+                run.liga("invoice", r.invoice_id, rol="leyo")
+            # El run del que salió, para poder abrir "cómo lo hizo" desde la tarjeta.
+            r.meta = {**(r.meta or {}), "run_id": run.id}
     db.flush()
     return {
         "corrio": corribles,
@@ -357,29 +395,36 @@ def chat(
     )
     user = (f"{turns}\n" if turns else "") + f"Dueño: {body.message.strip()}\n{a.name}:"
 
-    # Runner con metering (UsageEvent por llamada) y tope de gasto enganchados.
-    runner = tenant_runner(db, tenant)
+    from aiuda_core.observabilidad import abrir_run
+
     tools = chat_tools(active.keys())
-    try:
-        if tools:
-            executor = AyudanteChatExecutor(db, tenant, active.keys())
-            reply = runner.run_tool_loop(
-                system=system,
-                user_message=user,
-                tools=tools,
-                execute_tool=executor,
-                role="redaccion",
-                task="ayudante_chat",
-                max_iterations=6,
-            )
-        else:
-            reply = runner.complete(
-                system=system, user=user, role="redaccion", task="ayudante_chat", max_tokens=400
-            )
-    except BudgetExceeded as exc:
-        # Corte honesto: el tope del mes se alcanzó; no se llamó a la IA.
-        raise HTTPException(status_code=402, detail=str(exc))
-    except Exception:
-        raise HTTPException(status_code=502, detail="El ayudante no está disponible ahora.")
+    # El chat también queda grabado: qué le preguntaste, qué consultó para contestar y
+    # qué te dijo. Es donde el dueño más se pregunta "¿de dónde sacó eso?".
+    with abrir_run(db, tenant, ayudante=a, disparo="chat") as run:
+        # Runner con metering (UsageEvent por llamada) y tope de gasto enganchados.
+        runner = tenant_runner(db, tenant, run=run)
+        try:
+            if tools:
+                executor = AyudanteChatExecutor(db, tenant, active.keys())
+                reply = runner.run_tool_loop(
+                    system=system,
+                    user_message=user,
+                    tools=tools,
+                    execute_tool=executor,
+                    role="redaccion",
+                    task="ayudante_chat",
+                    max_iterations=6,
+                )
+            else:
+                reply = runner.complete(
+                    system=system, user=user, role="redaccion", task="ayudante_chat", max_tokens=400
+                )
+        except BudgetExceeded as exc:
+            # Corte honesto: el tope del mes se alcanzó; no se llamó a la IA.
+            run.cortar(str(exc))
+            raise HTTPException(status_code=402, detail=str(exc))
+        except Exception:
+            raise HTTPException(status_code=502, detail="El ayudante no está disponible ahora.")
+        run.contar(respuestas=1)
     db.flush()
     return {"reply": plain_text(reply) or "…"}

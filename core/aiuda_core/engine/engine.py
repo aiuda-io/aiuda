@@ -432,7 +432,7 @@ class CleoEngine:
                 continue
             # El cliente pidió la baja (BAJA/STOP): no se le redacta cobranza. Su
             # ficha lo muestra; el dueño puede reactivarlo si el cliente se lo pide.
-            if opted_out(self.tenant.config, customer.phone):
+            if opted_out(self.session, self.tenant, customer.phone):
                 continue
             active = self.session.scalar(
                 select(Reminder).where(
@@ -511,7 +511,7 @@ class CleoEngine:
         para pruebas; por defecto la hora de México (no el UTC del servidor)."""
         # Opt-out primero: si el cliente pidió la baja (BAJA/STOP), ningún envío
         # automatizado sale — ni en sombra ni dentro de ventana. Decisión del cliente.
-        if opted_out(self.tenant.config, recipient):
+        if opted_out(self.session, self.tenant, recipient):
             raise OptedOut(
                 f"El destinatario {recipient} pidió no recibir mensajes (BAJA)"
             )

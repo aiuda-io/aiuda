@@ -150,34 +150,6 @@ def test_sync_cua_capacidad_sin_plantilla_no_hace_nada(session, tenant):
     assert report.fuentes == [] and report.pagos_por_conciliar == 0
 
 
-def test_cua_usa_la_ia_del_tenant_suscripcion_o_apikey(session, tenant, monkeypatch):
-    """CUA corre con la PROPIA IA del tenant. Con suscripcion combina la beta OAuth con la
-    de computer-use en un solo header; con API key, solo computer-use."""
-    import aiuda_core.engine.provider as prov
-    from aiuda_core.cua import fallback as fb
-    from aiuda_core.engine.provider import OAUTH_BETA, ProviderCredential
-
-    COMPUTER_BETA = "computer-use-2025-01-24"
-
-    from aiuda_core.config import settings
-    from aiuda_core.engine.provider import CLAUDE_CODE_IDENTITY
-
-    monkeypatch.setattr(prov, "resolve_credential", lambda **kw: ProviderCredential("claude", "subscription", "tok"))
-    r = fb._runner_para_tenant(session, tenant)
-    assert r.betas == [OAUTH_BETA, COMPUTER_BETA]  # ambas betas
-    assert r._client is not None  # cliente async armado con el token de suscripcion
-    assert r.model == settings.model_redaccion_suscripcion  # haiku: la suscripcion no aguanta sonnet
-    assert r._system == CLAUDE_CODE_IDENTITY  # OAuth exige la identidad en system
-
-    monkeypatch.setattr(prov, "resolve_credential", lambda **kw: ProviderCredential("claude", "api_key", "sk-x"))
-    api = fb._runner_para_tenant(session, tenant)
-    assert api.betas == [COMPUTER_BETA]
-    assert api._system is None  # api_key no lleva el prefijo de identidad
-
-    monkeypatch.setattr(prov, "resolve_credential", lambda **kw: None)
-    assert fb._runner_para_tenant(session, tenant) is not None  # cae al runner por defecto
-
-
 def test_sync_fuentes_enruta_a_cua_cuando_el_dueno_lo_elige(session, tenant, monkeypatch):
     import aiuda_core.cua.fallback as fb
     from aiuda_core.engine.sync import SyncReport, sync_fuentes

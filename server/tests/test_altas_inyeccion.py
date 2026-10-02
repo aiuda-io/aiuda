@@ -7,6 +7,8 @@ que entra a conciliación, destinos disponibles derivados de credenciales reales
 el check "crear también en..." encolando al outbox.
 """
 
+from datetime import date, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
@@ -15,6 +17,12 @@ from sqlalchemy.pool import StaticPool
 
 from aiuda_server.api.main import app, get_db
 from aiuda_core.models import Base, Customer, Invoice, OutboxEntry, Payment, Tenant
+
+# El alta rechaza una factura que vence antes de emitirse, y si no mandas issued_date
+# la emisión es HOY. Con fechas clavadas, estos tests aprobaban hasta que el calendario
+# las alcanzaba y luego fallaban solos. Relativas a hoy, no caducan.
+VENCE = (date.today() + timedelta(days=30)).isoformat()
+VENCE_ANTES_DE_EMITIRSE = (date.today() + timedelta(days=40)).isoformat()
 
 @pytest.fixture()
 def db_session():
@@ -99,7 +107,7 @@ def test_alta_de_factura_valida_folio_unico_y_fechas(client, db_session, tenant,
     cid = client.post("/v1/customers", json={"name": "Ferretería"}).json()["id"]
     res = client.post(
         "/v1/invoices",
-        json={"customer_id": cid, "folio": "A-1", "amount": 1500.0, "due_date": "2026-08-01"},
+        json={"customer_id": cid, "folio": "A-1", "amount": 1500.0, "due_date": VENCE},
     )
     assert res.status_code == 201
     inv = db_session.get(Invoice, res.json()["id"])
@@ -107,18 +115,18 @@ def test_alta_de_factura_valida_folio_unico_y_fechas(client, db_session, tenant,
 
     assert client.post(
         "/v1/invoices",
-        json={"customer_id": cid, "folio": "A-1", "amount": 3, "due_date": "2026-08-01"},
+        json={"customer_id": cid, "folio": "A-1", "amount": 3, "due_date": VENCE},
     ).status_code == 409  # folio único
     assert client.post(
         "/v1/invoices",
         json={
             "customer_id": cid, "folio": "A-2", "amount": 3,
-            "issued_date": "2026-08-10", "due_date": "2026-08-01",
+            "issued_date": VENCE_ANTES_DE_EMITIRSE, "due_date": VENCE,
         },
     ).status_code == 422  # vence antes de emitirse
     assert client.post(
         "/v1/invoices",
-        json={"customer_id": "no-existe", "folio": "A-3", "amount": 3, "due_date": "2026-08-01"},
+        json={"customer_id": "no-existe", "folio": "A-3", "amount": 3, "due_date": VENCE},
     ).status_code == 404
 
 
@@ -142,7 +150,7 @@ def test_pago_manual_entra_a_conciliacion_no_cierra_nada(client, db_session, ten
     cid = client.post("/v1/customers", json={"name": "Ferretería"}).json()["id"]
     inv_id = client.post(
         "/v1/invoices",
-        json={"customer_id": cid, "folio": "B-1", "amount": 900.0, "due_date": "2026-08-01"},
+        json={"customer_id": cid, "folio": "B-1", "amount": 900.0, "due_date": VENCE},
     ).json()["id"]
 
     res = client.post(

@@ -280,7 +280,7 @@ export default function RutinasPage() {
                   onBorrar={borrarRutina}
                 />
               ) : (
-                <p className="rounded-lg border border-dashed border-line-strong bg-surface px-4 py-3.5 text-[12px] leading-relaxed text-ink-3">
+                <p className="rounded-lg border border-dashed border-line-strong bg-surface px-4 py-3.5 text-cuerpo leading-relaxed text-ink-3">
                   Aún no guardas rutinas. Despacha un encargo arriba y guárdalo con «Guardar como
                   rutina»; aquí queda listo para correr con un clic.
                 </p>
@@ -288,7 +288,7 @@ export default function RutinasPage() {
             ) : !vacioTotal && listaMisiones.length > 0 ? (
               <Bitacora misiones={listaMisiones} enCurso={enCurso} />
             ) : (
-              <p className="text-[12px] text-ink-3">Aún no hay encargos despachados.</p>
+              <p className="text-cuerpo text-ink-3">Aún no hay encargos despachados.</p>
             )}
           </div>
         </div>
@@ -359,15 +359,15 @@ function Lanzador({
       <div className="border-b border-line/70 bg-panel/40 px-5 py-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-[13.5px] font-semibold text-ink">
+            <h2 className="flex items-center gap-2 text-seccion font-semibold text-ink">
               <PortalIcon className="h-3.5 w-3.5 text-accent-ink" />
               Manda un encargo
             </h2>
-            <p className="mt-0.5 text-[11.5px] text-ink-3">Tú despachas · el asistente ejecuta</p>
+            <p className="mt-0.5 text-apoyo text-ink-3">Tú despachas · el asistente ejecuta</p>
           </div>
           <button
             onClick={onAbrirPortales}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12px] font-medium text-accent-ink transition-colors hover:border-line-strong"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo font-medium text-accent-ink transition-colors hover:border-line-strong"
           >
             <PortalIcon className="h-3 w-3" />
             Portales y accesos
@@ -381,9 +381,9 @@ function Lanzador({
               <span key={s.label} className="inline-flex items-baseline gap-1.5">
                 <AnimatedNumber
                   value={s.value}
-                  className="tnum text-[16px] font-semibold leading-none text-ink"
+                  className="tnum text-seccion font-semibold leading-none text-ink"
                 />
-                <span className="text-[11px] text-ink-3">{s.label}</span>
+                <span className="text-apoyo text-ink-3">{s.label}</span>
               </span>
             ))}
           </div>
@@ -394,7 +394,7 @@ function Lanzador({
         {/* Aviso honesto, slim: si falta el navegador del asistente o la IA del negocio,
             todo encargo quedará en «No pudo». Avisa, no bloquea (el backend corta honesto). */}
         {estado && !estado.listo && (
-          <div className="mb-4 rounded-lg border border-warn/40 bg-warn-soft px-3 py-2 text-[11.5px] leading-relaxed text-ink-2">
+          <div className="mb-4 rounded-lg border border-warn/40 bg-warn-soft px-3 py-2 text-apoyo leading-relaxed text-ink-2">
             <span className="font-semibold text-warn">
               La oficina no puede operar portales todavía.
             </span>{" "}
@@ -417,7 +417,7 @@ function Lanzador({
         )}
 
         {caps.length === 0 ? (
-          <p className="text-[12.5px] leading-relaxed text-ink-3">
+          <p className="text-cuerpo leading-relaxed text-ink-3">
             Aún no hay portales disponibles. Elige CUA como fuente de una capacidad en Integraciones
             para habilitarlos.
           </p>
@@ -425,13 +425,13 @@ function Lanzador({
           <>
             {/* Enseñanza honesta del flujo en una sola línea, solo cuando aún no hay nada. */}
             {enseñar && (
-              <p className="mb-4 rounded-lg border border-line bg-bg px-3.5 py-2.5 text-[11.5px] leading-relaxed text-ink-3">
+              <p className="mb-4 rounded-lg border border-line bg-bg px-3.5 py-2.5 text-apoyo leading-relaxed text-ink-3">
                 Elige un portal, describe en tus palabras qué necesitas de ahí y despacha · entra por
                 su cuenta en segundo plano y te deja el resultado con capturas de evidencia.
               </p>
             )}
 
-            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
               ¿A qué portal?
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -448,7 +448,7 @@ function Lanzador({
                     onClick={() => onCap(c.capacidad)}
                     aria-pressed={activo}
                     title={`${c.objetivo} · ${detalle}`}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-cuerpo font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                       activo
                         ? "border-accent bg-accent-soft/50 text-ink"
                         : "border-line bg-surface text-ink-2 hover:border-line-strong"
@@ -474,7 +474,7 @@ function Lanzador({
               <div className="mt-4">
                 <label
                   htmlFor="instruccion-tarea"
-                  className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3"
+                  className="block text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3"
                 >
                   ¿Qué necesitas que haga ahí?
                 </label>
@@ -484,9 +484,9 @@ function Lanzador({
                   onChange={(e) => onInstruccion(e.target.value)}
                   rows={3}
                   placeholder={worker ? `Por ejemplo: ${worker.objetivo}` : ""}
-                  className="mt-2 w-full resize-none rounded-md border border-line bg-surface px-3 py-2 text-[12.5px] leading-relaxed text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                  className="mt-2 w-full resize-none rounded-md border border-line bg-surface px-3 py-2 text-cuerpo leading-relaxed text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
                 />
-                <p className="mt-2 text-[11.5px] leading-relaxed text-ink-3">
+                <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
                   Para un portal real (el SAT, tu banco), primero conecta el acceso en{" "}
                   <a
                     href="/integraciones"
@@ -515,7 +515,7 @@ function Lanzador({
                   <div className="mt-3 rounded-md border border-line bg-bg p-3">
                     <label
                       htmlFor="nombre-rutina"
-                      className="block text-[11.5px] font-medium text-ink-2"
+                      className="block text-apoyo font-medium text-ink-2"
                     >
                       Ponle un nombre para repetirla luego
                     </label>
@@ -528,13 +528,13 @@ function Lanzador({
                           if (e.key === "Enter") onGuardar();
                         }}
                         placeholder="Ej: Depósitos de la quincena"
-                        className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                        className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
                       />
                       <PrimaryButton onClick={onGuardar} disabled={guardando || !nombreRutina.trim()}>
                         {guardando ? "Guardando…" : "Guardar"}
                       </PrimaryButton>
                     </div>
-                    <p className="mt-1.5 text-[11px] text-ink-3">
+                    <p className="mt-1.5 text-apoyo text-ink-3">
                       Se guarda para repetirla con un clic; no la despacha ahora.
                     </p>
                   </div>
@@ -731,14 +731,14 @@ function Portales({
       >
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[12px] leading-relaxed text-ink-3">
+            <p className="text-cuerpo leading-relaxed text-ink-3">
               Registra a qué sitio entrar y conéctale el acceso; después el asistente entra por su
               cuenta.
             </p>
             <button
               onClick={() => setAgregar((v) => !v)}
               aria-expanded={agregar}
-              className="shrink-0 text-[12px] font-medium text-accent-ink transition-colors hover:text-accent-strong"
+              className="shrink-0 text-cuerpo font-medium text-accent-ink transition-colors hover:text-accent-strong"
             >
               {agregar ? "Cancelar" : "Agregar portal"}
             </button>
@@ -751,26 +751,26 @@ function Portales({
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Nombre (ej: Mi banco, Proveedor X)"
-                className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
               />
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://portal.de-tu-negocio.mx/acceso"
-                className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
               />
             </div>
             <input
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               placeholder="Notas para el asistente (opcional): cómo es el acceso, qué buscar…"
-              className="mt-2 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12.5px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+              className="mt-2 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
             />
             <div className="mt-2.5 flex items-center gap-2">
               <PrimaryButton onClick={crear} disabled={creando || !nombre.trim() || !url.trim()}>
                 {creando ? "Agregando…" : "Agregar portal"}
               </PrimaryButton>
-              <span className="text-[11px] text-ink-3">
+              <span className="text-apoyo text-ink-3">
                 Después conéctale el acceso: tú entras, el asistente reusa tu sesión.
               </span>
             </div>
@@ -781,16 +781,16 @@ function Portales({
         {sesion && (
           <div className="rounded-lg border border-accent/45 bg-accent-soft/40 px-4 py-3.5">
             {sesion.estado === "abriendo" && (
-              <p className="text-[12.5px] text-ink-2">
+              <p className="text-cuerpo text-ink-2">
                 Abriendo la ventana de «{sesion.sistema}»…
               </p>
             )}
             {sesion.estado === "esperando" && (
               <div>
-                <p className="text-[13px] font-semibold text-ink">
+                <p className="text-seccion font-semibold text-ink">
                   Se abrió una ventana con «{sesion.sistema}»
                 </p>
-                <p className="mt-1 text-[12px] leading-relaxed text-ink-2">
+                <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
                   Entra como siempre (usuario, e.firma, 2FA — lo que uses). Cuando ya estés
                   dentro, dale «Ya entré» y guardamos tu sesión. Tu contraseña no se guarda
                   ni la vemos.
@@ -802,11 +802,11 @@ function Portales({
               </div>
             )}
             {sesion.estado === "guardando" && (
-              <p className="text-[12.5px] text-ink-2">Guardando tu sesión…</p>
+              <p className="text-cuerpo text-ink-2">Guardando tu sesión…</p>
             )}
             {(sesion.estado === "error" || sesion.estado === "expirado") && (
               <div>
-                <p className="text-[12.5px] text-danger">
+                <p className="text-cuerpo text-danger">
                   {sesion.detalle ||
                     (sesion.estado === "expirado"
                       ? "Se agotó el tiempo para entrar."
@@ -814,7 +814,7 @@ function Portales({
                 </p>
                 <button
                   onClick={() => setSesion(null)}
-                  className="mt-2 text-[12px] font-medium text-accent-ink hover:text-accent-strong"
+                  className="mt-2 text-cuerpo font-medium text-accent-ink hover:text-accent-strong"
                 >
                   Cerrar
                 </button>
@@ -825,7 +825,7 @@ function Portales({
 
         {/* Aviso honesto cuando esta máquina no puede abrir la ventana (la nube). */}
         {gate && (
-          <p className="rounded-lg border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-[12px] leading-relaxed text-ink-2">
+          <p className="rounded-lg border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-cuerpo leading-relaxed text-ink-2">
             <span className="font-semibold text-warn">Para conectar accesos, aiuda debe correr en tu máquina.</span>{" "}
             {estado?.handoff_detalle} La ventana del navegador se abre donde corre aiuda;
             desde la nube no hay pantalla donde entres tú.
@@ -841,20 +841,20 @@ function Portales({
             >
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium text-ink">{c.sistema}</p>
+                  <p className="truncate text-cuerpo font-medium text-ink">{c.sistema}</p>
                   {c.url_configurada ? (
-                    <p className="tnum truncate text-[11px] text-ink-3">{urlBonita(c.url)}</p>
+                    <p className="tnum truncate text-apoyo text-ink-3">{urlBonita(c.url)}</p>
                   ) : (
-                    <p className="text-[11px] text-warn">Falta la dirección del portal.</p>
+                    <p className="text-apoyo text-warn">Falta la dirección del portal.</p>
                   )}
                 </div>
                 {c.url_configurada &&
                   (c.tiene_sesion ? (
-                    <span className="shrink-0 rounded bg-ok/15 px-1.5 py-0.5 text-[10.5px] font-medium text-ok">
+                    <span className="shrink-0 rounded bg-ok/15 px-1.5 py-0.5 text-sello font-medium text-ok">
                       Acceso conectado
                     </span>
                   ) : (
-                    <span className="shrink-0 rounded bg-line/60 px-1.5 py-0.5 text-[10.5px] font-medium text-ink-3">
+                    <span className="shrink-0 rounded bg-line/60 px-1.5 py-0.5 text-sello font-medium text-ink-3">
                       Sin conectar
                     </span>
                   ))}
@@ -873,7 +873,7 @@ function Portales({
                         }}
                         autoFocus
                         placeholder="https://portal…"
-                        className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[12px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                        className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
                       />
                       <PrimaryButton
                         onClick={() => guardarUrl(c.capacidad)}
@@ -886,7 +886,7 @@ function Portales({
                           setEditCap(null);
                           setEditUrl("");
                         }}
-                        className="text-[12px] text-ink-3 hover:text-ink"
+                        className="text-cuerpo text-ink-3 hover:text-ink"
                       >
                         Cancelar
                       </button>
@@ -897,7 +897,7 @@ function Portales({
                         setEditCap(c.capacidad);
                         setEditUrl("");
                       }}
-                      className="text-[12px] font-medium text-accent-ink hover:text-accent-strong"
+                      className="text-cuerpo font-medium text-accent-ink hover:text-accent-strong"
                     >
                       Poner la dirección
                     </button>
@@ -911,7 +911,7 @@ function Portales({
                   <button
                     onClick={() => conectar(c.capacidad)}
                     disabled={conectando === c.capacidad || sesion !== null}
-                    className="text-[12px] font-medium text-accent-ink transition-colors hover:text-accent-strong disabled:opacity-50"
+                    className="text-cuerpo font-medium text-accent-ink transition-colors hover:text-accent-strong disabled:opacity-50"
                   >
                     {conectando === c.capacidad
                       ? "Abriendo…"
@@ -923,7 +923,7 @@ function Portales({
                 {c.tiene_sesion && (
                   <button
                     onClick={() => olvidar(c.capacidad, c.sistema)}
-                    className="text-[12px] text-ink-3 transition-colors hover:text-danger"
+                    className="text-cuerpo text-ink-3 transition-colors hover:text-danger"
                   >
                     Olvidar acceso
                   </button>
@@ -931,7 +931,7 @@ function Portales({
                 {c.editable && (
                   <button
                     onClick={() => borrarPortal(c.capacidad, c.sistema)}
-                    className="ml-auto text-[12px] text-ink-3 transition-colors hover:text-danger"
+                    className="ml-auto text-cuerpo text-ink-3 transition-colors hover:text-danger"
                   >
                     Borrar portal
                   </button>
@@ -964,18 +964,18 @@ function Recetas({
   return (
     <section>
       <div className="mb-2.5 flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-semibold text-ink">Rutinas guardadas</h2>
+        <h2 className="text-seccion font-semibold text-ink">Rutinas guardadas</h2>
         {rutinas.length > 0 ? (
-          <span className="tnum text-[11.5px] text-ink-3">
+          <span className="tnum text-apoyo text-ink-3">
             {rutinas.length} · córrelas con un clic
           </span>
         ) : (
-          <span className="text-[11.5px] text-ink-3">Córrelas con un clic</span>
+          <span className="text-apoyo text-ink-3">Córrelas con un clic</span>
         )}
       </div>
 
       {rutinas.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-line-strong bg-surface px-4 py-3.5 text-[12px] leading-relaxed text-ink-3">
+        <p className="rounded-lg border border-dashed border-line-strong bg-surface px-4 py-3.5 text-cuerpo leading-relaxed text-ink-3">
           Aún no guardas ninguna. Cuando un encargo lo repitas seguido (por ejemplo: entra al banco y
           tráeme los depósitos del periodo), guárdalo arriba con «Guardar como rutina» y aquí queda
           listo para correr con un clic.
@@ -1011,11 +1011,11 @@ function RecetaCard({
   return (
     <li className="flex items-center gap-3 rounded-lg border border-line bg-surface px-3.5 py-3">
       <div className="min-w-0 flex-1">
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+        <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
           {r.sistema}
         </p>
-        <p className="mt-0.5 truncate text-[13px] font-medium text-ink">{r.nombre}</p>
-        <p className="mt-0.5 truncate text-[11.5px] text-ink-3">
+        <p className="mt-0.5 truncate text-cuerpo font-medium text-ink">{r.nombre}</p>
+        <p className="mt-0.5 truncate text-apoyo text-ink-3">
           {r.instruccion || "Con la instrucción por defecto del portal."}
         </p>
       </div>
@@ -1073,9 +1073,9 @@ function Bitacora({ misiones, enCurso }: { misiones: CuaMision[]; enCurso: numbe
   return (
     <section>
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-[13px] font-semibold text-ink">Bitácora de actividad</h2>
+        <h2 className="text-seccion font-semibold text-ink">Bitácora de actividad</h2>
         {enCurso > 0 && (
-          <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-accent-ink">
+          <span className="flex items-center gap-1.5 text-apoyo font-medium text-accent-ink">
             <span className="breathe h-1.5 w-1.5 rounded-full bg-accent" />
             {enCurso} adentro del portal
           </span>
@@ -1095,7 +1095,7 @@ function Bitacora({ misiones, enCurso }: { misiones: CuaMision[]; enCurso: numbe
       {terminadas.length > 0 ? (
         <>
           {vivas.length > 0 && (
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="mb-2 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
               Historial
             </p>
           )}
@@ -1112,7 +1112,7 @@ function Bitacora({ misiones, enCurso }: { misiones: CuaMision[]; enCurso: numbe
           {terminadas.length > TOPE && (
             <button
               onClick={() => setTodo((v) => !v)}
-              className="mt-3 text-[12px] font-medium text-accent-ink transition-colors hover:text-accent-strong"
+              className="mt-3 text-cuerpo font-medium text-accent-ink transition-colors hover:text-accent-strong"
             >
               {todo ? "Ver menos" : `Ver todas (${terminadas.length})`}
             </button>
@@ -1120,7 +1120,7 @@ function Bitacora({ misiones, enCurso }: { misiones: CuaMision[]; enCurso: numbe
         </>
       ) : (
         vivas.length === 0 && (
-          <p className="text-[12px] text-ink-3">Aún no hay encargos despachados.</p>
+          <p className="text-cuerpo text-ink-3">Aún no hay encargos despachados.</p>
         )
       )}
     </section>
@@ -1144,21 +1144,21 @@ function MisionViva({ m }: { m: CuaMision }) {
     >
       <div className="flex items-center gap-3">
         <span
-          className={`breathe shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${est.cls}`}
+          className={`breathe shrink-0 rounded px-1.5 py-0.5 text-sello font-medium ${est.cls}`}
         >
           {est.label}
         </span>
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">
+        <span className="min-w-0 flex-1 truncate text-cuerpo font-medium text-ink">
           {m.sistema}
         </span>
-        <span className="shrink-0 text-[11px] tabular-nums text-ink-3">
+        <span className="shrink-0 text-apoyo tabular-nums text-ink-3">
           {corriendo
             ? `empezó ${haceTiempo(m.startedAt || m.createdAt)}`
             : haceTiempo(m.createdAt)}
         </span>
       </div>
 
-      <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-2">
+      <p className="mt-1.5 text-apoyo leading-relaxed text-ink-2">
         {m.resumen ||
           instruccion ||
           (corriendo ? "Trabajando en el portal…" : "En espera de turno.")}
@@ -1171,7 +1171,7 @@ function MisionViva({ m }: { m: CuaMision }) {
             return (
               <li
                 key={i}
-                className={`flex items-start gap-2 truncate text-[11.5px] ${
+                className={`flex items-start gap-2 truncate text-apoyo ${
                   ultimo ? "text-ink-2" : "text-ink-3"
                 }`}
               >
@@ -1228,21 +1228,21 @@ function MisionTerminada({ m }: { m: CuaMision }) {
           className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-panel/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
           aria-expanded={abierto}
         >
-          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${est.cls}`}>
+          <span className={`shrink-0 rounded px-1.5 py-0.5 text-sello font-medium ${est.cls}`}>
             {est.label}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-medium text-ink">{m.sistema}</span>
-            <span className="block truncate text-[11.5px] text-ink-3">
+            <span className="block truncate text-cuerpo font-medium text-ink">{m.sistema}</span>
+            <span className="block truncate text-apoyo text-ink-3">
               {m.status === "failed" ? m.error : m.resumen || instruccion || "Sin detalle."}
             </span>
           </span>
           {m.evidencia_capturas > 0 && (
-            <span className="shrink-0 text-[11px] text-ink-3" title="Capturas de evidencia">
+            <span className="shrink-0 text-apoyo text-ink-3" title="Capturas de evidencia">
               {m.evidencia_capturas} capt.
             </span>
           )}
-          <span className="shrink-0 text-[11px] tabular-nums text-ink-3">{fechaHora(cuando(m))}</span>
+          <span className="shrink-0 text-apoyo tabular-nums text-ink-3">{fechaHora(cuando(m))}</span>
           <svg
             viewBox="0 0 12 12"
             className={`h-3 w-3 shrink-0 text-ink-3 transition-transform ${abierto ? "rotate-180" : ""}`}
@@ -1258,13 +1258,13 @@ function MisionTerminada({ m }: { m: CuaMision }) {
         </button>
 
         <Collapse open={abierto}>
-          <div className="border-t border-line/60 px-4 py-3 text-[12px]">
+          <div className="border-t border-line/60 px-4 py-3 text-cuerpo">
             {instruccion && (
               <div className="mb-3">
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                   Le pediste
                 </p>
-                <p className="rounded-md border border-line/70 bg-bg px-3 py-2 text-[12px] leading-relaxed text-ink-2">
+                <p className="rounded-md border border-line/70 bg-bg px-3 py-2 text-cuerpo leading-relaxed text-ink-2">
                   {instruccion}
                 </p>
               </div>
@@ -1272,10 +1272,10 @@ function MisionTerminada({ m }: { m: CuaMision }) {
             {m.status === "done" &&
               Object.keys(m.data ?? {}).some((k) => k !== "_instruccion") && (
                 <div className="mb-3">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                     Lo que trajo
                   </p>
-                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md border border-line/70 bg-bg px-3 py-2 text-[11.5px] leading-relaxed text-ink-2">
+                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md border border-line/70 bg-bg px-3 py-2 text-apoyo leading-relaxed text-ink-2">
                     {JSON.stringify(
                       Object.fromEntries(
                         Object.entries(m.data ?? {}).filter(([k]) => k !== "_instruccion"),
@@ -1287,18 +1287,18 @@ function MisionTerminada({ m }: { m: CuaMision }) {
                 </div>
               )}
             {m.status === "failed" && m.error && (
-              <p className="mb-3 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-[11.5px] text-danger">
+              <p className="mb-3 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-apoyo text-danger">
                 {m.error}
               </p>
             )}
             {m.steps.length > 0 && (
               <div className="mb-3">
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                   Paso a paso
                 </p>
                 <ul className="space-y-0.5">
                   {m.steps.map((s, i) => (
-                    <li key={i} className="truncate text-[11.5px] text-ink-3">
+                    <li key={i} className="truncate text-apoyo text-ink-3">
                       {s}
                     </li>
                   ))}
@@ -1307,7 +1307,7 @@ function MisionTerminada({ m }: { m: CuaMision }) {
             )}
             {m.evidencia_capturas > 0 && (
               <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
                   Evidencia ({m.evidencia_capturas})
                 </p>
                 {cargando ? (

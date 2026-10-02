@@ -26,7 +26,7 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
       </span>
     );
   return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-panel text-[10px] font-semibold text-ink-2">
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-panel text-sello font-semibold text-ink-2">
       {name.slice(0, 2).toUpperCase()}
     </span>
   );
@@ -122,9 +122,9 @@ export function Chatter({
                 <path d="M4 5.5h16v10H9l-4 3v-3H4z" strokeLinejoin="round" />
               </svg>
             </span>
-            <p className="mt-3 text-[13px] font-medium text-ink">{emptyTitle}</p>
+            <p className="mt-3 text-cuerpo font-medium text-ink">{emptyTitle}</p>
             {emptyHint && (
-              <p className="mt-1 max-w-sm text-[12px] leading-relaxed text-ink-3">{emptyHint}</p>
+              <p className="mt-1 max-w-sm text-cuerpo leading-relaxed text-ink-3">{emptyHint}</p>
             )}
             {suggestions.length > 0 && (
               <div className="mt-4 flex flex-wrap justify-center gap-1.5">
@@ -134,7 +134,7 @@ export function Chatter({
                     type="button"
                     onClick={() => enviar(s)}
                     disabled={sending}
-                    className="rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:opacity-50"
+                    className="rounded-full border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:opacity-50"
                   >
                     {s}
                   </button>
@@ -149,18 +149,18 @@ export function Chatter({
             <div key={m.id} className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
               <Avatar name={m.label ?? (mine ? "Tú" : "··")} src={m.avatar} />
               <div className={`max-w-[78%] ${mine ? "items-end text-right" : ""}`}>
-                {m.label && <p className="mb-0.5 px-1 text-[10.5px] font-medium text-ink-3">{m.label}</p>}
+                {m.label && <p className="mb-0.5 px-1 text-sello font-medium text-ink-3">{m.label}</p>}
                 <div
                   className={`inline-block rounded-2xl px-3.5 py-2 text-left ${
                     mine ? "bg-accent text-surface" : "bg-panel text-ink"
                   }`}
                 >
-                  <WaText className="text-[13px] leading-relaxed">{m.body}</WaText>
+                  <WaText className="text-cuerpo leading-relaxed">{m.body}</WaText>
                 </div>
                 {(m.time || m.meta) && (
                   <div className={`mt-0.5 flex items-center gap-2 px-1 ${mine ? "justify-end" : ""}`}>
                     {m.meta}
-                    {m.time && <span className="tnum text-[10px] text-ink-3">{fmtTime(m.time)}</span>}
+                    {m.time && <span className="tnum text-sello text-ink-3">{fmtTime(m.time)}</span>}
                   </div>
                 )}
               </div>
@@ -172,7 +172,7 @@ export function Chatter({
             <Avatar name={thinkingLabel ?? "··"} />
             <div>
               {thinkingLabel && (
-                <p className="mb-0.5 px-1 text-[10.5px] font-medium text-ink-3">{thinkingLabel}</p>
+                <p className="mb-0.5 px-1 text-sello font-medium text-ink-3">{thinkingLabel}</p>
               )}
               <div className="flex items-center gap-2 rounded-2xl bg-panel px-3.5 py-2.5">
                 <span className="chatter-dots inline-flex gap-1">
@@ -180,7 +180,7 @@ export function Chatter({
                   <span className="h-1.5 w-1.5 rounded-full bg-ink-3" />
                   <span className="h-1.5 w-1.5 rounded-full bg-ink-3" />
                 </span>
-                <span className="text-[11.5px] text-ink-3">Pensando…</span>
+                <span className="text-apoyo text-ink-3">Pensando…</span>
               </div>
             </div>
           </div>
@@ -192,7 +192,7 @@ export function Chatter({
       <div className="border-t border-line bg-panel/40 px-3 py-3">
         {channel && (
           <div className="mb-2 flex items-center gap-1.5">
-            <span className="flex items-center gap-1 rounded-full border border-accent/40 bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent-ink">
+            <span className="flex items-center gap-1 rounded-full border border-accent/40 bg-accent-soft px-2 py-0.5 text-sello font-medium text-accent-ink">
               {CHANNEL_LOGO[channel.active] && (
                 <img src={CHANNEL_LOGO[channel.active]} alt="" className="h-3 w-3" />
               )}
@@ -202,7 +202,7 @@ export function Chatter({
               <span
                 key={opt}
                 title="Disponible al conectar este canal"
-                className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[11px] text-ink-3"
+                className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-sello text-ink-3"
               >
                 {CHANNEL_LOGO[opt] && <img src={CHANNEL_LOGO[opt]} alt="" className="h-3 w-3 grayscale" />}
                 {opt === "email" ? "Correo" : opt === "slack" ? "Slack" : opt}
@@ -257,7 +257,7 @@ export function Chatter({
             }}
             rows={1}
             placeholder={placeholder}
-            className="max-h-28 min-h-[38px] flex-1 resize-none rounded-lg border border-line bg-surface px-3 py-2 text-[13px] text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+            className="max-h-28 min-h-[38px] flex-1 resize-none rounded-lg border border-line bg-surface px-3 py-2 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
           />
           <button
             type="submit"

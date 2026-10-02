@@ -39,10 +39,13 @@ Principios que mandan sobre cualquier feature:
   (`/clientes/detalle?id=…`).
 - **Escritorio (`desktop/`):** Tauri. Solo ventana y ciclo de vida del sidecar;
   el binario del server lo arma PyInstaller con `packaging/aiuda.spec`.
-- **IA:** BYO vía `engine/provider.py` y `engine/runner.py` (Protocol): Claude
-  (API key o suscripción), OpenAI/Codex (API key o device flow) y "local"
-  (OpenAI-compatible: Ollama). El metering y el tope se enganchan en
-  `server/aiuda_server/metering.py`.
+- **IA:** BYO vía `engine/provider.py` y `engine/runner.py` (Protocol). Tres vías,
+  todas legítimas: la llave del dueño (Claude u OpenAI), el CLI que YA tiene
+  instalado (`claude_cli`/`codex_cli`: lo lanzamos como subproceso y se autentica con
+  SU sesión, aiuda nunca ve su token), y "local" (OpenAI-compatible: Ollama). **No
+  hay modo suscripción**: se retiró porque exigía declararse como el cliente oficial
+  del proveedor para que aceptara el token, y eso no se reparte en Apache-2.0. El
+  metering y el tope se enganchan en `server/aiuda_server/metering.py`.
 - **WhatsApp:** wacli (tu número, protocolo WhatsApp Web) con sondeo entrante
   in-process (`server/aiuda_server/inbound.py`); correo IMAP/SMTP; la Cloud API
   oficial requiere URL pública (instancias operadas).

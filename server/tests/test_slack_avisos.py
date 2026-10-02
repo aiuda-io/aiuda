@@ -187,8 +187,8 @@ def test_resumen_diario_sale_por_slack_en_la_corrida(db_session, tenant, monkeyp
         lambda s, tid, texto, **kw: avisos.append((tid, texto)) or True,
     )
     monkeypatch.setattr(worker, "session_scope", fake_scope)
-    monkeypatch.setattr(worker, "_build_engine", lambda s, tt: _Engine())
-    monkeypatch.setattr(worker, "_process_writebacks", lambda s, tt: None)
+    monkeypatch.setattr(worker, "_build_engine", lambda s, tt, run=None: _Engine())
+    monkeypatch.setattr(worker, "_process_writebacks", lambda s, tt, run=None: None)
     monkeypatch.setattr(sync_mod, "sync_fuentes", lambda *a, **k: None)
 
     report = worker.run_daily_blocking()

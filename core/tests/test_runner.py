@@ -1,14 +1,12 @@
 """Capa de proveedor agnóstica: factory make_runner + selección de modelo por rol."""
 
-import json
 
 import pytest
 from conftest import FakeResponse
 
 from aiuda_core.config import settings
-from aiuda_core.connectors.smart_import import classify_sheet
 from aiuda_core.engine.llm import BudgetExceeded, ClaudeRunner
-from aiuda_core.engine.provider import CLAUDE_CODE_IDENTITY, ProviderCredential
+from aiuda_core.engine.provider import ProviderCredential
 from aiuda_core.engine.runner import ProviderRunner, ProviderUnavailable, make_runner
 
 
@@ -75,19 +73,6 @@ def test_run_tool_loop_usa_redaccion_por_defecto(fake_client_factory):
     assert client.messages.requests[0]["model"] == settings.model_redaccion
 
 
-def test_importacion_con_credencial_suscripcion_antepone_identidad(fake_client_factory):
-    # El runner de suscripción threaded a la importación antepone la identidad de Claude Code.
-    client = fake_client_factory(FakeResponse(json.dumps({"tipo": "clientes", "confianza": 0.9})))
-    runner = ClaudeRunner(
-        client=client, credential=ProviderCredential("claude", "subscription", "oauth-x")
-    )
-    classify_sheet(["Nombre"], [{"Nombre": "Ana"}], runner)
-    assert client.messages.requests[0]["system"].startswith(CLAUDE_CODE_IDENTITY)
-
-
-# --------------------------------------------------------------------------- #
-# Tope de gasto: el hook corta ANTES de llamar al proveedor                     #
-# --------------------------------------------------------------------------- #
 def test_budget_check_corta_antes_de_llamar(fake_client_factory):
     client = fake_client_factory(FakeResponse("nunca debería salir"))
 
