@@ -232,7 +232,7 @@ if [ -n "$TOKEN" ]; then
     nota "no encontró CLIs de IA: correcto en una máquina limpia"
   fi
 
-  AGENTES=$(curl -fsS "http://127.0.0.1:$PORT/v1/agents?token=$TOKEN")
+  AGENTES=$(curl -fsS "http://127.0.0.1:$PORT/v1/ayudantes?token=$TOKEN")
   echo "$AGENTES" | grep -q "\[" && paso "la lista de ayudantes responde (vacía, sin datos demo)" \
     || falla "la lista de ayudantes falló"
 fi

@@ -1010,6 +1010,20 @@ def put_ventana_envio(
 # ---------- Import inteligente: nos adaptamos a tu Excel ----------
 
 
+def _exigir_ia_para_importar(db, tenant: Tenant) -> None:
+    """Entender una hoja (qué trae y qué columna es qué) lo hace la IA del dueño. Si la
+    lectura falló y no hay IA conectada, el archivo no tiene nada de malo: antes se le
+    decía "no pude leer el archivo" y el dueño se iba a revisar un Excel que estaba bien."""
+    from aiuda_core.engine.provider import resolve_credential
+
+    if resolve_credential(session=db, tenant_id=tenant.id) is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Conecta tu IA en Tu IA para que pueda entender tu archivo. "
+            "Tu archivo está bien; todavía no se importó nada.",
+        )
+
+
 @app.post("/v1/import")
 async def smart_import_endpoint(
     file: UploadFile = File(...),
@@ -1031,6 +1045,8 @@ async def smart_import_endpoint(
     except BudgetExceeded as exc:
         raise HTTPException(status_code=402, detail=str(exc))
     except Exception:
+        _exigir_ia_para_importar(db, tenant)
+        log.exception("importar: no se pudo leer %s", file.filename)
         raise HTTPException(status_code=400, detail="No pude leer el archivo (¿es CSV o XLSX?)")
     return {
         "filename": file.filename,
@@ -1065,6 +1081,8 @@ async def import_analyze(
     except BudgetExceeded as exc:
         raise HTTPException(status_code=402, detail=str(exc))
     except Exception:
+        _exigir_ia_para_importar(db, tenant)
+        log.exception("importar: no se pudo analizar %s", file.filename)
         raise HTTPException(status_code=400, detail="No pude leer el archivo (¿es CSV o XLSX?)")
     result["filename"] = file.filename
     result["types"] = [{"key": k, "label": ENTITY_LABEL[k]} for k in ENTITY_FIELDS]
