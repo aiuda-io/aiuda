@@ -1133,13 +1133,15 @@ export type CuaSesionHandoff = {
 };
 
 /** Estado honesto de la oficina: si ESTE servidor tiene el navegador del asistente
- *  (extra `cua` + Chromium) y si el negocio tiene credencial de IA. Sin ambos, las
- *  tareas quedan en "No pudo" con la razón; la UI lo avisa antes de encolar.
+ *  (extra `cua` + Chromium) y si la IA del negocio sirve para operar portales (hoy,
+ *  solo una llave de Anthropic; `ia_detalle` dice por qué la conectada no). Sin
+ *  ambos, las tareas quedan en "No pudo" con la razón; la UI lo avisa antes de encolar.
  *  `handoff_posible`: ¿esta máquina puede abrir una ventana para que el dueño entre? */
 export type CuaEstado = {
   navegador_listo: boolean;
   navegador_detalle: string;
   credencial_ia: boolean;
+  ia_detalle: string;
   listo: boolean;
   handoff_posible: boolean;
   handoff_detalle: string;

@@ -50,8 +50,20 @@ Dos límites honestos:
 
 - **El binario de la app de escritorio no trae Playwright** (pesa cientos de MB y
   es opcional). Hoy el CUA solo corre en la instalación desde el código.
-- **Necesita una IA con acceso a computer-use**, que hoy significa Anthropic. Un
-  modelo local con Ollama no sirve para esto.
+- **Necesita una llave de Anthropic (Claude).** El asistente tiene que ver la
+  captura de pantalla del portal y contestar con un clic o una tecla, decenas de
+  veces seguidas, y aiuda solo sabe hacer eso con la herramienta de computer-use
+  de Anthropic. Con las otras formas de conectar la IA no corre, y lo dice antes
+  de abrir el navegador:
+
+  | Tu IA conectada | Opera portales | Por qué |
+  |---|---|---|
+  | Llave de Anthropic | Sí | Es la única vía con computer-use |
+  | Llave de OpenAI | No | aiuda no tiene escrito el manejo de pantalla con OpenAI |
+  | Claude Code o Codex instalados | No | Con aiuda solo intercambian texto, no reciben la captura |
+  | Modelo local (Ollama) | No | No ve la pantalla ni devuelve acciones |
+
+  El gasto de cada misión cuenta para tu tope mensual de IA, igual que el resto.
 
 ## El login lo haces tú (handoff)
 

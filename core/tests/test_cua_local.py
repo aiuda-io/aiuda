@@ -164,7 +164,8 @@ def test_sin_credencial_es_noop_honesto(monkeypatch):
     runner = CuaRunner()  # sin cliente inyectado ni credencial disponible
     result = asyncio.run(runner.run(_mission()))
     assert result.success is False
-    assert "credencial" in (result.error or "").lower()  # dice por que, no inventa datos
+    # dice por que y que hacer, no inventa datos
+    assert "llave de anthropic" in (result.error or "").lower()
 
 
 # --- Deteccion honesta: instalado vs no instalado ---------------------------

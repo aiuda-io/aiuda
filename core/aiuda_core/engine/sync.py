@@ -1929,8 +1929,13 @@ def sync_fuentes(
     tenant: Tenant,
     today: date | None = None,
     fuente_prefs: dict[str, str] | None = None,
+    ia_cua=None,
 ) -> SyncReport:
     """Lee las fuentes conectadas del tenant, respetando "de dónde lee" cada capacidad.
+
+    `ia_cua`: fábrica del runner de IA (con tope y registro de uso) para las
+    capacidades que el dueño enrutó a un portal. Solo se invoca si hay alguna; es el
+    único lector de esta función que gasta IA.
 
     Cada lector jala los datos de su(s) fuente(s) si están conectadas y es no-op si
     no. Agregar una fuente = sumar su lector aquí; el mismo camino las corre a todas
@@ -1963,5 +1968,5 @@ def sync_fuentes(
 
         for cap, fuente in fuente_prefs.items():
             if fuente == CUA_FUENTE and cap in CUA_TEMPLATES:
-                _merge(report, sync_cua(session, tenant, cap, today=today))
+                _merge(report, sync_cua(session, tenant, cap, today=today, ia=ia_cua))
     return report

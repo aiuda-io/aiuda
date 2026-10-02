@@ -170,6 +170,24 @@ class ClaudeRunner:
         self._record(model, task, response.usage)
         return next((b.text for b in response.content if b.type == "text"), "")
 
+    def computer_use(self, *, task: str = "cua", **kwargs: Any):
+        """Una llamada cruda al computer-use de Anthropic (beta.messages.create).
+
+        Existe para el CUA (cua/runner.py), que necesita lo que `complete` y
+        `run_tool_loop` no dan: mandar capturas de pantalla y recibir acciones de
+        ratón y teclado. Pasa por aquí, y no por un cliente armado aparte, para que
+        el tope de gasto del dueño corte ANTES de cada paso y cada paso quede
+        registrado como uso: una misión de portal son decenas de llamadas con
+        imagen, justo el gasto que no puede quedar fuera de la cuenta.
+
+        Sin `rate_backoff`: un 429 a media misión termina la misión con su razón;
+        dormir aquí dejaría el navegador abierto esperando."""
+        if self.budget_check is not None:
+            self.budget_check()
+        response = self._client.beta.messages.create(**kwargs)
+        self._record(str(kwargs.get("model") or ""), task, getattr(response, "usage", None))
+        return response
+
     def classify(self, system: str, user: str, *, labels: list[str], task: str) -> str:
         """Clasificación con Haiku. Devuelve siempre una de `labels` (fallback: la última)."""
         raw = self.complete(

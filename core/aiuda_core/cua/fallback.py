@@ -3,8 +3,9 @@ opera el portal web como lo haría un humano. El dueño lo elige como cualquier 
 fuente ("de dónde lee" = CUA) y el motor de sync enruta aquí. Solo-lectura, con evidencia.
 
 El runner corre de verdad con un Chromium local (extra `cua`, Playwright) y la IA del
-tenant. Honesto en cada faltante: sin el extra instalado, sin credencial de IA o sin la
-URL del portal, el recado queda `failed` con la razón exacta — nunca inventa datos. La
+tenant, que hoy tiene que ser una llave de Anthropic (ver `ia_para_cua`). Honesto en cada
+faltante: sin el extra instalado, sin una IA que sirva para esto o sin la URL del portal,
+el recado queda `failed` con la razón exacta y nunca inventa datos. La
 URL del portal la aporta el tenant (`tenant.config["cua_portales"]`, por capacidad),
 porque la banca o el juzgado de cada negocio son suyos. Ver docs/CUA.md.
 """
@@ -199,38 +200,82 @@ def borrar_sesion(session: Session, tenant: Tenant, capacidad: str) -> bool:
     return True
 
 
-def _runner_para_tenant(session: Session, tenant: Tenant, storage_state: dict | None = None):
-    """CuaRunner que corre con la PROPIA IA del tenant (suscripción o API key), resuelta
-    igual que la redacción. Con la suscripción combina la beta OAuth con la de computer-use
-    en un solo header `anthropic-beta`. Sin credencial del tenant, cae al CuaRunner por
-    defecto (env/settings), que es no-op honesto si tampoco hay ninguna. `storage_state`:
-    sesión ya autenticada del portal (del handoff) para arrancar logueado."""
-    import anthropic
+class CuaSinIA(Exception):
+    """La IA conectada no sirve para operar portales. El mensaje es para el dueño."""
 
-    from aiuda_core.config import settings
-    from aiuda_core.cua.runner import _COMPUTER_BETA, CuaRunner
-    from aiuda_core.engine.provider import CLAUDE_CODE_IDENTITY, OAUTH_BETA, resolve_credential
+
+# Qué le pide el CUA al modelo: VER una captura de pantalla y contestar una acción de
+# ratón o teclado, decenas de veces seguidas. Hoy eso solo lo da la herramienta de
+# computer-use de Anthropic, que se llama con la llave del dueño. Las demás vías de
+# aiuda intercambian texto (`complete` y `run_tool_loop`): no reciben la captura. Por
+# eso aquí no se intenta "a ver si sale": se dice por qué no, en palabras del dueño.
+_PORQUE_NO = {
+    "codex": (
+        "Tu IA conectada es una llave de OpenAI. aiuda todavía no sabe operar un "
+        "portal con OpenAI"
+    ),
+    "claude_cli": (
+        "Tu IA conectada es el Claude Code instalado en esta computadora, que con "
+        "aiuda solo intercambia texto y no puede ver la pantalla del portal"
+    ),
+    "codex_cli": (
+        "Tu IA conectada es el Codex instalado en esta computadora, que con aiuda "
+        "solo intercambia texto y no puede ver la pantalla del portal"
+    ),
+    "local": (
+        "Tu IA conectada es un modelo local, que no puede ver la pantalla del portal "
+        "ni moverse en ella"
+    ),
+}
+_QUE_HACER = (
+    "Para las rutinas de portales hace falta una llave de Anthropic (Claude); "
+    "conéctala en Proveedor de IA. El resto de aiuda sigue funcionando igual."
+)
+
+
+def ia_para_cua(session: Session, tenant: Tenant) -> tuple[bool, str]:
+    """¿La IA que conectó el dueño puede operar portales? (sí/no, razón para él).
+    Una sola regla para el aviso de la consola y para el corte del recado."""
+    from aiuda_core.cua.runner import MSG_SIN_IA
+    from aiuda_core.engine.provider import resolve_credential
 
     cred = resolve_credential(session=session, tenant_id=tenant.id)
     if cred is None:
-        return CuaRunner(storage_state=storage_state)
-    if cred.mode == "subscription":
-        # La suscripción topa sonnet con 429: el CUA corre con el modelo que su token deja
-        # pasar (haiku), la beta OAuth junto a computer-use, y el prefijo de identidad que
-        # OAuth exige en `system`.
-        client = anthropic.AsyncAnthropic(auth_token=cred.secret, max_retries=0)
-        return CuaRunner(
-            client=client,
-            model=settings.model_redaccion_suscripcion,
-            betas=[OAUTH_BETA, _COMPUTER_BETA],
-            system=CLAUDE_CODE_IDENTITY,
-            storage_state=storage_state,
-        )
-    return CuaRunner(
-        client=anthropic.AsyncAnthropic(api_key=cred.secret),
-        betas=[_COMPUTER_BETA],
-        storage_state=storage_state,
+        return False, MSG_SIN_IA
+    if cred.name != "claude":
+        porque = _PORQUE_NO.get(cred.name, "Tu IA conectada no puede ver la pantalla del portal")
+        return False, f"{porque}. {_QUE_HACER}"
+    return True, "Tu llave de Anthropic puede operar portales."
+
+
+def _runner_para_tenant(
+    session: Session, tenant: Tenant, storage_state: dict | None = None, ia=None
+):
+    """CuaRunner que corre con la IA del dueño por la misma vía que todo lo demás:
+    la credencial de `resolve_credential` y el runner de `make_runner`.
+
+    `ia`: fábrica del runner ya armado (en la capa HTTP/worker es `tenant_runner`,
+    que trae el tope de gasto y el registro de uso). Sin ella se arma con
+    `make_runner` a secas, que es lo que hay cuando no existe capa de servidor.
+    `storage_state`: sesión ya autenticada del portal (del handoff).
+
+    Lanza CuaSinIA, con el motivo en palabras del dueño, si la IA conectada no puede
+    operar portales. Se corta ANTES de abrir el navegador."""
+    from aiuda_core.cua.runner import ClienteDelMotor, CuaRunner
+    from aiuda_core.engine.provider import resolve_credential
+    from aiuda_core.engine.runner import make_runner
+
+    sirve, detalle = ia_para_cua(session, tenant)
+    if not sirve:
+        raise CuaSinIA(detalle)
+    motor = ia() if ia is not None else make_runner(
+        resolve_credential(session=session, tenant_id=tenant.id)
     )
+    if not hasattr(motor, "computer_use"):
+        # Red de seguridad: un runner envuelto o nuevo que no trae computer-use no
+        # debe llegar al loop y tronar a media misión con un AttributeError.
+        raise CuaSinIA(f"Tu IA conectada no puede ver la pantalla del portal. {_QUE_HACER}")
+    return CuaRunner(client=ClienteDelMotor(motor), storage_state=storage_state)
 
 
 def _run(runner, mission: Mission) -> MissionResult:
@@ -272,10 +317,17 @@ def enqueue_cua_mission(
 
 
 def ejecutar_recado(
-    session: Session, recado: CuaMission, runner=None, now: datetime | None = None
+    session: Session,
+    recado: CuaMission,
+    runner=None,
+    now: datetime | None = None,
+    ia=None,
 ) -> CuaMission:
     """Corre un recado encolado y registra estado, datos, bitácora y evidencia. Honesto:
-    sin credencial/backend queda 'failed' con la razón, nunca inventa datos."""
+    sin credencial/backend queda 'failed' con la razón, nunca inventa datos.
+
+    `ia`: fábrica del runner de IA con tope y registro de uso (`tenant_runner` en la
+    capa HTTP/worker). `runner`: un CuaRunner ya armado (tests y el guion sin IA)."""
     tenant = session.get(Tenant, recado.tenant_id)
     mission = mission_para_recado(tenant, recado)
     if mission is None:
@@ -299,7 +351,15 @@ def ejecutar_recado(
         # Reusa la sesión autenticada guardada del handoff (si la hay): el asistente
         # arranca ya logueado en vez de chocar contra la pantalla de acceso.
         storage_state = sesion_de_capacidad(tenant, recado.capacidad)
-        runner = _runner_para_tenant(session, tenant, storage_state=storage_state)
+        try:
+            runner = _runner_para_tenant(session, tenant, storage_state=storage_state, ia=ia)
+        except CuaSinIA as exc:
+            # La IA conectada no puede operar portales: el recado lo dice tal cual y
+            # no se abre navegador ni se gasta nada.
+            recado.status = "failed"
+            recado.error = str(exc)
+            session.flush()
+            return recado
     recado.status = "running"
     recado.started_at = now or datetime.now(timezone.utc)
     session.flush()
@@ -329,11 +389,12 @@ def run_cua_mission(
     capacidad: str,
     runner=None,
     now: datetime | None = None,
+    ia=None,
 ) -> CuaMission:
     """Encola y corre un recado en una llamada (camino del sync diario y de tests). Es lo
     que el dueño ve en el log; nunca mira el navegador."""
     recado = enqueue_cua_mission(session, tenant, capacidad)
-    return ejecutar_recado(session, recado, runner=runner, now=now)
+    return ejecutar_recado(session, recado, runner=runner, now=now, ia=ia)
 
 
 def sync_cua(
@@ -342,6 +403,7 @@ def sync_cua(
     capacidad: str,
     runner=None,
     today: date | None = None,
+    ia=None,
 ) -> SyncReport:
     """Corre la misión CUA de una capacidad (registrando el recado) y mapea lo extraído a
     la cartera, con procedencia `cua:<sistema>` y evidencia. Sin credencial/backend es
@@ -349,7 +411,7 @@ def sync_cua(
     report = SyncReport()
     if capacidad not in CUA_TEMPLATES:
         return report
-    recado = run_cua_mission(session, tenant, capacidad, runner=runner)
+    recado = run_cua_mission(session, tenant, capacidad, runner=runner, ia=ia)
     if recado.status != "done":
         return report
     report.fuentes.append(f"{CUA_FUENTE}:{recado.sistema}")

@@ -230,3 +230,93 @@ def test_estado_expone_handoff_posible(client, demo_tenant, monkeypatch, demo_lo
     )
     estado = client.get("/v1/cua/estado").json()
     assert estado["handoff_posible"] is True and estado["handoff_detalle"]
+
+
+# ---------- La IA del dueño en el CUA: tope, uso y aviso honesto ----------
+
+
+def test_recado_por_tenant_runner_cuenta_el_gasto(db_session, demo_tenant, monkeypatch):
+    """El camino de la capa HTTP: `tenant_runner` arma la IA y cada paso de la misión
+    queda como UsageEvent (tarea "cua"), o sea que cuenta para el tope del dueño."""
+    from types import SimpleNamespace
+
+    from sqlalchemy import select
+
+    from aiuda_core.connectors.credentials import set_credential
+    from aiuda_core.cua.fallback import enqueue_cua_mission
+    from aiuda_core.models import UsageEvent
+    from aiuda_server.metering import tenant_runner
+
+    set_credential(
+        db_session, demo_tenant.id, "ia",
+        {"name": "claude", "mode": "api_key", "secret": "sk-ant-prueba"},
+    )
+    db_session.flush()
+
+    class Navegador:
+        width, height = 1280, 800
+
+        def __init__(self, headless=True, storage_state=None):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def goto(self, url):
+            pass
+
+        async def screenshot(self):
+            return b"PNG"
+
+    class Anthropic:
+        def __init__(self):
+            self.beta = SimpleNamespace(messages=self)
+
+        def create(self, **kw):
+            return SimpleNamespace(
+                content=[SimpleNamespace(type="text", text='{"depositos": [{"monto": 10}]}')],
+                usage=SimpleNamespace(input_tokens=1200, output_tokens=30),
+            )
+
+    monkeypatch.setattr("aiuda_core.cua.runner.LocalComputer", Navegador)
+    monkeypatch.setattr("aiuda_core.cua.runner.paquete_playwright_instalado", lambda: True)
+    monkeypatch.setattr("aiuda_core.engine.llm.build_anthropic_client", lambda cred: Anthropic())
+
+    recado = enqueue_cua_mission(db_session, demo_tenant, "confirmacion_pago")
+    ejecutar_recado(db_session, recado, ia=lambda: tenant_runner(db_session, demo_tenant))
+    db_session.flush()
+
+    assert recado.status == "done", recado.error
+    usos = db_session.scalars(
+        select(UsageEvent).where(UsageEvent.tenant_id == demo_tenant.id)
+    ).all()
+    assert [(u.task, u.input_tokens, u.output_tokens) for u in usos] == [("cua", 1200, 30)]
+
+
+def test_estado_dice_por_que_la_ia_conectada_no_sirve(
+    client, demo_tenant, db_session, monkeypatch, demo_login
+):
+    """Tener IA conectada no basta: con el CLI del dueño la oficina NO está lista, y
+    el estado trae el motivo para que la consola no diga "falta conectar la IA"."""
+    from aiuda_core.connectors.credentials import set_credential
+
+    demo_login(client)
+    monkeypatch.setattr(
+        "aiuda_core.cua.computer.estado_navegador", lambda: (True, "Navegador listo.")
+    )
+    set_credential(db_session, demo_tenant.id, "ia", {"name": "claude_cli", "mode": "cli"})
+    db_session.flush()
+    estado = client.get("/v1/cua/estado").json()
+    assert estado["credencial_ia"] is False and estado["listo"] is False
+    assert "Claude Code instalado" in estado["ia_detalle"]
+
+    set_credential(
+        db_session, demo_tenant.id, "ia",
+        {"name": "claude", "mode": "api_key", "secret": "sk-ant-prueba"},
+    )
+    db_session.flush()
+    estado = client.get("/v1/cua/estado").json()
+    assert estado["credencial_ia"] is True and estado["listo"] is True

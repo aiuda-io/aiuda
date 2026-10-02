@@ -69,28 +69,35 @@ def _serialize(m: CuaMission, with_evidence: bool = False) -> dict:
 def run_recado_blocking(recado_id: str) -> None:
     """Corre un recado encolado en su propia sesión (BackgroundTask; abre navegador headless)."""
     from aiuda_core.db import session_scope
+    from aiuda_server.metering import tenant_runner
 
     with session_scope() as session:
         recado = session.get(CuaMission, recado_id)
         if recado is not None and recado.status == "queued":
-            ejecutar_recado(session, recado)
+            tenant = session.get(Tenant, recado.tenant_id)
+            # La IA del dueño con su tope y su registro de uso: una misión de portal
+            # son decenas de llamadas con imagen y tienen que contar.
+            ejecutar_recado(session, recado, ia=lambda: tenant_runner(session, tenant))
 
 
 @router.get("/v1/cua/estado")
 def estado(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> dict:
     """Estado HONESTO de la oficina: ¿este servidor tiene el navegador del asistente
-    (extra `cua` + Chromium) y el tenant tiene credencial de IA? La UI lo muestra tal
-    cual; sin esto las tareas quedan en 'No pudo' con la razón."""
+    (extra `cua` + Chromium) y el tenant tiene una IA que sirva para operar portales?
+    No basta con tener IA conectada: hoy solo sirve una llave de Anthropic, y
+    `ia_detalle` dice por qué la suya no. La UI lo muestra tal cual; sin esto las
+    tareas quedan en 'No pudo' con la razón."""
     from aiuda_core.cua.computer import estado_navegador
-    from aiuda_core.engine.provider import resolve_credential
+    from aiuda_core.cua.fallback import ia_para_cua
 
     navegador_listo, detalle = estado_navegador()
-    credencial = resolve_credential(session=db, tenant_id=tenant.id) is not None
+    credencial, ia_detalle = ia_para_cua(db, tenant)
     handoff_posible, handoff_detalle = estado_handoff_posible()
     return {
         "navegador_listo": navegador_listo,
         "navegador_detalle": detalle,
         "credencial_ia": credencial,
+        "ia_detalle": ia_detalle,
         "listo": navegador_listo and credencial,
         # ¿Esta máquina puede abrir una ventana para que el dueño entre al portal él mismo?
         "handoff_posible": handoff_posible,

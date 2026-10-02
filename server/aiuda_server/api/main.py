@@ -517,9 +517,13 @@ def sync_now(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     from aiuda_server.api.integrations import fuentes_preferidas
     from aiuda_core.engine.sync import sync_fuentes
     from aiuda_core.observabilidad import abrir_run, contar_sync
+    from aiuda_server.metering import tenant_runner
 
     with abrir_run(db, tenant, disparo="sincronizacion") as run:
-        r = sync_fuentes(db, tenant, fuente_prefs=fuentes_preferidas(db, tenant))
+        r = sync_fuentes(
+            db, tenant, fuente_prefs=fuentes_preferidas(db, tenant),
+            ia_cua=lambda: tenant_runner(db, tenant),
+        )
         contar_sync(run, r)
     return {
         "pedidos_importados": r.pedidos_importados,

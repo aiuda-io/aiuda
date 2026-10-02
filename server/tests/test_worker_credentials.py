@@ -78,7 +78,7 @@ def test_corrida_diaria_aisla_un_tenant_que_falla(session, monkeypatch):
     monkeypatch.setattr(worker, "session_scope", fake_scope)
     monkeypatch.setattr(worker, "_build_engine", lambda s, t, run=None: _Engine())
 
-    def fake_sync(s, t, today=None, fuente_prefs=None):
+    def fake_sync(s, t, today=None, fuente_prefs=None, ia_cua=None):
         if t.name == "Malo":
             raise RuntimeError("credencial ilegible")
 

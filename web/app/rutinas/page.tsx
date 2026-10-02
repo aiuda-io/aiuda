@@ -402,14 +402,16 @@ function Lanzador({
               estado.navegador_detalle
             ) : (
               <>
-                Falta conectar la IA de tu negocio en{" "}
+                {/* El motivo lo redacta el servidor: tener IA conectada no basta,
+                    tiene que ser una que pueda ver la pantalla del portal. */}
+                {estado.ia_detalle}{" "}
                 <a
                   href="/proveedor"
                   className="font-medium text-accent-ink underline-offset-2 hover:underline"
                 >
-                  Proveedor de IA
+                  Ir a Proveedor de IA
                 </a>
-                ; sin ella el asistente no puede entrar a ningún portal.
+                .
               </>
             )}{" "}
             Los encargos que despaches quedarán en «No pudo» con esta razón.

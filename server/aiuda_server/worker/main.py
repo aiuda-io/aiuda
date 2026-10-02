@@ -889,6 +889,7 @@ def _run_daily_impl(
             #    Lo sincronizado queda commiteado ANTES de tocar la IA.
             with session_scope() as session:
                 from aiuda_core.observabilidad import abrir_run, contar_sync
+                from aiuda_server.metering import tenant_runner as _runner_con_tope
 
                 tenant = session.get(Tenant, tenant_id)
                 # Traer la cartera es trabajo, y era el más invisible: entraban 147
@@ -897,6 +898,8 @@ def _run_daily_impl(
                     reporte = sync_fuentes(
                         session, tenant, today=today,
                         fuente_prefs=fuentes_preferidas(session, tenant),
+                        # Los portales (CUA) gastan IA: con el tope del dueño.
+                        ia_cua=lambda s=session, t=tenant: _runner_con_tope(s, t),
                     )
                     contar_sync(run, reporte)
                     wb = _process_writebacks(session, tenant)
