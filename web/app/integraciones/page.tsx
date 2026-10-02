@@ -8,6 +8,7 @@ import {
   ErrorState,
   PageHeader,
   SecondaryButton,
+  SinEstrenar,
   Skeleton,
   Tabs,
   useApi,
@@ -58,7 +59,10 @@ function ConnectorButton({ node, onOpen }: { node: IntegrationNode; onOpen: (n: 
     >
       <Logo node={node} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-cuerpo font-semibold text-ink">{node.name}</p>
+        <p className="flex items-center gap-2">
+          <span className="truncate text-cuerpo font-semibold text-ink">{node.name}</span>
+          {!node.estrenada && <SinEstrenar />}
+        </p>
         <p className="truncate text-apoyo text-ink-3">{node.rol}</p>
       </div>
       {node.verified === "error" ? (

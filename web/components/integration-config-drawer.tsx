@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api, type SourceCap } from "@/lib/api";
 import { oficioDe } from "@/lib/oficios";
 import { Drawer } from "@/components/drawer";
+import { SIN_ESTRENAR_NOTA, SinEstrenar } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { INTEGRATION_HELP } from "@/lib/integration-help";
 import { fieldsFor, EMAIL_PRESETS } from "@/lib/integration-fields";
@@ -25,6 +26,7 @@ export type ConfigNode = {
   verified?: "ok" | "error" | "untested" | null;
   last_error?: string | null;
   live?: boolean;
+  estrenada?: boolean;
   does?: string;
 };
 
@@ -290,6 +292,7 @@ export function IntegrationConfigDrawer({
               Sin conectar
             </span>
           )}
+          {node.estrenada === false && <SinEstrenar />}
           <Link
             href={`/integraciones/detalle?key=${node.key}`}
             onClick={onClose}
@@ -305,6 +308,9 @@ export function IntegrationConfigDrawer({
               ¿Cómo <span className="italic">aiuda</span>?
             </p>
             <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{node.does}</p>
+            {node.estrenada === false && (
+              <p className="mt-2 text-cuerpo leading-relaxed text-ink-2">{SIN_ESTRENAR_NOTA}</p>
+            )}
             {node.live === false && (
               <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
                 Guarda tus credenciales para dejarla conectada. La sincronización automática

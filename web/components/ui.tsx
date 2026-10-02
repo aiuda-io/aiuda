@@ -39,6 +39,22 @@ export function BucketPill({ bucket }: { bucket: string }) {
   );
 }
 
+/** Sello de una integración que nadie ha usado todavía con una cuenta real. La
+ *  verdad sale del catálogo del servidor (`estrenada`), no de esta pantalla. */
+export const SIN_ESTRENAR_NOTA =
+  "Está construida, pero todavía nadie la ha usado con una cuenta real.";
+
+export function SinEstrenar() {
+  return (
+    <span
+      title={SIN_ESTRENAR_NOTA}
+      className="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-panel px-1.5 py-0.5 text-sello font-medium text-ink-2"
+    >
+      Sin estrenar
+    </span>
+  );
+}
+
 export function ChevronLeft({ className = "h-3 w-3" }: { className?: string }) {
   return (
     <svg viewBox="0 0 12 12" className={className} fill="none" aria-hidden="true">

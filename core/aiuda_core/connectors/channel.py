@@ -40,9 +40,7 @@ UNOFFICIAL_WHATSAPP_WARNING = (
     "WhatsApp conectado con tu propio número por el protocolo de WhatsApp Web "
     "(como una sesión más de WhatsApp Web, no la API oficial). Para el uso normal "
     "el riesgo es bajo; enviar volumen de mensajes no solicitados sí puede hacer "
-    "que Meta restrinja el número. Si algún día envías a volumen, la vía oficial "
-    "(WhatsApp Business / Cloud API) es el camino — requiere un servidor con URL "
-    "pública."
+    "que Meta restrinja el número."
 )
 
 # Categorización por rol "canal": etiqueta + a qué dato del cliente entrega.

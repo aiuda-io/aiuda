@@ -49,29 +49,36 @@ SECRET_HINT = cred.SECRET_HINT
 #      catálogo que el bucle pisaba al importar y quedaban contradiciendo al código
 #      (facturama/facturapi/googlecalendar/hubspot decían False siendo True).
 # does = qué hace aiuda con esta integración (honesto, en una línea).
+# estrenada = alguien YA la usó con una cuenta real y funcionó. Es la única fuente
+#      de verdad del sello "Sin estrenar" de la consola y del conteo de los
+#      documentos. False no quiere decir rota: quiere decir escrita contra la
+#      documentación del proveedor y probada con dobles, nada más. Ante la duda, False.
+# oculta = no se ofrece en la consola hasta probarla con una cuenta real. El código,
+#      sus pruebas y sus endpoints se quedan; y a quien YA la tiene conectada se le
+#      sigue mostrando (ver `ocultas_para`): no se esconde algo que el dueño usa.
 CATALOG = [
-    {"key": "whatsapp", "name": "WhatsApp (tu número)", "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#25D366", "flows": ["channel"], "rol": "Tu número, en tu computadora", "does": "Tus clientes te escriben y tú respondes y apruebas desde la consola. Se conecta con QR como WhatsApp Web, con tu propio número; para enviar a volumen está WhatsApp Business (oficial).", "warning": UNOFFICIAL_WHATSAPP_WARNING},
-    {"key": "whatsapp_cloud", "name": "WhatsApp Business (oficial)", "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#075E54", "flows": ["channel"], "rol": "La API oficial de Meta, para volumen", "does": "Envía y recibe por la Cloud API oficial de Meta: texto libre dentro de la ventana de 24 horas y plantillas aprobadas fuera de ella. Necesita un servidor con URL pública para recibir webhooks (no aplica corriendo solo local). Implementado contra el contrato documentado; PENDIENTE de verificar en vivo."},
-    {"key": "email", "name": "Correo", "group": "canal", "logo": None, "color": "#2f6fed", "flows": ["channel"], "rol": "Correo del negocio: IMAP, Google o Microsoft", "does": "Lee tu buzón (IMAP): los correos de tus clientes entran como hilos a la bandeja, tu ayudante PROPONE la respuesta y tú apruebas antes de que salga (SMTP, enhebrado al hilo). Gmail y Outlook entran hoy con contraseña de aplicación; OAuth queda documentado, por cablear."},
+    {"key": "whatsapp", "name": "WhatsApp (tu número)", "estrenada": True, "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#25D366", "flows": ["channel"], "rol": "Tu número, en tu computadora", "does": "Tus clientes te escriben y tú respondes y apruebas desde la consola. Se conecta con QR como WhatsApp Web, con tu propio número.", "warning": UNOFFICIAL_WHATSAPP_WARNING},
+    {"key": "whatsapp_cloud", "name": "WhatsApp Business (oficial)", "estrenada": False, "oculta": True, "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#075E54", "flows": ["channel"], "rol": "La API oficial de Meta, para volumen", "does": "Envía y recibe por la Cloud API oficial de Meta: texto libre dentro de la ventana de 24 horas y plantillas aprobadas fuera de ella. Necesita un servidor con URL pública para recibir webhooks (no aplica corriendo solo local)."},
+    {"key": "email", "name": "Correo", "estrenada": False, "group": "canal", "logo": None, "color": "#2f6fed", "flows": ["channel"], "rol": "Correo del negocio: IMAP, Google o Microsoft", "does": "Lee tu buzón (IMAP): los correos de tus clientes entran como hilos a la bandeja, tu ayudante PROPONE la respuesta y tú apruebas antes de que salga (SMTP, enhebrado al hilo). Gmail y Outlook entran hoy con contraseña de aplicación; OAuth queda documentado, por cablear."},
 
-    {"key": "excel", "name": "Excel / CSV", "group": "datos", "logo": None, "color": "#1f9d6d", "flows": ["read"], "rol": "Subes cualquier hoja y la IA entiende qué es", "does": "Subes cualquier Excel (clientes, productos, facturas, citas, prospectos) y la IA detecta qué es y lo carga al lugar correcto (re-subir no duplica)."},
-    {"key": "odoo", "name": "Odoo", "group": "datos", "logo": "/brand/int/odoo.svg", "color": "#714B67", "flows": ["read", "writeback"], "rol": "Lee tu cartera y regresa lo cobrado", "does": "Lee tu cartera de Odoo (facturas, clientes, catálogo, compras) y regresa lo cobrado: asienta el pago contra la factura y actualiza el cliente."},
-    {"key": "shopify", "name": "Shopify", "group": "datos", "logo": "/brand/int/shopify.svg", "color": "#95BF47", "flows": ["read", "writeback"], "rol": "Pedidos por cobrar y nota de pago de vuelta", "does": "Trae tus pedidos por cobrar y registra de vuelta la nota de pago."},
-    {"key": "woocommerce", "name": "WooCommerce", "group": "datos", "logo": "/brand/int/woocommerce.svg", "color": "#7F54B3", "flows": ["read"], "rol": "Pedidos pendientes de tu tienda", "does": "Trae los pedidos pendientes de tu tienda a tu cartera."},
-    {"key": "google_sheets", "name": "Google Sheets", "group": "datos", "logo": None, "color": "#0F9D58", "flows": ["read"], "rol": "Una hoja compartida como fuente", "does": "Lee una hoja de Google Sheets compartida ('cualquiera con el enlace · lector'): declaras el rango y qué trae (facturas, clientes o productos) y aiuda mapea las columnas por su nombre y las carga. Solo lectura por API key; OAuth para hojas privadas queda por cablear. PENDIENTE de verificar en vivo — captura tu API key y usa 'Probar conexión'."},
-    {"key": "mercadolibre", "name": "Mercado Libre", "group": "datos", "logo": None, "color": "#FFE600", "flows": ["read"], "rol": "Tus ventas de Mercado Libre a tu cartera", "does": "Trae tus ventas con pago pendiente a la cartera, tu catálogo (publicaciones con precio y existencia) y los compradores recientes al directorio. API oficial (api.mercadolibre.com) con refresco de token OAuth. PENDIENTE de verificar en vivo — captura las credenciales de tu app y usa 'Probar conexión'."},
+    {"key": "excel", "name": "Excel / CSV", "estrenada": True, "group": "datos", "logo": None, "color": "#1f9d6d", "flows": ["read"], "rol": "Subes cualquier hoja y la IA entiende qué es", "does": "Subes cualquier Excel (clientes, productos, facturas, citas, prospectos) y la IA detecta qué es y lo carga al lugar correcto (re-subir no duplica)."},
+    {"key": "odoo", "name": "Odoo", "estrenada": True, "group": "datos", "logo": "/brand/int/odoo.svg", "color": "#714B67", "flows": ["read", "writeback"], "rol": "Lee tu cartera y regresa lo cobrado", "does": "Lee tu cartera de Odoo (facturas, clientes, catálogo, compras) y regresa lo cobrado: asienta el pago contra la factura y actualiza el cliente."},
+    {"key": "shopify", "name": "Shopify", "estrenada": False, "group": "datos", "logo": "/brand/int/shopify.svg", "color": "#95BF47", "flows": ["read", "writeback"], "rol": "Pedidos por cobrar y nota de pago de vuelta", "does": "Trae tus pedidos por cobrar y registra de vuelta la nota de pago."},
+    {"key": "woocommerce", "name": "WooCommerce", "estrenada": False, "group": "datos", "logo": "/brand/int/woocommerce.svg", "color": "#7F54B3", "flows": ["read"], "rol": "Pedidos pendientes de tu tienda", "does": "Trae los pedidos pendientes de tu tienda a tu cartera."},
+    {"key": "google_sheets", "name": "Google Sheets", "estrenada": False, "group": "datos", "logo": None, "color": "#0F9D58", "flows": ["read"], "rol": "Una hoja compartida como fuente", "does": "Lee una hoja de Google Sheets compartida ('cualquiera con el enlace · lector'): declaras el rango y qué trae (facturas, clientes o productos) y aiuda mapea las columnas por su nombre y las carga. Solo lectura por API key; OAuth para hojas privadas queda por cablear."},
+    {"key": "mercadolibre", "name": "Mercado Libre", "estrenada": False, "group": "datos", "logo": None, "color": "#FFE600", "flows": ["read"], "rol": "Tus ventas de Mercado Libre a tu cartera", "does": "Trae tus ventas con pago pendiente a la cartera, tu catálogo (publicaciones con precio y existencia) y los compradores recientes al directorio. API oficial (api.mercadolibre.com) con refresco de token OAuth."},
 
-    {"key": "belvo", "name": "Belvo", "group": "fiscal", "logo": "/brand/int/belvo.svg", "color": "#0663F9", "flows": ["confirm"], "rol": "Confirma pagos viendo tu banco", "does": "Detecta en tu banco los depósitos que confirman tus facturas."},
-    {"key": "stripe", "name": "Stripe", "group": "fiscal", "logo": "/brand/int/stripe.png", "color": "#635BFF", "flows": ["confirm"], "rol": "Confirma cobros con tarjeta", "does": "Detecta tus cobros con tarjeta para confirmar pagos."},
-    {"key": "mercadopago", "name": "Mercado Pago", "group": "fiscal", "logo": None, "color": "#00B1EA", "flows": ["confirm", "action"], "rol": "Cobra por link de WhatsApp y confirma", "does": "Genera un link de pago (Checkout Pro) que tu ayudante manda con el recordatorio; el cliente paga con un clic. Y detecta los pagos aprobados para confirmar tus facturas. Implementado contra el contrato documentado; PENDIENTE de verificar en vivo — captura tu access token y usa 'Probar conexión'."},
-    {"key": "clip", "name": "Clip", "group": "fiscal", "logo": None, "color": "#FF5A2D", "flows": ["confirm", "action"], "rol": "Link de pago para changarros y PyMEs", "does": "Crea un link de pago que tu ayudante envía por WhatsApp con el recordatorio, y detecta los pagos ya cobrados para confirmar facturas. La vía más difundida en el changarro mexicano. Implementado contra el contrato documentado; PENDIENTE de verificar en vivo — captura tu API key y usa 'Probar conexión'."},
-    {"key": "conekta", "name": "Conekta", "group": "fiscal", "logo": None, "color": "#01203E", "flows": ["confirm", "action"], "rol": "Cobra en OXXO, SPEI o tarjeta", "does": "Crea un link de pago que acepta tarjeta, OXXO Pay (efectivo) y SPEI (transferencia) — clave para quien no usa tarjeta. Tu ayudante lo manda por WhatsApp y confirma cuando el pago entra. Implementado contra el contrato documentado; PENDIENTE de verificar en vivo — captura tu private key y usa 'Probar conexión'."},
-    {"key": "sat", "name": "SAT · Bóveda fiscal", "group": "fiscal", "logo": None, "color": "#6B1F3A", "flows": ["read"], "rol": "Tus CFDI y cartera fiscal, hasta 3 RFCs", "does": "Importa XML o ZIP y descarga CFDI con e.firma cifrada. Clasifica PPD, PUE, pagos, egresos e intercompañía. La descarga automática está cableada; falta verificarla contra el SAT vivo."},
-    {"key": "facturama", "name": "Facturama", "group": "fiscal", "logo": "/brand/int/facturama.jpg", "color": "#C4453A", "flows": ["read"], "rol": "Lee tus CFDI como respaldo fiscal", "does": "Lee tus CFDI del SAT como respaldo fiscal (el conector aún no timbra)."},
-    {"key": "facturapi", "name": "Facturapi", "group": "fiscal", "logo": "/brand/int/facturapi.png", "color": "#3B82C4", "flows": ["read"], "rol": "Lee tus CFDI como respaldo fiscal", "does": "Lee tus CFDI del SAT como respaldo fiscal (el conector aún no timbra)."},
+    {"key": "belvo", "name": "Belvo", "estrenada": False, "group": "fiscal", "logo": "/brand/int/belvo.svg", "color": "#0663F9", "flows": ["confirm"], "rol": "Confirma pagos viendo tu banco", "does": "Detecta en tu banco los depósitos que confirman tus facturas."},
+    {"key": "stripe", "name": "Stripe", "estrenada": False, "group": "fiscal", "logo": "/brand/int/stripe.png", "color": "#635BFF", "flows": ["confirm"], "rol": "Confirma cobros con tarjeta", "does": "Detecta tus cobros con tarjeta para confirmar pagos."},
+    {"key": "mercadopago", "name": "Mercado Pago", "estrenada": False, "oculta": True, "group": "fiscal", "logo": None, "color": "#00B1EA", "flows": ["confirm", "action"], "rol": "Cobra por link de WhatsApp y confirma", "does": "Genera un link de pago (Checkout Pro) que tu ayudante manda con el recordatorio; el cliente paga con un clic. Y detecta los pagos aprobados para confirmar tus facturas."},
+    {"key": "clip", "name": "Clip", "estrenada": False, "oculta": True, "group": "fiscal", "logo": None, "color": "#FF5A2D", "flows": ["confirm", "action"], "rol": "Link de pago para changarros y PyMEs", "does": "Crea un link de pago que tu ayudante envía por WhatsApp con el recordatorio, y detecta los pagos ya cobrados para confirmar facturas. La vía más difundida en el changarro mexicano."},
+    {"key": "conekta", "name": "Conekta", "estrenada": False, "oculta": True, "group": "fiscal", "logo": None, "color": "#01203E", "flows": ["confirm", "action"], "rol": "Cobra en OXXO, SPEI o tarjeta", "does": "Crea un link de pago que acepta tarjeta, OXXO Pay (efectivo) y SPEI (transferencia) — clave para quien no usa tarjeta. Tu ayudante lo manda por WhatsApp y confirma cuando el pago entra."},
+    {"key": "sat", "name": "SAT · Bóveda fiscal", "estrenada": False, "group": "fiscal", "logo": None, "color": "#6B1F3A", "flows": ["read"], "rol": "Tus CFDI y cartera fiscal, hasta 3 RFCs", "does": "Importa XML o ZIP y descarga CFDI con e.firma cifrada. Clasifica PPD, PUE, pagos, egresos e intercompañía. La descarga automática está cableada; falta verificarla contra el SAT vivo."},
+    {"key": "facturama", "name": "Facturama", "estrenada": False, "group": "fiscal", "logo": "/brand/int/facturama.jpg", "color": "#C4453A", "flows": ["read"], "rol": "Lee tus CFDI como respaldo fiscal", "does": "Lee tus CFDI del SAT como respaldo fiscal (el conector aún no timbra)."},
+    {"key": "facturapi", "name": "Facturapi", "estrenada": False, "group": "fiscal", "logo": "/brand/int/facturapi.png", "color": "#3B82C4", "flows": ["read"], "rol": "Lee tus CFDI como respaldo fiscal", "does": "Lee tus CFDI del SAT como respaldo fiscal (el conector aún no timbra)."},
 
-    {"key": "googlecalendar", "name": "Google Calendar", "group": "operacion", "logo": "/brand/int/googlecalendar.svg", "color": "#4285F4", "flows": ["read"], "rol": "Citas y recordatorios de agenda", "does": "Lee tu disponibilidad para agendar citas."},
-    {"key": "hubspot", "name": "HubSpot", "group": "operacion", "logo": "/brand/int/hubspot.svg", "color": "#FF7A59", "flows": ["read"], "rol": "Contactos y actividad del CRM", "does": "Lee contactos y oportunidades de tu CRM."},
+    {"key": "googlecalendar", "name": "Google Calendar", "estrenada": False, "group": "operacion", "logo": "/brand/int/googlecalendar.svg", "color": "#4285F4", "flows": ["read"], "rol": "Citas y recordatorios de agenda", "does": "Lee tu disponibilidad para agendar citas."},
+    {"key": "hubspot", "name": "HubSpot", "estrenada": False, "group": "operacion", "logo": "/brand/int/hubspot.svg", "color": "#FF7A59", "flows": ["read"], "rol": "Contactos y actividad del CRM", "does": "Lee contactos y oportunidades de tu CRM."},
 ]
 
 
@@ -229,7 +236,17 @@ def _provides(system: str) -> list[dict]:
 _CATALOG_BY_KEY = {item["key"]: item for item in CATALOG}
 
 
-def fuentes_de_capacidad(cap: str) -> list[dict]:
+def ocultas_para(db, tenant: Tenant) -> set[str]:
+    """Las integraciones `oculta` que ESTE negocio no ve: todas, menos las que ya
+    tiene conectadas."""
+    candidatas = [item["key"] for item in CATALOG if item.get("oculta")]
+    if not candidatas:
+        return set()
+    active = _active_systems(db, tenant)
+    return {k for k in candidatas if not _is_connected(db, k, tenant, active)}
+
+
+def fuentes_de_capacidad(cap: str, ocultas: set[str] | frozenset[str] = frozenset()) -> list[dict]:
     """Las fuentes que PUEDEN alimentar una capacidad (de dónde puede leer una
     aiudita), con su logo y si su lectura ya corre hoy. Las posibles salen de
     SOURCE_CAPS (la misma fuente de verdad que el mapa, para no desincronizar); el
@@ -238,7 +255,7 @@ def fuentes_de_capacidad(cap: str) -> list[dict]:
     out: list[dict] = []
     for src in _CAP_PROVIDERS.get(cap, []):
         item = _CATALOG_BY_KEY.get(src)
-        if item is None:
+        if item is None or src in ocultas:
             continue
         out.append(
             {
@@ -307,12 +324,16 @@ def fuentes_preferidas(db, tenant: Tenant) -> dict[str, str]:
     return prefs
 
 
-def _capabilities_overview(connected: set[str]) -> list[dict]:
+def _capabilities_overview(
+    connected: set[str], ocultas: set[str] | frozenset[str] = frozenset()
+) -> list[dict]:
     """Catálogo de capacidades con su estado: si ya está viva en algún lado y
     si el tenant tiene una fuente conectada que la cumpla."""
     out = []
     for cap, meta in CAPABILITIES.items():
-        providers = [s for s in _CAP_PROVIDERS.get(cap, []) if s in CATALOG_KEYS]
+        providers = [
+            s for s in _CAP_PROVIDERS.get(cap, []) if s in CATALOG_KEYS and s not in ocultas
+        ]
         out.append(
             {
                 "key": cap,
@@ -485,6 +506,8 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
     connected_keys = {
         item["key"] for item in CATALOG if _is_connected(db, item["key"], tenant, active)
     }
+    # Lo que no se ofrece hasta probarse con cuenta real, salvo que ya esté conectado.
+    ocultas = {item["key"] for item in CATALOG if item.get("oculta")} - connected_keys
 
     # Cuántas facturas trae cada fuente, para mostrar volumen en el nodo.
     counts: dict[str, int] = {}
@@ -513,7 +536,7 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
                 s
                 for cap in needs
                 for s in _CAP_PROVIDERS.get(cap, [])
-                if s in CATALOG_KEYS
+                if s in CATALOG_KEYS and s not in ocultas
             }
         )
         agents.append(
@@ -533,6 +556,8 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
     status_map = _verified_map(db, tenant.id)
     systems = []
     for item in CATALOG:
+        if item["key"] in ocultas:
+            continue
         connected = item["key"] in connected_keys
         configured = _is_configured(db, tenant, item["key"])
         st = status_map.get(item["key"])
@@ -569,7 +594,7 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
         "business_name": tenant.name,
         "systems": systems,
         "agents": agents,
-        "capabilities": _capabilities_overview(connected_keys),
+        "capabilities": _capabilities_overview(connected_keys, ocultas),
         "connected_count": connected_count,
         "available_count": len(systems) - connected_count,
     }
@@ -588,13 +613,14 @@ def ayudante_systems(
     connected_keys = {
         item["key"] for item in CATALOG if _is_connected(db, item["key"], tenant, active)
     }
-    by_key = {item["key"]: item for item in CATALOG}
+    ocultas = {item["key"] for item in CATALOG if item.get("oculta")} - connected_keys
+    by_key = {item["key"]: item for item in CATALOG if item["key"] not in ocultas}
     needs = capacidades_de(a)
     _n, gaps = _caps_detail(needs, connected_keys)
     name = a.name
     role = ", ".join(CAPABILITIES.get(c, {}).get("label", c) for c in needs) or "Sin oficio"
     alcanza = sorted(
-        {s2 for cap in needs for s2 in _CAP_PROVIDERS.get(cap, []) if s2 in CATALOG_KEYS}
+        {s2 for cap in needs for s2 in _CAP_PROVIDERS.get(cap, []) if s2 in by_key}
     )
     systems = []
     for key in alcanza:
@@ -614,7 +640,7 @@ def ayudante_systems(
     # Capacidades del agente con qué fuente (conectada) las cumple.
     capabilities = []
     for cap in needs:
-        providers = [s for s in _CAP_PROVIDERS.get(cap, []) if s in CATALOG_KEYS]
+        providers = [s for s in _CAP_PROVIDERS.get(cap, []) if s in by_key]
         capabilities.append(
             {
                 "key": cap,

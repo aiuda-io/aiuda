@@ -363,3 +363,60 @@ def test_instalacion_nueva_no_presume_fuentes_conectadas(client, db_session):
         assert body["connected_count"] == 0
     finally:
         settings.workspace_id = ""
+
+
+# --- Sin estrenar y ocultas -------------------------------------------------
+
+OCULTAS = {"whatsapp_cloud", "mercadopago", "clip", "conekta"}
+
+
+def test_cada_integracion_declara_si_ya_se_estreno():
+    """`estrenada` es la fuente única del sello "Sin estrenar" y del conteo de los
+    documentos. Si el catálogo cambia, este test obliga a actualizar README y landing."""
+    from aiuda_server.api.integrations import CATALOG
+
+    assert all(isinstance(i.get("estrenada"), bool) for i in CATALOG)
+    assert {i["key"] for i in CATALOG if i["estrenada"]} == {"whatsapp", "excel", "odoo"}
+    assert {i["key"] for i in CATALOG if i.get("oculta")} == OCULTAS
+    visibles = [i for i in CATALOG if not i.get("oculta")]
+    assert len(CATALOG) == 19
+    assert len(visibles) == 15
+    assert sum(1 for i in visibles if not i["estrenada"]) == 12
+    # El aviso ya no vive suelto en la descripción: lo lleva el campo.
+    assert not any("PENDIENTE" in i["does"] for i in CATALOG)
+
+
+def test_el_grafo_expone_estrenada_y_esconde_lo_no_probado(client, demo_tenant, demo_login):
+    demo_login(client)
+    body = client.get("/v1/integrations").json()
+    by_key = {s["key"]: s for s in body["systems"]}
+    assert not OCULTAS & set(by_key)
+    assert len(by_key) == 15
+    assert by_key["odoo"]["estrenada"] is True
+    assert by_key["stripe"]["estrenada"] is False
+    assert body["connected_count"] + body["available_count"] == 15
+    # Tampoco se cuelan como proveedoras de una capacidad.
+    for cap in body["capabilities"]:
+        assert not OCULTAS & set(cap["providers"])
+
+
+def test_una_oculta_ya_conectada_se_sigue_viendo(client, demo_tenant, demo_login):
+    """No se esconde algo que el dueño ya usa."""
+    demo_login(client)
+    res = client.put("/v1/integrations/mercadopago/config", json={"values": {"access_token": "APP_USR-x"}})
+    assert res.status_code == 200
+    by_key = {s["key"]: s for s in client.get("/v1/integrations").json()["systems"]}
+    assert by_key["mercadopago"]["connected"] is True
+    assert by_key["mercadopago"]["estrenada"] is False
+    assert "clip" not in by_key and "conekta" not in by_key
+
+    cat = client.get("/v1/aiuditas/catalog").json()
+    ofrecidas = {f["key"] for a in cat["aiuditas"] for f in a.get("fuentes", [])}
+    assert not {"clip", "conekta", "whatsapp_cloud"} & ofrecidas
+
+
+def test_lo_oculto_conserva_su_detalle_y_su_configuracion(client, demo_tenant, demo_login):
+    """Oculto no es borrado: quien llega por enlace directo la puede conectar."""
+    demo_login(client)
+    assert client.get("/v1/integrations/conekta").status_code == 200
+    assert client.get("/v1/integrations/conekta/config").status_code == 200

@@ -18,7 +18,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from aiuda_server.api.deps import get_db, get_tenant
-from aiuda_server.api.integrations import fuente_default, fuente_valida, fuentes_de_capacidad
+from aiuda_server.api.integrations import (
+    fuente_default,
+    fuente_valida,
+    fuentes_de_capacidad,
+    ocultas_para,
+)
 from aiuda_server.api.text import plain_text
 from aiuda_core.aiuditas import (
     aiudita_por_id,
@@ -35,17 +40,20 @@ router = APIRouter()
 # --- Catálogo ---------------------------------------------------------------
 
 @router.get("/v1/aiuditas/catalog")
-def get_catalog() -> dict:
+def get_catalog(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
     """El catálogo de aiuditas con sus perillas. Una sola fuente para el frontend.
 
     Cada aiudita que lee datos trae sus `fuentes` posibles (de dónde puede jalar),
     derivadas de su capacidad: ahí es donde el dueño define la fuente, lo que
     diferencia a aiuda de un ERP (en un ERP la fuente es fija)."""
     payload = catalog_payload()
+    # Las fuentes que no se ofrecen hasta probarse con una cuenta real no se listan
+    # como opción, salvo que este negocio ya las tenga conectadas.
+    ocultas = ocultas_para(db, tenant)
     for a in payload["aiuditas"]:
         cap = a.get("capacidad")
         if cap:
-            a["fuentes"] = fuentes_de_capacidad(cap)
+            a["fuentes"] = fuentes_de_capacidad(cap, ocultas)
     return payload
 
 

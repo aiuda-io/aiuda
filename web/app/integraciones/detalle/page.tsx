@@ -9,7 +9,7 @@ import {
   type IntegrationDetail,
   type SourceCap,
 } from "@/lib/api";
-import { ErrorState, Skeleton } from "@/components/ui";
+import { ErrorState, SIN_ESTRENAR_NOTA, SinEstrenar, Skeleton } from "@/components/ui";
 import { usePageTrail } from "@/components/rastro";
 import { toast } from "@/components/toast";
 import { fieldsFor, EMAIL_PRESETS } from "@/lib/integration-fields";
@@ -130,7 +130,10 @@ function IntegrationDetail() {
               )}
             </span>
             <div className="min-w-0 flex-1">
-              <h1 className="text-seccion font-semibold tracking-tight text-ink">{detail.name}</h1>
+              <h1 className="flex flex-wrap items-center gap-2 text-seccion font-semibold tracking-tight text-ink">
+                {detail.name}
+                {!detail.estrenada && <SinEstrenar />}
+              </h1>
               <p className="text-cuerpo text-ink-3">{detail.rol}</p>
             </div>
             <span
@@ -169,6 +172,9 @@ function IntegrationDetail() {
                 ¿Cómo <span className="italic normal-case">aiuda</span>?
               </p>
               <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{detail.does}</p>
+              {!detail.estrenada && (
+                <p className="mt-2 text-cuerpo leading-relaxed text-ink-2">{SIN_ESTRENAR_NOTA}</p>
+              )}
             </section>
           )}
 

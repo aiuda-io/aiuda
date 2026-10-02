@@ -510,14 +510,18 @@ def test_catalogo_wacli_honesto_y_cloud_oficial(client, db_session):
     _tenant(db_session, "Negocio", "inst-a")
     graph = client.get("/v1/integrations").json()
     wacli = next(s for s in graph["systems"] if s["key"] == "whatsapp")
-    cloud = next(s for s in graph["systems"] if s["key"] == "whatsapp_cloud")
     # wacli: tu número en tu máquina, con la nota honesta (sin alarmismo).
     assert "tu número" in wacli["rol"].lower() and wacli.get("warning")
     assert "riesgo es bajo" in wacli["warning"]
+    assert wacli["estrenada"] is True
+    # La vía oficial no se ofrece hasta probarla con una cuenta real de Meta: no
+    # sale en el catálogo de quien no la tiene conectada. El detalle sigue diciendo
+    # que necesita URL pública y que falta el estreno.
+    assert all(s["key"] != "whatsapp_cloud" for s in graph["systems"])
+    cloud = client.get("/v1/integrations/whatsapp_cloud").json()
     assert "oficial" in cloud["name"].lower()
-    # La vía oficial dice claro que necesita URL pública y que falta el estreno.
     assert "URL pública" in cloud["does"]
-    assert "PENDIENTE de verificar" in cloud["does"]
+    assert cloud["estrenada"] is False
 
 
 def test_aprobar_por_whatsapp_a_cliente_dado_de_baja_no_pierde_la_respuesta(db_session, monkeypatch):

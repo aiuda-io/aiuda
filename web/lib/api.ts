@@ -744,6 +744,8 @@ export type IntegrationNode = {
   flows: IntegrationFlow[];
   rol: string;
   live: boolean;
+  /** false = construida, pero nadie la ha usado todavía con una cuenta real. */
+  estrenada: boolean;
   does: string;
   connected: boolean;
   configured: boolean;
@@ -844,6 +846,7 @@ export type IntegrationDetail = {
   rol: string;
   does: string;
   live: boolean;
+  estrenada: boolean;
   connected: boolean;
   configured: boolean;
   logo: string | null;
