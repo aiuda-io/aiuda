@@ -437,19 +437,6 @@ def health():
     return {"status": "ok", "service": "aiuda-api"}
 
 
-@app.post("/v1/daily/run", status_code=202)
-async def daily_run(background: BackgroundTasks):
-    """Dispara la corrida de cobranza AHORA (el scheduler local ya la corre cada
-    hora; esto es el "no quiero esperar"). Encola y responde de inmediato; el
-    trabajo corre en segundo plano y degrada con gracia si no hay canal de envío
-    (redacta y deja en Aprobaciones)."""
-    from aiuda_server.worker.main import run_daily_blocking
-
-    background.add_task(run_daily_blocking)
-    log.info("corrida manual aceptada, corre en segundo plano")
-    return {"status": "encolado", "ts": datetime.now(MX_TZ).isoformat()}
-
-
 def _tenant_de_instancia(db, instance: str) -> Tenant | None:
     """El tenant dueño de una instancia de canal (Tenant.evolution_instance, única)."""
     return db.scalar(select(Tenant).where(Tenant.evolution_instance == instance))

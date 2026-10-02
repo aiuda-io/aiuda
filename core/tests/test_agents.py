@@ -6,20 +6,16 @@ from aiuda_core.agents.carlos.tools import CarlosToolExecutor
 from aiuda_core.agents.cleo.tools import CLEO_CHAT_TOOLS
 from aiuda_core.agents.diego.tools import DiegoToolExecutor
 from aiuda_core.agents.valeria.tools import ValeriaToolExecutor
-from aiuda_core.aiuditas.chat import PERSONA_PERFIL, chat_aiuditas_de_perfil, chat_tools
+from aiuda_core.aiuditas.chat import chat_tools
 from aiuda_core.models import Appointment, Customer, Invoice, Payment, Product
 
 
-def test_personas_mapean_a_aiuditas_de_chat():
-    """Capability-first: el chat por rol resuelve a las aiuditas de chat de su perfil
-    (solo lectura); un rol sin ejecutor de chat no tiene herramientas."""
-    assert chat_aiuditas_de_perfil("cobranza") == ["cobranza.consultar_cartera"]
-    assert "ventas.consultar_catalogo" in chat_aiuditas_de_perfil("ventas")
-    assert chat_aiuditas_de_perfil("conciliacion") == ["conciliacion.consultar_pagos"]
-    assert chat_aiuditas_de_perfil("contenido") == []  # sin ejecutor todavía
+def test_chat_tools_solo_incluye_aiuditas_con_ejecutor():
+    """Una aiudita sin ejecutor de chat no aporta herramientas."""
+    assert [t["name"] for t in chat_tools(["cobranza.consultar_cartera"])] == [
+        "consultar_cartera"
+    ]
     assert chat_tools(["contenido.redactar_post"]) == []
-    # El puente de persona solo cubre los 4 roles con motor real.
-    assert set(PERSONA_PERFIL) == {"mariana", "carlos", "valeria", "diego"}
 
 
 def test_valeria_consulta_agenda(session, tenant):

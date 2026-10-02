@@ -797,32 +797,6 @@ def object_source(tipo: str, tenant: Tenant = Depends(get_tenant), db=Depends(ge
     }
 
 
-class IntegrationRequestBody(BaseModel):
-    system: str
-    reason: str | None = None
-
-
-@router.post("/v1/integration-requests", status_code=201)
-def request_integration(
-    body: IntegrationRequestBody,
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-):
-    """Registra que un negocio quiere una integración que aún no existe. El
-    equipo de aiuda las prioriza por demanda."""
-    system = body.system.strip()
-    if not system:
-        raise HTTPException(status_code=422, detail="Dinos qué sistema te falta.")
-    cfg = dict(tenant.config or {})
-    reqs = list(cfg.get("integration_requests") or [])
-    reqs.append({"system": system, "reason": (body.reason or "").strip()})
-    cfg["integration_requests"] = reqs
-    tenant.config = cfg
-    db.add(tenant)
-    db.flush()
-    return {"ok": True, "system": system}
-
-
 class IntegrationConfigBody(BaseModel):
     values: dict[str, str]
 
