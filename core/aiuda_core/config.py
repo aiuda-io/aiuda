@@ -91,9 +91,6 @@ class Settings(BaseSettings):
     facturama_user: str = ""
     facturama_password: str = ""
 
-    # DENUE · INEGI (directorio público de 5.5M unidades económicas)
-    denue_token: str = ""
-
     # Google Calendar (token OAuth/service account ya emitido)
     google_calendar_token: str = ""
     google_calendar_id: str = "primary"

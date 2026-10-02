@@ -235,37 +235,6 @@ export type ProductItem = {
   presence: Record<string, { ref?: string; url?: string; file?: string; at?: string }>;
 };
 
-/** Estado de la fuente de prospección (DENUE · INEGI): sin token no hay búsqueda. */
-export type ProspeccionFuente = {
-  fuente: string;
-  nombre: string;
-  conectada: boolean;
-};
-
-/** Un negocio del directorio DENUE, con la marca de si YA está en tu cartera. */
-export type NegocioDenue = {
-  id: string;
-  nombre: string;
-  razon_social: string;
-  actividad: string;
-  telefono: string;
-  correo: string;
-  direccion: string;
-  contactable: boolean;
-  ya_registrado: boolean;
-  cliente_id: string | null;
-};
-
-export type ProspeccionBusqueda = { total: number; resultados: NegocioDenue[] };
-
-export type ProspeccionImport = {
-  importados: number;
-  ya_existian: number;
-  omitidos: number;
-  total: number;
-  detalle: { id: string; cliente_id: string; creado: boolean }[];
-};
-
 export type AppointmentItem = {
   id: string;
   title: string;
@@ -1456,21 +1425,6 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }),
-  // Prospección con DENUE · INEGI: buscar no guarda nada; importar carga la
-  // selección como prospectos con procedencia denue, sin duplicar la cartera.
-  prospeccionFuente: () => request<ProspeccionFuente>("/v1/prospeccion/fuente"),
-  prospeccionBuscar: (body: { condicion: string; lat: number; lng: number; radio_m: number }) =>
-    request<ProspeccionBusqueda>("/v1/prospeccion/buscar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }),
-  prospeccionImportar: (negocios: Omit<NegocioDenue, "contactable" | "ya_registrado" | "cliente_id">[]) =>
-    request<ProspeccionImport>("/v1/prospeccion/importar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ negocios }),
     }),
   appointments: () => request<AppointmentItem[]>("/v1/appointments"),
   // --- Altas directas + inyección a maestros ------------------------------

@@ -634,54 +634,6 @@ def test_sync_cfdi_no_pisa_cfdi_existente_y_no_duplica(session, tenant, customer
     assert "facturapi" in invoice.presence and "facturama" in invoice.presence  # ambos respaldan
 
 
-class FakeDenue:
-    def buscar(self, condicion, lat, lng, radio_m=5000):
-        from aiuda_core.connectors.denue import Negocio
-
-        return [
-            Negocio(id="D1", nombre="Ferretería El Tornillo", razon_social="", actividad="Ferreterías",
-                    telefono="5215510101010", correo="", direccion="Calle 1, Centro, 06000"),
-            Negocio(id="D2", nombre="", razon_social="Materiales del Sur SA", actividad="Materiales",
-                    telefono="", correo="ventas@msur.mx", direccion="Av. 2, Sur, 03100"),
-        ]
-
-
-def test_sync_prospeccion_lee_de_denue_con_busquedas_del_config(session, tenant):
-    """Segunda fuente de prospección (DENUE/INEGI): empresas por giro/zona según el perfil
-    de cliente ideal que el dueño define en el config. Mismo sync_prospeccion, ninguna
-    fuente privilegiada."""
-    from aiuda_core.engine.sync import sync_prospeccion
-    from aiuda_core.models import Customer
-    from sqlalchemy import select
-
-    tenant.config = {
-        **(tenant.config or {}),
-        "prospeccion": {"busquedas": [{"condicion": "ferreteria", "lat": 19.43, "lng": -99.13, "radio_m": 3000}]},
-    }
-    session.flush()
-
-    report = sync_prospeccion(session, tenant, denue_client=FakeDenue())
-    assert report.fuentes == ["denue"]
-    assert report.clientes_importados == 2
-
-    fer = session.scalar(select(Customer).where(Customer.tenant_id == tenant.id, Customer.name == "Ferretería El Tornillo"))
-    assert fer.kind == "prospecto" and fer.meta["origen"] == "denue"
-    assert fer.meta["actividad"] == "Ferreterías" and fer.presence["denue"]["ref"] == "D1"
-    # sin nombre comercial: cae a la razón social
-    msur = session.scalar(select(Customer).where(Customer.tenant_id == tenant.id, Customer.name == "Materiales del Sur SA"))
-    assert msur is not None and msur.email == "ventas@msur.mx"
-
-
-def test_sync_prospeccion_denue_sin_busquedas_es_noop(session, tenant):
-    """Sin búsquedas en el config, DENUE no corre aunque se inyecte el cliente (no hay
-    perfil que buscar)."""
-    from aiuda_core.engine.sync import sync_prospeccion
-
-    report = sync_prospeccion(session, tenant, denue_client=FakeDenue())
-    assert "denue" not in report.fuentes
-    assert report.clientes_importados == 0
-
-
 class FakeOdooCompras:
     def fetch_purchase_orders(self):
         from aiuda_core.connectors.odoo import OdooPurchaseOrder

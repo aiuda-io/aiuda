@@ -309,7 +309,7 @@ export const SOURCE_LABEL: Record<string, string> = {
   manual: "confirmado por ti",
   banco: "confirmado en banco",
   whatsapp: "WhatsApp",
-  denue: "DENUE · INEGI",
+  denue: "DENUE · INEGI", // conector retirado; rotula los prospectos que ya se cargaron de ahí
   googlecalendar: "Google Calendar",
   custom: "a la medida", // conexión propia; la presencia trae el nombre que le puso el dueño
 };

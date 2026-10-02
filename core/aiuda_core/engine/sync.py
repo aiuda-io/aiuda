@@ -695,15 +695,12 @@ def sync_prospeccion(
     tenant: Tenant,
     today: date | None = None,
     hubspot_client=None,
-    denue_client=None,
     fuente_prefs: dict[str, str] | None = None,
 ) -> SyncReport:
     """Prospectos desde las fuentes que los listen. Hoy HubSpot (deals abiertos del
-    pipeline = oportunidades que el equipo trabaja) y DENUE · INEGI (directorio público:
-    empresas por giro y zona, el perfil de cliente ideal que el dueño define en
-    `tenant.config["prospeccion"]["busquedas"]`). Misma capacidad, varias fuentes, ninguna
-    privilegiada. El prospecto es un Customer kind='prospecto' con su origen/contexto en la
-    meta (la bolsa flexible que usa Sofía)."""
+    pipeline = oportunidades que el equipo trabaja); las conexiones a la medida entran
+    por `sync_custom`. El prospecto es un Customer kind='prospecto' con su
+    origen/contexto en la meta."""
     report = SyncReport()
     if hubspot_client is None:
         creds = get_credential(session, tenant.id, "hubspot")
@@ -711,13 +708,6 @@ def sync_prospeccion(
             from aiuda_core.connectors.hubspot import HubSpotClient
 
             hubspot_client = HubSpotClient(**ctor_kwargs("hubspot", creds))
-    busquedas = ((tenant.config or {}).get("prospeccion") or {}).get("busquedas") or []
-    if denue_client is None and busquedas:
-        creds = get_credential(session, tenant.id, "denue")
-        if creds and creds.get("token"):
-            from aiuda_core.connectors.denue import DenueClient
-
-            denue_client = DenueClient(**ctor_kwargs("denue", creds))
 
     if hubspot_client is not None and _fuente_permitida(fuente_prefs, "prospeccion", "hubspot"):
         report.fuentes.append("hubspot")
@@ -728,24 +718,6 @@ def sync_prospeccion(
                 meta={"etapa": o.etapa, "monto": o.monto, "origen": "hubspot"},
             ):
                 report.clientes_importados += 1
-        session.flush()
-    if (
-        denue_client is not None
-        and busquedas
-        and _fuente_permitida(fuente_prefs, "prospeccion", "denue")
-    ):
-        report.fuentes.append("denue")
-        for b in busquedas:
-            for n in denue_client.buscar(
-                b.get("condicion", ""), b.get("lat"), b.get("lng"), b.get("radio_m", 5000)
-            ):
-                if _upsert_cliente(
-                    session, tenant.id, name=(n.nombre or n.razon_social or "Negocio"),
-                    phone=n.telefono, email=n.correo, source="denue", ref=str(n.id),
-                    kind="prospecto",
-                    meta={"actividad": n.actividad, "direccion": n.direccion, "origen": "denue"},
-                ):
-                    report.clientes_importados += 1
         session.flush()
     return report
 

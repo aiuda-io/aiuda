@@ -35,8 +35,6 @@ const PAGES: { label: string; href: string }[] = [
   { label: "Facturas", href: "/facturas" },
   { label: "Conversaciones", href: "/conversaciones" },
   { label: "Clientes", href: "/clientes" },
-  { label: "Prospectos", href: "/prospectos" },
-  { label: "Buscar negocios (DENUE)", href: "/prospectos/buscar" },
   { label: "Productos", href: "/productos" },
   { label: "Agenda", href: "/citas" },
   { label: "Tus ayudantes", href: "/ayudantes" },

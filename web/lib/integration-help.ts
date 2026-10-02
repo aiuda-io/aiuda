@@ -298,22 +298,4 @@ export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
       },
     ],
   },
-
-  denue: {
-    intro:
-      "Directorio público del INEGI con 5.5 millones de unidades económicas para prospectar negocios reales por giro y zona.",
-    steps: [
-      "Entra a inegi.org.mx/app/api/denue.",
-      "Regístrate (es gratis) y el INEGI te da un token sin costo.",
-      "Pega el token abajo.",
-      "Pícale Conectar.",
-    ],
-    credentials: [
-      {
-        field: "Token de INEGI",
-        where:
-          "inegi.org.mx/app/api/denue: te registras y el INEGI te da un token de la API de DENUE sin costo.",
-      },
-    ],
-  },
 };

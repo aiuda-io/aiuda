@@ -10,7 +10,6 @@ export const SECTION_LABELS: Record<string, string> = {
   "/promesas": "Promesas de pago",
   "/conversaciones": "Conversaciones",
   "/clientes": "Clientes",
-  "/prospectos": "Prospectos",
   "/productos": "Productos",
   "/citas": "Agenda",
   "/conciliacion": "Conciliación",

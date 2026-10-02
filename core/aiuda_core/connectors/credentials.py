@@ -168,14 +168,6 @@ PROVIDERS: dict[str, dict] = {
         "legacy": ["integrations.googlecalendar"],
         "gate": "token",
     },
-    "denue": {
-        "secret": ["token"],
-        "public": [],
-        "ctor": ["token"],
-        "settings": {"token": "denue_token"},
-        "legacy": ["integrations.denue"],
-        "gate": "token",
-    },
     # Google Sheets · solo la API key es secreto; spreadsheet_id/range/tipo son
     # operativos (públicos) y NO van al ctor (el cliente solo recibe la api_key; el
     # rango y el tipo los usa el lector engine/sync.sync_google_sheets).

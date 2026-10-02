@@ -188,7 +188,6 @@ from aiuda_server.api.deps import (  # noqa: E402  (re-export para tests)
 from aiuda_server.api.dispositivos import router as dispositivos_router  # noqa: E402
 from aiuda_server.api.export import router as export_router  # noqa: E402
 from aiuda_server.api.integrations import router as integrations_router  # noqa: E402
-from aiuda_server.api.prospeccion import router as prospeccion_router  # noqa: E402
 from aiuda_server.api.provider import router as provider_router  # noqa: E402
 from aiuda_server.api.reconciliation import router as reconciliation_router  # noqa: E402
 from aiuda_server.api.sat import router as sat_router  # noqa: E402
@@ -208,7 +207,6 @@ app.include_router(dispositivos_router)
 app.include_router(custom_router)
 app.include_router(export_router)
 app.include_router(integrations_router)
-app.include_router(prospeccion_router)
 app.include_router(provider_router)
 app.include_router(reconciliation_router)
 app.include_router(sat_router)

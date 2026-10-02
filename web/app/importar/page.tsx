@@ -8,7 +8,7 @@ import { BancoUpload } from "@/components/banco-upload";
 
 const TIPOS = [
   { label: "Clientes", desc: "Nombre, WhatsApp, correo", href: "/clientes" },
-  { label: "Prospectos", desc: "Posibles clientes a contactar", href: "/prospectos" },
+  { label: "Prospectos", desc: "Posibles clientes a contactar", href: "/clientes?ver=prospectos" },
   { label: "Productos", desc: "Catálogo: precio, existencia, SKU", href: "/productos" },
   { label: "Facturas", desc: "Cartera: folio, monto, vencimiento", href: "/facturas" },
   { label: "Citas", desc: "Agenda: asunto, cliente, fecha", href: "/citas" },

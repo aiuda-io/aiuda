@@ -175,7 +175,6 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
     { key: "calendar_id", label: "Calendar ID", placeholder: "primary" },
   ],
   hubspot: [{ key: "token", label: "Private app token", secret: true }],
-  denue: [{ key: "token", label: "Token de INEGI" }],
 };
 
 export function fieldsFor(key: string): FieldDef[] {

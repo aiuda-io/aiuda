@@ -47,7 +47,7 @@ SECRET_HINT = cred.SECRET_HINT
 # live NO se declara aquí: se DERIVA más abajo de la única fuente de verdad
 #      (_LECTURA_CABLEADA + _NON_READ_LIVE). Antes había literales "live" en este
 #      catálogo que el bucle pisaba al importar y quedaban contradiciendo al código
-#      (facturama/facturapi/googlecalendar/hubspot/denue decían False siendo True).
+#      (facturama/facturapi/googlecalendar/hubspot decían False siendo True).
 # does = qué hace aiuda con esta integración (honesto, en una línea).
 CATALOG = [
     {"key": "whatsapp", "name": "WhatsApp (tu número)", "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#25D366", "flows": ["channel"], "rol": "Tu número, en tu computadora", "does": "Tus clientes te escriben y tú respondes y apruebas desde la consola. Se conecta con QR como WhatsApp Web, con tu propio número; para enviar a volumen está WhatsApp Business (oficial).", "warning": UNOFFICIAL_WHATSAPP_WARNING},
@@ -72,7 +72,6 @@ CATALOG = [
 
     {"key": "googlecalendar", "name": "Google Calendar", "group": "operacion", "logo": "/brand/int/googlecalendar.svg", "color": "#4285F4", "flows": ["read"], "rol": "Citas y recordatorios de agenda", "does": "Lee tu disponibilidad para agendar citas."},
     {"key": "hubspot", "name": "HubSpot", "group": "operacion", "logo": "/brand/int/hubspot.svg", "color": "#FF7A59", "flows": ["read"], "rol": "Contactos y actividad del CRM", "does": "Lee contactos y oportunidades de tu CRM."},
-    {"key": "denue", "name": "DENUE · INEGI", "group": "operacion", "logo": None, "color": "#16415a", "flows": ["read"], "rol": "Directorio público para prospectar", "does": "Busca empresas en el directorio público para prospectar."},
 ]
 
 
@@ -127,7 +126,6 @@ _SOURCE_PROVIDES: dict[str, list[str]] = {
     "facturapi": ["cfdi"],
     "googlecalendar": ["agenda"],
     "hubspot": ["directorio_clientes", "prospeccion"],
-    "denue": ["prospeccion"],
     # Google Sheets: una hoja mapeada por tipo (facturas/clientes/productos) cae a
     # cartera, directorio o catálogo. El motor ingiere el tipo declarado; declara las
     # tres porque el camino de lectura de cada una ya está cableado.
@@ -151,7 +149,6 @@ _LECTURA_CABLEADA: dict[str, set[str]] = {
     "odoo": {"cuentas_por_cobrar", "catalogo_productos", "directorio_clientes", "compras"},
     "sat": {"cfdi", "cuentas_por_cobrar"},
     "hubspot": {"directorio_clientes", "prospeccion"},
-    "denue": {"prospeccion"},
     "googlecalendar": {"agenda"},
     "facturama": {"cfdi"},
     "facturapi": {"cfdi"},
@@ -447,8 +444,6 @@ def _is_connected(db, system: str, tenant: Tenant, active: set[str]) -> bool:
         return bool(settings.hubspot_token)
     if system == "googlecalendar":
         return bool(settings.google_calendar_token)
-    if system == "denue":
-        return bool(settings.denue_token)
     return False
 
 
@@ -1022,28 +1017,6 @@ def _test_email(creds: dict) -> dict:
     }
 
 
-def _test_denue(creds: dict) -> dict:
-    """Prueba real contra la API pública del INEGI: una búsqueda mínima ('todos',
-    centro de CDMX, 500 m) con el token del negocio. Un token inválido llega como
-    RemoteProtocolError (INEGI responde 'HTTP/1.1 000'); se reporta legible."""
-    if not creds.get("token"):
-        return {
-            "ok": False,
-            "message": "Falta el token (gratuito en inegi.org.mx/app/api/denue).",
-        }
-    from aiuda_core.connectors.denue import DenueClient
-
-    try:
-        negocios = DenueClient(token=creds["token"]).buscar("todos", 19.4326, -99.1332, 500)
-        return {
-            "ok": True,
-            "message": "Conectado al DENUE del INEGI.",
-            "details": {"Negocios en la muestra": len(negocios)},
-        }
-    except Exception as exc:  # token inválido, red, respuesta rara
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
-
-
 def _test_whatsapp_cloud(creds: dict) -> dict:
     """Prueba real contra la Graph API de Meta (lee los datos del número, no envía).
     La lógica vive en el conector (aiuda_core.connectors.waba.test_connection)."""
@@ -1317,7 +1290,6 @@ def _test_stripe(creds: dict) -> dict:
 _TESTERS = {
     "odoo": _test_odoo,
     "email": _test_email,
-    "denue": _test_denue,
     "whatsapp_cloud": _test_whatsapp_cloud,
     "google_sheets": _test_google_sheets,
     "mercadolibre": _test_mercadolibre,

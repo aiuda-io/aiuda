@@ -69,7 +69,6 @@ const ICON_FOR: Record<string, string> = {
   "/clientes": "users",
   "/productos": "box",
   "/citas": "calendar",
-  "/prospectos": "target",
   "/conciliacion": "reconcile",
   "/importar": "upload",
   "/integraciones": "plug",

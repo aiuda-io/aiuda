@@ -39,7 +39,7 @@ def search(
 
     # ── Clientes ──────────────────────────────────────────────────────────────
     # Los prospectos son Customer con kind="prospecto": van en su propio grupo
-    # (viven en /prospectos, no en /clientes) para que el resultado lleve bien.
+    # para que no se confundan con quien ya compra.
     clientes = db.scalars(
         select(Customer)
         .where(
@@ -65,7 +65,7 @@ def search(
             }
         )
 
-    # ── Prospectos (DENUE u otros orígenes) ───────────────────────────────────
+    # ── Prospectos ────────────────────────────────────────────────────────────
     prospectos = db.scalars(
         select(Customer)
         .where(
@@ -84,7 +84,7 @@ def search(
                     {
                         "label": c.name,
                         "sublabel": c.phone or (c.meta or {}).get("municipio") or "prospecto",
-                        "href": "/prospectos",
+                        "href": f"/clientes/detalle?id={c.id}",
                     }
                     for c in prospectos
                 ],

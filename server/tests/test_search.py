@@ -81,7 +81,7 @@ def test_prospectos_en_su_grupo_no_en_clientes(client, db_session, tenant):
             name="Ferretería Prospecto",
             phone=None,
             kind="prospecto",
-            meta={"origen": "denue", "municipio": "Monterrey"},
+            meta={"origen": "excel", "municipio": "Monterrey"},
         )
     )
     db_session.flush()
@@ -90,7 +90,7 @@ def test_prospectos_en_su_grupo_no_en_clientes(client, db_session, tenant):
     assert _grupo(data, "Clientes") is None  # no se cuela en Clientes
     grupo = _grupo(data, "Prospectos")
     assert grupo is not None
-    assert grupo["items"][0]["href"] == "/prospectos"
+    assert grupo["items"][0]["href"].startswith("/clientes/detalle?id=")
     assert grupo["items"][0]["sublabel"] == "Monterrey"  # sin teléfono: dice dónde está
 
 

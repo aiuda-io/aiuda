@@ -49,7 +49,7 @@ class Customer(Base, TenantMixin, TimestampMixin):
     presence: Mapped[dict] = mapped_column(JSON, default=dict)
     # Etiquetas del negocio (ids que apuntan a tenant.config["tags"]).
     tags: Mapped[list] = mapped_column(JSON, default=list)
-    # cliente | prospecto — un prospecto es un posible cliente (lo trabaja Sofía).
+    # cliente | prospecto — un prospecto es un posible cliente.
     kind: Mapped[str] = mapped_column(String(16), default="cliente", index=True)
     # Bolsa flexible: empresa, origen, señal de compra, etc. (sobre todo prospectos).
     meta: Mapped[dict] = mapped_column(JSON, default=dict)

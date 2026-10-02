@@ -1,19 +1,39 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, mxn, type CustomerItem, type Tag } from "@/lib/api";
 import { telefonoMx } from "@/lib/format";
-import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, SecondaryLink, Skeleton, useApi } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, SecondaryLink, Skeleton, SOURCE_LABEL, Tabs, useApi } from "@/components/ui";
 import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
 import { TagChip } from "@/components/tags";
 import { AgregarSheet } from "@/components/agregar-sheet";
 import { ExportButton } from "@/components/export-button";
 
 export default function ClientesPage() {
+  // useSearchParams (?ver=prospectos) exige un boundary de Suspense en el export estático.
+  return (
+    <Suspense fallback={<div className="min-w-0" />}>
+      <Clientes />
+    </Suspense>
+  );
+}
+
+function Clientes() {
   const router = useRouter();
-  const { data, error, loading, refetch } = useApi<CustomerItem[]>(() => api.customers("cliente"), []);
+  // Clientes y prospectos comparten tabla (Customer.kind): se piden juntos y la
+  // pestaña los separa. Los prospectos ya no tienen página propia.
+  const { data: todos, error, loading, refetch } = useApi<CustomerItem[]>(() => api.customers(), []);
+  const data = useMemo(() => (todos ?? []).filter((c) => c.kind !== "prospecto"), [todos]);
+  const prospectos = useMemo(() => (todos ?? []).filter((c) => c.kind === "prospecto"), [todos]);
+  const [ver, setVer] = useState<"clientes" | "prospectos" | null>(
+    useSearchParams().get("ver") === "prospectos" ? "prospectos" : null,
+  );
+  // Sin prospectos no hay pestaña: la página se ve igual que siempre. Si solo hay
+  // prospectos, se abre en ellos en vez de en una lista de clientes vacía.
+  const viendoProspectos =
+    prospectos.length > 0 && (ver ?? (data.length === 0 ? "prospectos" : "clientes")) === "prospectos";
   const [query, setQuery] = useState("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
@@ -27,16 +47,16 @@ export default function ClientesPage() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (data ?? []).filter(
+    return (viendoProspectos ? prospectos : data).filter(
       (c) =>
         (!q || c.name.toLowerCase().includes(q) || c.phone?.toLowerCase().includes(q)) &&
         (!filterTag || (c.tags ?? []).includes(filterTag)),
     );
-  }, [data, query, filterTag]);
+  }, [data, prospectos, viendoProspectos, query, filterTag]);
 
   // Resumen de cartera, derivado de los mismos clientes (para el riel de contexto).
   const resumen = useMemo(() => {
-    const list = data ?? [];
+    const list = data;
     return {
       cartera: list.reduce((a, c) => a + c.open_total, 0),
       conSaldo: list.filter((c) => c.open_total > 0).length,
@@ -46,7 +66,7 @@ export default function ClientesPage() {
 
   const mayorSaldo = useMemo(
     () =>
-      (data ?? [])
+      data
         .filter((c) => c.open_total > 0)
         .sort((a, b) => b.open_total - a.open_total)
         .slice(0, 6),
@@ -55,16 +75,16 @@ export default function ClientesPage() {
 
   if (error) return <ErrorState message={error} retry={refetch} />;
 
-  const hayClientes = (data ?? []).length > 0;
+  const hayClientes = (todos ?? []).length > 0;
 
   return (
     <div className="min-w-0">
       <PageHeader
         title="Clientes"
-        subtitle="Quienes ya te compran y tienen cartera. ¿Buscas posibles clientes? Ve a Prospectos."
+        subtitle="Quienes ya te compran y tienen cartera."
         right={
           <div className="flex items-center gap-2">
-            <ExportButton entidad="clientes" filtros={{ q: query, tag: filterTag }} count={rows.length} />
+            <ExportButton entidad={viendoProspectos ? "prospectos" : "clientes"} filtros={{ q: query, tag: filterTag }} count={rows.length} />
             <PrimaryButton onClick={() => setAgregar(true)}>Agregar cliente</PrimaryButton>
           </div>
         }
@@ -132,6 +152,16 @@ export default function ClientesPage() {
             </>
           }
         >
+          {prospectos.length > 0 && (
+            <Tabs
+              tabs={[
+                { key: "clientes", label: "Clientes", count: data.length },
+                { key: "prospectos", label: "Prospectos", count: prospectos.length },
+              ]}
+              active={viendoProspectos ? "prospectos" : "clientes"}
+              onChange={(k) => setVer(k as "clientes" | "prospectos")}
+            />
+          )}
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <SearchInput value={query} onChange={setQuery} placeholder="Buscar por nombre o WhatsApp…" />
             {allTags.length > 0 && (
@@ -154,10 +184,19 @@ export default function ClientesPage() {
             <table className="w-full min-w-[560px] text-left">
               <thead>
                 <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
-                  <th className="px-4 py-2.5">Cliente</th>
+                  <th className="px-4 py-2.5">{viendoProspectos ? "Prospecto" : "Cliente"}</th>
                   <th className="px-4 py-2.5">WhatsApp</th>
-                  <th className="px-4 py-2.5 text-right">Facturas abiertas</th>
-                  <th className="px-4 py-2.5 text-right">Saldo pendiente</th>
+                  {viendoProspectos ? (
+                    <>
+                      <th className="px-4 py-2.5">Empresa</th>
+                      <th className="px-4 py-2.5">Origen</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="px-4 py-2.5 text-right">Facturas abiertas</th>
+                      <th className="px-4 py-2.5 text-right">Saldo pendiente</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -187,12 +226,30 @@ export default function ClientesPage() {
                     <td className="tnum px-4 py-2.5 text-cuerpo text-ink-2">
                       {c.phone ? telefonoMx(c.phone) : <span className="text-ink-3">sin teléfono</span>}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-right text-cuerpo text-ink-2">
-                      {c.open_invoices}
-                    </td>
-                    <td className="tnum px-4 py-2.5 text-right text-cuerpo font-medium text-ink">
-                      {c.open_total > 0 ? mxn(c.open_total) : <span className="text-ink-3">$0.00</span>}
-                    </td>
+                    {viendoProspectos ? (
+                      // Un prospecto aún no tiene cartera: en vez de dos ceros, de dónde salió.
+                      <>
+                        <td className="px-4 py-2.5 text-cuerpo text-ink-2">
+                          {c.meta?.empresa ?? <span className="text-ink-3">·</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-cuerpo text-ink-2">
+                          {c.meta?.origen ? (
+                            (SOURCE_LABEL[c.meta.origen] ?? c.meta.origen)
+                          ) : (
+                            <span className="text-ink-3">·</span>
+                          )}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="tnum px-4 py-2.5 text-right text-cuerpo text-ink-2">
+                          {c.open_invoices}
+                        </td>
+                        <td className="tnum px-4 py-2.5 text-right text-cuerpo font-medium text-ink">
+                          {c.open_total > 0 ? mxn(c.open_total) : <span className="text-ink-3">$0.00</span>}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
                 {rows.length === 0 && (
@@ -218,7 +275,7 @@ export default function ClientesPage() {
                           {c.phone ? telefonoMx(c.phone) : "sin teléfono"}
                         </p>
                       </div>
-                      <div className="shrink-0 text-right">
+                      <div className={viendoProspectos ? "hidden" : "shrink-0 text-right"}>
                         <p className="tnum text-seccion font-semibold text-ink">
                           {c.open_total > 0 ? mxn(c.open_total) : <span className="font-normal text-ink-3">$0.00</span>}
                         </p>
