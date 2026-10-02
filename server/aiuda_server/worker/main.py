@@ -151,11 +151,8 @@ def _build_engine(session, tenant: Tenant, run=None) -> CleoEngine:
 def _aviso_tope(session, tenant: Tenant, motivo: str) -> None:
     """Deja constancia HONESTA del corte de IA: una vez por mes por tenant escribe la
     bitácora (auditable) y guarda el aviso en tenant.config (la consola lo muestra en
-    el centro de mando).
-    Si el negocio conectó Slack, el mismo aviso sale a su canal (una vez, por el
-    mismo guard mensual); si no, no pasa nada."""
+    el centro de mando)."""
     from aiuda_server import audit
-    from aiuda_core.connectors.slack import aviso_al_equipo
 
     mes = datetime.now(MX_TZ).strftime("%Y-%m")
     cfg = dict(tenant.config or {})
@@ -173,7 +170,6 @@ def _aviso_tope(session, tenant: Tenant, motivo: str) -> None:
         entity_id=tenant.id,
         after={"motivo": motivo, "mes": mes},
     )
-    aviso_al_equipo(session, tenant.id, f"aiuda · La IA se pausó este mes: {motivo}")
     log.warning("IA cortada para tenant %s: %s", tenant.id, motivo)
 
 
@@ -983,13 +979,6 @@ def _run_daily_impl(
                             "resumen al dueño",
                             lambda: engine.send_whatsapp(tenant.owner_phone, resumen),
                         )
-                    # El MISMO resumen sale al Slack del negocio si lo conectó
-                    # (avisos_equipo); no-op silencioso si no. Cuenta como entregado
-                    # si al menos un canal lo sacó.
-                    from aiuda_core.connectors.slack import aviso_al_equipo
-
-                    if aviso_al_equipo(session, tenant.id, resumen):
-                        ok = True
                     if ok:
                         report["summaries"] += 1
             report["tenants"] += 1

@@ -520,7 +520,7 @@ function ClienteDetalle() {
                 messages={toChatter(messages, data.name)}
                 onSend={send}
                 onSendFile={sendFile}
-                channel={{ active: "whatsapp", options: ["email", "slack"] }}
+                channel={{ active: "whatsapp", options: ["email"] }}
                 placeholder={`Escríbele a ${data.name.split(" ")[0]}…`}
                 emptyTitle={`Aún no le has escrito a ${data.name.split(" ")[0]}`}
                 emptyHint="Lo que escribas sale de tu parte por WhatsApp. Tu ayudante sigue atento al hilo."

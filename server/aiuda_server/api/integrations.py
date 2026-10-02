@@ -53,7 +53,6 @@ CATALOG = [
     {"key": "whatsapp", "name": "WhatsApp (tu número)", "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#25D366", "flows": ["channel"], "rol": "Tu número, en tu computadora", "does": "Tus clientes te escriben y tú respondes y apruebas desde la consola. Se conecta con QR como WhatsApp Web, con tu propio número; para enviar a volumen está WhatsApp Business (oficial).", "warning": UNOFFICIAL_WHATSAPP_WARNING},
     {"key": "whatsapp_cloud", "name": "WhatsApp Business (oficial)", "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#075E54", "flows": ["channel"], "rol": "La API oficial de Meta, para volumen", "does": "Envía y recibe por la Cloud API oficial de Meta: texto libre dentro de la ventana de 24 horas y plantillas aprobadas fuera de ella. Necesita un servidor con URL pública para recibir webhooks (no aplica corriendo solo local). Implementado contra el contrato documentado; PENDIENTE de verificar en vivo."},
     {"key": "email", "name": "Correo", "group": "canal", "logo": None, "color": "#2f6fed", "flows": ["channel"], "rol": "Correo del negocio: IMAP, Google o Microsoft", "does": "Lee tu buzón (IMAP): los correos de tus clientes entran como hilos a la bandeja, tu ayudante PROPONE la respuesta y tú apruebas antes de que salga (SMTP, enhebrado al hilo). Gmail y Outlook entran hoy con contraseña de aplicación; OAuth queda documentado, por cablear."},
-    {"key": "slack", "name": "Slack", "group": "canal", "logo": "/brand/int/slack.webp", "color": "#611f69", "flows": ["channel"], "rol": "Avisos al equipo dentro de tu workspace", "does": "Publica en tu canal de Slack los avisos que aiuda ya genera: el resumen diario de cartera y el aviso cuando la IA se pausa por tope. Implementado contra el contrato documentado (chat.postMessage); PENDIENTE de verificar en vivo — captura bot token y canal y usa 'Probar conexión'."},
 
     {"key": "excel", "name": "Excel / CSV", "group": "datos", "logo": None, "color": "#1f9d6d", "flows": ["read"], "rol": "Subes cualquier hoja y la IA entiende qué es", "does": "Subes cualquier Excel (clientes, productos, facturas, citas, prospectos) y la IA detecta qué es y lo carga al lugar correcto (re-subir no duplica)."},
     {"key": "odoo", "name": "Odoo", "group": "datos", "logo": "/brand/int/odoo.svg", "color": "#714B67", "flows": ["read", "writeback"], "rol": "Lee tu cartera y regresa lo cobrado", "does": "Lee tu cartera de Odoo (facturas, clientes, catálogo, compras) y regresa lo cobrado: asienta el pago contra la factura y actualiza el cliente."},
@@ -99,7 +98,6 @@ CAPABILITIES: dict[str, dict] = {
     "agenda": {"label": "Agenda y citas", "desc": "Disponibilidad y citas del calendario."},
     "prospeccion": {"label": "Prospección", "desc": "Directorios para encontrar nuevos clientes."},
     "expedientes": {"label": "Expedientes", "desc": "Casos, acuerdos y documentos de respaldo (lo opera el CUA sobre el portal del tribunal)."},
-    "avisos_equipo": {"label": "Avisos al equipo", "desc": "Notificaciones internas para tu gente."},
     "compras": {"label": "Compras y proveedores", "desc": "Órdenes de compra y abasto."},
 }
 
@@ -130,7 +128,6 @@ _SOURCE_PROVIDES: dict[str, list[str]] = {
     "googlecalendar": ["agenda"],
     "hubspot": ["directorio_clientes", "prospeccion"],
     "denue": ["prospeccion"],
-    "slack": ["avisos_equipo"],
     # Google Sheets: una hoja mapeada por tipo (facturas/clientes/productos) cae a
     # cartera, directorio o catálogo. El motor ingiere el tipo declarado; declara las
     # tres porque el camino de lectura de cada una ya está cableado.
@@ -160,9 +157,9 @@ _LECTURA_CABLEADA: dict[str, set[str]] = {
     "facturapi": {"cfdi"},
 }
 
-# Flujos vivos que NO son lectura de sync: los canales (WhatsApp y correo: entra/sale),
-# la confirmación de pagos (banco/pasarela) y los avisos internos que SALEN a Slack.
-# Aparte porque _lee_en_vivo solo habla de LECTURA.
+# Flujos vivos que NO son lectura de sync: los canales (WhatsApp y correo: entra/sale)
+# y la confirmación de pagos (banco/pasarela). Aparte porque _lee_en_vivo solo habla
+# de LECTURA.
 _NON_READ_LIVE: set[tuple[str, str]] = {
     ("whatsapp", "mensajeria"),
     # Canal oficial: envío/inbound cableados al worker y al webhook. El semáforo
@@ -182,10 +179,6 @@ _NON_READ_LIVE: set[tuple[str, str]] = {
     ("clip", "link_de_pago"),
     ("conekta", "confirmacion_pago"),
     ("conekta", "link_de_pago"),
-    # Avisos internos cableados: el resumen diario y el aviso de tope de IA salen por
-    # aviso_al_equipo (worker) si el tenant conectó Slack. El semáforo 'verified'
-    # (Probar conexión = auth.test) dice si ya se verificó contra Slack.
-    ("slack", "avisos_equipo"),
 }
 
 
@@ -452,8 +445,6 @@ def _is_connected(db, system: str, tenant: Tenant, active: set[str]) -> bool:
         return bool(settings.facturama_user)
     if system == "hubspot":
         return bool(settings.hubspot_token)
-    if system == "slack":
-        return bool(settings.slack_bot_token)
     if system == "googlecalendar":
         return bool(settings.google_calendar_token)
     if system == "denue":
@@ -1061,29 +1052,6 @@ def _test_whatsapp_cloud(creds: dict) -> dict:
     return test_connection(creds)
 
 
-def _test_slack(creds: dict) -> dict:
-    """Prueba real contra Slack: auth.test con el bot token (no publica nada).
-    Exige también el canal de avisos: sin él, los avisos no tienen a dónde salir."""
-    labels = {"bot_token": "bot token (xoxb-…)", "channel": "canal de avisos (p.ej. #cobranza)"}
-    missing = [labels[f] for f in ("bot_token", "channel") if not creds.get(f)]
-    if missing:
-        return {"ok": False, "message": f"Faltan datos: {', '.join(missing)}."}
-    from aiuda_core.connectors.slack import SlackClient
-
-    try:
-        info = SlackClient(bot_token=creds["bot_token"]).test_connection()
-        return {
-            "ok": True,
-            "message": f"Conectado al workspace {info.get('team') or 'de Slack'}.",
-            "details": {
-                "Bot": info.get("user") or "",
-                "Canal de avisos": creds["channel"],
-            },
-        }
-    except Exception as exc:  # token inválido, red, app desinstalada
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
-
-
 def _test_mercadolibre(creds: dict) -> dict:
     """Prueba real contra la API oficial de Mercado Libre: /users/me (nickname) y el
     conteo de publicaciones del vendedor. Verifica el access token o, si caducó, el
@@ -1351,7 +1319,6 @@ _TESTERS = {
     "email": _test_email,
     "denue": _test_denue,
     "whatsapp_cloud": _test_whatsapp_cloud,
-    "slack": _test_slack,
     "google_sheets": _test_google_sheets,
     "mercadolibre": _test_mercadolibre,
     "shopify": _test_shopify,

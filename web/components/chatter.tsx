@@ -104,7 +104,6 @@ export function Chatter({
 
   const CHANNEL_LOGO: Record<string, string> = {
     whatsapp: "/brand/int/whatsapp.png",
-    slack: "/brand/int/slack.webp",
   };
 
   return (
@@ -205,7 +204,7 @@ export function Chatter({
                 className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-sello text-ink-3"
               >
                 {CHANNEL_LOGO[opt] && <img src={CHANNEL_LOGO[opt]} alt="" className="h-3 w-3 grayscale" />}
-                {opt === "email" ? "Correo" : opt === "slack" ? "Slack" : opt}
+                {opt === "email" ? "Correo" : opt}
               </span>
             ))}
           </div>

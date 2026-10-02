@@ -191,7 +191,6 @@ def test_integrations_devuelve_capacidades_y_huecos(client, demo_tenant, demo_lo
     caps = {c["key"]: c for c in body["capabilities"]}
     assert caps["cuentas_por_cobrar"]["live"] is True
     assert caps["cfdi"]["live"] is True  # facturama/facturapi ya leen CFDI (sync_cfdi)
-    assert caps["avisos_equipo"]["live"] is True  # el worker ya avisa por Slack (aviso_al_equipo)
     # cartera está cubierta (shopify conectado); confirmación de pago no.
     assert caps["cuentas_por_cobrar"]["connected"] is True
     assert caps["confirmacion_pago"]["connected"] is False

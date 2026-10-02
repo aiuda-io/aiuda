@@ -40,15 +40,6 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
     },
     { key: "template_idioma", label: "Idioma de la plantilla", placeholder: "es_MX" },
   ],
-  slack: [
-    { key: "bot_token", label: "Bot token (xoxb-…)", secret: true },
-    {
-      key: "channel",
-      label: "Canal de avisos",
-      placeholder: "#cobranza",
-      hint: "A dónde salen los avisos (resumen diario, corte de IA). Invita al bot al canal: /invite @aiuda.",
-    },
-  ],
   email: [
     {
       key: "provider",

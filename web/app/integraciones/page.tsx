@@ -31,7 +31,6 @@ const NEEDS: { cap: string; title: string; hint: string }[] = [
   { cap: "agenda", title: "Tu agenda y citas", hint: "Disponibilidad y citas de tu calendario." },
   { cap: "prospeccion", title: "Encuentra clientes nuevos", hint: "Directorios para prospectar." },
   { cap: "compras", title: "Compras y proveedores", hint: "Órdenes de compra y abasto." },
-  { cap: "avisos_equipo", title: "Avisos a tu equipo", hint: "Notificaciones internas para tu gente." },
 ];
 
 function Logo({ node }: { node: IntegrationNode }) {

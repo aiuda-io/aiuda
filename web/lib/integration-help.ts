@@ -80,30 +80,6 @@ export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
     ],
   },
 
-  slack: {
-    intro:
-      "Publica en tu canal de Slack los avisos que aiuda ya genera: el resumen diario de cartera y el aviso cuando la IA se pausa por tope.",
-    steps: [
-      "Pídele a un administrador del workspace que cree una app de Slack (api.slack.com) con el scope chat:write.",
-      "Instala la app en el workspace y copia el bot token (empieza con xoxb-).",
-      "Invita al bot al canal donde quieres los avisos: /invite @aiuda en ese canal.",
-      "Pega el bot token y el canal (p.ej. #cobranza) abajo, y pícale Conectar.",
-      "Pícale Probar conexión: verifica el token contra Slack (auth.test) sin publicar nada.",
-    ],
-    credentials: [
-      {
-        field: "Bot token (xoxb-…)",
-        where:
-          "api.slack.com: un administrador crea una app de Slack, le da el scope chat:write, la instala en el workspace y copia el bot token (empieza con xoxb-).",
-      },
-      {
-        field: "Canal de avisos",
-        where:
-          "El canal de tu workspace donde quieres los avisos (p.ej. #cobranza). El bot debe estar invitado a ese canal (/invite @aiuda).",
-      },
-    ],
-  },
-
   excel: {
     intro:
       "Subes tu archivo tal como lo llevas y aiuda detecta qué es (clientes, productos, facturas, citas o prospectos) y entiende cada columna sin que cambies nada.",

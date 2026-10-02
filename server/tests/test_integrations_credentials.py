@@ -216,14 +216,14 @@ def test_reemplazo_total_funciona_aunque_la_clave_vieja_sea_ilegible(client, db_
 def test_fallback_legado_en_claro_se_sigue_leyendo(client, db_session, demo):
     # Credencial vieja en texto plano (sin fila): GET la enmascara y el grafo la
     # marca conectada — no se regresiona durante la transición.
-    demo.config = {**demo.config, "integrations": {"slack": {"bot_token": "xoxb-legado"}}}
+    demo.config = {**demo.config, "integrations": {"hubspot": {"token": "pat-legado"}}}
     db_session.add(demo)
     db_session.flush()
-    cfg = client.get("/v1/integrations/slack/config").json()
-    assert cfg["configured"] is True and cfg["values"]["bot_token"] == "••••••"
+    cfg = client.get("/v1/integrations/hubspot/config").json()
+    assert cfg["configured"] is True and cfg["values"]["token"] == "••••••"
     graph = client.get("/v1/integrations").json()
-    slack = next(s for s in graph["systems"] if s["key"] == "slack")
-    assert slack["connected"] is True
+    hubspot = next(s for s in graph["systems"] if s["key"] == "hubspot")
+    assert hubspot["connected"] is True
 
 
 # --- Secretos que se guardaban en texto plano (bug sistémico) -----------------

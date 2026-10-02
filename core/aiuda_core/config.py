@@ -136,10 +136,6 @@ class Settings(BaseSettings):
     mercadolibre_client_secret: str = ""
     mercadolibre_seller_id: str = ""  # opcional: si falta, se resuelve con /users/me
 
-    # Slack · bot token instalado por el admin del workspace + canal de avisos
-    slack_bot_token: str = ""
-    slack_channel: str = ""  # ej. #cobranza — a dónde salen los avisos internos
-
     # HubSpot · private app token de la cuenta del usuario
     hubspot_token: str = ""
 

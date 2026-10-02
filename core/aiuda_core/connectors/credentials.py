@@ -209,15 +209,6 @@ PROVIDERS: dict[str, dict] = {
         "legacy": ["integrations.mercadolibre"],
         "gate": "access_token",
     },
-    # El canal es a dónde salen los avisos internos (aviso_al_equipo); no es secreto.
-    "slack": {
-        "secret": ["bot_token"],
-        "public": ["channel"],
-        "ctor": ["bot_token"],
-        "settings": {"bot_token": "slack_bot_token", "channel": "slack_channel"},
-        "legacy": ["integrations.slack"],
-        "gate": "bot_token",
-    },
     # API OFICIAL de WhatsApp Business (Cloud API de Meta). El token se cifra; el
     # phone_number_id queda público (rutea el webhook al tenant sin descifrar). La
     # plantilla aprobada (nombre + idioma) es config del canal, no secreto.

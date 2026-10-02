@@ -59,7 +59,7 @@ cd web && npx tsc --noEmit && npm run export
 - Conectores nuevos: la interfaz está en `core/aiuda_core/connectors/` y el
   catálogo en `server/aiuda_server/api/integrations.py`.
 - Estrenar en vivo los conectores que hoy dicen "implementado contra el contrato
-  documentado" en la consola (Slack, Google Sheets, Mercado Libre,
+  documentado" en la consola (Google Sheets, Mercado Libre,
   Mercado Pago, Clip, Conekta, WhatsApp Cloud) y aportar los fixtures.
 - Probar los instaladores de Windows y Linux, que se construyen pero nadie ha
   corrido.
