@@ -173,7 +173,7 @@ CONVERSATIONS = [
         [
             ("out", "Hola Su factura F-207 por $9,870.00 venció hace 4 días. ¿Nos apoya con el pago o nos avisa si ya lo realizó?", 1, 10),
             ("in", "quien eres?", 1, 10),
-            ("out", "Soy Mariana, asistente de cobranza de Taquería La Bonita Le escribo de su parte sobre la factura F-207. ¿Le comparto los datos de depósito?", 1, 10),
+            ("out", "Soy el asistente de cobranza de Taquería La Bonita. Le escribo de su parte sobre la factura F-207. ¿Le comparto los datos de depósito?", 1, 10),
             ("in", "ah ok, si pasamelos", 1, 11),
             ("out", "Buenas tardes, le atiende José, el dueño ‍ Con gusto: CLABE 012345678901234567, a nombre de Taquería La Bonita. Cualquier cosa aquí ando.", 1, 12, "human"),
         ],
@@ -334,7 +334,7 @@ def seed(session) -> None:
             status="rejected",
         )
     )
-    # Pendientes de aprobación (Mariana)
+    # Pendientes de aprobación (cobranza)
     for folio, bucket, tone, message in PENDING:
         session.add(
             Reminder(
@@ -348,7 +348,7 @@ def seed(session) -> None:
             )
         )
 
-    # Pendientes de aprobación (Carlos · ventas): la bandeja es del equipo completo
+    # Pendientes de aprobación (ventas): la bandeja es del equipo completo
     for title, phone, message in [
         (
             "Cotización · 120 órdenes para evento de empresa",
@@ -383,7 +383,7 @@ def seed(session) -> None:
                 status="pending_approval",
             )
         )
-    # Una cotización ya enviada (historial de Carlos)
+    # Una cotización ya enviada (historial de ventas)
     session.add(
         Reminder(
             tenant_id=tenant.id,

@@ -534,7 +534,7 @@ class OdooConnector:
         return products
 
     def fetch_purchase_orders(self) -> list[OdooPurchaseOrder]:
-        """Órdenes de compra (purchase.order). Capacidad `compras`: Roberto vigila cuáles
+        """Órdenes de compra (purchase.order). Capacidad `compras`: sirve para vigilar cuáles
         no han confirmado. Odoo manda False en campos vacíos -> se normaliza."""
         records = self._search_read_paginado(
             "purchase.order",

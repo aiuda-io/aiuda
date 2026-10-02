@@ -1,7 +1,7 @@
 """Conector Shopify — tienda en línea del negocio.
 
 Para qué lo usa aiuda: obtener los pedidos pendientes de pago de la tienda
-para alimentar la cartera de Mariana. Cuando un cliente ordenó pero no pagó,
+para alimentar la cartera de cobranza. Cuando un cliente ordenó pero no pagó,
 Shopify lo sabe antes de que la dueña lo note; aiuda lo convierte en tarea de
 cobranza automáticamente. También deja rastro de gestión (notas) en cada
 pedido para que el historial quede dentro de Shopify.
@@ -71,7 +71,7 @@ class ShopifyClient:
         )
 
     def list_unpaid_orders(self) -> list[PedidoPorCobrar]:
-        """Pedidos abiertos con pago pendiente — la cartera activa de Mariana."""
+        """Pedidos abiertos con pago pendiente — la cartera activa de cobranza."""
         response = self._http.get(
             "/admin/api/2024-01/orders.json",
             params={"financial_status": "pending", "status": "open"},

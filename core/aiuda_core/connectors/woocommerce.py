@@ -1,7 +1,7 @@
 """Conector WooCommerce — tienda WordPress del negocio.
 
 Para qué lo usa aiuda: traer los pedidos pendientes de pago del negocio
-para que Mariana tenga su cartera completa, incluyendo a quienes compraron
+para que cobranza tenga la cartera completa, incluyendo a quienes compraron
 en la tienda propia (WordPress) y no han pagado. Complementa Shopify cuando
 el negocio migró o tiene ambas plataformas.
 

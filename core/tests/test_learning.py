@@ -87,7 +87,7 @@ def test_learning_summary_separa_por_ayudante(session, tenant):
     assert beto["approved"] == 1 and beto["edited"] == 0
     assert beto["recientes"] == []
 
-    # Sin ayudante_id sigue el comportamiento legado: todo el oficio junto.
+    # Sin ayudante_id: todo el equipo del negocio junto.
     assert learning_summary(session, tenant)["total"] == 2
 
 

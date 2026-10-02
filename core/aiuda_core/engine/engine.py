@@ -1,4 +1,4 @@
-"""CleoEngine (Mariana, cobranza): orquesta cartera + LLM + aprobación HITL.
+"""CleoEngine (runtime interno de cobranza): orquesta cartera + LLM + aprobación HITL.
 
 Qué PROPONE este runtime (proponer, nunca ejecutar sin humano):
   - Recordatorios de cobro (`draft_reminder` / `run_reminders`): quedan en

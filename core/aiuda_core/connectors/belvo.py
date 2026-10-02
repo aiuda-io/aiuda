@@ -2,7 +2,7 @@
 
 Para qué lo usa aiuda: detectar pagos recibidos en las cuentas del negocio y
 confirmar facturas sin que el dueño teclee nada ("un dicho no es un pago": el
-banco es la fuente que verifica). Diego (conciliación) cruza estos movimientos
+banco es la fuente que verifica). La conciliación cruza estos movimientos
 contra CFDI.
 
 Auth: HTTP Basic con (secret_id, secret_password). Sandbox por default.
@@ -54,7 +54,7 @@ class BelvoClient:
     def test_connection(self, link_id: str = "") -> dict:
         """Prueba ligera para 'Probar conexión': valida las llaves (Basic) listando
         los links del negocio. Si se pasa un link, cuenta además sus cuentas
-        bancarias (el mismo dato que alimenta la conciliación de Diego)."""
+        bancarias (el mismo dato que alimenta la conciliación)."""
         response = self._http.get("/api/links/")
         response.raise_for_status()
         links = response.json().get("results", [])

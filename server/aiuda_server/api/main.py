@@ -806,14 +806,16 @@ def reject_reminder(
 
 @app.get("/v1/learning/summary")
 def learning_summary_endpoint(
-    agent: str = Query(default="mariana"),
+    agent: str | None = Query(default=None),
     ayudante_id: str | None = Query(default=None),
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
 ):
     """Qué está aprendiendo el ayudante: tasa de aprobación sin editar y últimas
     correcciones. Con ``ayudante_id`` son las de ESE ayudante (atribución real por
-    Reminder.meta); sin él, las del slug de runtime."""
+    Reminder.meta); sin él, las de todo el equipo del negocio (así lo pide la app del
+    teléfono). ``agent`` filtra por el slug interno del runtime y solo queda por
+    compatibilidad."""
     return learning_summary(db, tenant, agent=agent, ayudante_id=ayudante_id)
 
 
@@ -1381,7 +1383,7 @@ def draft_reminder_now(
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
 ):
-    """Pide a Mariana redactar un recordatorio para esta factura ahora.
+    """Pide al ayudante de cobranza redactar un recordatorio para esta factura ahora.
 
     MVP: redacta síncrono en el request. Si algún día hace falta encolarlo,
     el contrato no cambia (ver ARCHITECTURE.md).
@@ -1597,7 +1599,7 @@ def create_quote(
 
 @app.get("/v1/appointments")
 def list_appointments(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Agenda del negocio. La atiende Valeria. La alimenta el importador (y
+    """Agenda del negocio. La alimenta el importador (y
     después Google Calendar)."""
     rows = db.scalars(
         select(Appointment)
@@ -2426,7 +2428,7 @@ def invoice_cfdi_pdf(invoice_id: str, tenant: Tenant = Depends(get_tenant), db=D
     )
 
 
-# La conciliación (Diego) vive en su propio router: aiuda_server/api/reconciliation.py
+# La conciliación vive en su propio router: aiuda_server/api/reconciliation.py
 
 
 # --------------------------------------------------------------------------- #
@@ -2758,7 +2760,7 @@ class PaymentCreateBody(BaseModel):
     paid_at: date | None = None
     reference: str | None = None
     counterparty: str | None = None
-    invoice_id: str | None = None  # pista para Diego; conciliar sigue siendo HITL
+    invoice_id: str | None = None  # pista para la conciliación; sigue siendo HITL
 
 
 @app.post("/v1/payments", status_code=201)
@@ -2770,7 +2772,7 @@ def create_payment(
     principal: Principal = Depends(get_principal),
 ):
     """Pago registrado A MANO (source="manual"): entra a la bandeja de conciliación
-    como cualquier depósito detectado — Diego propone, tú confirmas y la factura se
+    como cualquier depósito detectado — aiuda propone, tú confirmas y la factura se
     cierra por el flujo normal (con write-back). Distinto de POST /v1/invoices/{id}/pay,
     que cierra directo sin rastro de pago."""
     if body.amount is None or body.amount <= 0:

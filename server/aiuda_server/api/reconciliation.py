@@ -1,5 +1,5 @@
-"""Conciliación de pagos (Diego): la bandeja donde el dinero que entró se casa con
-las facturas que liquida. Diego PROPONE con evidencia (por qué cuadra); el humano
+"""Conciliación de pagos: la bandeja donde el dinero que entró se casa con
+las facturas que liquida. El motor PROPONE con evidencia (por qué cuadra); el humano
 confirma, ajusta (elige otra factura) o rechaza. Nada se cierra solo.
 
 Qué vive aquí:
@@ -156,7 +156,7 @@ def _dichos(db, tenant: Tenant, pendientes: list[Payment], tol_pct: float, tol_a
 
 @router.get("/v1/reconciliation")
 def list_reconciliation(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Bandeja de Diego: pagos detectados pendientes con la evidencia completa
+    """Bandeja de conciliación: pagos detectados pendientes con la evidencia completa
     (propuesta, alternativas, grupos multifactura, veredicto de ambigüedad), más
     los dichos de pago por verificar y el estado honesto de las fuentes."""
     tol_pct, tol_abs = tolerancia(tenant.config)

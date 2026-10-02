@@ -1,7 +1,7 @@
 """Conector Facturama — PAC certificado por el SAT (CFDI 4.0).
 
 Para qué lo usa aiuda: listar y descargar los CFDI del negocio para que la
-cartera tenga respaldo fiscal (procedencia) y Diego concilie contra el banco.
+cartera tenga respaldo fiscal (procedencia) y la conciliación cruce contra el banco.
 La emisión/timbrado queda para después; primero lectura.
 
 Auth: HTTP Basic (usuario, contraseña de Facturama). Sandbox por default.

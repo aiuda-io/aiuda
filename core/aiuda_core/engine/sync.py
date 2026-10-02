@@ -301,7 +301,7 @@ def detectar_pagos(
     open_invoices = session.scalars(
         select(Invoice).where(Invoice.tenant_id == tenant.id, Invoice.status == "open")
     ).all()
-    # Diego PROPONE, no cierra: cada pago detectado entra como pendiente de
+    # La conciliación PROPONE, no cierra: cada pago detectado entra como pendiente de
     # conciliación. Un match de monto no es prueba de que sea ESA factura — eso lo
     # confirma el humano. (Soberanía humana: un depósito del mismo monto no cierra
     # una factura solo.)
@@ -1568,7 +1568,7 @@ def sync_compras(
 ) -> SyncReport:
     """Órdenes de compra desde las fuentes que las expongan. Hoy Odoo (purchase.order);
     las demás entran igual cuando su conector liste OCs —misma capacidad, ninguna
-    privilegiada. Roberto las vigila para detectar proveedores que no han confirmado."""
+    privilegiada. Sirven para detectar proveedores que no han confirmado."""
     report = SyncReport()
     if odoo_client is None:
         creds = get_credential(session, tenant.id, "odoo")

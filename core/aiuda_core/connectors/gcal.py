@@ -1,11 +1,11 @@
 """Conector Google Calendar — citas y disponibilidad (REST v3).
 
-Para qué lo usa aiuda: Valeria (recepción) agenda citas respetando la
-disponibilidad real, y Mariana agenda llamadas de cobranza acordadas.
+Para qué lo usa aiuda: recepción agenda citas respetando la disponibilidad
+real, y cobranza agenda las llamadas acordadas.
 
 Auth: bearer token ya emitido (OAuth del negocio o service account con domain
-delegation). El flujo de consentimiento vive en el onboarding del cloud; este
-cliente solo consume el token.
+delegation). aiuda no trae flujo de consentimiento: este cliente solo consume el
+token que el dueño captura.
 """
 
 from dataclasses import dataclass

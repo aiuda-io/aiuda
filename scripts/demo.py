@@ -1,4 +1,4 @@
-"""Demo end-to-end de Cleo, sin credenciales.
+"""Demo de punta a punta de la cobranza, sin credenciales.
 
 Corre con: uv run python scripts/demo.py
   - Sin ANTHROPIC_API_KEY: usa redacciones simuladas (muestra el flujo completo).
@@ -72,27 +72,27 @@ def main() -> None:
     print(f" Modo: {'Claude real' if live else 'simulado (sin ANTHROPIC_API_KEY)'}\n")
 
     outbox: list[tuple[str, str]] = []
-    cleo = CleoEngine(
+    motor = CleoEngine(
         session, tenant, runner=runner, send_whatsapp=lambda p, t: outbox.append((p, t))
     )
 
     print("=" * 70)
-    print(cleo.daily_summary(TODAY))
+    print(motor.daily_summary(TODAY))
     print("=" * 70)
 
-    drafted = cleo.run_reminders(TODAY)
-    print(f"\n✍ Cleo redactó {len(drafted)} recordatorios (estado: pending_approval):\n")
+    drafted = motor.run_reminders(TODAY)
+    print(f"\n✍ Tu ayudante redactó {len(drafted)} recordatorios (estado: pending_approval):\n")
     for r in drafted:
         print(f"--- [{r.bucket} · tono {r.tone}] ---")
         print(r.message, "\n")
 
     print(" El dueño aprueba el primero y rechaza el resto...\n")
-    cleo.approve(drafted[0])
+    motor.approve(drafted[0])
     for r in drafted[1:]:
-        cleo.reject(r)
+        motor.reject(r)
 
     customer = session.scalar(select(Customer).where(Customer.tenant_id == tenant.id))
-    cleo.send(drafted[0], customer.phone)
+    motor.send(drafted[0], customer.phone)
     print(f" Enviado por WhatsApp (simulado) a {outbox[0][0]}:")
     print(f" «{outbox[0][1][:80]}...»" if len(outbox[0][1]) > 80 else f" «{outbox[0][1]}»")
     print(f"\n Estado final del recordatorio: {drafted[0].status}")

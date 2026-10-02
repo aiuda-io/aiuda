@@ -1,5 +1,5 @@
-"""Conciliación (Diego): dado un pago que llegó, PROPONE a qué factura(s) abiertas
-corresponde. Diego nunca cierra una factura solo — propone y el humano confirma.
+"""Conciliación: dado un pago que llegó, PROPONE a qué factura(s) abiertas
+corresponde. Nunca cierra una factura sola — propone y el humano confirma.
 
 El match no es solo por monto: un mismo monto puede ser de varias facturas, así que
 se rankean candidatas por señales (monto exacto o dentro de tolerancia, total del

@@ -45,7 +45,7 @@ def strip_emojis(text: str) -> str:
 
 # Lo que el modelo redacta va DIRECTO al WhatsApp/correo del cliente: markdown de
 # reporte (negritas **, encabezados #, separadores ---) se ve roto ahí. La regla de
-# formato vive en el prompt (regla 9 de Mariana); esto es la red determinista sobre
+# formato vive en el prompt (regla 9 del prompt de cobranza); esto es la red determinista sobre
 # lo obvio. Deliberadamente NO toca *asteriscos simples*, _guiones bajos simples_ ni
 # listas con guion: son texto plano legítimo (y WhatsApp los usa como formato propio).
 _MD_NEGRITAS_RE = re.compile(r"\*\*(.+?)\*\*|__(.+?)__", flags=re.DOTALL)

@@ -56,8 +56,7 @@ class Customer(Base, TenantMixin, TimestampMixin):
 
 
 class Product(Base, TenantMixin, TimestampMixin):
-    """Catálogo de productos del negocio. Lo alimentan Carlos (ventas) y Roberto
-    (compras). Entra por importación de Excel o, después, desde la tienda/ERP."""
+    """Catálogo de productos del negocio. Lo usan ventas y compras. Entra por importación de Excel o, después, desde la tienda/ERP."""
 
     __tablename__ = "products"
 
@@ -73,7 +72,7 @@ class Product(Base, TenantMixin, TimestampMixin):
 
 
 class Appointment(Base, TenantMixin, TimestampMixin):
-    """Citas y agenda del negocio. Las atiende Valeria (recepción). Entran por
+    """Citas y agenda del negocio. Las atiende recepción. Entran por
     importación de Excel o, después, desde Google Calendar."""
 
     __tablename__ = "appointments"
@@ -91,7 +90,7 @@ class Appointment(Base, TenantMixin, TimestampMixin):
 
 
 class PurchaseOrder(Base, TenantMixin, TimestampMixin):
-    """Órdenes de compra del negocio. Las vigila Roberto (compras): detecta proveedores
+    """Órdenes de compra del negocio. Compras las vigila para detectar proveedores
     que no han confirmado. Entran desde Odoo (purchase.order) o, después, de otra fuente
     que liste OCs —misma capacidad, ninguna privilegiada."""
 
@@ -235,7 +234,7 @@ class PaymentPromise(Base, TenantMixin, TimestampMixin):
 
 
 class Payment(Base, TenantMixin, TimestampMixin):
-    """Un pago que llegó (banco/Stripe/manual) y espera conciliación. Diego propone
+    """Un pago que llegó (banco/Stripe/manual) y espera conciliación. El motor propone
     a qué factura corresponde; el humano confirma, corrige o lo ignora. Un match de
     monto NO cierra la factura solo — la soberanía es del humano (igual que un dicho
     del cliente no es un pago)."""

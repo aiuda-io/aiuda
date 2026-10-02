@@ -71,7 +71,7 @@ def recent_corrections(
 def learning_summary(
     session: Session,
     tenant: Tenant,
-    agent: str = "mariana",
+    agent: str | None = None,
     ayudante_id: str | None = None,
 ) -> dict:
     """Qué está aprendiendo el ayudante: cuánto se aprueba sin tocar, cuánto se
@@ -79,8 +79,9 @@ def learning_summary(
 
     Con ``ayudante_id`` filtra por el ayudante QUE EL DUEÑO CREÓ, cruzando por
     ``Reminder.meta["ayudante_id"]``, que es la atribución real de cada propuesta.
-    Sin él cae al slug legado (``AgentFeedback.agent``), que es de runtime y no
-    distingue entre dos ayudantes de cobranza.
+    Sin él suma a todo el equipo del negocio. ``agent`` filtra por el slug legado
+    (``AgentFeedback.agent``), que es de runtime y no distingue entre dos ayudantes
+    de cobranza; el default ya no es el nombre de un personaje.
 
     La consola pedía siempre el slug "mariana", así que la pestaña Aprendizaje de
     TODOS los ayudantes mostraba los mismos números. Filtrar por ayudante es lo que
@@ -92,7 +93,7 @@ def learning_summary(
             Reminder.meta["ayudante_id"].as_string() == ayudante_id,
         )
         query = query.where(AgentFeedback.reminder_id.in_(de_este))
-    else:
+    elif agent:
         query = query.where(AgentFeedback.agent == agent)
     rows = session.scalars(
         query.order_by(AgentFeedback.created_at.desc()).limit(200)

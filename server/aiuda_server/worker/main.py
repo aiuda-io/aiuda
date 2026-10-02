@@ -1,7 +1,7 @@
 """Trabajos del motor local.
 
 Tareas:
-- process_incoming_message: mensaje de WhatsApp → Cleo → respuesta
+- process_incoming_message: mensaje de WhatsApp → motor de cobranza → respuesta
 - send_reminder: recordatorio aprobado → envío real (WhatsApp o correo)
 - run_daily: corrida diaria de recordatorios + resumen al dueño (cron 8:00 MX);
   también propone (HITL) las respuestas a correos entrantes nuevos
@@ -884,7 +884,7 @@ def _run_daily_impl(
         try:
             # 1) Fuentes primero, en SU transacción: la cartera de las fuentes
             #    conectadas entra (tienda, Odoo…) respetando "de dónde lee" cada
-            #    capacidad, los pagos detectados entran a conciliación (Diego
+            #    capacidad, los pagos detectados entran a conciliación (el motor
             #    propone, el humano confirma) y el outbox se inyecta de regreso.
             #    Lo sincronizado queda commiteado ANTES de tocar la IA.
             with session_scope() as session:

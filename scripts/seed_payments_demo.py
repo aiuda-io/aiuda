@@ -1,8 +1,8 @@
-"""DEV: pagos pendientes de conciliar para ver a Diego en acción.
+"""DEV: pagos pendientes de conciliar para ver la conciliación en acción.
 
 Crea pagos (banco/Stripe) que coinciden con facturas Hanova. Algunos comparten
 monto (M-104/105/106 = 17,073.60), así que el nombre del depositante desempata —
-justo lo que Diego usa para proponer la correcta.
+justo lo que la conciliación usa para proponer la correcta.
 
 Uso: python scripts/seed_payments_demo.py <db_url>
 """
