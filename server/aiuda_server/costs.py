@@ -36,7 +36,10 @@ DEFAULT_TOPE_TOKENS_MES = 5_000_000
 MODEL_PRICES: dict[str, tuple[float, float]] = {
     "claude-haiku-4-5": (1.0, 5.0),
     "claude-sonnet-4-6": (3.0, 15.0),
-    # gpt-5.x por la SUSCRIPCIÓN de ChatGPT (Codex): tarifa plana, costo marginal 0.
+    # gpt-5.5 va con la llave del dueño, o sea FACTURADO por OpenAI. El 0 es una
+    # deuda, no un precio: venía de cuando se usaba por suscripción de ChatGPT (ya
+    # retirada) y nadie cargó su tarifa. Hasta ponerla, /v1/usage subestima el costo
+    # de quien usa OpenAI con llave; los tokens sí se cuentan y el tope sí aplica.
     "gpt-5.5": (0.0, 0.0),
     # El Claude Code / Codex que el dueño ya tiene instalado: lo paga su plan,
     # no aiuda. Los tokens se cuentan; el costo extra es 0.

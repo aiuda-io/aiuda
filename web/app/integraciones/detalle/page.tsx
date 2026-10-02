@@ -145,8 +145,7 @@ function IntegrationDetail() {
             </span>
           </header>
 
-          {/* Aviso honesto: vía no oficial (ej. WhatsApp por wacli),
-              mismo patrón que el modo de suscripción del proveedor de IA. */}
+          {/* Aviso honesto: vía no oficial (ej. WhatsApp por wacli). */}
           {detail.warning && (
             <div className="flex items-start gap-2.5 rounded-lg border border-warn/40 bg-warn-soft px-3.5 py-3">
               <svg viewBox="0 0 14 14" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warn" fill="none">

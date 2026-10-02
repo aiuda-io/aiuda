@@ -137,13 +137,13 @@ def get_provider(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
 def test_provider(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     """Prueba REAL de la conexión: resuelve la credencial efectiva del tenant (misma que usa
     el motor) y hace una llamada mínima al proveedor. Veredicto honesto para que el dueño sepa,
-    al conectar, si su token/API key/suscripción de verdad funciona."""
+    al conectar, si su llave, su programa instalado o su modelo local de verdad funciona."""
     credential = resolve_credential(session=db, tenant_id=tenant.id)
     if credential is None:
         return {
             "ok": False,
             "code": "not_configured",
-            "error": "No hay proveedor conectado. Conecta tu API key o suscripción primero.",
+            "error": "Todavía no conectas tu IA. Conéctala primero y vuelve a probar.",
         }
     if credential.name == "codex":
         # Prueba con el bundle DEL TENANT (make_runner descifra su token), no el archivo global.

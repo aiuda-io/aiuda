@@ -5,8 +5,6 @@ Modos:
                     en CI sin red ni credenciales. No mide al modelo.
   --real            Mide al modelo de verdad con ANTHROPIC_API_KEY del entorno
                     (api_key), por make_runner igual que el motor.
-                    Con suscripción, el motor usa su modelo barato por default
-                    (model_redaccion_suscripcion=haiku): la corrida es barata.
 
 Umbral: >=90% de los casos pasan (por caso: TODOS sus checks). Salida legible por
 área y exit code 1 si no se alcanza — para poder colgarlo de un cron/CI aparte.

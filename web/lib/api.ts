@@ -852,8 +852,8 @@ export type IntegrationDetail = {
   logo: string | null;
   color: string;
   group?: string;
-  // Aviso honesto cuando la vía no es la oficial (ej. WhatsApp por wacli),
-  // igual que el modo de suscripción del proveedor de IA. No bloquea: informa.
+  // Aviso honesto cuando la vía no es la oficial (ej. WhatsApp por wacli).
+  // No bloquea: informa.
   warning?: string | null;
   capabilities: SourceCap[];
 };
@@ -904,8 +904,7 @@ export type AgentSystems = {
   connected_count: number;
 };
 
-// "codex" = OpenAI. Se conecta simétrico a Claude: API key (sk-...) o suscripción de ChatGPT.
-// La suscripción se conecta por device code ("Iniciar sesión con ChatGPT"), sin pegar nada.
+// "codex" = OpenAI. Se conecta simétrico a Claude: con la API key (sk-...) del dueño.
 // "local" = un endpoint OpenAI-compatible en tu máquina (Ollama, LM Studio, vLLM):
 // la única vía donde ningún dato sale de tu computadora.
 // "claude_cli"/"codex_cli" (modo "cli") = el Claude Code o el Codex que el dueño YA

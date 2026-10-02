@@ -1,8 +1,8 @@
 """Capa de proveedor agnóstica: una interfaz común (ProviderRunner) y un factory.
 
 El engine habla con un ProviderRunner, no con un cliente concreto. Dos implementaciones:
-ClaudeRunner (llm.py, SDK de Anthropic) y CodexRunner (codex.py, Responses API de OpenAI por
-suscripción de ChatGPT). make_runner elige según el nombre de la credencial; los call sites no
+ClaudeRunner (llm.py, SDK de Anthropic) y CodexRunner (codex.py, Responses API de OpenAI con
+la llave del dueño). make_runner elige según el nombre de la credencial; los call sites no
 cambian.
 
 Dirección de imports (sin ciclos): runner.py → {llm.py, codex.py} → provider.py. provider.py
