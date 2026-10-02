@@ -20,7 +20,6 @@ export const SECTION_LABELS: Record<string, string> = {
   "/importar": "Importar datos",
   "/configuracion": "Configuración",
   "/aparatos": "Tus aparatos",
-  "/perfil": "Tu perfil",
 };
 
 // ¿Es un destino de primer nivel del menú? Entrar a una sección por el menú es

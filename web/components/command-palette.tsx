@@ -45,7 +45,6 @@ const PAGES: { label: string; href: string }[] = [
   { label: "SAT · Bóveda fiscal", href: "/sat" },
   { label: "Proveedor de IA", href: "/proveedor" },
   { label: "Configuración", href: "/configuracion" },
-  { label: "Perfil", href: "/perfil" },
 ];
 
 // ── API pública ───────────────────────────────────────────────────────────────

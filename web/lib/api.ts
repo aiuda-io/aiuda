@@ -569,14 +569,6 @@ export type WorkspaceInfo = {
   role: string;
 };
 
-export type Profile = {
-  business_name: string;
-  owner_name: string;
-  email: string;
-  phone: string;
-  rfc: string;
-};
-
 export type SearchResponse = {
   groups: { title: string; items: { label: string; sublabel: string; href: string }[] }[];
 };
@@ -1359,13 +1351,6 @@ export const api = {
   // Buscar una IA compartida en la red local. Tarda unos segundos (barrido de la
   // subred); la UI debe mostrar que está buscando.
   setupBuscarEnRed: () => request<SetupRed>("/v1/setup/red/buscar", { method: "POST" }),
-  profile: () => request<Profile>("/v1/profile"),
-  saveProfile: (body: Profile) =>
-    request<Profile>("/v1/profile", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }),
   search: (q: string) => request<SearchResponse>(`/v1/search?q=${encodeURIComponent(q)}`),
   shadowMode: () => request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra"),
   setShadowMode: (activo: boolean) =>

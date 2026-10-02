@@ -90,13 +90,6 @@ export function Topbar() {
               >
                 Configuración del negocio
               </a>
-              <a
-                href="/perfil"
-                role="menuitem"
-                className="block px-3 py-2 text-cuerpo text-ink-2 transition-colors hover:bg-line/40 hover:text-ink"
-              >
-                Datos del negocio
-              </a>
             </div>
           </>
         )}

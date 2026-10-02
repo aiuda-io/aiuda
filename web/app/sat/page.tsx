@@ -1,7 +1,6 @@
 "use client";
 
 import { type FormEvent, useRef, useState } from "react";
-import Link from "next/link";
 import { api, mxn, type SatImportResult } from "@/lib/api";
 import { fecha } from "@/lib/format";
 import {
@@ -169,12 +168,12 @@ export default function SatPage() {
         title="SAT · Bóveda fiscal"
         subtitle="Tus CFDI en esta computadora. Hasta 3 RFCs; la e.firma nunca sale por la API."
         right={
-          <Link
+          <a
             href="/manual/sat.html"
             className="text-cuerpo font-medium text-accent-ink hover:underline"
           >
             Ver manual
-          </Link>
+          </a>
         }
       />
 
