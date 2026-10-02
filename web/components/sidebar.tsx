@@ -51,7 +51,6 @@ const ICONS: Record<string, ReactNode> = {
   gear: svg(<><circle cx="9" cy="9" r="2.2" /><path d="M9 2.7v2.1M9 13.2v2.1M2.7 9h2.1M13.2 9h2.1M4.5 4.5l1.5 1.5M12 12l1.5 1.5M13.5 4.5 12 6M6 12l-1.5 1.5" /></>),
   key: svg(<><circle cx="6" cy="9" r="2.9" /><path d="M8.7 8.4h6.3M13.2 8.4v2M15 8.4v1.6" /></>),
   chart: svg(<><path d="M3 14.6V3.4M3 14.6h12" /><path d="M6 12V9M9 12V6M12 12V8" /></>),
-  code: svg(<><path d="m6 6.2-2.8 2.8L6 11.8M12 6.2 14.8 9 12 11.8M10.2 4 7.8 14" /></>),
   team: svg(<><circle cx="6.4" cy="6.6" r="2" /><circle cx="11.6" cy="6.6" r="2" /><path d="M2.8 13.6c0-1.9 1.6-3 3.6-3 .9 0 1.7.2 2.3.7M9.3 11.3c.6-.5 1.4-.7 2.3-.7 2 0 3.6 1.1 3.6 3" /></>),
   panel: svg(<><rect x="3" y="3.5" width="12" height="11" rx="1.6" /><path d="M7 3.5v11" /></>),
   reconcile: svg(<><path d="M3 6.6h9M9.6 4.2 12 6.6 9.6 9" /><path d="M15 11.4H6M8.4 9l-2.4 2.4L8.4 13.8" /></>),
@@ -77,7 +76,6 @@ const ICON_FOR: Record<string, string> = {
   "/proveedor": "cpu",
   "/aparatos": "phone",
   "/configuracion": "gear",
-  "/desarrolladores": "code",
 };
 const iconFor = (href: string): ReactNode => ICONS[ICON_FOR[href] ?? "dot"];
 
@@ -91,31 +89,16 @@ const CONSOLIDADO = new Set(["/aprobaciones"]);
 
 // El menú muestra lo que el dueño puede DECIDIR, en sus palabras. "Proveedor de IA"
 // era jerga: lo que él eligió es qué inteligencia usa su negocio.
-//
-// `tecnico: true` = solo aparece con el modo técnico encendido (Configuración). La
-// regla es la del producto: el desarrollador instala, el usuario no técnico
-// implementa. La API existe y se documenta, pero no vive en el menú de alguien que
-// nunca va a escribir un curl; quien la busca, la prende.
-const PLATFORM: { href: string; label: string; tecnico?: boolean }[] = [
+const PLATFORM: { href: string; label: string }[] = [
   { href: "/configuracion", label: "General" },
   { href: "/integraciones", label: "Integraciones" },
   { href: "/proveedor", label: "Tu IA" },
   { href: "/importar", label: "Importar datos" },
   { href: "/aparatos", label: "Tus aparatos" },
-  { href: "/desarrolladores", label: "API", tecnico: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  // Preferencia de ESTA consola, no config del negocio: quien quiere ver la API la
-  // prende para sí, y a los demás no les aparece.
-  const [tecnico, setTecnico] = useState(false);
-  useEffect(() => {
-    const leer = () => setTecnico(localStorage.getItem("aiuda-modo-tecnico") === "1");
-    leer();
-    window.addEventListener("modo-tecnico-cambio", leer);
-    return () => window.removeEventListener("modo-tecnico-cambio", leer);
-  }, []);
   const [pending, setPending] = useState<number | null>(null);
   const { ayudantes, loading: cargandoAyudantes } = useAyudantes();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -316,7 +299,7 @@ export function Sidebar() {
           <div>
             {renderDivider("Configuración", exp)}
             <ul className="space-y-px">
-              {PLATFORM.filter((it) => !it.tecnico || tecnico).map((it) => (
+              {PLATFORM.map((it) => (
                 <li key={it.href}>{renderItem(it, exp)}</li>
               ))}
             </ul>

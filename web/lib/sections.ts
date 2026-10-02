@@ -21,7 +21,6 @@ export const SECTION_LABELS: Record<string, string> = {
   "/importar": "Importar datos",
   "/configuracion": "Configuración",
   "/aparatos": "Tus aparatos",
-  "/desarrolladores": "API",
   "/perfil": "Tu perfil",
 };
 
