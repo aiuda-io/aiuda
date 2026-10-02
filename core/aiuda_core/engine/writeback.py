@@ -593,11 +593,8 @@ def process_outbox(
             OutboxEntry.attempts < MAX_ATTEMPTS,
         )
         .order_by(OutboxEntry.created_at)
-        # Dinero: una corrida solapada SALTA las filas que esta ya tiene en vez de
-        # esperarlas y re-asentarlas. (Postgres; SQLite lo ignora sin ruido.) El
-        # candado dura hasta el commit por-entrada de abajo; después de ese commit
-        # el CAS de _claim es el que garantiza un solo ejecutor por intento.
-        .with_for_update(skip_locked=True)
+        # Dinero: si dos corridas se solapan y leen la misma fila, el CAS de
+        # _claim es el que garantiza un solo ejecutor por intento.
     ).all()
 
     for entry in entries:

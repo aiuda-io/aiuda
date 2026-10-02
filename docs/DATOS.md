@@ -137,8 +137,8 @@ trasera. Vuelves a capturarlas en la consola y sigues.
 
 ### Administrarla tú (opcional)
 
-Si prefieres manejar la llave por tu cuenta (por ejemplo, una instancia operada
-para un tercero), define `AIUDA_ENCRYPTION_KEYS` y esa manda sobre el archivo:
+Si prefieres manejar la llave por tu cuenta (por ejemplo, con un gestor
+de secretos), define `AIUDA_ENCRYPTION_KEYS` y esa manda sobre el archivo:
 
 ```
 AIUDA_ENCRYPTION_KEYS="<llave_fernet>"            # una sola llave
@@ -199,6 +199,6 @@ capturar los secretos otra vez.
 
 ## Guardar los datos en otro lado
 
-El default es SQLite en tu computadora. Si corres una instancia para varias
-personas, `DATABASE_URL` apunta a Postgres (necesita el extra
-`aiuda-server[postgres]`). El resto del comportamiento no cambia.
+El default es SQLite en `~/.aiuda/aiuda.db`. aiuda solo usa SQLite; con
+`DATABASE_URL` puedes apuntar a otro archivo (`sqlite:////ruta/a/aiuda.db`). El
+resto del comportamiento no cambia.

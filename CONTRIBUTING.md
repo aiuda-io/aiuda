@@ -7,7 +7,7 @@ procedencia de datos, honestidad, KISS).
 ## Setup de desarrollo
 
 ```bash
-uv sync                           # backend (SQLite local, sin Docker)
+uv sync                           # backend (SQLite local)
 uv run python scripts/seed.py     # datos demo deterministas
 uv run aiuda start --no-token     # API y consola en 127.0.0.1:4747
 ```

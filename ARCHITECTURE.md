@@ -11,7 +11,7 @@ app de escritorio (Tauri)          o          aiuda start (terminal)
               ├─ FastAPI en 127.0.0.1:4747 (token de sesión por arranque)
               ├─ consola: export estático de Next servido por el mismo proceso
               ├─ scheduler (hilos): corrida horaria + WhatsApp entrante (wacli)
-              ├─ SQLite ~/.aiuda/aiuda.db (WAL); Postgres opcional (operadores)
+              ├─ SQLite ~/.aiuda/aiuda.db (WAL)
               ├─ llave Fernet en ~/.aiuda/key (0600), una sola fuente
               ├─ IA BYO: Claude / OpenAI / local (Ollama, OpenAI-compatible)
               └─ CUA: Chromium local (Playwright) que opera portales; el dueño
@@ -42,17 +42,16 @@ funciona en la terminal funciona en la app, y al revés.
   (cada dato sabe de qué fuente viene) y el write-back regresa a la fuente.
 - **Local-first en serio.** El default no necesita variables de entorno, Docker,
   Redis ni migraciones: SQLite, `create_all` idempotente y la llave en
-  `~/.aiuda/key`. El modo cliente-servidor se conserva (HTTP interno), así que la
-  app de escritorio y una instancia operada por un integrador usan este mismo
-  código.
+  `~/.aiuda/key`. El modo cliente-servidor se conserva (HTTP interno): la app
+  de escritorio y `aiuda start` usan este mismo código.
 - **BYO-IA.** aiuda no incluye ni revende inferencia. API key, el CLI que el dueño
   ya tiene instalado (se autentica con SU sesión; aiuda nunca ve su token),
   personal (bajo tu riesgo, la UI lo dice) o un modelo local con Ollama, la única
   vía donde ningún dato sale de tu máquina. Ver [docs/IA.md](docs/IA.md).
 - **Canales honestos.** WhatsApp con tu número (protocolo de WhatsApp Web, el
   aviso vive en la UI) o correo IMAP/SMTP. La Cloud API oficial de Meta existe
-  como conector, pero necesita URL pública: es para instancias operadas, no para
-  el local puro.
+  como conector, pero necesita una URL pública que la instalación local no
+  trae.
 - **Un solo log de lo soberano.** Cada aprobación, rechazo, edición y write-back
   deja fila en `audit_logs`. Poder demostrar quién autorizó un cobro es
   fundacional.
@@ -103,13 +102,12 @@ SQLite en `~/.aiuda/aiuda.db` con WAL. Sin Alembic: el esquema se declara en los
 modelos y `create_all` lo materializa al arrancar, de forma idempotente. Por eso
 la configuración nueva va en `Tenant.config` (JSON) en vez de columnas nuevas.
 
-Todas las tablas conservan `tenant_id`: permite aislar workspaces en una
-instancia operada y evita una migración destructiva. En local hay un workspace
+Todas las tablas conservan `tenant_id`: quitarlo sería una migración
+destructiva. En local hay un workspace
 y se crea solo; `WORKSPACE_ID` elige cuando una base importada trae varios.
 
-Postgres sigue soportado con `DATABASE_URL` y el extra `aiuda-server[postgres]`,
-para instancias operadas. El `Dockerfile` de la raíz es para ese caso, no para
-la instalación normal.
+aiuda solo corre sobre SQLite. `DATABASE_URL` sirve para apuntar a otro archivo
+(tests y scripts), no a otro motor.
 
 ## Tests
 

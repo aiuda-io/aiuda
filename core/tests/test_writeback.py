@@ -234,8 +234,7 @@ def test_shopify_registra_nota_de_pago(session, tenant, customer, invoice):
 def test_claim_pierde_si_otra_corrida_ya_tomo_el_intento(session, tenant, customer, invoice):
     """La carrera real (TOCTOU): dos corridas leyeron la MISMA entrada pending con
     attempts=0. La que llega tarde al claim atómico no ejecuta nada — el asiento
-    del pago jamás sale dos veces. (En Postgres además la fila viaja con
-    FOR UPDATE SKIP LOCKED; este CAS es el cinturón que también corre en SQLite.)"""
+    del pago jamás sale dos veces."""
     from sqlalchemy import update
 
     from aiuda_core.engine.writeback import _claim

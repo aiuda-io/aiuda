@@ -16,10 +16,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # Vacío = SQLite local en ~/.aiuda/aiuda.db (el default de la instalación en
-    # tu computadora; lo resuelve aiuda_core.db). Ponlo solo para usar Postgres
-    # (p.ej. una instancia operada para varios usuarios):
-    # postgresql+psycopg://usuario:clave@host:5432/aiuda (requiere el extra
-    # `aiuda-server[postgres]`).
+    # tu computadora; lo resuelve aiuda_core.db). Ponlo solo para apuntar a otro
+    # archivo SQLite (tests y scripts): sqlite:////ruta/a/aiuda.db
     database_url: str = Field("", validation_alias=propia("database_url"))
 
     # Corrida horaria automática (hilo del scheduler dentro del proceso del API).

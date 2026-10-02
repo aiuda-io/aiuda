@@ -16,11 +16,6 @@ dependencies = [
     "zeroconf>=0.132",
 ]
 
-[project.optional-dependencies]
-# Postgres es opcional: el default local es SQLite. Este extra es para una
-# instancia operada (varios usuarios) que apunte DATABASE_URL a Postgres.
-postgres = ["psycopg[binary]>=3.1"]
-
 [project.scripts]
 aiuda = "aiuda_server.cli:main"
 

@@ -28,7 +28,6 @@ out/
 
 # Datos locales
 *.sqlite3
-postgres-data/
 .astro/
 dist/
 build/

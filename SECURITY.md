@@ -54,8 +54,7 @@ aiuda corre en tu computadora, así que la mayor parte del perímetro es tuyo:
   bitácora.
 
 Lo que queda de tu lado: quién tiene acceso físico a la computadora, tus
-respaldos (incluida la llave), y la seguridad de una instancia operada para
-varios usuarios si decides montar una. Nunca subas secretos al repo: usa `.env`
+respaldos (incluida la llave). Nunca subas secretos al repo: usa `.env`
 y un gestor de contraseñas.
 
 Los instaladores de macOS llevan firma ad-hoc, pero todavía no tienen identidad

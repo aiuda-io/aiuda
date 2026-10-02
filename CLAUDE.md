@@ -48,7 +48,7 @@ Principios que mandan sobre cualquier feature:
   metering y el tope se enganchan en `server/aiuda_server/metering.py`.
 - **WhatsApp:** wacli (tu número, protocolo WhatsApp Web) con sondeo entrante
   in-process (`server/aiuda_server/inbound.py`); correo IMAP/SMTP; la Cloud API
-  oficial requiere URL pública (instancias operadas).
+  oficial requiere una URL pública que la instalación local no trae.
 
 ## Correr local
 
