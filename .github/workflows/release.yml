@@ -1,6 +1,6 @@
 name: Release
 
-# Publica los instaladores de la app de escritorio al empujar un tag vX.Y.Z.
+# Publica el instalador de la app de escritorio (solo macOS) al empujar un tag vX.Y.Z.
 #
 # La firma de macOS: sin secrets, el paquete sale con firma ad-hoc (válida, pero
 # sin identidad), y macOS avisará que el desarrollador no está identificado.
@@ -37,19 +37,9 @@ jobs:
             args: "--target aarch64-apple-darwin"
           - plataforma: macos-latest
             args: "--target x86_64-apple-darwin"
-          - plataforma: ubuntu-22.04
-            args: ""
-          - plataforma: windows-latest
-            args: ""
     runs-on: ${{ matrix.plataforma }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Dependencias de sistema (Linux)
-        if: matrix.plataforma == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -59,7 +49,7 @@ jobs:
           python-version: "3.12"
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         with:
-          targets: ${{ contains(matrix.args, 'aarch64') && 'aarch64-apple-darwin' || contains(matrix.args, 'x86_64') && 'x86_64-apple-darwin' || '' }}
+          targets: ${{ contains(matrix.args, 'aarch64') && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
 
       - name: Consola (export estático)
         run: cd web && npm ci && npm run export
@@ -76,13 +66,10 @@ jobs:
       - name: Sidecar con el triple de esta plataforma
         shell: bash
         run: |
-          TRIPLE=$(rustc -Vv | awk '/host:/ {print $2}')
-          [ -n "${{ matrix.args }}" ] && TRIPLE=$(echo "${{ matrix.args }}" | awk '{print $2}')
+          TRIPLE=$(echo "${{ matrix.args }}" | awk '{print $2}')
           mkdir -p desktop/src-tauri/binaries
-          BIN=dist/bin/aiuda
-          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
-          cp "$BIN" "desktop/src-tauri/binaries/aiuda-server-$TRIPLE$([ -f dist/bin/aiuda.exe ] && echo .exe)"
-          chmod +x desktop/src-tauri/binaries/* || true
+          cp dist/bin/aiuda "desktop/src-tauri/binaries/aiuda-server-$TRIPLE"
+          chmod +x desktop/src-tauri/binaries/*
 
       - name: Instalar deps de la app
         run: cd desktop && npm ci
@@ -102,7 +89,7 @@ jobs:
           projectPath: desktop
           tagName: ${{ github.ref_name }}
           releaseName: "aiuda ${{ github.ref_name }}"
-          releaseBody: "Descarga el instalador de tu sistema. En el primer arranque, aiuda te guía para configurarlo todo."
+          releaseBody: "Descarga el instalador para tu Mac (chip Apple o Intel). En el primer arranque, aiuda te guía para configurarlo todo."
           releaseDraft: true
           args: ${{ matrix.args }}
 

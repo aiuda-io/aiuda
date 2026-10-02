@@ -94,8 +94,7 @@ def _apagar_con_el_padre() -> None:
     Al cerrar la ventana, la app mata al sidecar; pero un binario empaquetado
     corre en dos procesos (lanzador + Python real) y el hijo sobreviviría,
     dejando el server escuchando a espaldas del dueño. Aquí el hijo vigila su
-    propio stdin: cuando el padre se va, el pipe cierra y salimos. Funciona
-    igual en macOS, Linux y Windows.
+    propio stdin: cuando el padre se va, el pipe cierra y salimos.
     """
 
     def _vigilar() -> None:

@@ -5,8 +5,8 @@ Todo release sale de este repo, con estos comandos. No hay pasos secretos.
 Se publican dos cosas distintas:
 
 - **Wheels** (`aiuda-core` y `aiuda-server`) para quien instala con Python.
-- **Instaladores de escritorio** (.dmg y .app, .exe de NSIS, .deb y .AppImage)
-  para quien no quiere terminal.
+- **Instalador de escritorio** (.dmg y .app, solo para Mac) para quien no quiere
+  terminal.
 
 ## Versión
 
@@ -92,14 +92,12 @@ Cuando existan los certificados, se agregan como secrets del repo y
 `release.yml` los usa sin cambiar nada más; los nombres están anotados ahí.
 Después de un release firmado, `codesign -dv` debe decir Developer ID y no adhoc.
 
-En Windows los instaladores siguen sin firmar: SmartScreen mostrará su aviso.
-
 ## Publicar
 
 1. Subir la versión en los cinco archivos de arriba.
 2. Commit, tag `vX.Y.Z`, push del tag.
 3. `.github/workflows/release.yml` se dispara: construye los instaladores para
-   macOS (arm64 e Intel), Windows y Linux, crea el GitHub Release en **borrador**
+   macOS (arm64 e Intel), crea el GitHub Release en **borrador**
    con ellos, y arma los wheels (los publica a PyPI si existe el secret
    `PYPI_TOKEN`).
 4. Revisar el borrador, pegar las notas del changelog y publicarlo.

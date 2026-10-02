@@ -17,7 +17,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.1.0/). Versionado:
 - Bóveda SAT para hasta tres RFCs: XML/ZIP, e.firma cifrada, Descarga Masiva,
   PPD/PUE, pagos, egresos, deduplicación e intercompañía.
 - Manual sin conexión generado desde `docs/`.
-- Builds de wheels e instaladores para macOS, Windows y Linux.
+- Builds de wheels y del instalador para macOS (aiuda se reparte solo para Mac).
 
 ### Cambiado
 
@@ -37,4 +37,3 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.1.0/). Versionado:
 
 - Verificar autenticación y descarga completa contra el SAT vivo.
 - Firmar con Developer ID y notarizar el instalador de macOS.
-- Probar los instaladores de Windows y Linux en equipos reales.

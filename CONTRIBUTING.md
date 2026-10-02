@@ -61,8 +61,6 @@ cd web && npx tsc --noEmit && npm run export
 - Estrenar en vivo los conectores que hoy dicen "implementado contra el contrato
   documentado" en la consola (Google Sheets, Mercado Libre,
   Mercado Pago, Clip, Conekta, WhatsApp Cloud) y aportar los fixtures.
-- Probar los instaladores de Windows y Linux, que se construyen pero nadie ha
-  corrido.
 - Firma y notarización de los instaladores.
 
 ## Licencia

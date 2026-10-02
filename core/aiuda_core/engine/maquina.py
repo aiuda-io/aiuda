@@ -132,21 +132,9 @@ def _sysctl(clave: str) -> str | None:
 
 def chip() -> str | None:
     """El procesador, con el nombre que el dueño ve en "Acerca de esta Mac"."""
-    sistema = platform.system()
-    if sistema == "Darwin":
-        return _sysctl("machdep.cpu.brand_string")
-    if sistema == "Linux":
-        try:
-            with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as f:
-                for linea in f:
-                    if linea.lower().startswith(("model name", "hardware")):
-                        return linea.split(":", 1)[1].strip() or None
-        except OSError:
-            return None
-        return None
-    # Windows y el resto: platform.processor() a veces trae el modelo, a veces
-    # una cadena vacía. Si viene vacía se dice que no se sabe.
-    return (platform.processor() or "").strip() or None
+    # aiuda se reparte solo para Mac: fuera de macOS _sysctl devuelve None y se
+    # dice que no se sabe.
+    return _sysctl("machdep.cpu.brand_string")
 
 
 def sistema_operativo() -> str | None:
@@ -155,10 +143,6 @@ def sistema_operativo() -> str | None:
     if sistema == "Darwin":
         version = platform.mac_ver()[0]
         return f"macOS {version}" if version else "macOS"
-    if sistema == "Windows":
-        return f"Windows {platform.release()}".strip()
-    if sistema == "Linux":
-        return f"Linux {platform.release()}".strip()
     return sistema or None
 
 
@@ -169,8 +153,7 @@ def ram_gb() -> float | None:
     except (ValueError, OSError, AttributeError):
         total = 0
     if not total:
-        # macOS siempre tiene sysconf; esto cubre kernels raros y a Windows,
-        # donde sin dependencias no hay forma limpia de leer la RAM.
+        # macOS siempre tiene sysconf; esto cubre el caso raro en que falle.
         crudo = _sysctl("hw.memsize")
         total = int(crudo) if crudo and crudo.isdigit() else 0
     if not total:

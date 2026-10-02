@@ -34,11 +34,7 @@ entonces sí es que el archivo se corrompió al bajarlo: vuelve a descargarlo.
 
 ### Windows y Linux
 
-El flujo de release construye el instalador `.exe` (NSIS) de Windows y el `.deb`
-y `.AppImage` de Linux, pero nadie los ha probado todavía. En Windows,
-SmartScreen mostrará "Windows protegió tu PC":
-**Más información** y luego **Ejecutar de todas formas**. Si algo no funciona
-ahí, es información útil para un issue.
+aiuda es solo para Mac: no hay instalador para Windows ni Linux.
 
 ### Construir la app
 

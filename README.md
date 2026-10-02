@@ -138,8 +138,7 @@ Pre-1.0, en desarrollo activo. Lo que hay hoy, sin adornos:
 - **App de escritorio:** probada en macOS con chip Apple, de punta a punta y con
   el instalador recién bajado (`scripts/prueba-app.sh`). El paquete está firmado
   pero **falta notarizarlo**, que es lo único que separa el `.dmg` de poder
-  repartirse. El flujo de release también construye Windows y Linux, sin
-  verificar todavía.
+  repartirse. aiuda se reparte solo para Mac.
 - **CUA (portales sin API):** verificado contra portales de prueba locales, con
   una corrida real de punta a punta contra uno de ellos. No viaja en el binario
   de la app.

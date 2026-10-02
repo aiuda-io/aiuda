@@ -25,9 +25,7 @@ Lo demás que conviene saber de una vez:
 - Lo que sí está probado, con pruebas automáticas, es el candado: los papeles, el
   tope, que un invitado no se ascienda solo y que sacar un aparato lo deje fuera
   de inmediato. Probado contra el API, no con un teléfono real.
-- Probado en **macOS con chip Apple**. En Windows y Linux el mismo código corre,
-  pero nadie lo ha probado. El aviso de permiso que se explica abajo es cosa de
-  macOS.
+- Probado en **macOS con chip Apple**. aiuda es solo para Mac.
 
 ## Qué es, en una frase
 
