@@ -21,10 +21,7 @@ export const EMAIL_PRESETS: Record<string, Record<string, string>> = {
 
 export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
   // WhatsApp con tu número se conecta por QR (como WhatsApp Web), no capturando
-  // credenciales: por eso aquí no hay campos. Los tres que había (instance, base_url,
-  // token de Evolution) no los leía nadie —channel.py construye EvolutionClient() sin
-  // argumentos, o sea que toma settings.evolution_* del entorno— y el token acababa en
-  // texto plano en tenant.config. Se quitaron.
+  // credenciales: por eso aquí no hay campos.
   whatsapp: [],
   whatsapp_cloud: [
     {

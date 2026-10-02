@@ -288,7 +288,7 @@ def _parse_amount_opt(value) -> float | None:
 
 
 def _clean_phone(value) -> str:
-    # Regla compartida con el envío (wacli/Evolution): ver aiuda_core.phones.
+    # Regla compartida con el envío (wacli): ver aiuda_core.phones.
     return normalize_mx(value)
 
 

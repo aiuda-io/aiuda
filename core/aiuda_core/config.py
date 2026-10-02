@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     model_codex: str = "gpt-5.5"
     model_codex_triage: str = "gpt-5.5"
 
-    # Canal de WhatsApp: "wacli" (CLI de terceros) o "evolution" (Evolution API)
+    # Canal de WhatsApp por default cuando el tenant no declara su vía: "wacli".
     whatsapp_provider: str = "wacli"
     # Comando de envío de wacli; placeholders {bin}, {phone} y {message}.
     # wacli 0.8.x: `send` exige el subcomando `text` con --to/--message; --lock-wait
@@ -82,9 +82,9 @@ class Settings(BaseSettings):
     # = no se pide callback (la llamada igual se hace, solo no llega el veredicto).
     twilio_voz_status_callback_url: str = ""
 
-    # Evolution API (WhatsApp)
-    evolution_base_url: str = ""
-    evolution_api_key: str = ""
+    # Token del webhook de entrada de wacli (POST /v1/webhooks/wacli). El nombre es
+    # histórico: nació con el conector de Evolution, ya retirado, y se conserva para
+    # no romper el .env de las instalaciones que ya lo tienen.
     evolution_webhook_token: str = ""
 
     # Belvo · open banking MX (detección de pagos). Sandbox por default.

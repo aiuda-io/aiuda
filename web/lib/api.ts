@@ -888,7 +888,7 @@ export type IntegrationDetail = {
   logo: string | null;
   color: string;
   group?: string;
-  // Aviso honesto cuando la vía no es la oficial (ej. WhatsApp por wacli/Evolution),
+  // Aviso honesto cuando la vía no es la oficial (ej. WhatsApp por wacli),
   // igual que el modo de suscripción del proveedor de IA. No bloquea: informa.
   warning?: string | null;
   capabilities: SourceCap[];

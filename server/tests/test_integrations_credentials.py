@@ -265,7 +265,7 @@ def test_purga_borra_lo_secreto_y_conserva_el_ruteo(db_session, demo):
         **demo.config,
         "integrations": {
             # via/instance NO son credencial: los lee resolve_whatsapp y se quedan.
-            "whatsapp": {"via": "evolution", "instance": "mi-negocio", "token": "EVO-SECRETA"},
+            "whatsapp": {"via": "wacli", "instance": "mi-negocio", "token": "EVO-SECRETA"},
             "sat": {"token": "efirma-secreta"},
             "excel": {"api_key": "no-deberia-existir"},
         },
@@ -277,7 +277,7 @@ def test_purga_borra_lo_secreto_y_conserva_el_ruteo(db_session, demo):
 
     db_session.refresh(demo)
     integraciones = demo.config["integrations"]
-    assert integraciones["whatsapp"] == {"via": "evolution", "instance": "mi-negocio"}
+    assert integraciones["whatsapp"] == {"via": "wacli", "instance": "mi-negocio"}
     assert integraciones["sat"] == {}
     assert integraciones["excel"] == {}
     assert "EVO-SECRETA" not in str(demo.config)

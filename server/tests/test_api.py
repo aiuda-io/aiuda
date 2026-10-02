@@ -67,12 +67,10 @@ def tenant(db_session):
 
 
 WEBHOOK_PAYLOAD = {
-    "event": "messages.upsert",
     "instance": "demo",
-    "data": {
-        "key": {"remoteJid": "5215587654321@s.whatsapp.net", "fromMe": False, "id": "MSG1"},
-        "message": {"conversation": "hola, ¿cuánto debo?"},
-    },
+    "phone": "5215587654321",
+    "message": "hola, ¿cuánto debo?",
+    "id": "MSG1",
 }
 
 
@@ -81,12 +79,12 @@ def test_health(client):
 
 
 def test_webhook_rechaza_token_invalido(client, tenant):
-    response = client.post("/v1/webhooks/evolution?token=malo", json=WEBHOOK_PAYLOAD)
+    response = client.post("/v1/webhooks/wacli?token=malo", json=WEBHOOK_PAYLOAD)
     assert response.status_code == 401
 
 
 def test_webhook_persiste_y_procesa_inline(client, db_session, tenant):
-    response = client.post("/v1/webhooks/evolution?token=secreto", json=WEBHOOK_PAYLOAD)
+    response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"
     message = db_session.scalar(select(Message).where(Message.tenant_id == tenant.id))
@@ -96,8 +94,8 @@ def test_webhook_persiste_y_procesa_inline(client, db_session, tenant):
 
 
 def test_webhook_es_idempotente(client, db_session, tenant):
-    client.post("/v1/webhooks/evolution?token=secreto", json=WEBHOOK_PAYLOAD)
-    response = client.post("/v1/webhooks/evolution?token=secreto", json=WEBHOOK_PAYLOAD)
+    client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
+    response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
     assert response.json()["status"] == "duplicate"
     messages = db_session.scalars(select(Message).where(Message.tenant_id == tenant.id)).all()
     assert len(messages) == 1

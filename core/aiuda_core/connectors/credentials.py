@@ -229,17 +229,6 @@ PROVIDERS: dict[str, dict] = {
         "legacy": ["integrations.whatsapp_cloud"],
         "gate": "access_token",
     },
-    "evolution": {
-        "secret": ["api_key"],
-        "public": ["base_url"],
-        "ctor": ["base_url", "api_key"],
-        "settings": {
-            "api_key": "evolution_api_key",
-            "base_url": "evolution_base_url",
-        },
-        "legacy": ["integrations.evolution"],
-        "gate": "api_key",
-    },
     # Llamadas de voz (Twilio). El auth_token se cifra; account_sid y from_number quedan
     # públicos (el account_sid rutea el StatusCallback al tenant sin descifrar). El
     # conector se construye vía TwilioVozInstance.client() (channel.resolve_voz), no por

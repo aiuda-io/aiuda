@@ -26,7 +26,9 @@ class Tenant(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255))
     # Número de WhatsApp del dueño/admin (recibe aprobaciones y resumen diario)
     owner_phone: Mapped[str] = mapped_column(String(32))
-    # Instancia de Evolution API asignada a este tenant
+    # Id de canal de WhatsApp del tenant: rutea los entrantes de wacli y nombra su
+    # store. El nombre es histórico (nació con el conector de Evolution, ya
+    # retirado); no se renombra porque el proyecto no lleva migraciones.
     evolution_instance: Mapped[str] = mapped_column(String(64), unique=True)
     # Flags: {"auto_send_buckets": ["vence_pronto"], ...}
     config: Mapped[dict] = mapped_column(JSON, default=dict)

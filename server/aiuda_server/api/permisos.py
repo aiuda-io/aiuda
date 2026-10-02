@@ -164,7 +164,6 @@ DUENO: frozenset[tuple[str, str]] = frozenset({
     ("POST", "/v1/setup/terminar"),
     ("POST", "/v1/sync"),
     ("POST", "/v1/tags"),
-    ("POST", "/v1/webhooks/evolution"),
     ("POST", "/v1/webhooks/twilio-voz"),
     ("POST", "/v1/webhooks/wacli"),
     ("POST", "/v1/webhooks/whatsapp-cloud"),

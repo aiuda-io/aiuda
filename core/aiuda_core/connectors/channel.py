@@ -15,7 +15,6 @@ Instancia POR TENANT: cada negocio tiene su propia identidad de canal
                         store default del host (self-host de un solo número).
   via=whatsapp_cloud  → API OFICIAL de WhatsApp Business (Cloud API de Meta), la
                         vía de producción. Credenciales CIFRADAS por tenant.
-  via=evolution       → Evolution API (multi-instancia, protocolo no oficial).
 
 Un tenant SIN conexión de WhatsApp no tiene sender: no puede salir por el número
 de otro negocio (ese era el riesgo cross-tenant de la instancia única).
@@ -29,7 +28,7 @@ from aiuda_core.config import settings
 
 Sender = Callable[[str, str], None]  # (destinatario, texto) -> None
 
-# NOTA HONESTA, sin alarmismo: wacli y Evolution hablan con WhatsApp por el
+# NOTA HONESTA, sin alarmismo: wacli habla con WhatsApp por el
 # protocolo de WhatsApp Web — tu número, en tu computadora, como una sesión más
 # de WhatsApp Web. No es la API oficial, así que técnicamente queda fuera de
 # los Términos de WhatsApp Business. En el uso local del día a día (responder a
@@ -78,7 +77,7 @@ def live_channels(session, tenant) -> set[str]:
 class WhatsAppInstance:
     """La identidad de canal WhatsApp de UN tenant: por dónde y como quién envía."""
 
-    provider: str  # wacli | whatsapp_cloud | evolution
+    provider: str  # wacli | whatsapp_cloud
     instance: str  # id único del tenant (Tenant.evolution_instance)
     store_dir: str | None = None  # wacli: store propio (None = default del host)
     creds: dict | None = None  # whatsapp_cloud: credenciales resueltas (cifradas)
@@ -116,8 +115,6 @@ def resolve_whatsapp(session, tenant) -> WhatsAppInstance | None:
         if not creds or not creds.get("access_token") or not creds.get("phone_number_id"):
             return None  # honesto: sin credenciales completas no hay canal oficial
         return WhatsAppInstance(provider="whatsapp_cloud", instance=instance, creds=creds)
-    if via == "evolution":
-        return WhatsAppInstance(provider="evolution", instance=instance)
     return WhatsAppInstance(
         provider="wacli", instance=instance, store_dir=wacli_store_dir(instance)
     )
@@ -161,12 +158,6 @@ def get_whatsapp_sender(
             )
 
         return _send_cloud
-
-    if wa.provider == "evolution":
-        from aiuda_core.connectors.evolution import EvolutionClient
-
-        client = EvolutionClient()
-        return lambda phone, text: client.send_text(wa.instance, phone, text)
 
     from aiuda_core.connectors.wacli import WacliClient
 

@@ -1,5 +1,5 @@
-"""Normalización de teléfonos al formato que espera WhatsApp (whatsmeow/wacli y
-Evolution): solo dígitos país+número, sin '+', sin sufijo '@s.whatsapp.net'.
+"""Normalización de teléfonos al formato que espera WhatsApp (whatsmeow/wacli):
+solo dígitos país+número, sin '+', sin sufijo '@s.whatsapp.net'.
 
 Los teléfonos en la base son inconsistentes (de Excel crudo, de Shopify con '+52…',
 del webhook como '521…'), así que se normalizan en el borde de envío, no al guardar.

@@ -34,7 +34,6 @@ from sqlalchemy import func, select
 
 from aiuda_core.cartera.aging import aging_summary, classify
 from aiuda_core.config import settings
-from aiuda_core.connectors.evolution import parse_webhook
 from aiuda_core.connectors.channel import (
     CHANNELS,
     LIVE_CHANNELS,
@@ -534,63 +533,6 @@ def sync_now(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         # Fuentes que no respondieron o leyeron parcial: se dice, no se esconde.
         "avisos": r.avisos,
     }
-
-
-@app.post("/v1/webhooks/evolution")
-async def evolution_webhook(
-    request: Request,
-    background: BackgroundTasks,
-    token: str = Query(default=""),
-    db=Depends(get_db),
-):
-    if not settings.evolution_webhook_token or token != settings.evolution_webhook_token:
-        raise HTTPException(status_code=401, detail="Token de webhook inválido")
-
-    payload = await request.json()
-    incoming = parse_webhook(payload)
-    if incoming is None or incoming.from_me:
-        return {"status": "ignored"}
-
-    tenant = db.scalar(select(Tenant).where(Tenant.evolution_instance == incoming.instance))
-    if tenant is None:
-        raise HTTPException(status_code=404, detail="Instancia sin tenant asignado")
-
-    conversation = db.scalar(
-        select(Conversation).where(
-            Conversation.tenant_id == tenant.id,
-            Conversation.remote_phone == incoming.remote_phone,
-        )
-    )
-    if conversation is None:
-        conversation = Conversation(tenant_id=tenant.id, remote_phone=incoming.remote_phone)
-        db.add(conversation)
-        db.flush()
-
-    # Idempotencia: WhatsApp reintenta si no respondemos <5s
-    if incoming.wa_message_id:
-        duplicate = db.scalar(
-            select(Message).where(
-                Message.tenant_id == tenant.id,
-                Message.wa_message_id == incoming.wa_message_id,
-            )
-        )
-        if duplicate is not None:
-            return {"status": "duplicate"}
-
-    message = Message(
-        tenant_id=tenant.id,
-        conversation_id=conversation.id,
-        direction="in",
-        body=incoming.body,
-        wa_message_id=incoming.wa_message_id or None,
-    )
-    db.add(message)
-    db.flush()
-
-    from aiuda_server.worker.main import process_incoming_message_blocking
-
-    background.add_task(process_incoming_message_blocking, tenant.id, message.id)
-    return {"status": "accepted", "message_id": message.id}
 
 
 def _available_channels(

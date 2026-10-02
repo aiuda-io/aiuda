@@ -84,7 +84,7 @@ def _sync_paused():
 
 def _pause_for(wa) -> object:
     """Contexto de envío según el provider: sólo wacli pelea el lock del store con su
-    daemon de sync; la Cloud API y Evolution son HTTP y no necesitan pausar nada."""
+    daemon de sync; la Cloud API es HTTP y no necesita pausar nada."""
     return _sync_paused() if (wa is not None and wa.provider == "wacli") else _nullcontext()
 
 
@@ -130,7 +130,7 @@ def _tenant_sender(session, tenant: Tenant, wa=None):
 def _build_engine(session, tenant: Tenant, run=None) -> CleoEngine:
     from aiuda_server.metering import budget_check
 
-    # Canal por tenant (wacli | whatsapp_cloud | evolution) — ver connectors/channel.py
+    # Canal por tenant (wacli | whatsapp_cloud) — ver connectors/channel.py
     engine = CleoEngine(
         session,
         tenant,
@@ -429,7 +429,7 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
         # apagón dejaría atrás para que el siguiente intento no repita el cobro.
         reminder.meta = {**(reminder.meta or {}), "envio_en_curso": utcnow().isoformat()}
         session.commit()
-        # Sólo wacli choca con el lock del sync; Cloud API/Evolution/email no lo necesitan.
+        # Sólo wacli choca con el lock del sync; Cloud API/email no lo necesitan.
         pause = _pause_for(wa) if channel == "whatsapp" else _nullcontext()
         try:
             with pause:
