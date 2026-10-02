@@ -71,7 +71,7 @@ def test_clientes_deep_link_a_su_ficha(client, db_session, tenant):
     data = client.get("/v1/search?q=abarrotes", headers=HEADERS).json()
     grupo = _grupo(data, "Clientes")
     assert grupo is not None
-    assert grupo["items"][0]["href"] == f"/clientes/{c.id}"
+    assert grupo["items"][0]["href"] == f"/clientes/detalle?id={c.id}"
 
 
 def test_prospectos_en_su_grupo_no_en_clientes(client, db_session, tenant):
@@ -113,7 +113,7 @@ def test_facturas_deep_link_a_su_ficha(client, db_session, tenant):
     data = client.get("/v1/search?q=F-100", headers=HEADERS).json()
     grupo = _grupo(data, "Facturas")
     assert grupo is not None
-    assert grupo["items"][0]["href"] == f"/facturas/{inv.id}"
+    assert grupo["items"][0]["href"] == f"/facturas/detalle?id={inv.id}"
 
 
 def test_productos_por_nombre_y_sku(client, db_session, tenant):

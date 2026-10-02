@@ -58,7 +58,7 @@ def search(
                     {
                         "label": c.name,
                         "sublabel": c.phone,
-                        "href": f"/clientes/{c.id}",
+                        "href": f"/clientes/detalle?id={c.id}",
                     }
                     for c in clientes
                 ],
@@ -110,7 +110,7 @@ def search(
                     {
                         "label": f"{inv.folio} · ${float(inv.amount):,.2f}",
                         "sublabel": f"{cust.name} · {_estado_factura(inv.status)}",
-                        "href": f"/facturas/{inv.id}",
+                        "href": f"/facturas/detalle?id={inv.id}",
                     }
                     for inv, cust in inv_rows
                 ],
@@ -163,7 +163,7 @@ def search(
                     {
                         "label": cust.name,
                         "sublabel": cust.phone,
-                        "href": f"/conversaciones/{conv.id}",
+                        "href": f"/conversaciones?id={conv.id}",
                     }
                     for conv, cust in conv_rows
                 ],
