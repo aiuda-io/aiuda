@@ -229,18 +229,6 @@ PROVIDERS: dict[str, dict] = {
         "legacy": ["integrations.whatsapp_cloud"],
         "gate": "access_token",
     },
-    # Llamadas de voz (Twilio). El auth_token se cifra; account_sid y from_number quedan
-    # públicos (el account_sid rutea el StatusCallback al tenant sin descifrar). El
-    # conector se construye vía TwilioVozInstance.client() (channel.resolve_voz), no por
-    # ctor_kwargs: el canal necesita también el número de origen.
-    "twilio_voz": {
-        "secret": ["auth_token"],
-        "public": ["account_sid", "from_number"],
-        "ctor": ["account_sid", "auth_token"],
-        "settings": {},
-        "legacy": ["integrations.twilio_voz"],
-        "gate": "account_sid",
-    },
     # Correo del negocio por IMAP/SMTP: sirve a IMAP genérico, Gmail y Outlook (todos
     # hablan IMAP con contraseña de aplicación — la vía COMPLETA hoy). `provider` guarda
     # cuál eligió el dueño (imap/google/microsoft) para hints. `auth_method` decide la

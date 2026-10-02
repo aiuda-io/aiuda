@@ -49,27 +49,22 @@ UNOFFICIAL_WHATSAPP_WARNING = (
 CHANNELS: dict[str, dict] = {
     "whatsapp": {"label": "WhatsApp", "recipient_field": "phone"},
     "correo": {"label": "Correo", "recipient_field": "email"},
-    "voz": {"label": "Llamada de voz", "recipient_field": "phone"},
     "sms": {"label": "SMS", "recipient_field": "phone"},
 }
 
-# Canales con sender real SIEMPRE declarado (WhatsApp). El correo y la voz también
-# tienen sender real, pero POR TENANT: solo si el negocio conectó su cuenta (correo con
-# SMTP; voz con credenciales de Twilio); usa ``live_channels(session, tenant)`` para la
-# señal completa. SMS: por conectar.
+# Canales con sender real SIEMPRE declarado (WhatsApp). El correo también tiene
+# sender real, pero POR TENANT: solo si el negocio conectó su cuenta con SMTP; usa
+# ``live_channels(session, tenant)`` para la señal completa. SMS: por conectar.
 LIVE_CHANNELS = {"whatsapp"}
 
 
 def live_channels(session, tenant) -> set[str]:
     """Canales vivos PARA ESTE tenant: WhatsApp (el flujo existe siempre; si no está
     emparejado el envío falla honesto) + correo solo si su cuenta está conectada con
-    SMTP + voz solo si conectó Twilio. Es la señal que la UI usa para ofrecer
-    'Enviar por…'."""
+    SMTP. Es la señal que la UI usa para ofrecer 'Enviar por…'."""
     vivos = set(LIVE_CHANNELS)
     if resolve_correo(session, tenant) is not None:
         vivos.add("correo")
-    if resolve_voz(session, tenant) is not None:
-        vivos.add("voz")
     return vivos
 
 
@@ -234,84 +229,20 @@ def get_correo_sender(
     return _send
 
 
-@dataclass(frozen=True)
-class TwilioVozInstance:
-    """La identidad de VOZ de UN tenant: su cuenta de Twilio y su número de origen."""
-
-    creds: dict  # account_sid, auth_token, from_number
-
-    @property
-    def from_number(self) -> str:
-        return (self.creds.get("from_number") or "").strip()
-
-    def client(self, transport=None):
-        from aiuda_core.connectors.twilio_voz import TwilioVozClient
-
-        return TwilioVozClient(
-            account_sid=self.creds.get("account_sid", ""),
-            auth_token=self.creds.get("auth_token", ""),
-            transport=transport,
-        )
-
-
-def resolve_voz(session, tenant) -> TwilioVozInstance | None:
-    """La cuenta de Twilio DE ESTE tenant para LLAMAR, o None si el canal no está
-    completo (sin account_sid, sin auth_token o sin número de origen no hay salida —
-    honesto). La credencial vive cifrada por tenant (``get_credential('twilio_voz')``)."""
-    from aiuda_core.connectors.credentials import get_credential
-
-    creds = get_credential(session, tenant.id, "twilio_voz")
-    if not creds:
-        return None
-    completo = creds.get("account_sid") and creds.get("auth_token") and creds.get("from_number")
-    if not completo:
-        return None
-    return TwilioVozInstance(creds=creds)
-
-
-def get_voz_sender(
-    voz: TwilioVozInstance | None,
-    status_callback: str | None = None,
-    on_call: Callable[[str], None] | None = None,
-) -> Sender | None:
-    """Sender de VOZ para UNA cuenta (la del tenant dueño del envío). El 'envío' es una
-    LLAMADA que dice el texto con voz. ``status_callback`` es la URL donde Twilio avisa
-    el resultado (completed/no-answer/…); ``on_call(call_sid)`` recibe el Call SID de la
-    llamada creada — con él el caller liga el veredicto futuro al recordatorio."""
-    if voz is None:
-        return None
-    client = voz.client()
-    from_number = voz.from_number
-
-    def _send(destinatario: str, texto: str) -> None:
-        call_sid = client.llamar_recordatorio(
-            destinatario, texto, from_number, status_callback=status_callback
-        )
-        if on_call is not None:
-            on_call(call_sid)
-
-    return _send
-
-
 def get_channel_sender(
     channel: str,
     wa: WhatsAppInstance | None,
     service_window: Callable[[str], bool] | None = None,
     correo: CorreoInstance | None = None,
     correo_opts: dict | None = None,
-    voz: TwilioVozInstance | None = None,
-    voz_opts: dict | None = None,
 ) -> Sender | None:
     """Sender del canal para este tenant, o None si el canal aún no está vivo.
     Para correo, ``correo_opts`` trae el asunto y, si es respuesta, los headers
-    de threading (asunto, in_reply_to, references, on_sent). Para voz, ``voz_opts``
-    trae el status_callback y ``on_call`` (para ligar el Call SID al recordatorio)."""
+    de threading (asunto, in_reply_to, references, on_sent)."""
     if channel == "whatsapp":
         return get_whatsapp_sender(wa, service_window=service_window)
     if channel == "correo":
         opts = dict(correo_opts or {})
         opts.setdefault("asunto", "Mensaje de tu proveedor")
         return get_correo_sender(correo, **opts)
-    if channel == "voz":
-        return get_voz_sender(voz, **dict(voz_opts or {}))
     return None  # sms: conector pendiente ("por conectar")

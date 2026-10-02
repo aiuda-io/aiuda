@@ -54,7 +54,6 @@ CATALOG = [
     {"key": "whatsapp_cloud", "name": "WhatsApp Business (oficial)", "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#075E54", "flows": ["channel"], "rol": "La API oficial de Meta, para volumen", "does": "Envía y recibe por la Cloud API oficial de Meta: texto libre dentro de la ventana de 24 horas y plantillas aprobadas fuera de ella. Necesita un servidor con URL pública para recibir webhooks (no aplica corriendo solo local). Implementado contra el contrato documentado; PENDIENTE de verificar en vivo."},
     {"key": "email", "name": "Correo", "group": "canal", "logo": None, "color": "#2f6fed", "flows": ["channel"], "rol": "Correo del negocio: IMAP, Google o Microsoft", "does": "Lee tu buzón (IMAP): los correos de tus clientes entran como hilos a la bandeja, tu ayudante PROPONE la respuesta y tú apruebas antes de que salga (SMTP, enhebrado al hilo). Gmail y Outlook entran hoy con contraseña de aplicación; OAuth queda documentado, por cablear."},
     {"key": "slack", "name": "Slack", "group": "canal", "logo": "/brand/int/slack.webp", "color": "#611f69", "flows": ["channel"], "rol": "Avisos al equipo dentro de tu workspace", "does": "Publica en tu canal de Slack los avisos que aiuda ya genera: el resumen diario de cartera y el aviso cuando la IA se pausa por tope. Implementado contra el contrato documentado (chat.postMessage); PENDIENTE de verificar en vivo — captura bot token y canal y usa 'Probar conexión'."},
-    {"key": "twilio_voz", "name": "Llamadas de voz (Twilio)", "group": "canal", "logo": None, "color": "#F22F46", "flows": ["channel"], "rol": "Llama a tus clientes con el recordatorio", "does": "Llama a tus clientes y les DICE el recordatorio aprobado con voz (es-MX); Twilio te avisa si contestó o no y cada resultado queda en la ficha. Requiere tu cuenta de Twilio y un número comprado; Twilio cobra por minuto de llamada. Implementado contra el contrato documentado de la API REST; PENDIENTE de verificar en vivo — captura tus credenciales y usa 'Probar conexión'."},
 
     {"key": "excel", "name": "Excel / CSV", "group": "datos", "logo": None, "color": "#1f9d6d", "flows": ["read"], "rol": "Subes cualquier hoja y la IA entiende qué es", "does": "Subes cualquier Excel (clientes, productos, facturas, citas, prospectos) y la IA detecta qué es y lo carga al lugar correcto (re-subir no duplica)."},
     {"key": "odoo", "name": "Odoo", "group": "datos", "logo": "/brand/int/odoo.svg", "color": "#714B67", "flows": ["read", "writeback"], "rol": "Lee tu cartera y regresa lo cobrado", "does": "Lee tu cartera de Odoo (facturas, clientes, catálogo, compras) y regresa lo cobrado: asienta el pago contra la factura y actualiza el cliente."},
@@ -138,8 +137,6 @@ _SOURCE_PROVIDES: dict[str, list[str]] = {
     "google_sheets": ["cuentas_por_cobrar", "directorio_clientes", "catalogo_productos"],
     # Mercado Libre: ventas por cobrar, catálogo (publicaciones) y compradores.
     "mercadolibre": ["cuentas_por_cobrar", "catalogo_productos", "directorio_clientes"],
-    # Llamadas de voz (Twilio): un canal más para alcanzar al cliente (voz por teléfono).
-    "twilio_voz": ["mensajeria"],
 }
 
 # --- Una sola fuente de verdad para "qué corre solo hoy" --------------------
@@ -189,10 +186,6 @@ _NON_READ_LIVE: set[tuple[str, str]] = {
     # aviso_al_equipo (worker) si el tenant conectó Slack. El semáforo 'verified'
     # (Probar conexión = auth.test) dice si ya se verificó contra Slack.
     ("slack", "avisos_equipo"),
-    # Llamadas de voz: el envío (colocar la llamada) está cableado al worker y el
-    # resultado (contestó/no contestó) al webhook de StatusCallback. El semáforo
-    # 'verified' (Probar conexión) dice si ya se verificó contra la cuenta de Twilio.
-    ("twilio_voz", "mensajeria"),
 }
 
 
@@ -1142,15 +1135,6 @@ def _test_google_sheets(creds: dict) -> dict:
         return {"ok": False, "message": f"No se pudo conectar: {exc}"}
 
 
-def _test_twilio_voz(creds: dict) -> dict:
-    """Prueba real contra la API de Twilio: lee la cuenta y sus números comprados con
-    las credenciales del negocio (no llama a ningún cliente). La lógica vive en el
-    conector (aiuda_core.connectors.twilio_voz.test_connection)."""
-    from aiuda_core.connectors.twilio_voz import test_connection
-
-    return test_connection(creds)
-
-
 def _test_mercadopago(creds: dict) -> dict:
     """Prueba real contra Mercado Pago (/users/me): valida el access token y cuenta pagos
     recientes. No cobra ni mueve dinero."""
@@ -1370,7 +1354,6 @@ _TESTERS = {
     "slack": _test_slack,
     "google_sheets": _test_google_sheets,
     "mercadolibre": _test_mercadolibre,
-    "twilio_voz": _test_twilio_voz,
     "shopify": _test_shopify,
     "woocommerce": _test_woocommerce,
     "hubspot": _test_hubspot,

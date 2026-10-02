@@ -31,7 +31,6 @@ from aiuda_core.connectors.channel import (
     get_correo_sender,
     get_whatsapp_sender,
     resolve_correo,
-    resolve_voz,
     resolve_whatsapp,
 )
 from aiuda_core.db import session_scope
@@ -300,8 +299,7 @@ def pendiente_canal_msg(channel: str) -> str:
     espera. El recordatorio queda APROBADO y sale cuando el dueño conecte el canal
     (o pulse "Enviar ahora"). 'failed' se reserva para un intento REAL que tronó."""
     nombre = {
-        "whatsapp": "WhatsApp", "correo": "el correo",
-        "voz": "las llamadas de voz (Twilio)", "sms": "SMS",
+        "whatsapp": "WhatsApp", "correo": "el correo", "sms": "SMS",
     }.get(channel, channel)
     return f"Aprobado. Se enviará cuando conectes {nombre}."
 
@@ -371,21 +369,6 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
                 else None
             )
             sender = get_channel_sender(channel, wa, window, correo=correo, correo_opts=correo_opts)
-        elif channel == "voz":
-            # Llamada de voz (Twilio): el recordatorio se DICE por teléfono. Guardamos el
-            # Call SID en el recordatorio para que el StatusCallback (webhook) ligue el
-            # veredicto de la llamada (contestó / no contestó) al recordatorio correcto.
-            voz = resolve_voz(session, tenant)
-
-            def _guardar_call_sid(sid: str, _rem=reminder) -> None:
-                voz_meta = {**((_rem.meta or {}).get("voz") or {}), "call_sid": sid, "estado": "en_curso"}
-                _rem.meta = {**(_rem.meta or {}), "voz": voz_meta}
-
-            voz_opts = {
-                "status_callback": settings.twilio_voz_status_callback_url or None,
-                "on_call": _guardar_call_sid,
-            }
-            sender = get_channel_sender(channel, wa, window, voz=voz, voz_opts=voz_opts)
         else:
             sender = get_channel_sender(channel, wa, window)
         if sender is None:

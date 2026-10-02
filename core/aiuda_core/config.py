@@ -76,12 +76,6 @@ class Settings(BaseSettings):
     # Sin él, el webhook oficial rechaza los POST (no se aceptan eventos sin firma).
     waba_app_secret: str = ""
 
-    # Llamadas de voz (Twilio) — canal de recordatorios por teléfono. Las credenciales
-    # de la cuenta van por tenant (cifradas, provider twilio_voz); esto es solo la URL
-    # PÚBLICA a la que Twilio avisa el resultado de cada llamada (StatusCallback). Vacío
-    # = no se pide callback (la llamada igual se hace, solo no llega el veredicto).
-    twilio_voz_status_callback_url: str = ""
-
     # Token del webhook de entrada de wacli (POST /v1/webhooks/wacli). El nombre es
     # histórico: nació con el conector de Evolution, ya retirado, y se conserva para
     # no romper el .env de las instalaciones que ya lo tienen.

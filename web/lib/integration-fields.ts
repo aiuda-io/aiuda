@@ -49,16 +49,6 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
       hint: "A dónde salen los avisos (resumen diario, corte de IA). Invita al bot al canal: /invite @aiuda.",
     },
   ],
-  twilio_voz: [
-    { key: "account_sid", label: "Account SID", placeholder: "AC…" },
-    { key: "auth_token", label: "Auth Token", secret: true },
-    {
-      key: "from_number",
-      label: "Número de origen (Twilio)",
-      placeholder: "+5215512345678",
-      hint: "El número que compraste en Twilio, en formato E.164 (+52…). Desde ahí salen las llamadas. Twilio cobra por minuto.",
-    },
-  ],
   email: [
     {
       key: "provider",

@@ -194,7 +194,6 @@ from aiuda_server.api.reconciliation import router as reconciliation_router  # n
 from aiuda_server.api.sat import router as sat_router  # noqa: E402
 from aiuda_server.api.search import router as search_router  # noqa: E402
 from aiuda_server.api.tags import router as tags_router  # noqa: E402
-from aiuda_server.api.twilio_voz import router as twilio_voz_router  # noqa: E402
 from aiuda_server.api.whatsapp import router as whatsapp_router  # noqa: E402
 from aiuda_server.api.writeback import router as writeback_router  # noqa: E402
 
@@ -215,7 +214,6 @@ app.include_router(reconciliation_router)
 app.include_router(sat_router)
 app.include_router(search_router)
 app.include_router(tags_router)
-app.include_router(twilio_voz_router)
 app.include_router(whatsapp_router)
 app.include_router(writeback_router)
 
