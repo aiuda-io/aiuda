@@ -48,7 +48,16 @@ Principios que mandan sobre cualquier feature:
   metering y el tope se enganchan en `server/aiuda_server/metering.py`.
 - **WhatsApp:** wacli (tu número, protocolo WhatsApp Web) con sondeo entrante
   in-process (`server/aiuda_server/inbound.py`); correo IMAP/SMTP; la Cloud API
-  oficial requiere una URL pública que la instalación local no trae.
+  oficial requiere una URL pública que la instalación local no trae, y está oculta
+  del catálogo hasta estrenarla.
+- **Integraciones:** el catálogo (`server/aiuda_server/api/integrations.py`) declara
+  `estrenada` por integración; `False` = nadie la ha usado con una cuenta real y la
+  consola le pone el sello "Sin estrenar". `oculta` = no se ofrece hasta probarse.
+- **Teléfono:** la app de iPhone vive en un repo aparte (`aiuda-ios`). Se empareja por
+  QR con la segunda puerta de la red local (`server/aiuda_server/red_local.py`); cada
+  endpoint nuevo se declara en `server/aiuda_server/api/permisos.py`.
+- **Solo Mac, solo SQLite.** No hay instalador para Windows ni Linux, ni otro motor
+  de base.
 
 ## Correr local
 
@@ -60,7 +69,7 @@ uv run aiuda start --no-token          # todo en 127.0.0.1:4747
 ```
 
 Gate antes de commitear: `uv run pytest` (todo verde, sin API key),
-`uv run ruff check .`, `cd web && npx tsc --noEmit && npm run export`.
+`uv run ruff check .`, `cd web && npm run lint && npx tsc --noEmit && npm run export`.
 
 ## Documentación
 

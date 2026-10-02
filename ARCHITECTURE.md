@@ -9,11 +9,14 @@ app de escritorio (Tauri)          o          aiuda start (terminal)
                        ▼
               proceso Python único
               ├─ FastAPI en 127.0.0.1:4747 (token de sesión por arranque)
+              ├─ segunda puerta opcional en la red local (:4748, HTTPS) para
+              │  los aparatos emparejados; apagada por default
               ├─ consola: export estático de Next servido por el mismo proceso
               ├─ scheduler (hilos): corrida horaria + WhatsApp entrante (wacli)
               ├─ SQLite ~/.aiuda/aiuda.db (WAL)
               ├─ llave Fernet en ~/.aiuda/key (0600), una sola fuente
-              ├─ IA BYO: Claude / OpenAI / local (Ollama, OpenAI-compatible)
+              ├─ IA BYO: llave (Claude / OpenAI), el Claude Code o Codex ya
+              │  instalado, o local (Ollama, OpenAI-compatible)
               └─ CUA: Chromium local (Playwright) que opera portales; el dueño
                  hace el login él mismo (handoff) y la sesión queda cifrada
 ```
@@ -44,14 +47,18 @@ funciona en la terminal funciona en la app, y al revés.
   Redis ni migraciones: SQLite, `create_all` idempotente y la llave en
   `~/.aiuda/key`. El modo cliente-servidor se conserva (HTTP interno): la app
   de escritorio y `aiuda start` usan este mismo código.
-- **BYO-IA.** aiuda no incluye ni revende inferencia. API key, el CLI que el dueño
-  ya tiene instalado (se autentica con SU sesión; aiuda nunca ve su token),
-  personal (bajo tu riesgo, la UI lo dice) o un modelo local con Ollama, la única
-  vía donde ningún dato sale de tu máquina. Ver [docs/IA.md](docs/IA.md).
+- **BYO-IA.** aiuda no incluye ni revende inferencia. Tres vías: la API key del
+  dueño, el CLI que ya tiene instalado (se autentica con SU sesión; aiuda nunca
+  ve su token) o un modelo local con Ollama, la única donde ningún dato sale de
+  su máquina. Ver [docs/IA.md](docs/IA.md).
 - **Canales honestos.** WhatsApp con tu número (protocolo de WhatsApp Web, el
   aviso vive en la UI) o correo IMAP/SMTP. La Cloud API oficial de Meta existe
   como conector, pero necesita una URL pública que la instalación local no
-  trae.
+  trae, y la consola no la ofrece hasta estrenarla con una cuenta real.
+- **Sin estrenar se dice.** Cada integración del catálogo declara `estrenada`
+  (`server/aiuda_server/api/integrations.py`): si nadie la ha usado con una
+  cuenta real, la consola le pone el sello. Las marcadas `oculta` no se ofrecen
+  hasta probarse, salvo a quien ya las tiene conectadas.
 - **Un solo log de lo soberano.** Cada aprobación, rechazo, edición y write-back
   deja fila en `audit_logs`. Poder demostrar quién autorizó un cobro es
   fundacional.
@@ -109,15 +116,29 @@ y se crea solo; `WORKSPACE_ID` elige cuando una base importada trae varios.
 aiuda solo corre sobre SQLite. `DATABASE_URL` sirve para apuntar a otro archivo
 (tests y scripts), no a otro motor.
 
+## Aparatos en la red local
+
+El teléfono no pasa por ningún servidor: le habla directo a la computadora del
+negocio. Al prender la red en **Tus aparatos** se abre una segunda puerta
+(`server/aiuda_server/red_local.py`, puerto 4748) con HTTPS y un certificado que
+la máquina se firma sola. La huella de ese certificado viaja en el QR del
+emparejamiento y el teléfono acepta esa huella y ninguna otra. Esa puerta
+siempre exige el token de un aparato emparejado, y lo que cada papel puede tocar
+está declarado, ruta por ruta, en `server/aiuda_server/api/permisos.py`.
+
+La app de iPhone vive en un repo aparte y consume este mismo API. Solo funciona
+dentro de la red de la oficina.
+
 ## Tests
 
 `core/tests` y `server/tests`: SQLite en memoria, LLM mockeado, deterministas y
 sin necesidad de credenciales. `evals/` corre evaluaciones de IA aparte del gate.
-CI: pytest, ruff, tsc, export de la consola y build de los wheels.
+CI: pytest, ruff, lint y tsc de la consola, su export y el build de los wheels.
 
 ## Después de v0.1: nodo local y relay opcional
 
-v0.1 sigue siendo un solo proceso local. La dirección futura toma de
+v0.1 sigue siendo un solo proceso local, y el teléfono solo llega dentro de la
+red de la oficina. Nada de lo que sigue existe hoy. La dirección futura toma de
 [Buzz](https://github.com/block/buzz/blob/main/VISION_AGENT.md) una frontera,
 no su producto completo:
 
@@ -132,6 +153,4 @@ el arranque local sin cuenta. Un relay propio se conecta por URL o invitación,
 sin cuenta de Hanova, y el nodo se autentica con su propia llave.
 
 Por la sensibilidad fiscal, el relay debe guardar metadatos mínimos o contenido
-cifrado de extremo a extremo que el operador no pueda abrir. Antes de compartir
-infraestructura entre negocios, el camino operable es una instancia dedicada
-por cliente; el aislamiento compartido no es objetivo de v0.1.
+cifrado de extremo a extremo que el operador no pueda abrir.

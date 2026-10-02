@@ -67,7 +67,7 @@ el de la PyME. Un dueño de negocio en Veracruz no va a instalar Rust. Por eso l
 notarización es el pendiente número uno: es lo que separa "cualquiera con una
 terminal puede usarlo" de "cualquiera puede usarlo".
 
-Qué está probado en cada plataforma, en [docs/INSTALAR.md](docs/INSTALAR.md).
+Cómo se abre la primera vez y qué está probado, en [docs/INSTALAR.md](docs/INSTALAR.md).
 Para verificar un instalador antes de repartirlo: `./scripts/prueba-app.sh`.
 
 ### Desde la terminal
@@ -132,9 +132,12 @@ Pre-1.0, en desarrollo activo. Lo que hay hoy, sin adornos:
 
 - **Cobranza** es el vertical más maduro: conectar Odoo, sincronizar cartera
   real, redactar y aprobar está verificado punta a punta contra un Odoo 19.
-- **Integraciones:** 23 en el catálogo de la consola. 10 de ellas están
-  implementadas contra su contrato documentado y sin estrenar en vivo; la
-  consola lo dice en cada una.
+- **Integraciones:** 15 en el catálogo de la consola. Tres están estrenadas con
+  cuentas reales (Odoo, Excel/CSV y WhatsApp con tu número). Las otras 12 están
+  implementadas contra su contrato documentado y nadie las ha usado todavía con
+  una cuenta real: la consola les pone el sello "Sin estrenar" a cada una. Hay
+  cuatro más escritas y con pruebas, pero **ocultas** hasta estrenarlas: Mercado
+  Pago, Clip, Conekta y la API oficial de WhatsApp Business.
 - **App de escritorio:** probada en macOS con chip Apple, de punta a punta y con
   el instalador recién bajado (`scripts/prueba-app.sh`). El paquete está firmado
   pero **falta notarizarlo**, que es lo único que separa el `.dmg` de poder
@@ -142,7 +145,12 @@ Pre-1.0, en desarrollo activo. Lo que hay hoy, sin adornos:
 - **CUA (portales sin API):** verificado contra portales de prueba locales, con
   una corrida real de punta a punta contra uno de ellos. No viaja en el binario
   de la app.
-- **Multi-usuario:** no existe. Un negocio por instalación.
+- **Teléfono:** la app de iPhone existe, en un repo aparte. Se empareja con un
+  QR dentro de la red de la oficina y sirve para ver el negocio y aprobar. Todavía
+  no está en la App Store: hoy se instala desde su código, con Xcode. Ver
+  [docs/APARATOS.md](docs/APARATOS.md).
+- **Multi-usuario:** no existe. Un negocio por instalación; varios aparatos, la
+  misma bitácora.
 
 ## Documentación
 

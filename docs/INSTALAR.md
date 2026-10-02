@@ -99,12 +99,14 @@ uv run python scripts/seed.py --wipe      # borrar solo lo sembrado
 
 Instalar no basta: aiuda necesita una IA y una fuente de datos.
 
-- **IA:** el Claude Code o el Codex que ya tengas instalado, una llave, tu
-  suscripción o un modelo local. Ver [IA.md](IA.md).
+- **IA:** el Claude Code o el Codex que ya tengas instalado, una llave o un
+  modelo local. Ver [IA.md](IA.md).
 - **Fuente:** tu Odoo, un Excel o cualquier API con el conector a la medida. Se
   conecta desde la consola.
 - **Canal (opcional):** WhatsApp con tu número (necesita
-  [wacli](https://github.com/steipete/wacli)) o correo IMAP/SMTP.
+  [wacli](https://github.com/steipete/wacli)) o el correo del negocio.
+- **Teléfono (opcional):** la app de iPhone, dentro del WiFi de tu oficina. Ver
+  [APARATOS.md](APARATOS.md).
 
 ## El manual va adentro
 

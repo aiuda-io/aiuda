@@ -24,15 +24,15 @@ Extras opcionales: `uv sync --extra cua` más
 `.venv/bin/playwright install chromium` para el CUA. Para la app de escritorio
 necesitas además node y Rust: `scripts/build-app.sh`.
 
-La IA se conecta desde la consola (/proveedor): API key, suscripción o un modelo
-local con Ollama. Los tests no necesitan ninguna (el LLM va mockeado).
+La IA se conecta desde la consola (/proveedor): API key, el Claude Code o Codex
+que ya tengas instalado, o un modelo local con Ollama. Los tests no necesitan ninguna (el LLM va mockeado).
 
 ## Antes de abrir un PR
 
 ```bash
 uv run pytest          # suite completa, determinista
 uv run ruff check .
-cd web && npx tsc --noEmit && npm run export
+cd web && npm run lint && npx tsc --noEmit && npm run export
 ```
 
 - PRs chicos y enfocados. Un cambio, un PR. Cumple la plantilla (tests verdes,
@@ -58,10 +58,11 @@ cd web && npx tsc --noEmit && npm run export
 - Issues etiquetados `good first issue`.
 - Conectores nuevos: la interfaz está en `core/aiuda_core/connectors/` y el
   catálogo en `server/aiuda_server/api/integrations.py`.
-- Estrenar en vivo los conectores que hoy dicen "implementado contra el contrato
-  documentado" en la consola (Google Sheets, Mercado Libre,
-  Mercado Pago, Clip, Conekta, WhatsApp Cloud) y aportar los fixtures.
-- Firma y notarización de los instaladores.
+- Estrenar con una cuenta real los conectores que la consola marca "Sin
+  estrenar" (`estrenada: False` en el catálogo) y aportar los fixtures. Los
+  cuatro marcados `oculta` (Mercado Pago, Clip, Conekta y WhatsApp Business
+  oficial) no se ofrecen en la consola hasta que alguien los estrene.
+- Notarización del instalador de macOS.
 
 ## Licencia
 

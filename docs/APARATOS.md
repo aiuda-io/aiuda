@@ -8,23 +8,21 @@ Está en la consola, en **Tus aparatos**.
 
 ## Lo honesto, antes de que le dediques tiempo
 
-Del lado de la computadora está armado y probado: prender la red, enseñar el
-código, los papeles, sacar un aparato y el candado que deja fuera a quien no
-invitaste.
-
-**La app del teléfono todavía no existe.** El código que aparece en pantalla
-abre `aiuda://emparejar`, y hoy ningún teléfono tiene instalado nada que
-responda a eso. Si le apuntas la cámara, no va a pasar nada.
-
-Entonces: puedes prender la red y ver la pantalla completa, pero **todavía no
-vas a aprobar desde tu celular**. Esto se documenta ahora porque la mitad de la
-computadora ya viaja en la app, no porque el teléfono ya sirva.
+**La app es para iPhone y todavía no está en la App Store.** Existe y funciona:
+se empareja con el código que enseña Tus aparatos, muestra tu negocio y deja aprobar lo
+que tu ayudante propuso. Pero hoy no la puedes bajar de la tienda: solo se
+instala desde su código, con Xcode, que es cosa de quien programa. Si no tienes
+quién te la instale, esta parte todavía no es para ti.
 
 Lo demás que conviene saber de una vez:
 
-- Lo que sí está probado, con pruebas automáticas, es el candado: los papeles, el
+- **Solo dentro de tu WiFi.** Saliendo de la oficina, el teléfono ya no llega a
+  la computadora.
+- **No hay app para Android.**
+- La computadora tiene que estar prendida y con aiuda abierto.
+- Lo que está probado con pruebas automáticas es el candado: los papeles, el
   tope, que un invitado no se ascienda solo y que sacar un aparato lo deje fuera
-  de inmediato. Probado contra el API, no con un teléfono real.
+  de inmediato.
 - Probado en **macOS con chip Apple**. aiuda es solo para Mac.
 
 ## Qué es, en una frase
@@ -152,7 +150,7 @@ de tu máquina para los teléfonos que ya la conocen. Ver [DATOS.md](DATOS.md).
 
 ## Si el teléfono no encuentra la computadora
 
-Cuando exista la app, esta es la lista corta:
+Esta es la lista corta:
 
 - **El permiso de red local**, arriba. Es la causa número uno en macOS.
 - **El mismo WiFi.** Muchos módems tienen una red de invitados que aísla a los

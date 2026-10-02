@@ -48,7 +48,7 @@ Lo que hay que saber, sin adornos:
 
 - **BBVA y Banorte se leen directo**, sin IA y sin costo. Estos dos formatos
   están verificados contra estados de cuenta reales.
-- **Cualquier otro banco lo lee tu IA** (la que conectaste en Proveedor de IA).
+- **Cualquier otro banco lo lee tu IA** (la que conectaste en Tu IA).
   El texto del estado se le pasa a tu proveedor; si eso te incomoda, usa un
   modelo local con Ollama y nada sale de tu computadora. Cada monto que la IA
   reporte se verifica contra el texto del PDF: un monto que no está en el papel

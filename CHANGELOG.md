@@ -3,9 +3,36 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/es/1.1.0/). Versionado:
 [SemVer](https://semver.org/lang/es/).
 
-## [Unreleased]
+## [Sin publicar]
+
+Todavía no hay ninguna versión publicada: todo lo de abajo es lo que trae el
+código hoy.
+
+### Retirado
+
+- Windows y Linux: aiuda se reparte solo para Mac.
+- Docker y Postgres: aiuda corre solo sobre SQLite local.
+- El servidor MCP y la página de API: aiuda es su propia app.
+- El conector de Slack y los avisos al equipo por ese canal.
+- El canal de voz por Twilio.
+- El conector de generación de imágenes y su capacidad.
+- Evolution, el conector legado de WhatsApp.
+- Prospección y el conector DENUE.
+- Los perfiles de ayudante que no tenían ninguna capacidad viva.
+- La pantalla "Datos del negocio", que nunca tuvo servidor detrás.
+- El modo suscripción de la IA. Quedan tres vías: tu llave, el Claude Code o
+  Codex que ya tienes instalado, o un modelo local.
+- Del catálogo visible, hasta probarlas con una cuenta real: Mercado Pago, Clip,
+  Conekta y la API oficial de WhatsApp Business. El código y sus pruebas se
+  quedan, y quien ya tenga una conectada la sigue viendo.
 
 ### Agregado
+
+- Sello "Sin estrenar" en cada integración que nadie ha usado todavía con una
+  cuenta real. Hoy están estrenadas Odoo, Excel/CSV y WhatsApp con tu número.
+- Aviso en el Centro de mando cuando la IA se pausa por el tope de gasto del mes.
+- App de iPhone (repo aparte): se empareja por QR en la red de la oficina. Aún no
+  está en la App Store.
 
 - Runtime local-first: un proceso, un puerto, SQLite y scheduler integrado.
 - App de escritorio Tauri con el servidor y la consola estática embebidos.

@@ -160,18 +160,18 @@ export default function AparatosPage() {
         }
       />
 
-      {/* Lo que falta se dice antes de que nadie gaste tiempo: esta computadora ya
-          empareja, pero la app que lee el código todavía no se publica. Sin este
-          aviso la pantalla promete algo que hoy no pasa. */}
+      {/* Lo que falta se dice antes de que nadie gaste tiempo: la app de iPhone
+          existe y empareja, pero todavía no está en la App Store. Sin este aviso
+          la pantalla promete algo que el dueño hoy no puede bajar. */}
       <div className="mt-4 rounded-md border border-line bg-panel p-3.5">
         <p className="text-cuerpo font-medium text-ink">
-          Falta la app del teléfono
+          La app de iPhone todavía no está en la App Store
         </p>
         <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
-          Esta mitad ya está lista: la red, el código, los papeles y sacar aparatos. La app que
-          lee el código todavía no se publica, así que hoy apuntarle la cámara no hace nada.{" "}
+          Ya funciona con esta pantalla, pero hoy solo la tiene quien la instaló desde su
+          código. Sin ella, apuntarle la cámara al código no hace nada.{" "}
           <a className="underline hover:text-ink" href="/manual/aparatos.html">
-            Cómo va a funcionar
+            Cómo funciona
           </a>
           .
         </p>

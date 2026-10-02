@@ -24,9 +24,10 @@ URL vieja o desde otro navegador, cierra esa pestaña y abre la app otra vez (o
 corre `aiuda start`, que abre el navegador con la llave del momento).
 
 **El ayudante no redacta nada.**
-Puede ser que no haya IA conectada (`aiuda doctor` lo dice), que el tope mensual
-de tokens que te pusiste ya se haya agotado (la bitácora deja el aviso), o que
-el modelo local elegido no soporte tool calling. Ver [IA.md](IA.md).
+Puede ser que no haya IA conectada (lo ves en **Tu IA**), que el tope mensual de
+gasto de IA ya se haya agotado (el Centro de mando lo avisa arriba, y queda en la
+bitácora), o que el modelo local elegido no sepa consultar tus datos. Ver
+[IA.md](IA.md).
 
 **Al conectar Codex sale `env: node: No such file or directory`.**
 Era un defecto nuestro, arreglado el 27 de julio de 2026. Codex por dentro
@@ -72,10 +73,10 @@ instalador nuevo, ese mensaje significa que el archivo se corrompió al
 descargarse.
 
 **Mi teléfono no encuentra esta computadora.**
-Primero: hoy **no existe todavía la app del teléfono**, así que el emparejamiento
-no se completa por más que todo lo demás esté bien. Cuando exista, la causa
-número uno en Mac es el permiso de red local. Está explicado con sus pasos en
-[APARATOS.md](APARATOS.md).
+La causa número uno es el permiso de red local de tu Mac; la segunda, que el
+teléfono esté en otro WiFi (la red de invitados del módem no cuenta). Está
+explicado con sus pasos en [APARATOS.md](APARATOS.md). Y recuerda que solo
+funciona dentro de tu red: desde la calle el teléfono no llega.
 
 ## El chequeo completo (necesita terminal)
 

@@ -72,8 +72,8 @@ estilo: era una afirmación falsa que viajaba en cada petición para pasar un
 control de acceso, y correr en tu computadora no lo cambiaba.
 
 aiuda es abierto y cualquiera lo puede instalar o forkear, así que ese riesgo se
-le repartía a todos. Se retiró. Lo que se buscaba —usar la suscripción que ya
-pagas sin llave aparte— lo da la vía de arriba, y esa sí es legítima.
+le repartía a todos. Se retiró. Lo que se buscaba (usar la suscripción que ya
+pagas sin llave aparte) lo da la vía de arriba, y esa sí es legítima.
 
 Si ya la tenías configurada, la consola te lo dice al abrir Tu IA y te ofrece el
 cambio; no se apaga en silencio.
@@ -120,7 +120,9 @@ Code o Codex instalados y si Ollama responde.
 
 Cada llamada a la IA deja un registro con modelo, tarea y tokens. El uso del mes,
 con un costo estimado a partir de una tabla de precios local, se consulta en
-`GET /v1/usage`. Todavía no hay una pantalla que lo muestre: está pendiente.
+`GET /v1/usage`. Todavía no hay una pantalla que lo muestre: está pendiente. Y
+un hueco que conviene saber: para OpenAI con llave esa tabla todavía no trae
+precio, así que ahí el uso se cuenta pero el costo sale en cero.
 
 También existe un tope mensual de tokens, y viene puesto de fábrica: 5 millones
 de tokens al mes. No es un cobro nuestro (nosotros no cobramos nada y nunca vemos
@@ -129,7 +131,8 @@ sorprenda en el recibo de tu proveedor de IA. Un negocio normal no lo toca: una
 corrida de cobranza gasta miles de tokens, no millones.
 
 Cuando se agota, aiuda deja de llamar a la IA: no se cuelga a media iteración,
-deja el aviso en la bitácora y la corrida sigue sin IA. Para moverlo se escribe
+la corrida sigue sin IA, y el aviso queda en la bitácora y arriba del Centro de
+mando, donde lo ves al abrir y lo puedes descartar. Para moverlo se escribe
 `ia_tope_tokens_mes` en la configuración del negocio (todavía no hay pantalla
 para eso); con `0` te quedas sin tope, bajo tu propio riesgo.
 
