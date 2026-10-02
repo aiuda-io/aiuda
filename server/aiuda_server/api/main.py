@@ -894,6 +894,33 @@ def _update_config(db, tenant: Tenant, **changes) -> None:
     db.add(tenant)
 
 
+@app.get("/v1/avisos/tope-ia")
+def get_aviso_tope_ia(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
+    """El aviso de que la IA se pausó por el tope de gasto del mes. Lo deja el worker
+    (`_aviso_tope`) la primera vez que un trabajo se corta; el Centro de mando lo
+    pinta. Se calla solo si el dueño lo descartó, si cambió el mes o si el tope ya
+    no está agotado (lo subió o lo quitó)."""
+    from aiuda_server.costs import ia_budget
+
+    aviso = (tenant.config or {}).get("ia_tope_aviso") or {}
+    mes = datetime.now(MX_TZ).strftime("%Y-%m")
+    if aviso.get("mes") != mes or aviso.get("descartado"):
+        return {"aviso": None}
+    if not ia_budget(db, tenant)["agotado"]:
+        return {"aviso": None}
+    return {"aviso": {"mes": mes, "desde": aviso.get("at")}}
+
+
+@app.post("/v1/avisos/tope-ia/descartar")
+def descartar_aviso_tope_ia(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
+    """El dueño ya lo leyó. Se guarda en el mismo aviso para que no reaparezca este
+    mes; el del mes que entra es otro aviso y vuelve a salir."""
+    aviso = (tenant.config or {}).get("ia_tope_aviso")
+    if aviso:
+        _update_config(db, tenant, ia_tope_aviso={**aviso, "descartado": True})
+    return {"aviso": None}
+
+
 # Aquí vivía el equipo de fábrica: ocho slugs fijos (mariana, carlos, lupita, valeria,
 # diego, roberto, memo, sofia) con sus endpoints /v1/agents/*. Era un SEGUNDO sistema de
 # agentes conviviendo con los ayudantes que el dueño crea, y el que la consola enseñaba:

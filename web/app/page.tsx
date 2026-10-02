@@ -165,7 +165,14 @@ export default function ResumenPage() {
         {/* Por aprobar */}
         <section className="lg:col-span-2">
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-seccion font-semibold text-ink">Esperan tu aprobación</h2>
+            <h2 className="text-seccion font-semibold text-ink">
+              Esperan tu aprobación
+              {(reminders.data ?? []).length > 0 && (
+                <span className="tnum ml-2 text-apoyo font-normal text-ink-3">
+                  {(reminders.data ?? []).length}
+                </span>
+              )}
+            </h2>
             <Link
               href="/centro"
               className="text-cuerpo font-medium text-accent-ink hover:underline"

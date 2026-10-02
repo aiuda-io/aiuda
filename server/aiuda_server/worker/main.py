@@ -150,8 +150,8 @@ def _build_engine(session, tenant: Tenant, run=None) -> CleoEngine:
 
 def _aviso_tope(session, tenant: Tenant, motivo: str) -> None:
     """Deja constancia HONESTA del corte de IA: una vez por mes por tenant escribe la
-    bitácora (auditable) y guarda el aviso en tenant.config (la consola lo muestra en
-    el centro de mando)."""
+    bitácora (auditable) y guarda el aviso en tenant.config["ia_tope_aviso"]. El Centro
+    de mando lo lee por GET /v1/avisos/tope-ia y el dueño lo puede descartar."""
     from aiuda_server import audit
 
     mes = datetime.now(MX_TZ).strftime("%Y-%m")

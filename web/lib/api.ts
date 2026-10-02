@@ -1355,6 +1355,11 @@ export const api = {
   // subred); la UI debe mostrar que está buscando.
   setupBuscarEnRed: () => request<SetupRed>("/v1/setup/red/buscar", { method: "POST" }),
   search: (q: string) => request<SearchResponse>(`/v1/search?q=${encodeURIComponent(q)}`),
+  /** El aviso de que la IA se pausó por el tope de gasto del mes (null = nada que decir). */
+  avisoTopeIa: () =>
+    request<{ aviso: { mes: string; desde: string | null } | null }>("/v1/avisos/tope-ia"),
+  descartarAvisoTopeIa: () =>
+    request<{ aviso: null }>("/v1/avisos/tope-ia/descartar", { method: "POST" }),
   shadowMode: () => request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra"),
   setShadowMode: (activo: boolean) =>
     request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra", {

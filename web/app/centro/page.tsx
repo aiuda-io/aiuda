@@ -169,6 +169,38 @@ export default function CentroPage() {
   );
 }
 
+/** La IA se pausó por el tope de gasto del mes. Antes este aviso solo quedaba
+ *  guardado en la configuración y en la bitácora: el tablero amanecía vacío y
+ *  nadie decía por qué. */
+function AvisoTopeIA() {
+  const { data, refetch } = useApi(() => api.avisoTopeIa().catch(() => ({ aviso: null })), []);
+  if (!data?.aviso) return null;
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-cuerpo text-ink-2">
+      <p className="min-w-0 flex-1">
+        <span className="font-semibold text-ink">Tu IA está en pausa.</span> Llegó al tope de
+        gasto de este mes y tus ayudantes no redactan nada nuevo hasta el mes que entra.
+      </p>
+      <Link href="/proveedor" className="shrink-0 font-medium text-accent-ink hover:underline">
+        Tu IA
+      </Link>
+      <button
+        onClick={async () => {
+          try {
+            await api.descartarAvisoTopeIa();
+            refetch();
+          } catch (e) {
+            toast((e as Error).message, "error");
+          }
+        }}
+        className="shrink-0 text-apoyo text-ink-3 transition-colors hover:text-ink"
+      >
+        Descartar
+      </button>
+    </div>
+  );
+}
+
 function CentroDeMando() {
   usePageTrail("Centro de mando");
   const { data, error, loading, refetch, refetchQuiet } = useApi(async () => {
@@ -331,6 +363,8 @@ function CentroDeMando() {
         <h1 className="text-titulo font-semibold text-ink">Despacha tu día</h1>
         <p className="text-cuerpo text-ink-2">Lo que tu equipo dejó listo. Tú decides.</p>
       </div>
+
+      <AvisoTopeIA />
 
       {loading && !data ? (
         <BoardSkeleton />
