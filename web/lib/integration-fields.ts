@@ -198,32 +198,6 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
   ],
   hubspot: [{ key: "token", label: "Private app token", secret: true }],
   denue: [{ key: "token", label: "Token de INEGI" }],
-  image_gen: [
-    {
-      key: "provider",
-      label: "Proveedor",
-      type: "select",
-      options: [
-        { value: "fal", label: "fal.ai (Flux · open-weights, más barato)" },
-        { value: "openai", label: "OpenAI (gpt-image-1)" },
-        { value: "custom", label: "Propio / self-host (compatible con OpenAI)" },
-      ],
-      hint: "fal.ai corre modelos open-weights (Flux) a fracciones de centavo por imagen. 'Propio' apunta a tu ComfyUI/Stable Diffusion tras un gateway compatible con la Images API de OpenAI.",
-    },
-    { key: "api_key", label: "API key", secret: true },
-    {
-      key: "base_url",
-      label: "Endpoint (solo self-host)",
-      placeholder: "https://mi-servidor/v1",
-      hint: "Solo para la vía 'Propio': la URL base de tu endpoint compatible. fal y OpenAI la traen por defecto.",
-    },
-    {
-      key: "model",
-      label: "Modelo",
-      placeholder: "fal-ai/flux/schnell",
-      hint: "Opcional. Por defecto Flux schnell (fal) o gpt-image-1 (OpenAI).",
-    },
-  ],
 };
 
 export function fieldsFor(key: string): FieldDef[] {

@@ -75,7 +75,6 @@ CATALOG = [
     {"key": "googlecalendar", "name": "Google Calendar", "group": "operacion", "logo": "/brand/int/googlecalendar.svg", "color": "#4285F4", "flows": ["read"], "rol": "Citas y recordatorios de agenda", "does": "Lee tu disponibilidad para agendar citas."},
     {"key": "hubspot", "name": "HubSpot", "group": "operacion", "logo": "/brand/int/hubspot.svg", "color": "#FF7A59", "flows": ["read"], "rol": "Contactos y actividad del CRM", "does": "Lee contactos y oportunidades de tu CRM."},
     {"key": "denue", "name": "DENUE · INEGI", "group": "operacion", "logo": None, "color": "#16415a", "flows": ["read"], "rol": "Directorio público para prospectar", "does": "Busca empresas en el directorio público para prospectar."},
-    {"key": "image_gen", "name": "Generación de imágenes", "group": "operacion", "logo": None, "color": "#7c3aed", "flows": ["action"], "rol": "El motor visual de la plantilla de Contenido", "does": "Genera las imágenes de tus publicaciones desde el prompt del ayudante. Pluggable: fal.ai con modelos open-weights (Flux, el más barato por imagen), OpenAI (gpt-image-1) o tu propio endpoint self-host compatible. Implementado contra el contrato documentado; PENDIENTE de verificar en vivo — captura tu API key y usa 'Probar conexión'."},
 ]
 
 
@@ -103,7 +102,6 @@ CAPABILITIES: dict[str, dict] = {
     "expedientes": {"label": "Expedientes", "desc": "Casos, acuerdos y documentos de respaldo (lo opera el CUA sobre el portal del tribunal)."},
     "avisos_equipo": {"label": "Avisos al equipo", "desc": "Notificaciones internas para tu gente."},
     "compras": {"label": "Compras y proveedores", "desc": "Órdenes de compra y abasto."},
-    "generacion_contenido": {"label": "Generación de contenido", "desc": "Imágenes para tus publicaciones y campañas, desde el prompt del ayudante."},
 }
 
 # Qué capacidad(es) provee cada fuente. Solo la lista; si una capacidad YA corre
@@ -142,8 +140,6 @@ _SOURCE_PROVIDES: dict[str, list[str]] = {
     "mercadolibre": ["cuentas_por_cobrar", "catalogo_productos", "directorio_clientes"],
     # Llamadas de voz (Twilio): un canal más para alcanzar al cliente (voz por teléfono).
     "twilio_voz": ["mensajeria"],
-    # Generación de imágenes: el motor visual de la plantilla de Contenido (fal/OpenAI/self-host).
-    "image_gen": ["generacion_contenido"],
 }
 
 # --- Una sola fuente de verdad para "qué corre solo hoy" --------------------
@@ -197,9 +193,6 @@ _NON_READ_LIVE: set[tuple[str, str]] = {
     # resultado (contestó/no contestó) al webhook de StatusCallback. El semáforo
     # 'verified' (Probar conexión) dice si ya se verificó contra la cuenta de Twilio.
     ("twilio_voz", "mensajeria"),
-    # Generación de imágenes: la generación está cableada (connectors/image_gen), es una
-    # ACCIÓN (no lectura). El semáforo 'verified' (Probar conexión) confirma la credencial.
-    ("image_gen", "generacion_contenido"),
 }
 
 
@@ -1158,14 +1151,6 @@ def _test_twilio_voz(creds: dict) -> dict:
     return test_connection(creds)
 
 
-def _test_image_gen(creds: dict) -> dict:
-    """Prueba real del proveedor de imagen: openai/custom listan modelos (sin costo);
-    fal genera una imagen mínima (fracción de centavo). Lógica en el conector."""
-    from aiuda_core.connectors.image_gen import test_connection
-
-    return test_connection(creds)
-
-
 def _test_mercadopago(creds: dict) -> dict:
     """Prueba real contra Mercado Pago (/users/me): valida el access token y cuenta pagos
     recientes. No cobra ni mueve dinero."""
@@ -1394,7 +1379,6 @@ _TESTERS = {
     "facturapi": _test_facturapi,
     "belvo": _test_belvo,
     "stripe": _test_stripe,
-    "image_gen": _test_image_gen,
     "mercadopago": _test_mercadopago,
     "clip": _test_clip,
     "conekta": _test_conekta,

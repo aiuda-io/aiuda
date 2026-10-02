@@ -209,17 +209,6 @@ PROVIDERS: dict[str, dict] = {
         "legacy": ["integrations.mercadolibre"],
         "gate": "access_token",
     },
-    # Generación de imágenes (plantilla de Contenido). Solo la api_key es secreto; provider
-    # (fal/openai/custom), base_url (self-host) y model son operativos/públicos. El ctor los
-    # recibe todos para armar el cliente agnóstico (connectors/image_gen.ImageGenClient).
-    "image_gen": {
-        "secret": ["api_key"],
-        "public": ["provider", "base_url", "model"],
-        "ctor": ["provider", "api_key", "base_url", "model"],
-        "settings": {},
-        "legacy": ["integrations.image_gen"],
-        "gate": "api_key",
-    },
     # El canal es a dónde salen los avisos internos (aviso_al_equipo); no es secreto.
     "slack": {
         "secret": ["bot_token"],
