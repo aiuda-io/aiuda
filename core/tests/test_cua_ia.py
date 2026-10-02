@@ -269,3 +269,29 @@ def test_el_runner_ya_no_acepta_identidad_de_otro_cliente():
     el cliente oficial del proveedor. Ya no existe."""
     with pytest.raises(TypeError):
         CuaRunner(system="cualquier cosa")
+
+
+def test_llave_rechazada_se_dice_en_espanol(session, con_portal, navegador, monkeypatch):
+    """Visto en la verificación en vivo: con una llave inválida el recado mostraba el
+    error crudo del SDK. Ahora dice qué pasó y dónde arreglarlo."""
+    import anthropic
+    import httpx
+
+    _conectar(session, con_portal, "claude")
+
+    class Rechaza:
+        def __init__(self):
+            self.beta = SimpleNamespace(messages=self)
+
+        def create(self, **kw):
+            pedido = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+            raise anthropic.AuthenticationError(
+                "Error code: 401", response=httpx.Response(401, request=pedido), body=None
+            )
+
+    monkeypatch.setattr("aiuda_core.engine.llm.build_anthropic_client", lambda cred: Rechaza())
+    recado = fallback.enqueue_cua_mission(session, con_portal, "portal:x")
+    fallback.ejecutar_recado(session, recado)
+    assert recado.status == "failed"
+    assert "no aceptó tu llave" in recado.error and "Proveedor de IA" in recado.error
+    assert "Error code" not in recado.error

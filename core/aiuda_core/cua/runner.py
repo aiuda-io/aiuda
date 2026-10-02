@@ -43,6 +43,35 @@ MSG_SIN_IA = (
 )
 
 
+def _error_para_el_dueno(exc: Exception) -> str:
+    """El fallo del proveedor en palabras del dueño. Sin esto el recado mostraba el
+    error crudo del SDK ("Error code: 401 - {'type': 'error', ...}"), que salió tal
+    cual en la verificación en vivo con una llave inválida. Lo que no se reconoce se
+    deja pasar como viene: mejor el detalle técnico que una frase que lo esconda."""
+    import anthropic
+
+    if isinstance(exc, anthropic.AuthenticationError):
+        return (
+            "Anthropic no aceptó tu llave (401). Revisa en Proveedor de IA que sea "
+            "válida y esté vigente."
+        )
+    if isinstance(exc, anthropic.PermissionDeniedError):
+        return "Tu cuenta de Anthropic no tiene permiso para esto (403)."
+    if isinstance(exc, anthropic.RateLimitError):
+        return (
+            "Anthropic frenó la misión por límite de uso (429). Vuelve a intentarlo "
+            "en unos minutos."
+        )
+    if isinstance(exc, anthropic.APIConnectionError):
+        return "No se pudo conectar con Anthropic (red o tiempo de espera)."
+    if isinstance(exc, anthropic.APIStatusError):
+        return (
+            f"Anthropic rechazó la petición ({exc.status_code}). Puede que el modelo "
+            f"configurado no acepte operar pantallas. Detalle: {str(exc)[:300]}"
+        )
+    return str(exc)
+
+
 def _default_client():
     """Cliente Anthropic asíncrono desde ANTHROPIC_API_KEY (demo) o settings. None si no hay."""
     key = os.environ.get("ANTHROPIC_API_KEY") or getattr(settings, "anthropic_api_key", "")
@@ -222,7 +251,7 @@ class CuaRunner:
             if "Executable doesn't exist" in msg or "playwright install" in msg:
                 result.error = MSG_CHROMIUM_FALTA
             else:
-                result.error = msg
+                result.error = _error_para_el_dueno(exc)
         return result
 
 
