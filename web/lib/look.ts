@@ -88,26 +88,17 @@ const PERFIL_LOOK: Record<string, Appearance> = {
   mariana: { color: 0, hair: "bob", eyes: "round-soft", mouth: "smile-soft", hat: "none", accessory: "glasses", symbol: "coins" },
   // Ventas — afable, sonrisa
   carlos: { color: 3, hair: "short", eyes: "dot", mouth: "line-smile", hat: "none", accessory: "none", symbol: "cart" },
-  // Legal y fiscal — formal, lentes redondos
-  lupita: { color: 1, hair: "bun", eyes: "round-soft", mouth: "flat", hat: "none", accessory: "glasses-round", symbol: "scale" },
   // Recepción — headset
   valeria: { color: 4, hair: "bob", eyes: "dot", mouth: "smile-soft", hat: "headset", accessory: "none", symbol: "chat" },
   // Conciliación — neutro, lentes
   diego: { color: 2, hair: "short", eyes: "dot", mouth: "flat", hat: "none", accessory: "glasses", symbol: "reconcile" },
-  // Compras — casco de obra
-  roberto: { color: 5, hair: "none", eyes: "dot", mouth: "flat", hat: "hard-hat", accessory: "lanyard", symbol: "box" },
-  // Contenido — creativo, pelo con textura
-  memo: { color: 7, hair: "textured", eyes: "line", mouth: "o-talk", hat: "none", accessory: "none", symbol: "pen" },
-  // Prospección — lentes, sonrisa
-  sofia: { color: 6, hair: "bun", eyes: "dot", mouth: "smile-soft", hat: "none", accessory: "glasses", symbol: "target" },
 };
 
 // Alias por slug de ROL: el catálogo capability-first usa "cobranza", "ventas"… (no
 // nombres de persona). Mismas caras curadas, para que las plantillas se vean iguales.
 for (const [persona, rol] of [
-  ["mariana", "cobranza"], ["carlos", "ventas"], ["lupita", "legal"],
-  ["valeria", "recepcion"], ["diego", "conciliacion"], ["roberto", "compras"],
-  ["memo", "contenido"], ["sofia", "prospeccion"],
+  ["mariana", "cobranza"], ["carlos", "ventas"],
+  ["valeria", "recepcion"], ["diego", "conciliacion"],
 ] as const) {
   PERFIL_LOOK[rol] = PERFIL_LOOK[persona];
 }
@@ -123,7 +114,7 @@ function pick(keys: readonly string[], slug: string, salt: string): string {
 }
 
 /**
- * Apariencia de un agente/plantilla por su slug (determinista y estable entre sesiones). Los 8
+ * Apariencia de un agente/plantilla por su slug (determinista y estable entre sesiones). Los 4
  * roles conocidos traen una cara curada; los demás varían pelo/ojos/boca/lentes por hash, pero
  * sin sombrero (los sombreros se reservan a los presets de rol para no verse disfraz).
  */

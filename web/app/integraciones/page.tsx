@@ -29,8 +29,6 @@ const NEEDS: { cap: string; title: string; hint: string }[] = [
   { cap: "directorio_clientes", title: "Tu directorio de clientes", hint: "El maestro de clientes y contactos." },
   { cap: "catalogo_productos", title: "Tu catálogo", hint: "Lo que vendes: productos, precios y existencias." },
   { cap: "agenda", title: "Tu agenda y citas", hint: "Disponibilidad y citas de tu calendario." },
-  { cap: "prospeccion", title: "Encuentra clientes nuevos", hint: "Directorios para prospectar." },
-  { cap: "compras", title: "Compras y proveedores", hint: "Órdenes de compra y abasto." },
 ];
 
 function Logo({ node }: { node: IntegrationNode }) {

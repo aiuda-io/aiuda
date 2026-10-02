@@ -16,7 +16,8 @@ el motor no finge. Verdad verificada del motor (2026-07-07):
   - recepcion: consultar_agenda, buscar_cita (solo lectura).
   - conciliacion: consultar_pagos (lectura) y conciliar (engine/reconcile propone el
                match; el humano confirma en /conciliacion — nunca cierra solo).
-  - el resto:  sin ejecutor todavía.
+Un perfil entra a `PERFILES` solo si tiene al menos una aiudita viva: los que no
+tenían ninguna (legal, compras, contenido, prospección) se retiraron.
 """
 
 from __future__ import annotations
@@ -94,12 +95,8 @@ class Perfil:
 PERFILES: tuple[Perfil, ...] = (
     Perfil("cobranza", "Cobranza", "Vigila tu cartera, redacta recordatorios y registra promesas de pago."),
     Perfil("ventas", "Ventas", "Atiende prospectos y cotiza con tus precios reales."),
-    Perfil("legal", "Legal y fiscal", "Monitorea acuerdos y plazos del SAT y tribunales."),
     Perfil("recepcion", "Recepción", "Responde preguntas frecuentes y agenda citas."),
     Perfil("conciliacion", "Conciliación", "Cruza CFDI contra movimientos bancarios."),
-    Perfil("compras", "Compras", "Rastrea órdenes de compra y califica proveedores."),
-    Perfil("contenido", "Contenido", "Redacta publicaciones y campañas con tu voz de marca."),
-    Perfil("prospeccion", "Prospección", "Encuentra empresas que encajan con tu cliente ideal."),
 )
 
 
@@ -369,15 +366,6 @@ AIUDITAS: tuple[Aiudita, ...] = (
             "Contesta solo con la base de conocimiento que tu negocio aprobó.", lectura=True, reglas_libres=True),
     Aiudita("recepcion.escalar_a_humano", "recepcion", "escalar_a_humano", "Escalar a un humano",
             "Pasa la conversación al humano correcto, con todo el contexto.", lectura=False),
-    # ---- LEGAL Y FISCAL (por conectar) ----
-    Aiudita("legal.consultar_acuerdos", "legal", "consultar_acuerdos", "Consultar acuerdos",
-            "Busca movimiento por expediente en tribunales.", lectura=True, capacidad="expedientes"),
-    Aiudita("legal.calcular_plazo", "legal", "calcular_plazo", "Calcular plazo",
-            "Cuenta los días hábiles restantes por tipo de recurso.", lectura=True),
-    Aiudita("legal.resumir_acuerdo", "legal", "resumir_acuerdo", "Resumir acuerdo",
-            "Traduce el acuerdo a lenguaje simple para WhatsApp.", lectura=True),
-    Aiudita("legal.agendar_vencimiento", "legal", "agendar_vencimiento", "Agendar vencimiento",
-            "Pone el vencimiento en el calendario del responsable.", lectura=False),
     # ---- CONCILIACIÓN (consulta y propuesta de matches vivas; CFDI por conectar) ----
     Aiudita("conciliacion.consultar_pagos", "conciliacion", "consultar_pagos", "Consultar pagos por conciliar",
             "Lee los depósitos detectados y a qué factura corresponden según la propuesta, antes de dar un pago por aplicado.",
@@ -388,27 +376,6 @@ AIUDITAS: tuple[Aiudita, ...] = (
             "Cruza facturas contra depósitos y te propone las coincidencias; tú confirmas cada match.", lectura=False, live=True),
     Aiudita("conciliacion.detectar_irregulares", "conciliacion", "detectar_irregulares", "Detectar irregulares",
             "Marca cancelados, sin comprobante o sin complemento.", lectura=True, capacidad="cfdi"),
-    # ---- COMPRAS (por conectar) ----
-    Aiudita("compras.monitorear_ocs", "compras", "monitorear_ocs", "Monitorear órdenes de compra",
-            "Detecta proveedores que no han confirmado.", lectura=True, capacidad="compras"),
-    Aiudita("compras.comparar_precios", "compras", "comparar_precios", "Comparar precios",
-            "Compara el precio actual contra tu histórico real.", lectura=True, capacidad="catalogo_productos"),
-    Aiudita("compras.sugerir_reorden", "compras", "sugerir_reorden", "Sugerir reorden",
-            "Prepara el borrador de orden de compra para que apruebes.", lectura=False),
-    # ---- CONTENIDO (por conectar) ----
-    Aiudita("contenido.redactar_post", "contenido", "redactar_post", "Redactar publicación",
-            "Escribe posts para IG, FB y LinkedIn con tu voz de marca.", lectura=False, reglas_libres=True),
-    Aiudita("contenido.redactar_campana", "contenido", "redactar_campana", "Redactar campaña",
-            "Arma correos y promociones de temporada.", lectura=False, reglas_libres=True),
-    Aiudita("contenido.programar_publicacion", "contenido", "programar_publicacion", "Programar publicación",
-            "Programa la publicación tras tu aprobación.", lectura=False),
-    # ---- PROSPECCIÓN (por conectar) ----
-    Aiudita("prospeccion.definir_icp", "prospeccion", "definir_icp", "Definir cliente ideal",
-            "Construye tu perfil de cliente ideal con tus mejores clientes reales.", lectura=True, reglas_libres=True),
-    Aiudita("prospeccion.buscar_prospectos", "prospeccion", "buscar_prospectos", "Buscar prospectos",
-            "Encuentra empresas que encajan, por zona y giro, en fuentes públicas.", lectura=True, capacidad="prospeccion"),
-    Aiudita("prospeccion.preparar_ficha", "prospeccion", "preparar_ficha", "Preparar ficha",
-            "Arma la ficha: quién es, por qué encaja y cómo abrir la conversación.", lectura=False),
 )
 
 

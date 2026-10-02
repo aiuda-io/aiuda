@@ -47,7 +47,7 @@ export default function ProductosPage() {
     <div className="min-w-0">
       <PageHeader
         title="Productos"
-        subtitle="Tu catálogo. Lo usan tus ayudantes de ventas y de compras. Súbelo desde Excel."
+        subtitle="Tu catálogo. Lo usan tus ayudantes de ventas. Súbelo desde Excel."
         right={
           <div className="flex items-center gap-2">
             <ExportButton entidad="productos" filtros={{ q: query }} count={rows.length} />

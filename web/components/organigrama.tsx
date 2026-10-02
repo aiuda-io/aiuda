@@ -891,7 +891,7 @@ export function Organigrama({
             <Hangs>
               <TarjetaPunteada
                 title="Suma un ayudante"
-                hint="Recepción, voz, contenido…"
+                hint="Ventas, recepción, conciliación…"
                 onClick={() => setCreating(true)}
               />
             </Hangs>

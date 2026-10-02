@@ -15,7 +15,7 @@ def test_chat_tools_solo_incluye_aiuditas_con_ejecutor():
     assert [t["name"] for t in chat_tools(["cobranza.consultar_cartera"])] == [
         "consultar_cartera"
     ]
-    assert chat_tools(["contenido.redactar_post"]) == []
+    assert chat_tools(["recepcion.agendar_cita"]) == []
 
 
 def test_valeria_consulta_agenda(session, tenant):
