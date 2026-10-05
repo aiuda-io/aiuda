@@ -13,6 +13,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 from datetime import date, datetime, timezone
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import (
@@ -1069,24 +1070,74 @@ def put_business_context(
 
 class ShadowBody(BaseModel):
     activo: bool
+    # Solo al APAGAR: qué hacer con lo que se aprobó en modo de prueba y no salió.
+    # "enviar" lo manda ya; "no_enviar" lo deja en "No salió" para que no se vaya
+    # solo. Sin decirlo, se queda aprobado y la siguiente revisión horaria lo envía.
+    retenidos: Literal["enviar", "no_enviar"] | None = None
+
+
+MOTIVO_NO_ENVIADO_EN_PRUEBA = (
+    "Lo aprobaste en modo de prueba y elegiste no mandarlo al apagarlo. "
+    "Si todavía aplica, reinténtalo."
+)
+
+
+def _retenidos_en_prueba(db, tenant: Tenant) -> list[Reminder]:
+    """Lo aprobado que no ha salido. Con el modo de prueba encendido, eso es
+    exactamente lo que está retenido: al apagarlo, saldría a clientes reales."""
+    return list(
+        db.scalars(
+            select(Reminder)
+            .where(
+                Reminder.tenant_id == tenant.id,
+                Reminder.status == "approved",
+                Reminder.sent_at.is_(None),
+            )
+            .order_by(Reminder.created_at)
+        ).all()
+    )
 
 
 @app.get("/v1/settings/modo-sombra")
-def get_shadow_mode(tenant: Tenant = Depends(get_tenant)):
-    """Modo sombra: el negocio redacta y aprueba pero NO envía a clientes reales."""
-    return {"modo_sombra": bool((tenant.config or {}).get("modo_sombra"))}
+def get_shadow_mode(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
+    """Modo de prueba: el negocio redacta y aprueba pero NO envía a clientes reales.
+    `retenidos` es cuánto hay aprobado sin salir: lo que se iría al apagarlo."""
+    activo = bool((tenant.config or {}).get("modo_sombra"))
+    return {
+        "modo_sombra": activo,
+        "retenidos": len(_retenidos_en_prueba(db, tenant)) if activo else 0,
+    }
 
 
 @app.put("/v1/settings/modo-sombra")
 def put_shadow_mode(
     body: ShadowBody,
     request: Request,
+    background: BackgroundTasks,
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
     principal: Principal = Depends(require_role("admin")),
 ):
-    """Activa/desactiva el modo sombra. Con él encendido nada sale por WhatsApp: lo
-    redactado queda en Aprobaciones para revisar (semana de validación con datos reales)."""
+    """Activa/desactiva el modo de prueba. Con él encendido nada sale a clientes: lo
+    aprobado se queda retenido.
+
+    Al apagarlo, lo retenido deja de estarlo, y eso son mensajes a clientes reales que
+    el dueño aprobó creyendo que no salían. Por eso se le pregunta (`retenidos`):
+    mandarlos ya, o no mandarlos. "No mandarlos" los pasa a `failed` con su motivo
+    (approved a failed es transición válida; nada se borra y cada uno se puede
+    reintentar), que es lo único que los saca del barrido horario de aprobados."""
+    estaba = bool((tenant.config or {}).get("modo_sombra"))
+    retenidos = _retenidos_en_prueba(db, tenant) if estaba and not body.activo else []
+    hecho = None
+    if retenidos and body.retenidos == "no_enviar":
+        for reminder in retenidos:
+            approval.advance(reminder, "failed")
+            reminder.meta = {
+                **(reminder.meta or {}),
+                "motivo_fallo": MOTIVO_NO_ENVIADO_EN_PRUEBA,
+            }
+            db.add(reminder)
+        hecho = "no_enviados"
     _update_config(db, tenant, modo_sombra=body.activo)
     audit.record(
         db,
@@ -1095,10 +1146,27 @@ def put_shadow_mode(
         entity_type="tenant",
         entity_id=tenant.id,
         principal=principal,
-        after={"modo_sombra": body.activo},
+        after={
+            "modo_sombra": body.activo,
+            "retenidos": len(retenidos),
+            "retenidos_accion": body.retenidos if retenidos else None,
+        },
         ip=request.client.host if request.client else None,
     )
-    return {"modo_sombra": body.activo}
+    if retenidos and body.retenidos == "enviar":
+        # El envío relee la config: tiene que encontrar el modo de prueba YA apagado.
+        db.commit()
+        from aiuda_server.worker.main import send_reminder_blocking
+
+        for reminder in retenidos:
+            background.add_task(send_reminder_blocking, tenant.id, reminder.id)
+        hecho = "enviando"
+    return {
+        "modo_sombra": body.activo,
+        "retenidos": len(retenidos),
+        # enviando | no_enviados | None (no había nada, o se quedó aprobado).
+        "retenidos_accion": hecho,
+    }
 
 
 class VentanaEnvioBody(BaseModel):

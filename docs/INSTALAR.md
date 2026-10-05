@@ -113,6 +113,21 @@ Instalar no basta: aiuda necesita una IA y una fuente de datos.
 - **Teléfono (opcional):** la app de iPhone, dentro del WiFi de tu oficina. Ver
   [APARATOS.md](APARATOS.md).
 
+## Empiezas en modo de prueba
+
+La primera vez que abres aiuda, un asistente te pregunta el nombre de tu negocio,
+conecta tu IA y carga tu cartera, todo en la misma ventana. Al terminar, tu
+negocio queda en **modo de prueba**: tu ayudante redacta y tú apruebas, pero
+nada sale a tus clientes. Sirve para ver cómo escribe antes de mandar de verdad.
+
+Se apaga en **Ajustes**, sección **Negocio**. Si para entonces ya aprobaste
+mensajes, aiuda te pregunta qué hacer con ellos: mandarlos en ese momento, o no
+mandarlos. Los que no mandes quedan en Hoy, en "No salió", y puedes reintentar
+el que quieras.
+
+Esto es solo para instalaciones nuevas. Si ya usabas aiuda y ya enviabas, nada
+cambia: sigues enviando.
+
 ## El manual va adentro
 
 No hay que buscar nada en internet: este manual viaja dentro de aiuda. En la
