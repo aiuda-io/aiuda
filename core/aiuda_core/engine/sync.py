@@ -1377,11 +1377,14 @@ _SAT_SOLTADA = (
     "No se pudieron leer los comprobantes que entregó el SAT. aiuda los pide de "
     "nuevo mañana."
 )
+_SAT_SIN_RESPUESTA = "El SAT no contestó. aiuda vuelve a pedir mañana."
 # Cuántas veces se reintenta antes de soltar y pedir otro día. Bajar: el SAT
 # entrega cada paquete dos veces. Importar: lee de la copia guardada, no le
 # cuesta nada al SAT.
 _SAT_INTENTOS_BAJAR = 2
 _SAT_INTENTOS_IMPORTAR = 3
+# Pedir: solo se reintenta cuando la petición ni siquiera salió (sin red).
+_SAT_INTENTOS_PEDIR = 3
 
 
 def _sat_codigo(st: dict, sol: dict, codigo: str, rfc: str, scope: str,
@@ -1558,8 +1561,28 @@ def _sat_traer(
     sol = {"desde": inicio.isoformat(), "hasta": fin.isoformat()}
     if f"{sol['desde']}|{sol['hasta']}" in (st.get("agotadas") or []):
         return  # ese periodo exacto ya se agotó (5002): jamás re-pedirlo
-    r = pedir(inicio, fin)
+    try:
+        r = pedir(inicio, fin)
+    except Exception as exc:  # noqa: BLE001 — se anota AQUÍ para que no se pierda
+        # Si esto se dejara subir, el estado se deshacía y cada vuelta mandaba la
+        # misma solicitud otra vez. Cuando el SAT no contesta a tiempo pudo
+        # haberla recibido: hoy ya no se insiste. Solo si la petición ni salió
+        # (sin red) se reintenta, y pocas veces.
+        log.warning("SAT %s (%s): %s", rfc, scope, exc)
+        hoy = today.isoformat()
+        previos = st.get("sin_salir") or {}
+        intentos = (previos.get("n", 0) if previos.get("dia") == hoy else 0) + 1
+        if getattr(exc, "sin_enviar", False) and intentos < _SAT_INTENTOS_PEDIR:
+            st["sin_salir"] = {"dia": hoy, "n": intentos}
+            st["aviso"] = _SAT_FALLO
+        else:
+            st.pop("sin_salir", None)
+            st["pedida_el"] = hoy
+            st["aviso"] = _SAT_SIN_RESPUESTA
+        report.avisos.append(f"SAT {rfc} ({scope}): no se pudo pedir. {st['aviso']}")
+        return
     # El SAT ya contestó: aceptada o no, hoy no se vuelve a pedir lo mismo.
+    st.pop("sin_salir", None)
     st["pedida_el"] = today.isoformat()
     id_solicitud = r.get("IdSolicitud")
     if id_solicitud:

@@ -32,6 +32,10 @@ class SatCredencialInvalida(ValueError):
 class SatSinRespuesta(RuntimeError):
     """El SAT no contestó a tiempo o no se pudo llegar a él."""
 
+    # True solo cuando es seguro que la petición NO salió (no hubo conexión). Si
+    # el SAT se quedó callado después de recibirla, pudo haberla aceptado.
+    sin_enviar = False
+
 
 # Segundos que se espera al SAT: (para conectar, entre un tramo de respuesta y
 # el siguiente). satcfdi llama a requests.post SIN límite, así que un SAT colgado
@@ -61,6 +65,19 @@ def _satcfdi():
         ) from exc
 
 
+def _no_conecto(exc: Exception) -> bool:
+    """¿La petición ni siquiera salió? Solo si falló al ABRIR la conexión (sin
+    red, DNS, el SAT no aceptó la conexión a tiempo). Cualquier otro corte pudo
+    ocurrir con la petición ya entregada."""
+    import requests
+    from urllib3.exceptions import NewConnectionError
+
+    if isinstance(exc, requests.ConnectTimeout):
+        return True
+    causa = getattr(exc.args[0] if exc.args else None, "reason", None)
+    return isinstance(causa, NewConnectionError)
+
+
 def _servicio(signer):
     """El cliente del SAT de satcfdi con límite de tiempo en cada llamada.
 
@@ -83,10 +100,9 @@ def _servicio(signer):
                     timeout=SAT_TIMEOUT,
                 )
             except (requests.Timeout, requests.ConnectionError) as exc:
-                raise SatSinRespuesta(
-                    "el SAT no contestó a tiempo; se intenta de nuevo en la "
-                    "siguiente corrida"
-                ) from exc
+                error = SatSinRespuesta("el SAT no contestó a tiempo")
+                error.sin_enviar = _no_conecto(exc)
+                raise error from exc
             if not response.ok:
                 raise ResponseError(response)
             return etree.fromstring(response.content, parser=parser)

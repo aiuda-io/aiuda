@@ -274,3 +274,21 @@ def test_un_sat_colgado_no_cuelga_la_corrida(fiel, monkeypatch):
     assert not hilo.is_alive(), "la llamada al SAT se quedó colgada"
     assert isinstance(resultado[0], SatSinRespuesta)
     assert "no contestó a tiempo" in str(resultado[0])
+
+
+def test_solo_un_fallo_al_conectar_cuenta_como_no_enviada():
+    """Para decidir si se puede reintentar hoy: solo cuando es seguro que la
+    petición no salió. Un corte a media respuesta pudo ocurrir con la solicitud
+    ya entregada al SAT."""
+    import requests
+    from urllib3.exceptions import MaxRetryError, NewConnectionError
+
+    from aiuda_core.connectors.sat_descarga import _no_conecto
+
+    sin_red = requests.ConnectionError(
+        MaxRetryError(None, "/", reason=NewConnectionError(None, "sin red"))
+    )
+    assert _no_conecto(requests.ConnectTimeout()) is True
+    assert _no_conecto(sin_red) is True
+    assert _no_conecto(requests.ReadTimeout()) is False
+    assert _no_conecto(requests.ConnectionError("Connection aborted.")) is False

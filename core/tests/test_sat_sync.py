@@ -558,6 +558,54 @@ def test_no_cierra_la_factura_de_otra_fuente_con_otro_comprobante(session, tenan
     assert session.scalar(select(CfdiBoveda)).meta["cancelado"] is True
 
 
+# --- Cuando el SAT no contesta: la solicitud pudo haber llegado ---------------- #
+
+
+class _Callado(FakeSat):
+    """Recibe la solicitud y no contesta (o ni siquiera hay red)."""
+
+    sin_enviar = False
+
+    def solicitar(self, scope, desde, hasta):
+        from aiuda_core.connectors.sat_descarga import SatSinRespuesta
+
+        self.solicitudes.append((scope, desde.isoformat(), hasta.isoformat()))
+        error = SatSinRespuesta("el SAT no contestó a tiempo")
+        error.sin_enviar = self.sin_enviar
+        raise error
+
+
+def test_si_el_sat_no_contesta_no_se_repite_la_solicitud(session, tenant):
+    """El defecto: la marca de 'ya se pidió hoy' se ponía DESPUÉS de la respuesta.
+    Si el SAT se quedaba callado, cada corrida horaria mandaba la misma solicitud
+    otra vez, encima de una que quizá sí había aceptado."""
+    fake = _Callado()
+    for _hora in range(5):
+        r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    emitidas = [s for s in fake.solicitudes if s[0] == "emitidas"]
+    assert len(emitidas) == 1
+    st = _estado(tenant, HANOVA)["emitidas"]
+    assert st["pedida_el"] == HOY.isoformat()
+    assert "no contestó" in st["aviso"]
+    assert r.avisos == []  # la quinta corrida ya no habla con el SAT
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})
+    emitidas = [s for s in fake.solicitudes if s[0] == "emitidas"]
+    assert len(emitidas) == 2 and emitidas[0] != emitidas[1]  # mañana, fechas nuevas
+
+
+def test_sin_red_se_reintenta_pero_pocas_veces(session, tenant):
+    """Si la petición ni siquiera salió (sin red) no hay riesgo de repetirla:
+    se reintenta en la siguiente vuelta, con tope."""
+    fake = _Callado()
+    fake.sin_enviar = True
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert "pedida_el" not in _estado(tenant, HANOVA)["emitidas"]
+    for _hora in range(10):
+        sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert len([s for s in fake.solicitudes if s[0] == "emitidas"]) == 3
+    assert _estado(tenant, HANOVA)["emitidas"]["pedida_el"] == HOY.isoformat()
+
+
 # --- Un paquete que no se puede leer no detiene la dirección para siempre ------ #
 
 
