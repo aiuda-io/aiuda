@@ -1307,11 +1307,14 @@ export const api = {
     ),
   provider: () => request<ProviderState>("/v1/provider"),
   saveProvider: (name: ProviderName, mode: ProviderMode, secret: string) =>
-    request<{ name: ProviderName; mode: ProviderMode; connected: boolean }>("/v1/provider", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, mode, secret }),
-    }),
+    request<{ name: ProviderName; mode: ProviderMode; connected: boolean; aviso?: string }>(
+      "/v1/provider",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, mode, secret }),
+      },
+    ),
   disconnectProvider: () =>
     request<{ connected: boolean; env_fallback: boolean; aviso?: string }>("/v1/provider", {
       method: "DELETE",

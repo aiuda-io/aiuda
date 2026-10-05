@@ -442,6 +442,17 @@ def olvidar(tenant_id: str) -> None:
         _ultimo.pop(tenant_id, None)
 
 
+def soltar(session, tenant_id: str) -> dict:
+    """Al desconectar o cambiar de IA: devuelve el bundle vigente (para revocarlo) y lo
+    quita de la memoria. Toma el candado, así que espera a una renovación en curso y lo
+    que devuelve ya es el token que esa renovación dejó. {} si la IA no era ChatGPT."""
+    with _candado:
+        try:
+            return bundle_actual(session, tenant_id)
+        finally:
+            _ultimo.pop(tenant_id, None)
+
+
 def _ya_escribe(session) -> bool:
     """¿La sesión de quien llama ya tiene abierta una transacción de escritura?"""
     try:

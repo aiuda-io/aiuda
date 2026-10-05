@@ -132,8 +132,9 @@ export default function ProviderPage() {
     setTestResult(null);
     try {
       const modo = name === "claude_cli" || name === "codex_cli" ? "cli" : "api_key";
-      await api.saveProvider(name, modo, valor);
-      toast("Tu IA quedó conectada.", "success");
+      const r = await api.saveProvider(name, modo, valor);
+      // Venías de ChatGPT y OpenAI no confirmó el cierre de esa sesión: se dice.
+      toast(r.aviso ?? "Tu IA quedó conectada.", r.aviso ? "error" : "success");
       refetch();
       probar();
     } catch (e) {

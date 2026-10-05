@@ -448,6 +448,56 @@ def test_desconectar_sin_poder_avisar_a_openai_borra_igual_y_lo_dice(falso, clie
     assert db_session.scalar(select(IntegrationCredential)) is None
 
 
+# --- cambiar de ChatGPT a otra IA --------------------------------------------
+@pytest.mark.parametrize("secreto", ["", "••••••"])
+def test_guardar_otra_ia_sin_su_llave_no_hereda_los_tokens_de_chatgpt(
+    falso, client, db_session, tenant, secreto
+):
+    """Con ChatGPT conectado, un PUT de otro proveedor sin llave NO puede quedarse con
+    lo guardado: serían los tokens del dueño etiquetados como la API key de otro."""
+    _entrar(client)
+    antes = _bundle(db_session, tenant)
+
+    for name in ("claude", "codex"):
+        r = client.put("/v1/provider", json={"name": name, "mode": "api_key", "secret": secreto})
+        assert r.status_code == 400, r.text
+    estado = client.get("/v1/provider").json()
+    assert estado["name"] == "chatgpt" and estado["connected"] is True
+    assert _bundle(db_session, tenant)["refresh_token"] == antes["refresh_token"]
+    assert falso.visto["revoke"] == []
+
+
+def test_guardar_otra_ia_cierra_la_sesion_de_chatgpt(falso, client, db_session, tenant):
+    _entrar(client)
+    bundle = _bundle(db_session, tenant)
+
+    r = client.put("/v1/provider", json={"name": "codex", "mode": "api_key", "secret": "sk-mia"})
+    assert r.json() == {"name": "codex", "mode": "api_key", "connected": True}
+    assert falso.visto["revoke"][-1]["token"] == bundle["refresh_token"]
+    assert chatgpt_auth._ultimo == {}
+    from aiuda_core.connectors import credentials
+
+    db_session.expire_all()
+    fila = credentials.read_stored(db_session, tenant.id, "ia")
+    assert (fila["name"], fila["mode"], fila["secret"]) == ("codex", "api_key", "sk-mia")
+    # El registro de la app se conserva, igual que al desconectar.
+    assert client.get("/v1/provider").json()["chatgpt"]["registrada"] is True
+
+
+def test_guardar_otra_ia_sin_poder_avisar_a_openai_guarda_igual_y_lo_dice(
+    falso, client, monkeypatch
+):
+    import aiuda_core.engine.cli_runner as cli
+
+    monkeypatch.setattr(cli, "detectar", lambda nombre: "/usr/local/bin/claude")
+    _entrar(client)
+    falso.modo["revoke"] = "caido"
+    r = client.put("/v1/provider", json={"name": "claude_cli", "mode": "cli", "secret": ""}).json()
+    assert r["connected"] is True and r["name"] == "claude_cli"
+    assert "no pudimos confirmar la desconexión con OpenAI" in r["aviso"]
+    assert chatgpt_auth._ultimo == {}
+
+
 # --- el chat y el log --------------------------------------------------------
 def _ayudante(client) -> str:
     return client.post("/v1/ayudantes", json={"name": "Ayudante de prueba"}).json()["id"]

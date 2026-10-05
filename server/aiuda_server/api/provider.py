@@ -211,6 +211,7 @@ def save_provider(
                 status_code=400,
                 detail=f"No encontré {binario} en esta computadora.",
             )
+        aviso = _soltar_chatgpt(db, tenant)
         cred.set_credential(db, tenant.id, IA, {"name": name, "mode": "cli", "secret": ""})
         _scrub_legacy(db, tenant)
         db.flush()
@@ -223,7 +224,7 @@ def save_provider(
             principal=actor,
             after={"name": name, "mode": "cli"},
         )
-        return {"name": name, "mode": "cli", "connected": True}
+        return _guardada(name, "cli", aviso)
 
     secret = (body.secret or "").strip()
     # No sobreescribir el secreto guardado con el placeholder enmascarado u omisión:
@@ -239,13 +240,20 @@ def save_provider(
                     "(revisa la clave de cifrado). Vuelve a capturar el token."
                 ),
             )
-        secret = (prev.get("secret") or "").strip()
-        if not secret:
-            legacy = _legacy_provider(tenant)
-            secret = (legacy.get("secret") or "").strip() if legacy else ""
+        # Solo se conserva el secreto de ESTE mismo proveedor. El de otro no le sirve, y
+        # si lo guardado son los tokens de ChatGPT, heredarlos sería mandárselos como
+        # si fueran una llave al proveedor que se está conectando.
+        if prev:
+            mismo = (prev.get("name") or "claude") == name
+            secret = (prev.get("secret") or "").strip() if mismo else ""
+        else:
+            legacy = _legacy_provider(tenant) or {}
+            mismo = (legacy.get("name") or "claude") == name
+            secret = (legacy.get("secret") or "").strip() if mismo else ""
     if not secret:
         raise HTTPException(status_code=400, detail="Falta el token o la API key.")
 
+    aviso = _soltar_chatgpt(db, tenant)
     cred.set_credential(db, tenant.id, IA, {"name": name, "mode": mode, "secret": secret})
     _scrub_legacy(db, tenant)
     db.flush()
@@ -258,7 +266,32 @@ def save_provider(
         principal=actor,
         after={"name": name, "mode": mode},  # nunca el secreto
     )
-    return {"name": name, "mode": mode, "connected": True}
+    return _guardada(name, mode, aviso)
+
+
+_SIN_CONFIRMAR = (
+    "no pudimos confirmar la desconexión con OpenAI. Quita aiuda desde la configuración "
+    "de ChatGPT."
+)
+
+
+def _soltar_chatgpt(db, tenant: Tenant) -> bool:
+    """Antes de borrar o reemplazar la IA guardada: si era ChatGPT, se le avisa a OpenAI
+    que esa sesión terminó y se suelta de la memoria del proceso. True si había una
+    sesión y OpenAI NO confirmó (se le dice al dueño). Nunca impide el cambio."""
+    try:
+        bundle = chatgpt_auth.soltar(db, tenant.id)
+    except Exception:  # noqa: BLE001 — sin descifrado igual se desconecta
+        chatgpt_auth.olvidar(tenant.id)
+        return False
+    return bool(bundle.get("refresh_token")) and not chatgpt_auth.revocar(bundle)
+
+
+def _guardada(name: str, mode: str, sin_confirmar: bool) -> dict:
+    out = {"name": name, "mode": mode, "connected": True}
+    if sin_confirmar:
+        out["aviso"] = f"Tu IA quedó conectada, pero {_SIN_CONFIRMAR}"
+    return out
 
 
 @router.delete("/v1/provider")
@@ -278,16 +311,8 @@ def disconnect_provider(
         # ChatGPT: primero se le avisa a OpenAI que la sesión terminó, y pase lo que
         # pase se borra de aquí. Si no lo confirmó, se dice. El registro de la app
         # (tenant.config['chatgpt']) se conserva para que volver a entrar no cree otra.
-        try:
-            bundle = chatgpt_auth.bundle_actual(db, tenant.id)
-        except Exception:  # noqa: BLE001 — sin descifrado igual se desconecta
-            bundle = {}
-        if bundle.get("refresh_token") and not chatgpt_auth.revocar(bundle):
-            aviso = (
-                "Se borró de esta computadora, pero no pudimos confirmar la desconexión "
-                "con OpenAI. Quita aiuda desde la configuración de ChatGPT."
-            )
-        chatgpt_auth.olvidar(tenant.id)
+        if _soltar_chatgpt(db, tenant):
+            aviso = f"Se borró de esta computadora, pero {_SIN_CONFIRMAR}"
         db.delete(row)
     _scrub_legacy(db, tenant)
     db.flush()
