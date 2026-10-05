@@ -45,10 +45,11 @@ class Settings(BaseSettings):
     # Canal de WhatsApp por default cuando el tenant no declara su vía: "wacli".
     whatsapp_provider: str = "wacli"
     # Comando de envío de wacli; placeholders {bin}, {phone} y {message}.
-    # wacli 0.8.x: `send` exige el subcomando `text` con --to/--message. El sync propio
-    # se pausa para enviar (server/aiuda_server/wacli_sync.py); --lock-wait cubre el caso
-    # de que OTRO programa tenga el store (un `wacli sync` que el dueño corrió a mano).
-    wacli_send_template: str = "{bin} send text --to {phone} --message {message} --lock-wait 30s"
+    # wacli 0.8.x: `send` exige el subcomando `text` con --to/--message. Va SIN
+    # --lock-wait: con un sync vivo (el del server u otro) wacli le delega el envío
+    # y sale en 2 o 3 s; con --lock-wait primero espera el plazo completo. La espera
+    # la agrega el conector solo si el store está ocupado (connectors/wacli.py).
+    wacli_send_template: str = "{bin} send text --to {phone} --message {message}"
     # Binario de wacli. El default deja que aiuda lo resuelva (el que instaló, o el del
     # sistema: connectors/wacli_bin.py); otro valor fija una ruta explícita.
     wacli_bin: str = "wacli"

@@ -99,8 +99,9 @@ WhatsApp con tu número sí trae un proceso aparte, pero no lo opera nadie a man
 `server/aiuda_server/wacli_sync.py` es dueño del `wacli sync --follow` de cada
 negocio vinculado (mantiene la sesión conectada y llena el espejo local que el
 sondeo lee) y del `wacli auth` del emparejamiento. Lo arranca al abrir, lo
-detiene para enviar (wacli deja un solo proceso por store) y lo reanuda, lo
-relanza si muere y lo termina al apagar. El binario lo resuelve
+relanza si muere y lo termina al apagar. Para enviar no lo detiene: con un sync
+vivo, `wacli send` le pasa el mensaje a ese proceso y sale en 2 o 3 segundos
+sin soltar la conexión. El binario lo resuelve
 `core/aiuda_core/connectors/wacli_bin.py`, siempre por ruta absoluta: el que
 instaló la consola en `~/.aiuda/bin`, o el del sistema.
 

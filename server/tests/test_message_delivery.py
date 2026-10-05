@@ -230,68 +230,6 @@ def test_worker_resiliente_a_error_de_envio(monkeypatch):
     worker_main.send_human_message_blocking("tid", "5215599998888", "Hola")
 
 
-def _pausa_espia(monkeypatch, events):
-    """Sustituye la pausa del supervisor por una que anota cuándo entra y sale."""
-    from contextlib import contextmanager
-
-    from aiuda_server import wacli_sync
-
-    @contextmanager
-    def pausado(instance):
-        events.append(("pausa", instance))
-        try:
-            yield
-        finally:
-            events.append(("reanuda", instance))
-
-    monkeypatch.setattr(wacli_sync, "pausado", pausado)
-
-
-def test_worker_pausa_sync_alrededor_del_envio(monkeypatch):
-    """El envío pausa el sync del negocio ANTES y lo reanuda DESPUÉS (así suelta el
-    lock del store y el envío no espera)."""
-    t = Tenant(name="T", owner_phone="1", evolution_instance="inst",
-               config={"integrations": {"whatsapp": {"via": "wacli"}}})
-    monkeypatch.setattr(worker_main, "session_scope", _fake_scope(t))
-    events: list = []
-    _pausa_espia(monkeypatch, events)
-    monkeypatch.setattr(
-        worker_main, "get_whatsapp_sender",
-        lambda wa, window=None: (lambda phone, text: events.append(("send", phone))),
-    )
-    worker_main.send_human_message_blocking("tid", "5215599998888", "Hola")
-    assert events == [("pausa", "inst"), ("send", "5215599998888"), ("reanuda", "inst")]
-
-
-def test_worker_reinicia_sync_aunque_falle_el_envio(monkeypatch):
-    """El sync se reanuda pase lo que pase: si el envío truena, igual vuelve."""
-    t = Tenant(name="T", owner_phone="1", evolution_instance="inst",
-               config={"integrations": {"whatsapp": {"via": "wacli"}}})
-    monkeypatch.setattr(worker_main, "session_scope", _fake_scope(t))
-    events: list = []
-    _pausa_espia(monkeypatch, events)
-
-    def boom(wa, window=None):
-        def _s(phone, text):
-            raise RuntimeError("envío falló")
-        return _s
-
-    monkeypatch.setattr(worker_main, "get_whatsapp_sender", boom)
-    worker_main.send_human_message_blocking("tid", "5215599998888", "Hola")
-    assert events == [("pausa", "inst"), ("reanuda", "inst")]
-
-
-def test_worker_cloud_no_pausa_nada(monkeypatch):
-    """La Cloud API es HTTP: no hay store ni sync que pausar."""
-    from aiuda_core.connectors.channel import WhatsAppInstance
-
-    events: list = []
-    _pausa_espia(monkeypatch, events)
-    with worker_main._pause_for(WhatsAppInstance(provider="whatsapp_cloud", instance="inst")):
-        pass
-    assert events == []
-
-
 def test_worker_archivo_borra_temporal(monkeypatch, tmp_path):
     t = Tenant(name="T", owner_phone="1", evolution_instance="inst",
                config={"integrations": {"whatsapp": {"via": "wacli"}}})

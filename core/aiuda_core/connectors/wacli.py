@@ -139,6 +139,24 @@ class WacliClient:
         digits = normalize_mx(phone)
         return f"{digits}@s.whatsapp.net" if digits else digits
 
+    def _enviar(self, command: list[str]) -> None:
+        """Corre un `send`. Va sin --lock-wait: con un sync vivo (el del server o
+        el de otro programa) wacli le delega el envío por su socket y sale en 2 o
+        3 segundos, sin que el sync suelte la conexión; con --lock-wait esperaría
+        primero el plazo completo (visto con wacli 0.18.2: 32 s). Solo si el store
+        está ocupado por algo que no es un sync (otro envío directo, por ejemplo)
+        se repite, ahora sí esperando el candado. "Store is locked" es de antes de
+        conectar: ese intento no mandó nada."""
+        while True:
+            result = self._run(command)
+            if result.returncode == 0:
+                return
+            error = result.stderr.strip() or f"wacli salió con {result.returncode}"
+            if "store is locked" in error.lower() and "--lock-wait" not in command:
+                command = [*command, "--lock-wait", "30s"]
+            else:
+                raise WacliError(error)
+
     def send_text(self, phone: str, text: str) -> None:
         recipient = self._jid(phone)
         # Sustitución por token DESPUÉS de shlex.split: {message} es un solo token, así
@@ -147,29 +165,25 @@ class WacliClient:
             part.replace("{bin}", self.bin).replace("{phone}", recipient).replace("{message}", text)
             for part in shlex.split(self.send_template)
         ] + self._store_args()
-        result = self._run(command)
-        if result.returncode != 0:
-            raise WacliError(result.stderr.strip() or f"wacli salió con {result.returncode}")
+        self._enviar(command)
 
     def send_file(self, phone: str, file_path: str, caption: str = "", filename: str | None = None) -> None:
         """Envía un archivo (PDF, imagen, etc.) por `wacli send file`. El archivo debe
         existir en disco. Flags fijas (verificadas en 0.8.1): wacli detecta el tipo."""
         command = [self.bin, "send", "file", "--to", self._jid(phone), "--file", file_path,
-                   "--lock-wait", "30s", *self._store_args()]
+                   *self._store_args()]
         if caption:
             command += ["--caption", caption]
         if filename:
             command += ["--filename", filename]
-        result = self._run(command)
-        if result.returncode != 0:
-            raise WacliError(result.stderr.strip() or f"wacli salió con {result.returncode}")
+        self._enviar(command)
 
     def _read_data(self, args: list[str]):
         """Corre un subcomando de lectura con --json y devuelve el campo `data` crudo.
 
         El shape varía por comando: `chats list` da data=[...]; `messages list` da
         data={fts, messages:[...]}. Cada método normaliza. Las lecturas no compiten
-        con el sync por el lock; van directo.
+        con el sync por el candado; van directo.
         """
         result = self._run([self.bin, *args, *self._store_args(), "--json"])
         if result.returncode != 0:

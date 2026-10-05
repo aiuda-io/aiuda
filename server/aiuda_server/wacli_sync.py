@@ -7,7 +7,8 @@ terminal y el segundo se quedaba vivo, con el candado del store, si cerraba la
 ventana sin escanear. Aquí los dos tienen un solo dueño:
 
 - se arranca el sync de cada negocio con WhatsApp vinculado, y después de emparejar;
-- se pausa para enviar (wacli solo deja un proceso por store) y se reanuda;
+- no se detiene para enviar: con un sync vivo, `wacli send` le pasa el mensaje
+  por su socket y sale en 2 o 3 segundos sin soltar la conexión;
 - si muere, se relanza con espera creciente; si WhatsApp cerró la sesión, no;
 - al apagar aiuda se detiene todo, por las tres salidas del proceso;
 - nunca hay dos: uno por instancia, y un archivo de pid delata al que haya
@@ -28,7 +29,6 @@ import signal
 import subprocess
 import threading
 import time
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,9 +59,6 @@ _ESPERAS = (5.0, 15.0, 60.0, 300.0)
 _ESPERA_EXTERNO = 60.0
 # Un QR que nadie escanea no se queda con el candado para siempre.
 _VINCULACION_MAX_S = 180.0
-# Tras un envío el sync vuelve con una pausa corta: una tanda de mensajes
-# seguidos no lo prende y apaga por cada uno.
-_REANUDAR_S = 2.0
 _TICK_S = 0.5
 
 
@@ -79,7 +76,6 @@ class _Canal:
     telefono: str | None = None
     ultimo_error: str = ""  # texto crudo de wacli; a la consola llega traducido
     deseado: bool = False  # el server quiere un sync vivo para esta instancia
-    pausas: int = 0  # envíos en curso
     proximo: float = 0.0  # monotonic: no relanzar antes
     caidas: int = 0
     vence: float = 0.0  # monotonic: hasta cuándo se espera el escaneo
@@ -363,7 +359,7 @@ def _vigilar() -> None:
             ahora = time.monotonic()
             for canal in _canales.values():
                 if canal.proc is None:
-                    if canal.deseado and canal.pausas == 0 and ahora >= canal.proximo:
+                    if canal.deseado and ahora >= canal.proximo:
                         _lanzar(canal, "sync")
                 elif canal.tipo == "auth" and ahora >= canal.vence:
                     vencidos.append(canal)
@@ -437,7 +433,7 @@ def arrancar(instance: str, store_dir: str | None) -> str:
         canal.telefono = datos.get("phone") or canal.telefono
         if not canal.deseado:
             canal.deseado, canal.caidas, canal.proximo = True, 0, 0.0
-        if canal.pausas == 0 and time.monotonic() >= canal.proximo:
+        if time.monotonic() >= canal.proximo:
             _lanzar(canal, "sync")
         return canal.estado
 
@@ -471,34 +467,6 @@ def asegurar(instance: str, store_dir: str | None) -> None:
         ):
             return
     arrancar(instance, store_dir)
-
-
-@contextmanager
-def pausado(instance: str):
-    """Suelta el store mientras dura un envío: wacli solo deja un proceso por
-    store, y `send` necesita el candado que el sync tiene tomado. Al salir, el
-    vigía lo reanuda. Un emparejamiento en curso no se interrumpe."""
-    with _lock:
-        canal = _canales.get(instance)
-        if canal is not None:
-            canal.pausas += 1
-    detuvo = False
-    try:
-        if canal is not None and canal.tipo == "sync":
-            _detener_proc(canal)
-            detuvo = True
-        yield
-    finally:
-        if canal is not None:
-            with _lock:
-                canal.pausas -= 1
-                # Solo si ESTE envío detuvo un sync vuelve "conectando": uno que ya
-                # estaba caído o en manos de otro programa sigue diciendo lo suyo.
-                if detuvo and canal.deseado and canal.proc is None:
-                    canal.proximo = max(canal.proximo, time.monotonic() + _REANUDAR_S)
-                    _fijar(canal, CONECTANDO)
-                if canal.deseado:
-                    _asegurar_vigia()
 
 
 def vincular(instance: str, store_dir: str | None, espera_s: float = 15.0) -> str | None:

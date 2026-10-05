@@ -15,7 +15,6 @@ negocio.
 
 import logging
 import threading
-from contextlib import contextmanager, nullcontext as _nullcontext
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -41,36 +40,10 @@ from aiuda_core.models import Conversation, Customer, Invoice, Message, Reminder
 MX_TZ = ZoneInfo("America/Mexico_City")
 log = logging.getLogger("aiuda.worker")
 
-# Un envío a la vez por proceso: pausar/reanudar el sync de wacli no puede solaparse
-# (dos envíos pisándose volverían a chocar con el lock). Serializa también los envíos
-# del chat para que no compitan por el store.
-_send_lock = threading.Lock()
-
 # Una corrida diaria a la vez por proceso: dos disparos solapados del cron redactarían y
 # auto-enviarían la MISMA cobranza dos veces (ambos leen "sin recordatorio activo" a la vez).
 # Asume uvicorn de un solo worker (config del VPS mono-usuario).
 _daily_lock = threading.Lock()
-
-
-@contextmanager
-def _sync_paused(wa):
-    """Libera el store de wacli durante el envío y reanuda el sync al terminar.
-
-    `wacli sync --follow` retiene el candado del store y `wacli send` lo necesita.
-    El sync es del propio server (``wacli_sync``): se detiene, se envía y vuelve
-    solo. Serializado por `_send_lock` para que dos envíos no se pisen. Si el
-    candado lo tiene un programa ajeno (el dueño corrió wacli en una terminal),
-    aquí no hay nada que pausar y el envío cae al --lock-wait de la plantilla."""
-    from aiuda_server import wacli_sync
-
-    with _send_lock, wacli_sync.pausado(wa.instance):
-        yield
-
-
-def _pause_for(wa) -> object:
-    """Contexto de envío según el provider: sólo wacli pelea el lock del store con su
-    sync; la Cloud API es HTTP y no necesita pausar nada."""
-    return _sync_paused(wa) if (wa is not None and wa.provider == "wacli") else _nullcontext()
 
 
 def _today():
@@ -174,8 +147,6 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
         if match_key(conversation.remote_phone) not in telefonos_atendidos(session, tenant):
             return
         engine = _build_engine(session, tenant)
-        # Todo lo que sale de aquí por wacli pausa el sync propio, igual que los
-        # demás envíos: sin eso choca con el candado que tiene nuestro `sync --follow`.
         wa = resolve_whatsapp(session, tenant)
 
         # ¿Es el dueño? Sus mensajes pueden ser comandos de aprobación. Se compara por los
@@ -189,8 +160,7 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
 
             owner_reply = handle_owner_command(session, tenant, message.body)
             if owner_reply is not None:
-                with _pause_for(wa):
-                    engine.send_whatsapp(tenant.owner_phone, owner_reply.text)
+                engine.send_whatsapp(tenant.owner_phone, owner_reply.text)
                 session.add(
                     Message(
                         tenant_id=tenant.id,
@@ -204,8 +174,7 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
                     # el cliente pidió la baja, se marca el veredicto y se SIGUE — una
                     # excepción aquí haría rollback y perdería la respuesta al dueño.
                     try:
-                        with _pause_for(wa):
-                            engine.send(reminder, phone)
+                        engine.send(reminder, phone)
                     except OptedOut:
                         from aiuda_core.engine import approval
 
@@ -238,8 +207,7 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
             mark_opt_out(session, tenant, conversation.remote_phone, via="whatsapp")
             if engine.send_whatsapp is not None:
                 try:
-                    with _pause_for(wa):
-                        engine.send_whatsapp(conversation.remote_phone, OPT_OUT_CONFIRMATION)
+                    engine.send_whatsapp(conversation.remote_phone, OPT_OUT_CONFIRMATION)
                 except Exception as exc:  # noqa: BLE001 — la baja queda aunque la confirmación falle
                     log.warning("confirmación de baja no enviada: %s", exc)
             session.add(
@@ -280,8 +248,7 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
             return
         if not reply.strip():
             return
-        with _pause_for(wa):
-            engine.send_whatsapp(conversation.remote_phone, reply)
+        engine.send_whatsapp(conversation.remote_phone, reply)
         session.add(
             Message(
                 tenant_id=tenant.id,
@@ -410,11 +377,8 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
         # apagón dejaría atrás para que el siguiente intento no repita el cobro.
         reminder.meta = {**(reminder.meta or {}), "envio_en_curso": utcnow().isoformat()}
         session.commit()
-        # Sólo wacli choca con el lock del sync; Cloud API/email no lo necesitan.
-        pause = _pause_for(wa) if channel == "whatsapp" else _nullcontext()
         try:
-            with pause:
-                engine.send(reminder, recipient, sender)
+            engine.send(reminder, recipient, sender)
         except OptedOut as exc:
             # El cliente pidió la baja: no es fallo del canal, es su decisión. Queda
             # 'failed' con el motivo visible; no se reintenta solo.
@@ -557,11 +521,10 @@ def send_human_message_blocking(
             if wa.provider == "whatsapp_cloud"
             else False
         )
-    with _pause_for(wa):
-        fallo = _intentar_envio(
-            f"mensaje a {phone}",
-            lambda: get_whatsapp_sender(wa, lambda _p: within)(phone, body),
-        )
+    fallo = _intentar_envio(
+        f"mensaje a {phone}",
+        lambda: get_whatsapp_sender(wa, lambda _p: within)(phone, body),
+    )
     if fallo is None:
         _mark_delivery(tenant_id, message_id, "sent")
     else:
@@ -607,13 +570,12 @@ def send_human_file_blocking(
                 return
         from aiuda_core.connectors.wacli import WacliClient
 
-        with _pause_for(wa):
-            fallo = _intentar_envio(
-                f"archivo a {phone}",
-                lambda: WacliClient(store_dir=wa.store_dir).send_file(
-                    phone, file_path, caption=caption, filename=filename
-                ),
-            )
+        fallo = _intentar_envio(
+            f"archivo a {phone}",
+            lambda: WacliClient(store_dir=wa.store_dir).send_file(
+                phone, file_path, caption=caption, filename=filename
+            ),
+        )
         if fallo is None:
             veredicto("sent")
         else:
@@ -1067,14 +1029,12 @@ def _run_daily_impl(
             with session_scope() as session:
                 tenant = session.get(Tenant, tenant_id)
                 engine = _build_engine(session, tenant)
-                wa = resolve_whatsapp(session, tenant)
                 if any(engine.summary_due(h) for h in horas):
                     resumen = engine.daily_summary(today)
-                    with _pause_for(wa):
-                        ok = _safe_send(
-                            "resumen al dueño",
-                            lambda: engine.send_whatsapp(tenant.owner_phone, resumen),
-                        )
+                    ok = _safe_send(
+                        "resumen al dueño",
+                        lambda: engine.send_whatsapp(tenant.owner_phone, resumen),
+                    )
                     if ok:
                         report["summaries"] += 1
             report["tenants"] += 1
@@ -1158,8 +1118,8 @@ def _sweep_stranded_approved(now: datetime, older_than_min: int = 10, cap: int =
             .order_by(Reminder.updated_at)
             .limit(cap)
         ).all()
-        # En modo sombra los aprobados se retienen A PROPÓSITO: re-dispararlos solo
-        # pausaría el sync de wacli por nada. Se saltan (salen al apagar la sombra).
+        # En modo sombra los aprobados se retienen A PROPÓSITO: re-dispararlos no
+        # serviría de nada. Se saltan (salen al apagar la sombra).
         sombra: dict[str, bool] = {}
         stuck = []
         for tenant_id, reminder_id in rows:

@@ -1,7 +1,7 @@
 """wacli: construcción del comando + manejo de error, sin tocar el binario real.
 
 Monkeypatcheamos subprocess.run para capturar el argv EXACTO que se ejecutaría.
-Esto fija el contrato con wacli 0.8.x (`send text --to/--message --lock-wait`).
+Esto fija el contrato con wacli 0.8.x en adelante (`send text --to/--message`).
 """
 
 import pytest
@@ -10,7 +10,7 @@ from aiuda_core.config import Settings
 from aiuda_core.connectors import wacli as wacli_mod
 from aiuda_core.connectors.wacli import WacliClient, WacliError, explicar_fallo_wacli
 
-DEFAULT_TEMPLATE = "{bin} send text --to {phone} --message {message} --lock-wait 30s"
+DEFAULT_TEMPLATE = "{bin} send text --to {phone} --message {message}"
 
 
 class _Result:
@@ -48,8 +48,62 @@ def test_send_text_builds_v08_command(monkeypatch):
         "wacli", "send", "text",
         "--to", "5213314872210@s.whatsapp.net",
         "--message", "Hola, su factura M-107.",
-        "--lock-wait", "30s",
     ]
+
+
+def _en_orden(monkeypatch, resultados):
+    """subprocess.run que contesta lo de `resultados`, uno por llamada."""
+    comandos: list[list[str]] = []
+    pendientes = list(resultados)
+
+    def fake_run(command, **kwargs):
+        comandos.append(command)
+        return pendientes.pop(0)
+
+    monkeypatch.setattr(wacli_mod.subprocess, "run", fake_run)
+    return comandos
+
+
+OCUPADO = "store is locked (another wacli is running?): store locked: /x/LOCK (pid=1)"
+
+
+def test_el_envio_va_sin_espera_para_que_el_sync_vivo_lo_despache(monkeypatch):
+    """Con --lock-wait wacli espera el plazo completo antes de delegarle el envío
+    al sync (32 s, visto con 0.18.2); sin él sale en 2 o 3."""
+    comandos = _en_orden(monkeypatch, [_Result(), _Result()])
+    client = WacliClient()
+    client.send_text("5213314872210", "hola")
+    client.send_file("5213314872210", "/tmp/x.pdf")
+    assert all("--lock-wait" not in c for c in comandos)
+
+
+@pytest.mark.parametrize("envio", ["texto", "archivo"])
+def test_con_el_store_ocupado_se_repite_esperando_el_candado(monkeypatch, envio):
+    comandos = _en_orden(monkeypatch, [_Result(returncode=1, stderr=OCUPADO), _Result()])
+    client = WacliClient()
+    if envio == "texto":
+        client.send_text("5213314872210", "hola")
+    else:
+        client.send_file("5213314872210", "/tmp/x.pdf")
+    assert len(comandos) == 2
+    assert comandos[1] == [*comandos[0], "--lock-wait", "30s"]
+
+
+def test_si_esperando_tampoco_sale_ya_no_se_insiste(monkeypatch):
+    tarde = "timed out waiting for store lock after 30s: store locked"
+    comandos = _en_orden(
+        monkeypatch, [_Result(returncode=1, stderr=OCUPADO), _Result(returncode=1, stderr=tarde)]
+    )
+    with pytest.raises(WacliError, match="timed out waiting"):
+        WacliClient().send_text("5213314872210", "hola")
+    assert len(comandos) == 2
+
+
+def test_otra_falla_no_se_reintenta(monkeypatch):
+    comandos = _en_orden(monkeypatch, [_Result(returncode=1, stderr="not connected")])
+    with pytest.raises(WacliError, match="not connected"):
+        WacliClient().send_text("5213314872210", "hola")
+    assert len(comandos) == 1
 
 
 def test_send_text_normalizes_10_digit_local(monkeypatch):
@@ -136,7 +190,6 @@ def test_send_file_builds_command(monkeypatch):
         "wacli", "send", "file",
         "--to", "5213314872210@s.whatsapp.net",
         "--file", "/tmp/factura.pdf",
-        "--lock-wait", "30s",
         "--caption", "Tu factura",
         "--filename", "factura.pdf",
     ]

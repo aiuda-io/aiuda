@@ -6,6 +6,10 @@ send text/file, chats list, messages list, doctor), su JSON, sus eventos NDJSON
 por stderr y su candado: flock sobre <store>/LOCK, que el sistema suelta cuando
 el proceso muere. Exige --store: jamás cae al ~/.wacli de nadie.
 
+Como el real (visto en 0.18.2), un `send` con un sync vivo no pelea el candado:
+se le delega al sync por su socket (aquí, el archivo sync.sock) y sale sin que
+el sync se detenga; con --lock-wait primero espera el plazo completo.
+
 La prueba lo maneja con archivos dentro del store:
   escanear        el `auth` en curso se da por emparejado
   cerrar_sesion   el `sync` en curso emite logged_out y sale con 0
@@ -13,8 +17,11 @@ La prueba lo maneja con archivos dentro del store:
   desactualizado  el `sync` en curso sale diciendo que WhatsApp pide otra versión
   fallar_envio    su contenido es el error del siguiente `send` (se queda puesto)
 Lo que "sale" queda en enviados.jsonl; cada arranque de sync en arranques.log.
+WACLI_FALSO_ESPERA_MAX acorta los --lock-wait (segundos) para que la prueba no
+espere los 30 de verdad.
 """
 
+import atexit
 import fcntl
 import json
 import os
@@ -122,8 +129,13 @@ def dueno_del_candado():
         return ""
 
 
-def tomar_candado():
+def espera_del_candado():
     espera = segundos(flag("--lock-wait"), 0)
+    return min(espera, float(os.environ.get("WACLI_FALSO_ESPERA_MAX", espera)))
+
+
+def tomar_candado():
+    espera = espera_del_candado()
     fin = time.monotonic() + espera
     while True:
         if _intentar_candado():
@@ -147,6 +159,11 @@ def candado_tomado():
     finally:
         fh.close()
     return False
+
+
+def sync_vivo():
+    """¿Hay un `sync --follow` con el candado y su socket puesto?"""
+    return os.path.exists(ruta("sync.sock")) and candado_tomado()
 
 
 def consumir(nombre):
@@ -206,6 +223,8 @@ if cmd == "sync":
     tomar_candado()
     with open(ruta("arranques.log"), "a") as fh:
         fh.write(f"{os.getpid()}\n")
+    open(ruta("sync.sock"), "w").close()
+    atexit.register(lambda: consumir("sync.sock"))
 
     def _terminar(*_):
         evento("stopping", {"reason": "signal"})
@@ -231,7 +250,12 @@ if cmd == "sync":
 if cmd == "send" and sub in ("text", "file"):
     if not autenticado():
         salir_error("not authenticated; run `wacli auth`")
-    tomar_candado()
+    delegado = False
+    if sync_vivo():
+        time.sleep(espera_del_candado())
+        delegado = sync_vivo()
+    if not delegado:
+        tomar_candado()
     try:
         with open(ruta("fallar_envio")) as fh:
             salir_error(fh.read().strip() or "not connected")
@@ -244,6 +268,8 @@ if cmd == "send" and sub in ("text", "file"):
         "file": flag("--file"),
         "caption": flag("--caption"),
         "filename": flag("--filename"),
+        "lock_wait": flag("--lock-wait"),
+        "delegado": delegado,
         "id": f"FALSO{int(time.time() * 1000)}",
     }
     with open(ruta("enviados.jsonl"), "a") as fh:

@@ -388,7 +388,6 @@ def falso(monkeypatch, tmp_path):
     monkeypatch.setattr(wacli_sync, "default_data_dir", lambda: datos)
     monkeypatch.setattr(wacli_sync, "_TICK_S", 0.05)
     monkeypatch.setattr(wacli_sync, "_apagando", False)  # otra prueba pudo apagarlo
-    monkeypatch.setattr(wacli_sync, "_REANUDAR_S", 0.1)
     monkeypatch.setattr(wacli_sync, "_ESPERAS", (0.2, 0.2))
     monkeypatch.setattr(wacli_sync, "_ESPERA_EXTERNO", 0.3)
     monkeypatch.setenv("WACLI_FALSO_QR_ROTA", "0.3")
@@ -536,19 +535,6 @@ def test_asegurar_no_insiste_cuando_hace_falta_el_dueno(falso):
     assert len(_arranques(falso)) == 1
 
 
-def test_un_envio_no_disfraza_de_conectando_a_un_sync_caido(falso, monkeypatch):
-    _vinculado(falso)
-    wacli_sync.arrancar("inst-a", str(falso))
-    assert _esperar(lambda: _estado(falso) == "conectado")
-    canal = wacli_sync._canales["inst-a"]
-    monkeypatch.setattr(wacli_sync, "_ESPERAS", (300.0,))
-    (falso / "morir").write_text("")
-    assert _esperar(lambda: canal.estado == "sin_conexion")
-    with wacli_sync.pausado("inst-a"):
-        pass
-    assert canal.estado == "sin_conexion"
-
-
 def test_despues_de_apagar_ya_no_se_lanza_nada(falso):
     _vinculado(falso)
     wacli_sync.arrancar("inst-a", str(falso))
@@ -556,28 +542,61 @@ def test_despues_de_apagar_ya_no_se_lanza_nada(falso):
     wacli_sync.detener_todo()
     # Una consulta de estado que llega tarde, o el hilo de arranque.
     wacli_sync.arrancar("inst-a", str(falso))
-    with wacli_sync.pausado("inst-a"):
-        pass
     time.sleep(0.3)
     assert len(_arranques(falso)) == 1
     assert not _candado_tomado(falso)
     assert not _pidfile(falso).exists()
 
 
-def test_pausar_para_enviar_y_reanudar(falso):
+def _con_candado_ajeno(store, segundos: float):
+    """Toma el candado del store como lo haría otro programa que no es un sync, y
+    lo suelta solo al rato."""
+    import fcntl
+    import threading
+
+    fh = open(store / "LOCK", "a+")
+    fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    threading.Timer(segundos, fh.close).start()
+
+
+def test_con_el_sync_vivo_el_envio_se_le_delega_y_el_sync_no_se_detiene(falso):
+    """Antes se detenía el sync para cada envío: unos 7 s sin recibir por mensaje."""
     _vinculado(falso)
     wacli_sync.arrancar("inst-a", str(falso))
     assert _esperar(lambda: _estado(falso) == "conectado")
     (pid,) = _arranques(falso)
-    with wacli_sync.pausado("inst-a"):
-        assert not _vivo(pid)
-        # El candado está libre: el envío entra sin esperar.
-        out = subprocess.run(
-            [WACLI_FALSO, "send", "text", "--to", "x", "--message", "hola", "--store", str(falso)],
-            capture_output=True, text=True,
-        )
-        assert out.returncode == 0, out.stderr
-    assert _esperar(lambda: len(_arranques(falso)) == 2 and _estado(falso) == "conectado")
+    cliente = WacliClient(store_dir=str(falso))
+    cliente.send_text("5215599998888", "hola")
+    cliente.send_file("5215599998888", "/tmp/x.pdf")
+    assert [(e["delegado"], e["lock_wait"]) for e in _enviados(falso)] == [(True, None)] * 2
+    assert _vivo(pid) and _arranques(falso) == [pid] and _estado(falso) == "conectado"
+
+
+def test_con_el_sync_de_otro_programa_tambien_se_delega(falso):
+    _vinculado(falso)
+    ajeno = subprocess.Popen(
+        [WACLI_FALSO, "sync", "--follow", "--store", str(falso)], stderr=subprocess.DEVNULL
+    )
+    try:
+        assert _esperar(lambda: (falso / "sync.sock").exists())
+        WacliClient(store_dir=str(falso)).send_text("5215599998888", "hola")
+        assert [(e["delegado"], e["lock_wait"]) for e in _enviados(falso)] == [(True, None)]
+        assert ajeno.poll() is None
+    finally:
+        ajeno.terminate()
+        ajeno.wait(timeout=5)
+
+
+def test_sin_sync_el_envio_va_directo_y_espera_el_candado_si_esta_ocupado(falso):
+    _vinculado(falso)
+    cliente = WacliClient(store_dir=str(falso))
+    cliente.send_text("5215599998888", "libre")
+    _con_candado_ajeno(falso, 0.5)
+    cliente.send_text("5215599998888", "ocupado")
+    assert [(e["message"], e["delegado"], e["lock_wait"]) for e in _enviados(falso)] == [
+        ("libre", False, None),
+        ("ocupado", False, "30s"),
+    ]
 
 
 def test_si_el_sync_muere_se_relanza(falso):
@@ -750,7 +769,7 @@ def test_api_desvincular_que_falla_no_miente(client, tenant, falso, monkeypatch)
     assert tenant.config["integrations"]["whatsapp"]["via"] == "wacli"
 
 
-# ---------- lo que sale al contestar un entrante también pausa el sync ----------
+# ---------- lo que sale al contestar un entrante, con el sync corriendo ----------
 
 
 def _entrante(telefono: str, texto: str) -> tuple[str, str]:
@@ -773,16 +792,14 @@ def _enviados(store) -> list[dict]:
 
 
 def test_la_confirmacion_de_baja_sale_con_el_sync_propio_corriendo(api_real, falso, monkeypatch):
-    # Sin --lock-wait: si el envío no pausara el sync, chocaría al instante con su candado.
-    monkeypatch.setattr(
-        settings, "wacli_send_template", "{bin} send text --to {phone} --message {message}"
-    )
     _vinculado(falso)
     wacli_sync.arrancar("inst-a", str(falso))
     assert _esperar(lambda: _estado(falso) == "conectado")
     worker_main.process_incoming_message_blocking(*_entrante("5215599998888", "BAJA"))
-    assert [e["to"] for e in _enviados(falso)] == ["5215599998888@s.whatsapp.net"]
-    assert _esperar(lambda: len(_arranques(falso)) == 2 and _estado(falso) == "conectado")
+    assert [(e["to"], e["delegado"]) for e in _enviados(falso)] == [
+        ("5215599998888@s.whatsapp.net", True)
+    ]
+    assert len(_arranques(falso)) == 1 and _estado(falso) == "conectado"
 
 
 def test_recordatorio_aprobado_por_whatsapp_que_falla_dice_el_motivo_en_espanol(
