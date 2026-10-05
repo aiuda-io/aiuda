@@ -678,3 +678,77 @@ def test_una_importacion_que_siempre_falla_se_suelta(session, tenant, monkeypatc
     assert fake.descargas == ["P1"]  # y nunca se volvió a bajar
     sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})
     assert len([s for s in fake.solicitudes if s[0] == "emitidas"]) == 2
+
+
+# --- Lo cancelado no entra ni se queda en la cartera por otro camino ----------- #
+
+_CANCELADA = "2026-07-20 10:00:00"
+
+
+def _cancelar(session, tenant, uuid):
+    from aiuda_core.engine.sync import aplicar_cancelaciones
+
+    return aplicar_cancelaciones(
+        session, tenant,
+        [{"uuid": uuid, "cancelado": True, "fecha_cancelacion": _CANCELADA}],
+    )
+
+
+def test_un_cancelado_sin_clasificar_no_abre_cartera_al_sanarse(session, tenant):
+    """El dueño subió el XML antes de registrar su RFC (quedó sin clasificar), el
+    SAT lo reportó cancelado y luego lo volvió a subir para clasificarlo. Antes
+    eso creaba la factura ABIERTA y nadie la cerraba: aiuda cobraba un cancelado."""
+    from aiuda_core.engine.sync import importar_cfdis
+
+    uuid = "CCCC0025-0000-4000-8000-000000000025"
+    xml = cfdi_basico(uuid=uuid, emisor=HANOVA)
+    importar_cfdis(session, tenant, [xml], today=HOY)  # sin empresas: desconocida
+    assert _cancelar(session, tenant, uuid)["cancelados"] == 1
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    res = importar_cfdis(session, tenant, [xml], today=HOY)
+    assert res["reclasificados"] == 1 and res["facturas_creadas"] == 0
+    assert session.scalar(select(CfdiBoveda)).direccion == "emitida"
+    assert session.scalars(select(Invoice).where(Invoice.status == "open")).all() == []
+
+
+def test_la_factura_ligada_despues_tambien_se_cierra(session, tenant):
+    """La lista de cancelados llega completa cada día. Una fila que ya estaba
+    marcada se saltaba, así que una factura ligada después se quedaba abierta."""
+    uuid = "CCCC0026-0000-4000-8000-000000000026"
+    inv = _con_factura_abierta(session, tenant, uuid)
+    fila = session.scalar(select(CfdiBoveda))
+    fila.invoice_id = None  # el CFDI se marcó cuando todavía no tenía factura
+    assert _cancelar(session, tenant, uuid) == {
+        "cancelados": 1, "facturas_cerradas": 0, "retirados": 0, "avisos": [],
+    }
+    assert inv.status == "open"
+    fila.invoice_id = inv.id
+    res = _cancelar(session, tenant, uuid)
+    assert res["cancelados"] == 0 and res["facturas_cerradas"] == 1
+    assert inv.status == "cancelled" and inv.meta["cerrada_por"] == "cancelada en el SAT"
+
+
+def test_cancelado_de_una_factura_de_otra_fuente_se_avisa(session, tenant):
+    """La factura vino de Odoo y su comprobante no trae UUID: no se puede probar
+    que sea el cancelado, así que no se cierra sola. Pero antes tampoco se decía
+    nada y aiuda la seguía cobrando en silencio."""
+    from aiuda_core.engine.sync import importar_cfdis
+    from aiuda_core.models import Customer
+
+    uuid = "CCCC0088-0000-4000-8000-000000000088"
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    cliente = Customer(tenant_id=tenant.id, name="Receptor")
+    session.add(cliente)
+    session.flush()
+    odoo = Invoice(
+        tenant_id=tenant.id, customer_id=cliente.id, folio="S-0088", amount=1160,
+        issued_date=date(2026, 7, 1), due_date=date(2026, 7, 31), source="odoo",
+        cfdi={"folio": "S-0088", "source": "odoo"},
+    )
+    session.add(odoo)
+    session.flush()
+    importar_cfdis(session, tenant, [cfdi_basico(uuid=uuid, emisor=HANOVA)], today=HOY)
+    res = _cancelar(session, tenant, uuid)
+    assert odoo.status == "open" and res["facturas_cerradas"] == 0
+    assert any("S-0088" in a and "Revísala" in a for a in res["avisos"])
+    assert _cancelar(session, tenant, uuid)["avisos"] == []  # se avisa una vez

@@ -1132,6 +1132,41 @@ def retirar_recordatorios(session: Session, invoice: Invoice, motivo: str) -> in
     return len(vivos)
 
 
+def _sat_cerrar_cancelada(
+    session: Session, tenant: Tenant, row: CfdiBoveda, avisos: list, nuevo: bool = False
+) -> tuple[int, int]:
+    """Saca de la cartera la factura de un CFDI que la bóveda ya tiene marcado
+    como cancelado. Devuelve (facturas cerradas, recordatorios retirados). No
+    depende de cuándo se marcó la fila: si la factura se ligó después, también
+    se cierra. `nuevo` es True la primera vez que el SAT lo reporta."""
+    inv = session.get(Invoice, row.invoice_id) if row.invoice_id else None
+    if inv is None:
+        return 0, 0
+    cuando = (row.meta or {}).get("cancelado_el")
+    uuid_factura = ((inv.cfdi or {}).get("uuid") or "").upper()
+    if uuid_factura != row.uuid.upper():
+        if nuevo and not uuid_factura and inv.status == "open":
+            # La factura vino de otra fuente y su comprobante no trae UUID: no se
+            # puede probar que sea el mismo, así que no se cierra sola. Se avisa.
+            avisos.append(
+                f"El comprobante de la factura {inv.folio} aparece cancelado en "
+                "el SAT. Revísala: aiuda la sigue cobrando."
+            )
+        return 0, 0
+    if inv.status != "open":
+        # Ya estaba pagada o cerrada: solo queda anotado en el comprobante.
+        if (inv.cfdi or {}).get("status") != "cancelado":
+            inv.cfdi = {**inv.cfdi, "status": "cancelado", "cancelado_el": cuando}
+        return 0, 0
+    inv.cfdi = {**inv.cfdi, "status": "cancelado", "cancelado_el": cuando}
+    inv.status = "cancelled"
+    inv.meta = {**(inv.meta or {}), "cerrada_por": CANCELADA_EN_SAT,
+                "cancelada_sat_el": cuando}
+    retirados = retirar_recordatorios(session, inv, "La factura se canceló en el SAT.")
+    avisos.append(f"La factura {inv.folio} se canceló en el SAT: salió de tu cartera.")
+    return 1, retirados
+
+
 def aplicar_cancelaciones(session: Session, tenant: Tenant, filas: list[dict]) -> dict:
     """Marca como cancelados en la bóveda los CFDI que el SAT reporta cancelados
     (`filas` viene de leer_metadata) y saca de la cartera la factura que nació de
@@ -1140,7 +1175,8 @@ def aplicar_cancelaciones(session: Session, tenant: Tenant, filas: list[dict]) -
 
     Solo se cierra la factura cuyo comprobante ES el cancelado (mismo UUID); una
     factura de otra fuente que solo comparte folio no se toca. Es idempotente:
-    el SAT repite la lista completa cada día."""
+    el SAT repite la lista completa cada día, y cada día se vuelve a revisar la
+    factura (pudo ligarse después de que el CFDI ya estaba marcado)."""
     res: dict = {"cancelados": 0, "facturas_cerradas": 0, "retirados": 0, "avisos": []}
     for fila in filas:
         if not fila.get("cancelado"):
@@ -1150,27 +1186,18 @@ def aplicar_cancelaciones(session: Session, tenant: Tenant, filas: list[dict]) -
                 CfdiBoveda.tenant_id == tenant.id, CfdiBoveda.uuid == fila["uuid"]
             )
         )
-        if row is None or (row.meta or {}).get("cancelado"):
-            continue  # no lo tenemos, o ya se había atendido
-        cuando = fila.get("fecha_cancelacion")
-        row.meta = {**(row.meta or {}), "cancelado": True, "cancelado_el": cuando}
-        res["cancelados"] += 1
-        inv = session.get(Invoice, row.invoice_id) if row.invoice_id else None
-        if inv is None or ((inv.cfdi or {}).get("uuid") or "").upper() != row.uuid:
-            continue
-        inv.cfdi = {**inv.cfdi, "status": "cancelado", "cancelado_el": cuando}
-        if inv.status != "open":
-            continue  # ya estaba pagada o cerrada: solo queda anotado en el comprobante
-        inv.status = "cancelled"
-        inv.meta = {**(inv.meta or {}), "cerrada_por": CANCELADA_EN_SAT,
-                    "cancelada_sat_el": cuando}
-        res["facturas_cerradas"] += 1
-        res["retirados"] += retirar_recordatorios(
-            session, inv, "La factura se canceló en el SAT."
+        if row is None:
+            continue  # no lo tenemos
+        nuevo = not (row.meta or {}).get("cancelado")
+        if nuevo:
+            row.meta = {**(row.meta or {}), "cancelado": True,
+                        "cancelado_el": fila.get("fecha_cancelacion")}
+            res["cancelados"] += 1
+        cerradas, retirados = _sat_cerrar_cancelada(
+            session, tenant, row, res["avisos"], nuevo=nuevo
         )
-        res["avisos"].append(
-            f"La factura {inv.folio} se canceló en el SAT: salió de tu cartera."
-        )
+        res["facturas_cerradas"] += cerradas
+        res["retirados"] += retirados
     session.flush()
     return res
 
@@ -1233,9 +1260,14 @@ def _sat_importar_uno(
     if direccion == "emitida":
         tipo = d.get("tipo")
         if tipo == "I":
-            row.invoice_id = _sat_crear_cartera(
-                session, tenant, d, texto, today, res, crear=crear_cartera
-            )
+            if (row.meta or {}).get("cancelado"):
+                # El SAT ya lo reportó cancelado: no abre cartera aunque se
+                # vuelva a importar; si estaba ligado a una factura, se cierra.
+                _sat_cerrar_cancelada(session, tenant, row, res["avisos"])
+            else:
+                row.invoice_id = _sat_crear_cartera(
+                    session, tenant, d, texto, today, res, crear=crear_cartera
+                )
         elif tipo == "E":
             _sat_aplicar_egreso(session, tenant, d, res)
         elif tipo == "P":
