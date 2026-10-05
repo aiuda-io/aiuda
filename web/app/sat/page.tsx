@@ -193,11 +193,14 @@ export default function SatPage() {
     <SettingsPage>
       <PageHeader
         title="Traer del SAT"
-        subtitle="Tus facturas (CFDI) tal como las tiene el SAT, guardadas en esta computadora. Las que te deben entran solas a tu cartera."
-        right={
-          <a href="/manual/sat.html" className="btn btn-quiet">
-            Ver el manual
-          </a>
+        subtitle={
+          <>
+            Tus facturas (CFDI) tal como las tiene el SAT, guardadas en esta computadora. Las que
+            te deben entran solas a tu cartera.{" "}
+            <a href="/manual/sat.html" className="font-medium text-accent-ink hover:underline">
+              Ver el manual
+            </a>
+          </>
         }
       />
 
@@ -220,13 +223,16 @@ export default function SatPage() {
       )}
 
       <SettingsSection
+        ancho
         title="Tus empresas"
         desc="Registra el RFC de cada empresa para saber qué facturas emites y cuáles recibes. Con su e.firma, aiuda las trae sola del SAT."
       >
-        <div className="space-y-4">
+        {/* Cada empresa es un renglón sobre el papel, separado por una raya fina. Antes
+            era una ficha gris con sus campos adentro: una caja dentro de la sección. */}
+        <div>
           {empresas.map((empresa) => (
-            <article key={empresa.rfc} className="rounded-2xl bg-panel p-5">
-              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            <article key={empresa.rfc} className="border-b border-line pb-7 pt-7 first:pt-0">
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-4">
                 <div className="min-w-0">
                   <p className="tnum text-seccion font-semibold text-ink">{empresa.rfc}</p>
                   <p className="mt-0.5 text-apoyo text-ink-2">{empresa.nombre || "Sin razón social"}</p>
@@ -250,7 +256,7 @@ export default function SatPage() {
                         : `e.firma vigente hasta el ${fecha(empresa.vigente_hasta)}`}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-1">
+                <div className="barra">
                   {empresa.efirma && (
                     <button
                       onClick={() => probar(empresa.rfc)}
@@ -313,7 +319,9 @@ export default function SatPage() {
           {empresas.length < (estado?.maximo ?? 3) && (
             <form
               onSubmit={guardarEmpresa}
-              className="grid gap-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,8rem)_auto]"
+              className={`grid gap-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_minmax(0,8rem)_auto] ${
+                empresas.length > 0 ? "mt-6" : ""
+              }`}
             >
               <input
                 name="rfc"
@@ -344,6 +352,7 @@ export default function SatPage() {
       </SettingsSection>
 
       <SettingsSection
+        ancho
         title="Subir XML o ZIP"
         desc="Los archivos que bajaste del portal del SAT. Lo repetido no se duplica, y las facturas entre tus propias empresas no cuentan como cartera."
       >
@@ -402,6 +411,7 @@ export default function SatPage() {
       </SettingsSection>
 
       <SettingsSection
+        ancho
         title="Conectar tu e.firma"
         desc="Con ella aiuda trae tus CFDI del SAT sin que subas archivos. Se valida antes de guardarse y queda cifrada en esta computadora."
       >
@@ -437,7 +447,7 @@ export default function SatPage() {
               Los dos archivos y la contraseña se cifran juntos. Después, aiuda solo vuelve a
               mostrar el RFC, el titular y la vigencia.
             </p>
-            <SecondaryButton disabled={Boolean(busy)}>
+            <SecondaryButton disabled={Boolean(busy)} className="w-full sm:w-auto">
               {busy === "efirma" ? "Validando…" : "Validar y conectar"}
             </SecondaryButton>
           </div>
@@ -445,6 +455,7 @@ export default function SatPage() {
       </SettingsSection>
 
       <SettingsSection
+        ancho
         title="Documentos"
         desc="La opinión de cumplimiento y la constancia de situación fiscal que aiuda bajó del portal del SAT con tu e.firma."
       >
@@ -504,7 +515,7 @@ export default function SatPage() {
           ))}
       </SettingsSection>
 
-      <SettingsSection title="CFDI guardados" desc="Los 2,000 más recientes de todas tus empresas.">
+      <SettingsSection ancho title="CFDI guardados" desc="Los 2,000 más recientes de todas tus empresas.">
         <div className="grid gap-2 sm:grid-cols-2">
           <select
             value={rfcFiltro}
