@@ -20,8 +20,9 @@ from sqlalchemy import select
 
 from aiuda_core.config import settings
 from aiuda_core.db import default_data_dir, session_scope
+from aiuda_core.identity import telefonos_atendidos
 from aiuda_core.models import Conversation, Message, Tenant
-from aiuda_core.phones import normalize_mx
+from aiuda_core.phones import match_key, normalize_mx
 
 log = logging.getLogger("aiuda.inbound")
 
@@ -29,10 +30,15 @@ log = logging.getLogger("aiuda.inbound")
 def ingresar_entrante(db, tenant, *, phone: str, body: str, wa_id: str | None):
     """Registra un mensaje entrante (conversación + fila Message, con dedupe).
     Devuelve el Message nuevo o None si se ignoró/duplicó. NO procesa el agente:
-    eso lo decide el caller (BackgroundTasks en el webhook, inline en el poller)."""
+    eso lo decide el caller (BackgroundTasks en el webhook, inline en el poller).
+
+    Solo entra lo que escribe un cliente del negocio o el dueño: de cualquier otro
+    número no se guarda ni la conversación."""
     phone = normalize_mx(str(phone or "").strip())
     body = str(body or "").strip()
     if not phone or not body:
+        return None
+    if match_key(phone) not in telefonos_atendidos(db, tenant):
         return None
 
     conversation = db.scalar(
@@ -118,8 +124,12 @@ def poll_wacli_once(client_factory=None) -> int:
                 client_factory(instance) if client_factory else WacliClient(store_dir=store_dir)
             )
             state_path = _state_path(instance)
+            with session_scope() as db:
+                atendidos = telefonos_atendidos(db, db.get(Tenant, tenant_id))
+            # Solo se leen los chats de clientes y el del dueño: cada chat leído es
+            # un proceso de wacli, y en un número personal casi ninguno es cliente.
             posts, new_state = collect_inbound(
-                client.list_chats(), client.list_messages, _load_state(state_path)
+                client.list_chats(), client.list_messages, _load_state(state_path), atendidos
             )
             nuevos: list[str] = []
             with session_scope() as db:

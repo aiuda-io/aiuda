@@ -83,9 +83,46 @@ def test_collect_inbound_ignora_grupos():
         assert jid == JID  # el grupo no se consulta
         return [_msg("nuevo", 200, mid="m1")]
 
-    posts, state = collect_inbound(chats, list_messages, {JID: seen})
+    posts, state = collect_inbound(chats, list_messages, {JID: seen}, {"5587654321"})
     assert [p["message"] for p in posts] == ["nuevo"]
     assert JID in state
+
+
+def test_collect_inbound_solo_lee_los_chats_de_clientes_y_del_dueno():
+    """Visto con un número personal de verdad: 53 chats directos y ninguno de un
+    cliente. Cada uno se leía (un proceso de wacli por chat, cada 20 s) y lo que
+    escribían la familia y los amigos entraba como si fueran clientes."""
+    cliente = "5215587654321@s.whatsapp.net"  # guardado como 52 + 10, sin el 1
+    dueno = "5215500000000@s.whatsapp.net"
+    amigo = "5215511112222@s.whatsapp.net"
+    oculto = "190000000000001@lid"  # sin teléfono que cruzar: desconocido
+    chats = [{"jid": j, "kind": "dm"} for j in (cliente, dueno, amigo, oculto)]
+    leidos: list[str] = []
+
+    def list_messages(jid):
+        leidos.append(jid)
+        return [_msg("alto", 200, mid=f"m-{jid}")]
+
+    visto = {"last_ts": 100, "ids": []}
+    posts, state = collect_inbound(
+        chats, list_messages, {j: dict(visto) for j in (cliente, dueno, amigo, oculto)},
+        {"5587654321", "5500000000"},
+    )
+    assert leidos == [cliente, dueno]
+    assert [p["phone"] for p in posts] == ["5215587654321", "5215500000000"]
+    # Lo que ya no se atiende sale del marcador: si ese número se vuelve cliente,
+    # su chat se siembra de cero en vez de reenviar lo que escribió antes.
+    assert set(state) == {cliente, dueno}
+
+
+def test_collect_inbound_conserva_el_marcador_del_cliente_que_no_salio_en_la_lista():
+    otro = "5215533334444@s.whatsapp.net"
+    _, state = collect_inbound(
+        [{"jid": JID, "kind": "dm"}], lambda _jid: [],
+        {JID: {"last_ts": 100, "ids": []}, otro: {"last_ts": 50, "ids": ["z"]}},
+        {"5587654321", "5533334444"},
+    )
+    assert state[otro] == {"last_ts": 50, "ids": ["z"]}
 
 
 # Formas reales de `messages list --json` (wacli 0.18.2): lo que no es texto trae

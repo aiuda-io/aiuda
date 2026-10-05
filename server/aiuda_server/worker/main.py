@@ -34,6 +34,7 @@ from aiuda_core.db import session_scope
 from aiuda_core.engine.engine import CleoEngine, OutsideSendWindow, ShadowHold
 from aiuda_core.engine.llm import BudgetExceeded
 from aiuda_core.optout import OPT_OUT_CONFIRMATION, OptedOut, is_opt_out, mark_opt_out
+from aiuda_core.identity import telefonos_atendidos
 from aiuda_core.phones import match_key
 from aiuda_core.models import Conversation, Customer, Invoice, Message, Reminder, Tenant, utcnow
 
@@ -167,6 +168,11 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
         conversation = session.get(Conversation, message.conversation_id)
         if conversation.human_takeover:
             return  # el humano tiene el control: el agente no interviene
+        # Solo se atiende a un cliente del negocio o al dueño. El número suele ser
+        # el personal del dueño: a su familia y a sus amigos no les contesta un
+        # ayudante, y un "alto" suyo no es una baja.
+        if match_key(conversation.remote_phone) not in telefonos_atendidos(session, tenant):
+            return
         engine = _build_engine(session, tenant)
         # Todo lo que sale de aquí por wacli pausa el sync propio, igual que los
         # demás envíos: sin eso choca con el candado que tiene nuestro `sync --follow`.

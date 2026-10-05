@@ -511,7 +511,7 @@ async def wacli_webhook(
     wa_id = str(payload.get("id") or "") or None
     message = ingresar_entrante(db, tenant, phone=phone, body=body, wa_id=wa_id)
     if message is None:
-        return {"status": "duplicate"}
+        return {"status": "ignored"}  # repetido, o de un número que no es cliente
     background.add_task(process_incoming_message_blocking, tenant.id, message.id)
     return {"status": "accepted", "message_id": message.id}
 

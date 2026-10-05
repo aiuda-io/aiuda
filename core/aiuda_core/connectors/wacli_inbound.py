@@ -16,7 +16,7 @@ import hashlib
 from collections.abc import Callable, Iterable
 from datetime import datetime
 
-from aiuda_core.phones import digits_from_jid
+from aiuda_core.phones import digits_from_jid, match_key, phone_from_jid
 
 # Cuántos ids recientes recordar por conversación (red anti-reenvío para mensajes cuyo
 # timestamp no se puede ordenar). Acotado para que el estado no crezca sin control.
@@ -145,18 +145,31 @@ def collect_inbound(
     chats: Iterable[dict],
     list_messages: Callable[[str], list[dict]],
     state: dict,
+    atendidos: set[str],
 ) -> tuple[list[dict], dict]:
-    """Recorre las conversaciones DM y junta los mensajes entrantes nuevos.
+    """Recorre las conversaciones de los teléfonos atendidos y junta sus mensajes
+    entrantes nuevos.
 
-    `state` mapea jid → estado por conversación; se devuelve actualizado. Los grupos
-    (kind != 'dm') se ignoran: la cobranza es 1 a 1, no en grupos."""
+    `atendidos` son los teléfonos (por match_key) de los clientes y del dueño: solo
+    esas conversaciones se leen. El número vinculado suele ser el personal del
+    dueño, y leer cada chat cuesta un proceso de wacli por vuelta; los de su
+    familia y amigos ni se abren. Los grupos (kind != 'dm') y los JID que no son un
+    teléfono ('@lid') tampoco: la cobranza es 1 a 1 y con alguien conocido.
+
+    `state` mapea jid → estado por conversación; se devuelve actualizado y sin los
+    chats que ya no se atienden: si ese número se vuelve cliente después, su chat
+    se siembra de nuevo en vez de reenviar lo que escribió mientras no lo era."""
+
+    def atendido(jid: str) -> bool:
+        return match_key(phone_from_jid(jid)) in atendidos
+
     posts: list[dict] = []
-    new_state = dict(state)
+    new_state = {jid: visto for jid, visto in state.items() if atendido(jid)}
     for chat in chats:
         if chat.get("kind") not in (None, "dm"):
             continue  # solo conversaciones directas
         jid = chat.get("jid")
-        if not jid:
+        if not jid or not atendido(jid):
             continue
         chat_posts, chat_state = select_new(list_messages(jid), jid, state.get(jid))
         posts.extend(chat_posts)
