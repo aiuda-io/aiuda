@@ -47,10 +47,12 @@ funciona en la terminal funciona en la app, y al revés.
   Redis ni migraciones: SQLite, `create_all` idempotente y la llave en
   `~/.aiuda/key`. El modo cliente-servidor se conserva (HTTP interno): la app
   de escritorio y `aiuda start` usan este mismo código.
-- **BYO-IA.** aiuda no incluye ni revende inferencia. Tres vías: la API key del
+- **BYO-IA.** aiuda no incluye ni revende inferencia. Cuatro vías: la API key del
   dueño, el CLI que ya tiene instalado (se autentica con SU sesión; aiuda nunca
-  ve su token) o un modelo local con Ollama, la única donde ningún dato sale de
-  su máquina. Ver [docs/IA.md](docs/IA.md).
+  ve su token), entrar con su cuenta de ChatGPT por el flujo oficial de OpenAI
+  (aiuda se registra con su propio nombre; sin estrenar con una cuenta real) o un
+  modelo local con Ollama, la única donde ningún dato sale de su máquina. Ver
+  [docs/IA.md](docs/IA.md).
 - **Canales honestos.** WhatsApp con tu número (protocolo de WhatsApp Web, el
   aviso vive en la UI) o correo IMAP/SMTP. La Cloud API oficial de Meta existe
   como conector, pero necesita una URL pública que la instalación local no

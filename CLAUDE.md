@@ -39,13 +39,18 @@ Principios que mandan sobre cualquier feature:
   (`/clientes/detalle?id=…`).
 - **Escritorio (`desktop/`):** Tauri. Solo ventana y ciclo de vida del sidecar;
   el binario del server lo arma PyInstaller con `packaging/aiuda.spec`.
-- **IA:** BYO vía `engine/provider.py` y `engine/runner.py` (Protocol). Tres vías,
+- **IA:** BYO vía `engine/provider.py` y `engine/runner.py` (Protocol). Cuatro vías,
   todas legítimas: la llave del dueño (Claude u OpenAI), el CLI que YA tiene
   instalado (`claude_cli`/`codex_cli`: lo lanzamos como subproceso y se autentica con
-  SU sesión, aiuda nunca ve su token), y "local" (OpenAI-compatible: Ollama). **No
-  hay modo suscripción**: se retiró porque exigía declararse como el cliente oficial
-  del proveedor para que aceptara el token, y eso no se reparte en Apache-2.0. El
-  metering y el tope se enganchan en `server/aiuda_server/metering.py`.
+  SU sesión, aiuda nunca ve su token), "local" (OpenAI-compatible: Ollama) y
+  "Entrar con ChatGPT" (`chatgpt`, modo `oauth`, en `engine/chatgpt_auth.py`): el
+  flujo oficial de OpenAI para herramientas abiertas en local, donde aiuda se
+  registra con SU nombre y recibe su propio client_id. Sin estrenar con una cuenta
+  real; se prueba contra `core/tests/fake_chatgpt.py`. **Lo que no hay ni vuelve** es
+  el modo suscripción viejo: exigía declararse como el cliente oficial del proveedor
+  para que aceptara el token, y eso no se reparte en Apache-2.0. Si el flujo nuevo
+  llegara a exigir lo mismo, se quita igual. El metering y el tope se enganchan en
+  `server/aiuda_server/metering.py`.
 - **WhatsApp:** wacli (tu número, protocolo WhatsApp Web) con sondeo entrante
   in-process (`server/aiuda_server/inbound.py`); correo IMAP/SMTP; la Cloud API
   oficial requiere una URL pública que la instalación local no trae, y está oculta

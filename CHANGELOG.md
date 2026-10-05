@@ -20,14 +20,19 @@ código hoy.
 - Prospección y el conector DENUE.
 - Los perfiles de ayudante que no tenían ninguna capacidad viva.
 - La pantalla "Datos del negocio", que nunca tuvo servidor detrás.
-- El modo suscripción de la IA. Quedan tres vías: tu llave, el Claude Code o
-  Codex que ya tienes instalado, o un modelo local.
+- El modo suscripción de la IA, que se hacía pasar por el programa oficial del
+  proveedor. Quedan tu llave, el Claude Code o Codex que ya tienes instalado, un
+  modelo local y, nueva, Entrar con ChatGPT (ver Agregado).
 - Del catálogo visible, hasta probarlas con una cuenta real: Mercado Pago, Clip,
   Conekta y la API oficial de WhatsApp Business. El código y sus pruebas se
   quedan, y quien ya tenga una conectada la sigue viendo.
 
 ### Agregado
 
+- Entrar con ChatGPT: usar tu plan de ChatGPT como la IA de tus ayudantes por el
+  flujo oficial de OpenAI para programas abiertos que corren en tu computadora.
+  aiuda se registra con su propio nombre. Sin estrenar: probada contra un
+  servidor de pruebas, todavía no con una cuenta real.
 - Sello "Sin estrenar" en cada integración que nadie ha usado todavía con una
   cuenta real. Hoy están estrenadas Odoo, Excel/CSV y WhatsApp con tu número.
 - Aviso en el Centro de mando cuando la IA se pausa por el tope de gasto del mes.
