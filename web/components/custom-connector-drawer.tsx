@@ -41,7 +41,7 @@ const AUTH_OPTIONS: { v: string; label: string }[] = [
   { v: "", label: "Sin autenticación" },
   { v: "header", label: "API key en un header" },
   { v: "query", label: "API key en la URL (query param)" },
-  { v: "bearer", label: "Bearer token" },
+  { v: "bearer", label: "Clave en el encabezado Authorization (Bearer)" },
   { v: "basic", label: "Usuario y contraseña (Basic)" },
   { v: "oauth2_cc", label: "OAuth2 (client credentials)" },
 ];
@@ -227,11 +227,10 @@ export function CustomConnectorDrawer({
       }
     >
       <div className="space-y-4">
-        <p className="rounded-lg border border-line bg-panel/40 px-3.5 py-3 text-cuerpo leading-relaxed text-ink-2">
-          Si tu sistema tiene una API, dinos su URL y qué campo del JSON es cada dato. aiuda la lee
-          en cada corrida como cualquier otra fuente, con su procedencia. Tu clave se guarda
-          cifrada, nunca en claro. ¿Tu sistema no tiene API? El siguiente escalón es que aiuda
-          opere tu portal (CUA).
+        <p className="rounded-[14px] bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
+          Esto es para quien conoce la API de tu sistema: se le dice a aiuda su dirección y qué
+          campo es cada dato. aiuda la lee cada hora, como a cualquier otra conexión, y anota de
+          dónde vino cada registro. Tu clave se guarda cifrada en esta computadora.
         </p>
 
         <Campo label="Nombre">
@@ -255,7 +254,7 @@ export function CustomConnectorDrawer({
         </Campo>
         {authType === "oauth2_cc" && (
           <div className="grid grid-cols-2 gap-3">
-            <Campo label="URL del token" hint="endpoint OAuth2">
+            <Campo label="Dirección donde se pide el acceso" hint="la que da tu API para OAuth2">
               <input className={settingsInputCls} value={tokenUrl} onChange={(e) => setTokenUrl(e.target.value)} placeholder="https://miapi.com/oauth/token" />
             </Campo>
             <Campo label="Client ID">
@@ -377,10 +376,10 @@ export function CustomConnectorDrawer({
               {/* Escritura: con write_path, esta conexión también RECIBE altas de aiuda
                   (aparece como destino en "Crear también en..." e "Inyectar a..."). */}
               <div className="grid grid-cols-2 gap-3 border-t border-line/60 pt-3">
-                <Campo label="Endpoint de escritura (write_path)" hint="ruta del POST de alta; vacío = solo lectura">
+                <Campo label="Ruta para dar de alta" hint="a dónde manda aiuda un registro nuevo; vacío = solo lee">
                   <input className={settingsInputCls} value={writePath} onChange={(e) => setWritePath(e.target.value)} placeholder="clientes" />
                 </Campo>
-                <Campo label="Path del id creado (write_id_path)" hint="dónde viene el id en la respuesta (ej. data.id)">
+                <Campo label="Dónde viene el id creado" hint="el campo de la respuesta que lo trae (ej. data.id)">
                   <input className={settingsInputCls} value={writeIdPath} onChange={(e) => setWriteIdPath(e.target.value)} placeholder="id" />
                 </Campo>
               </div>

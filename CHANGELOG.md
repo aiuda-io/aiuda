@@ -23,9 +23,10 @@ código hoy.
 - El modo suscripción de la IA, que se hacía pasar por el programa oficial del
   proveedor. Quedan tu llave, el Claude Code o Codex que ya tienes instalado, un
   modelo local y, nueva, Entrar con ChatGPT (ver Agregado).
-- Del catálogo visible, hasta probarlas con una cuenta real: Mercado Pago, Clip,
-  Conekta y la API oficial de WhatsApp Business. El código y sus pruebas se
-  quedan, y quien ya tenga una conectada la sigue viendo.
+- Del catálogo visible, hasta probarlas con una cuenta real: todos los conectores
+  de pago (Stripe, Belvo, Mercado Pago, Clip y Conekta) y la API oficial de
+  WhatsApp Business. El código y sus pruebas se quedan, y quien ya tenga una
+  conectada la sigue viendo.
 
 ### Agregado
 

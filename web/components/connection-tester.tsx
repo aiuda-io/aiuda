@@ -7,7 +7,16 @@ type Result = { ok: boolean | null; message: string; details?: Record<string, nu
 
 /** Botón "Probar conexión": pega de verdad al sistema y reporta ok/falla. Honesto:
  *  si la fuente aún no tiene prueba real, lo dice (ok = null). */
-export function ConnectionTester({ intKey, disabled }: { intKey: string; disabled?: boolean }) {
+export function ConnectionTester({
+  intKey,
+  disabled,
+  onProbada,
+}: {
+  intKey: string;
+  disabled?: boolean;
+  /** Terminó una prueba: el semáforo de la lista ya cambió y quien monta lo relee. */
+  onProbada?: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -20,30 +29,33 @@ export function ConnectionTester({ intKey, disabled }: { intKey: string; disable
       setResult({ ok: false, message: (e as Error).message });
     } finally {
       setBusy(false);
+      onProbada?.();
     }
   }
 
-  const tone =
+  // El color va solo en el punto; lo que pasó se dice con palabras.
+  const marca =
     result?.ok === true
-      ? "border-ok/30 bg-ok-soft/50 text-ok"
+      ? "var(--color-ok)"
       : result?.ok === false
-        ? "border-danger/30 bg-danger-soft text-danger"
-        : "border-line bg-panel/50 text-ink-2";
+        ? "var(--color-danger)"
+        : "var(--color-line-strong)";
 
   return (
     <div>
-      <button
-        onClick={probar}
-        disabled={busy || disabled}
-        className="btn btn-secondary"
-      >
+      <button onClick={probar} disabled={busy || disabled} className="btn btn-secondary">
         {busy ? "Probando…" : "Probar conexión"}
       </button>
       {result && (
-        <div className={`mt-2 rounded-md border px-3 py-2 text-cuerpo ${tone}`}>
-          <p className="font-medium">{result.message}</p>
+        <div role="status" className="mt-3 max-w-md text-cuerpo">
+          <p
+            className="mark !items-start !whitespace-normal !text-cuerpo !text-ink"
+            style={{ "--mark": marca } as React.CSSProperties}
+          >
+            {result.message}
+          </p>
           {result.details && (
-            <ul className="mt-1 space-y-0.5 text-apoyo text-ink-2">
+            <ul className="mt-1.5 space-y-0.5 pl-3 text-apoyo text-ink-2">
               {Object.entries(result.details).map(([k, v]) => (
                 <li key={k}>
                   {k}: <span className="font-medium">{v}</span>

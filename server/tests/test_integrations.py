@@ -91,14 +91,15 @@ def test_integrations_marca_conectados(client, demo_tenant, demo_login, monkeypa
     assert res.status_code == 200
     body = res.json()
     by_key = {s["key"]: s for s in body["systems"]}
-    # whatsapp conectado porque su sesión está viva; shopify por la factura
+    # whatsapp conectado porque su sesión está viva. Shopify NO: hay una factura que
+    # vino de ahí, pero ni una credencial. Datos que ya entraron no son una conexión.
     assert by_key["whatsapp"]["connected"] is True
-    assert by_key["shopify"]["connected"] is True
+    assert by_key["shopify"]["connected"] is False
     assert by_key["shopify"]["records"] >= 1
     assert by_key["sat"]["connected"] is False
     # algo no tocado queda disponible
-    assert by_key["stripe"]["connected"] is False
-    assert body["connected_count"] >= 2
+    assert by_key["hubspot"]["connected"] is False
+    assert body["connected_count"] == 1
     # El mapa muestra el equipo del DUEÑO. Sin ayudantes creados va vacío, y ningún
     # sistema le atribuye uso a nadie: antes inventaba ocho roles de fábrica.
     assert body["agents"] == []
@@ -109,14 +110,17 @@ def test_integrations_responde_local(client, demo_tenant):
     assert client.get("/v1/integrations").status_code == 200
 
 
-def test_sat_aparece_en_catalogo_y_conecta_con_empresa(
+def test_sat_aparece_en_catalogo_y_un_rfc_solo_no_lo_conecta(
     client, demo_tenant, demo_login
 ):
+    """Anotar un RFC no le da a aiuda acceso al SAT: eso lo da la e.firma. Con el RFC
+    solo queda configurado (ya hay con qué importar XML), no "Conectado"."""
     demo_login(client)
     client.post("/v1/sat/empresas", json={"rfc": "AAA010101AAA"})
     graph = client.get("/v1/integrations").json()
     sat = next(s for s in graph["systems"] if s["key"] == "sat")
-    assert sat["connected"] is True
+    assert sat["configured"] is True
+    assert sat["connected"] is False
     assert {p["cap"] for p in sat["provides"]} == {
         "cfdi",
         "cuentas_por_cobrar",
@@ -376,7 +380,10 @@ def test_instalacion_nueva_no_presume_fuentes_conectadas(client, db_session):
 
 # --- Sin estrenar y ocultas -------------------------------------------------
 
-OCULTAS = {"whatsapp_cloud", "mercadopago", "clip", "conekta"}
+# Todo conector de pago va oculto hasta estrenarse con una cuenta real: los que cobran
+# por link (Mercado Pago, Clip, Conekta) y los que solo confirman (Stripe, Belvo).
+PAGOS = {"mercadopago", "clip", "conekta", "stripe", "belvo"}
+OCULTAS = {"whatsapp_cloud"} | PAGOS
 
 
 def test_cada_integracion_declara_si_ya_se_estreno():
@@ -389,8 +396,19 @@ def test_cada_integracion_declara_si_ya_se_estreno():
     assert {i["key"] for i in CATALOG if i.get("oculta")} == OCULTAS
     visibles = [i for i in CATALOG if not i.get("oculta")]
     assert len(CATALOG) == 19
-    assert len(visibles) == 15
-    assert sum(1 for i in visibles if not i["estrenada"]) == 11
+    assert len(visibles) == 13
+    assert sum(1 for i in visibles if not i["estrenada"]) == 9
+    # La regla de los pagos, sin excepciones: lo que confirma o cobra dinero y no se
+    # ha estrenado, no se ofrece.
+    from aiuda_server.api.integrations import _SOURCE_PROVIDES
+
+    de_pago = {
+        k for k, caps in _SOURCE_PROVIDES.items() if {"confirmacion_pago", "link_de_pago"} & set(caps)
+    }
+    assert de_pago == PAGOS
+    assert all(
+        i.get("oculta") for i in CATALOG if i["key"] in de_pago and not i["estrenada"]
+    )
     # El SAT se estrenó con una e.firma real (docs/SAT.md dice qué se probó y qué no).
     sat = next(i for i in CATALOG if i["key"] == "sat")
     assert "falta verificarla" not in sat["does"]
@@ -403,10 +421,10 @@ def test_el_grafo_expone_estrenada_y_esconde_lo_no_probado(client, demo_tenant, 
     body = client.get("/v1/integrations").json()
     by_key = {s["key"]: s for s in body["systems"]}
     assert not OCULTAS & set(by_key)
-    assert len(by_key) == 15
+    assert len(by_key) == 13
     assert by_key["odoo"]["estrenada"] is True
-    assert by_key["stripe"]["estrenada"] is False
-    assert body["connected_count"] + body["available_count"] == 15
+    assert by_key["shopify"]["estrenada"] is False
+    assert body["connected_count"] + body["available_count"] == 13
     # Tampoco se cuelan como proveedoras de una capacidad.
     for cap in body["capabilities"]:
         assert not OCULTAS & set(cap["providers"])
@@ -432,3 +450,122 @@ def test_lo_oculto_conserva_su_detalle_y_su_configuracion(client, demo_tenant, d
     demo_login(client)
     assert client.get("/v1/integrations/conekta").status_code == 200
     assert client.get("/v1/integrations/conekta/config").status_code == 200
+
+
+# --- "Conectado" es acceso de verdad -----------------------------------------
+
+
+def test_una_cartera_importada_no_presume_conexiones(client, db_session, demo_tenant, demo_login):
+    """El bug: con facturas que traen `source` de Odoo, Excel y Stripe (lo que deja
+    una cartera importada o sembrada), la consola decía "3 conectadas" sin que
+    hubiera una sola credencial ni sesión."""
+    from datetime import date
+
+    from aiuda_core.models import Customer, Invoice
+
+    demo_login(client)
+    cust = Customer(tenant_id=demo_tenant.id, name="Cliente", phone="5215500000077")
+    db_session.add(cust)
+    db_session.flush()
+    for i, fuente in enumerate(("odoo", "excel", "stripe")):
+        db_session.add(
+            Invoice(
+                tenant_id=demo_tenant.id,
+                customer_id=cust.id,
+                folio=f"IMP-{i}",
+                amount=100,
+                issued_date=date(2026, 6, 1),
+                due_date=date(2026, 6, 10),
+                source=fuente,
+                presence={fuente: {"ref": f"IMP-{i}"}},
+            )
+        )
+    db_session.flush()
+
+    body = client.get("/v1/integrations").json()
+    by_key = {s["key"]: s for s in body["systems"]}
+    assert body["connected_count"] == 0
+    assert by_key["odoo"]["connected"] is False and by_key["odoo"]["records"] == 1
+    # Excel nunca está "conectado": es un archivo que se sube. Sí dice cuánto cargó.
+    assert by_key["excel"]["connected"] is False and by_key["excel"]["records"] == 1
+    # Lo que sí conserva la definición amplia: la capacidad YA tiene de dónde leer,
+    # así que un ayudante de cobranza con cartera importada no tiene un hueco.
+    caps = {c["key"]: c for c in body["capabilities"]}
+    assert caps["cuentas_por_cobrar"]["connected"] is True
+    # Y una oculta de la que ya hay datos no se le esconde al negocio que la usa.
+    assert "stripe" in by_key and by_key["stripe"]["connected"] is False
+
+    # Con credenciales guardadas, ahora sí.
+    res = client.put(
+        "/v1/integrations/odoo/config",
+        json={"values": {"url": "https://x.odoo.com", "db": "x", "username": "u", "api_key": "k"}},
+    )
+    assert res.status_code == 200
+    body = client.get("/v1/integrations").json()
+    assert body["connected_count"] == 1
+    assert next(s for s in body["systems"] if s["key"] == "odoo")["connected"] is True
+    assert client.get("/v1/integrations/odoo").json()["connected"] is True
+    assert client.get("/v1/integrations/excel").json()["connected"] is False
+
+
+def test_stripe_y_belvo_no_se_ofrecen(client, demo_tenant, demo_login):
+    demo_login(client)
+    body = client.get("/v1/integrations").json()
+    visibles = {s["key"] for s in body["systems"]}
+    assert not {"stripe", "belvo"} & visibles
+    # Ni como opción para confirmar pagos: hoy esa capacidad no tiene quién la ofrezca.
+    caps = {c["key"]: c for c in body["capabilities"]}
+    assert caps["confirmacion_pago"]["providers"] == []
+
+
+def test_probar_conexion_no_ensena_el_error_crudo():
+    """Las librerías fallan en inglés y a veces con la dirección completa. A la
+    consola sale qué pasó y qué revisar; el crudo se queda en el log."""
+    import socket
+
+    from aiuda_server.api.integrations import explicar_fallo_conexion
+
+    class Respuesta:
+        def __init__(self, codigo):
+            self.status_code = codigo
+
+    class ErrorHTTP(Exception):
+        def __init__(self, codigo):
+            super().__init__(f"{codigo} Client Error for url: https://api.x.com/v1?key=SECRETO")
+            self.response = Respuesta(codigo)
+
+    casos = [
+        (ConnectionRefusedError(61, "Connection refused"), "No se pudo llegar"),
+        (socket.gaierror(8, "nodename nor servname provided"), "No se pudo llegar"),
+        (TimeoutError("timed out"), "no respondió a tiempo"),
+        (ErrorHTTP(401), "no aceptó tus credenciales"),
+        (ErrorHTTP(404), "no existe"),
+        (ErrorHTTP(503), "fallando de su lado"),
+        (PermissionError("Autenticación con Odoo falló"), "no aceptó tus credenciales"),
+        (RuntimeError("KeyError: 'data'"), "Revisa los datos"),
+    ]
+    for exc, esperado in casos:
+        mensaje = explicar_fallo_conexion(exc)
+        assert mensaje.startswith("No se pudo conectar. ")
+        assert esperado in mensaje
+        for crudo in ("Errno", "refused", "Client Error", "SECRETO", "KeyError", "timed out"):
+            assert crudo not in mensaje
+
+
+def test_probar_odoo_con_una_direccion_muerta_responde_en_espanol(client, demo_tenant, demo_login):
+    demo_login(client)
+    client.put(
+        "/v1/integrations/odoo/config",
+        json={
+            "values": {
+                "url": "http://127.0.0.1:9",
+                "db": "x",
+                "username": "u",
+                "api_key": "k",
+            }
+        },
+    )
+    res = client.post("/v1/integrations/odoo/test").json()
+    assert res["ok"] is False
+    assert res["message"].startswith("No se pudo conectar. ")
+    assert "Errno" not in res["message"] and "refused" not in res["message"].lower()

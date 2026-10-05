@@ -49,7 +49,7 @@ procedencia, así que en la ficha se ve de dónde vino y cuándo.
 
 **WhatsApp no envía.**
 El mensaje que no salió dice por qué, junto a "No se envió" en la conversación o
-en el Centro. Para ver cómo está la sesión, entra a Integraciones, abre WhatsApp
+en el Centro. Para ver cómo está la sesión, entra a Ajustes, a Conexiones, y abre WhatsApp
 y usa "Probar conexión". Lo más común:
 
 - **No está vinculado, o WhatsApp cerró la sesión.** Pasa si quitaste esta
@@ -61,14 +61,14 @@ y usa "Probar conexión". Lo más común:
   sesión. aiuda la mantiene abierta por su cuenta mientras está corriendo; si
   además dejaste un `wacli sync` en una terminal, ciérralo y aiuda la retoma en
   menos de un minuto.
-- **Falta el conector.** En Integraciones, abre WhatsApp y presiona Instalar.
+- **Falta el conector.** En Ajustes, en Conexiones, abre WhatsApp y presiona Instalar el conector.
   Necesita macOS 15 o más nuevo.
 
 **No llegan las respuestas de mis clientes.**
 Llegan mientras aiuda está abierto: es aiuda quien mantiene conectada la sesión
 de WhatsApp de esta computadora. Con aiuda cerrado los mensajes se quedan en tu
 teléfono y entran cuando lo vuelves a abrir. Si aiuda está abierto y no llegan,
-usa "Probar conexión" en Integraciones.
+usa "Probar conexión" en Ajustes, en Conexiones.
 
 aiuda solo recibe lo que te escriben tus clientes. Si el mensaje de un cliente
 no aparece, revisa que su ficha tenga el mismo teléfono desde el que te escribe.
@@ -134,7 +134,7 @@ aiuda doctor (0.1.0)
 ```
 
 `[--]` no siempre es un problema: los CLIs, Ollama, el CUA y wacli son
-opcionales (wacli se instala con un clic desde Integraciones, en WhatsApp). Lo que sí importa es que la carpeta de datos, la base y la llave
+opcionales (wacli se instala con un clic desde Ajustes, en Conexiones, al abrir WhatsApp). Lo que sí importa es que la carpeta de datos, la base y la llave
 digan `[ok]`, y que haya un proveedor de IA si esperas que el ayudante redacte.
 
 ## Si nada de eso aplica

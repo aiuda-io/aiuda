@@ -54,7 +54,7 @@ export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
 
   email: {
     intro:
-      "Conecta el correo del negocio (IMAP genérico, Gmail o Outlook): los correos de tus clientes entran como hilos a la bandeja, tu ayudante propone la respuesta y tú apruebas antes de que salga. La vía completa HOY es contraseña de aplicación; entrar con OAuth (botón de Google/Microsoft) está documentado y por cablear.",
+      "Conecta el correo del negocio (IMAP genérico, Gmail o Outlook): los correos de tus clientes entran como hilos a la bandeja, tu ayudante propone la respuesta y tú apruebas antes de que salga. Hoy se entra con una contraseña de aplicación; el botón de entrar con Google o Microsoft todavía no existe.",
     steps: [
       "Elige tu proveedor: IMAP genérico, Gmail o Outlook. Gmail y Outlook rellenan los servidores solos.",
       "En Gmail o Outlook activa la verificación en dos pasos y genera una contraseña de aplicación (no uses tu contraseña normal).",
@@ -72,11 +72,6 @@ export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
         field: "Servidor IMAP / SMTP",
         where:
           "Gmail: imap.gmail.com:993 y smtp.gmail.com:465. Outlook: outlook.office365.com:993 y smtp.office365.com:587. Otro: revisa la ayuda de tu proveedor.",
-      },
-      {
-        field: "OAuth (Google / Microsoft)",
-        where:
-          "Aún no está cableado: exige registrar una app OAuth (scope de correo en Google Cloud / permisos IMAP+SMTP en Microsoft Entra) e intercambiar tokens XOAUTH2. La credencial ya guarda esos campos cifrados; cuando se cablee, entrarás sin contraseña de aplicación.",
       },
     ],
   },
