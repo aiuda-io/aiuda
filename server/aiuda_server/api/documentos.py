@@ -5,6 +5,8 @@ Aquí solo se leen: los crea la corrida que los trae (ver
 `aiuda_core.cua.fallback`). El listado nunca lleva el PDF; ese se pide por pieza.
 """
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
@@ -19,6 +21,14 @@ NOMBRE_TIPO = {
 }
 
 
+def iso_utc(dt: datetime | None) -> str | None:
+    """La fecha con su zona. SQLite la devuelve sin zona (es UTC); sin marcarla, la
+    consola la leería como hora local y la mostraría seis horas corrida."""
+    if dt is None:
+        return None
+    return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).isoformat()
+
+
 def serializar(d: Documento) -> dict:
     return {
         "id": d.id,
@@ -27,7 +37,7 @@ def serializar(d: Documento) -> dict:
         "nombre": NOMBRE_TIPO.get(d.tipo, d.tipo),
         "folio": d.folio,
         "sentido": d.sentido,
-        "fecha": d.fecha.isoformat() if d.fecha else None,
+        "fecha": iso_utc(d.fecha),
         "mission_id": d.mission_id,
     }
 

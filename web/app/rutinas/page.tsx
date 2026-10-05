@@ -7,20 +7,24 @@ import {
   ErrorState,
   PrimaryButton,
   SecondaryButton,
+  SinEstrenar,
   Tabs,
   useConfirm,
 } from "@/components/ui";
 import { Drawer } from "@/components/drawer";
 import { AnimatedNumber, Collapse } from "@/components/motion";
 import { toast } from "@/components/toast";
-import { fechaHora, haceTiempo } from "@/lib/format";
+import { fecha, fechaHora, haceTiempo } from "@/lib/format";
 import {
   api,
+  apiUrl,
   type CuaCapacidad,
+  type CuaDeterministas,
   type CuaEstado,
   type CuaMision,
   type CuaSesionHandoff,
   type RutinaBackoffice,
+  type RutinaSat,
 } from "@/lib/api";
 
 // Estado real de una misión, con el color del punto en la línea de tiempo y si "late"
@@ -71,6 +75,7 @@ export default function RutinasPage() {
   const [rutinas, setRutinas] = useState<RutinaBackoffice[] | null>(null);
   const [caps, setCaps] = useState<CuaCapacidad[]>([]);
   const [estado, setEstado] = useState<CuaEstado | null>(null);
+  const [sat, setSat] = useState<CuaDeterministas | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Compositor "manda un encargo".
@@ -91,14 +96,16 @@ export default function RutinasPage() {
 
   const cargar = async () => {
     try {
-      const [m, c, r] = await Promise.all([
+      const [m, c, r, s] = await Promise.all([
         api.cuaMisiones(),
         api.cuaCapacidades(),
         api.cuaRutinas(),
+        api.cuaDeterministas(),
       ]);
       setMisiones(m);
       setCaps(c);
       setRutinas(r);
+      setSat(s);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -119,6 +126,7 @@ export default function RutinasPage() {
     if (!activos) return;
     const t = setInterval(() => {
       api.cuaMisiones().then(setMisiones).catch(() => {});
+      api.cuaDeterministas().then(setSat).catch(() => {});
     }, 4000);
     return () => clearInterval(t);
   }, [activos]);
@@ -126,6 +134,11 @@ export default function RutinasPage() {
   const worker = caps.find((c) => c.capacidad === capSel) ?? null;
 
   const refrescarMisiones = () => api.cuaMisiones().then(setMisiones).catch(() => {});
+  const refrescarSat = () =>
+    Promise.all([
+      api.cuaDeterministas().then(setSat),
+      api.cuaMisiones().then(setMisiones),
+    ]).catch(() => {});
   const refrescarRutinas = () => api.cuaRutinas().then(setRutinas).catch(() => {});
 
   // Despacha un encargo ahora (compositor o rutina guardada). Reusa el mismo encolar.
@@ -198,7 +211,7 @@ export default function RutinasPage() {
   ).length;
   const conResultado = (misiones ?? []).filter((m) => m.status === "done").length;
 
-  const cargado = misiones !== null && rutinas !== null;
+  const cargado = misiones !== null && rutinas !== null && sat !== null;
   const listaRutinas = rutinas ?? [];
   const listaMisiones = misiones ?? [];
   const vacioTotal = cargado && listaRutinas.length === 0 && listaMisiones.length === 0;
@@ -216,7 +229,7 @@ export default function RutinasPage() {
     <div className="min-w-0">
       <PageHeader
         title="Rutinas"
-        subtitle="Despacha un encargo a un asistente: dile a qué portal entrar (el SAT, tu banco, tribunales) y qué traerte. Entra por su cuenta, hace la consulta y te deja el resultado con evidencia. Guarda los que repites y córrelos con un clic."
+        subtitle="Trabajos que aiuda hace por ti en un portal. Los dos primeros no usan IA: bajar del SAT tu opinión de cumplimiento y tu constancia de situación fiscal."
       />
 
       {error ? (
@@ -228,9 +241,27 @@ export default function RutinasPage() {
         </div>
       ) : (
         <div className="reveal mx-auto max-w-3xl space-y-5">
-          {/* ── LANZADOR (hero) ───────────────────────────────────────────────────
-              El foco único: despachar un encargo. Trae adentro el aviso honesto, las
-              cifras titulares y el acceso a Portales, para no alargar la página. */}
+          {/* ── DOCUMENTOS DEL SAT ────────────────────────────────────────────────
+              Dos rutinas de guion fijo, sin IA, por cada empresa con e.firma. Van
+              primero. El sello "Sin estrenar" lo decide el servidor por rutina. */}
+          {sat && <RutinasSat sat={sat} onCambio={refrescarSat} />}
+
+          {/* ── OTROS PORTALES (experimental) ─────────────────────────────────────
+              El asistente con IA que opera un portal viendo la pantalla. Nadie lo ha
+              corrido todavía en un portal real: se dice aquí y en cada portal. */}
+          <div className="pt-3">
+            <h2 className="flex items-center gap-2 text-seccion font-semibold text-ink">
+              Otros portales
+              <span className="rounded bg-warn-soft px-1.5 py-0.5 text-sello font-medium text-warn">
+                Experimental
+              </span>
+            </h2>
+            <p className="mt-1 text-apoyo leading-relaxed text-ink-3">
+              Un asistente con IA entra a un portal (tu banco, un tribunal) y trae lo que le
+              pidas. Necesita una llave de Anthropic y todavía nadie lo ha usado en un portal
+              real.
+            </p>
+          </div>
           <Lanzador
             caps={caps}
             worker={worker}
@@ -307,6 +338,229 @@ export default function RutinasPage() {
 
       {dialog}
     </div>
+  );
+}
+
+// ── Documentos del SAT ─────────────────────────────────────────────────────────
+// Las dos rutinas de guion fijo, sin IA: un bloque por empresa con e.firma. No llevan
+// instrucción (no hay nada que interpretar). Antes de la primera corrida de un RFC se
+// pide el permiso del dueño; el servidor se niega a correr sin él.
+function SelloSinIA() {
+  return (
+    <span
+      title="Sigue un guion fijo. No usa tu IA ni gasta de tu tope."
+      className="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-panel px-1.5 py-0.5 text-sello font-medium text-ink-2"
+    >
+      Sin IA
+    </span>
+  );
+}
+
+function RutinasSat({ sat, onCambio }: { sat: CuaDeterministas; onCambio: () => void }) {
+  const [ocupado, setOcupado] = useState("");
+
+  const aceptar = async (rfc: string) => {
+    setOcupado(`permiso:${rfc}`);
+    try {
+      await api.cuaAceptarConsentimiento(rfc);
+      onCambio();
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setOcupado("");
+    }
+  };
+
+  const bajar = async (rfc: string, r: RutinaSat) => {
+    setOcupado(`${r.capacidad}:${rfc}`);
+    try {
+      await api.cuaEncolar(r.capacidad, undefined, rfc);
+      toast(`Bajando ${r.nombre} de ${rfc}. Tarda cerca de un minuto.`, "info");
+      onCambio();
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setOcupado("");
+    }
+  };
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-line bg-surface elev-sm">
+      <div className="border-b border-line/70 bg-panel/40 px-5 py-3.5">
+        <h2 className="flex items-center gap-2 text-seccion font-semibold text-ink">
+          Documentos del SAT
+          <SelloSinIA />
+        </h2>
+        <p className="mt-0.5 text-apoyo leading-relaxed text-ink-3">
+          aiuda entra al portal del SAT con tu e.firma, consulta y descarga el PDF. Sigue un
+          guion fijo: no usa tu IA y funciona aunque no tengas ninguna conectada.
+        </p>
+      </div>
+
+      <div className="space-y-4 p-5">
+        {!sat.navegador_listo && (
+          <p className="rounded-lg border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-cuerpo leading-relaxed text-ink-2">
+            <span className="font-semibold text-warn">Aquí todavía no pueden correr.</span>{" "}
+            {sat.navegador_detalle}
+          </p>
+        )}
+
+        {sat.empresas.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-line-strong bg-bg px-4 py-3.5 text-cuerpo leading-relaxed text-ink-2">
+            Estas rutinas entran al SAT con tu e.firma y aún no has cargado ninguna.{" "}
+            <a
+              href="/sat"
+              className="font-medium text-accent-ink underline-offset-2 hover:underline"
+            >
+              Cárgala en SAT · Bóveda fiscal
+            </a>{" "}
+            y regresa aquí.
+          </p>
+        ) : (
+          sat.empresas.map((e) => (
+            <article key={e.rfc} className="rounded-lg border border-line bg-bg">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 pt-3.5">
+                <p className="text-seccion font-semibold text-ink">{e.rfc}</p>
+                <p className="text-apoyo text-ink-3">
+                  {e.nombre ? `${e.nombre} · ` : ""}e.firma vigente hasta {fecha(e.vigente_hasta)}
+                </p>
+              </div>
+
+              {!e.consentimiento_en && (
+                <div className="mx-4 mt-3 rounded-lg border border-accent/45 bg-accent-soft/40 px-4 py-3.5">
+                  <p className="text-cuerpo font-semibold text-ink">
+                    Antes de la primera vez, tu permiso
+                  </p>
+                  <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
+                    {sat.consentimiento_texto}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <PrimaryButton
+                      onClick={() => aceptar(e.rfc)}
+                      disabled={ocupado === `permiso:${e.rfc}`}
+                    >
+                      {ocupado === `permiso:${e.rfc}` ? "Guardando…" : "Acepto"}
+                    </PrimaryButton>
+                    <span className="text-apoyo text-ink-3">
+                      Se pide una sola vez para este RFC.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <ul className="mt-3 divide-y divide-line/70 border-t border-line/70">
+                {e.rutinas.map((r) => (
+                  <RutinaSatFila
+                    key={r.capacidad}
+                    r={r}
+                    despachando={ocupado === `${r.capacidad}:${e.rfc}`}
+                    bloqueada={!e.consentimiento_en || !sat.navegador_listo}
+                    motivo={
+                      !sat.navegador_listo
+                        ? "Falta el navegador en esta instalación."
+                        : !e.consentimiento_en
+                          ? "Primero da tu permiso."
+                          : ""
+                    }
+                    onBajar={() => bajar(e.rfc, r)}
+                  />
+                ))}
+              </ul>
+            </article>
+          ))
+        )}
+
+        {sat.empresas.length > 0 && (
+          <p className="text-apoyo leading-relaxed text-ink-3">
+            Cada vez que bajas la opinión de cumplimiento, el SAT le pone un folio nuevo. aiuda
+            solo consulta y descarga: no presenta, no firma ni acepta nada.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function RutinaSatFila({
+  r,
+  despachando,
+  bloqueada,
+  motivo,
+  onBajar,
+}: {
+  r: RutinaSat;
+  despachando: boolean;
+  bloqueada: boolean;
+  motivo: string;
+  onBajar: () => void;
+}) {
+  const doc = r.ultimo_documento;
+  const corrida = r.ultima_corrida;
+  // Una falla solo se enseña si es más reciente que el último documento bueno.
+  const fallo =
+    corrida?.status === "failed" && (!doc || !doc.fecha || corrida.fecha > doc.fecha)
+      ? corrida
+      : null;
+  const positivo = /positiv/i.test(doc?.sentido ?? "");
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-center gap-2 text-cuerpo font-medium text-ink">
+          {r.nombre}
+          <SelloSinIA />
+          {!r.estrenada && <SinEstrenar />}
+        </p>
+        {r.en_curso ? (
+          <p className="mt-1 flex items-center gap-1.5 text-apoyo font-medium text-accent-ink">
+            <span className="breathe h-1.5 w-1.5 rounded-full bg-accent" />
+            Adentro del portal del SAT. Tarda cerca de un minuto.
+          </p>
+        ) : doc ? (
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-apoyo text-ink-3">
+            {doc.sentido && (
+              <span
+                className={`rounded px-1.5 py-0.5 text-sello font-medium ${
+                  positivo ? "bg-ok/15 text-ok" : "bg-warn-soft text-warn"
+                }`}
+              >
+                {doc.sentido}
+              </span>
+            )}
+            <span className="tabular-nums">Bajado el {fechaHora(doc.fecha)}</span>
+            {doc.folio && <span className="tabular-nums">· folio {doc.folio}</span>}
+          </p>
+        ) : (
+          <p className="mt-1 text-apoyo text-ink-3">Aún no lo has bajado.</p>
+        )}
+        {fallo && !r.en_curso && (
+          <p className="mt-1.5 rounded-md border border-danger/30 bg-danger-soft px-2.5 py-1.5 text-apoyo leading-relaxed text-danger">
+            No pudo el {fechaHora(fallo.fecha)}: {fallo.error}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {doc && (
+          <a
+            href={apiUrl(`/v1/documentos/${doc.id}.pdf`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+          >
+            Ver PDF
+          </a>
+        )}
+        <PrimaryButton
+          onClick={onBajar}
+          disabled={bloqueada || despachando || r.en_curso}
+          title={motivo || undefined}
+          className="inline-flex items-center gap-1.5"
+        >
+          <PlayIcon className="h-2.5 w-2.5" />
+          {r.en_curso || despachando ? "Bajando…" : doc ? "Bajar de nuevo" : "Bajar ahora"}
+        </PrimaryButton>
+      </div>
+    </li>
   );
 }
 
@@ -488,15 +742,12 @@ function Lanzador({
                   placeholder={worker ? `Por ejemplo: ${worker.objetivo}` : ""}
                   className="mt-2 w-full resize-none rounded-md border border-line bg-surface px-3 py-2 text-cuerpo leading-relaxed text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
                 />
-                <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
-                  Para un portal real (el SAT, tu banco), primero conecta el acceso en{" "}
-                  <a
-                    href="/integraciones"
-                    className="font-medium text-accent-ink underline-offset-2 hover:underline"
-                  >
-                    Integraciones
-                  </a>
-                  ; el asistente ya sabe operarlo.
+                <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-apoyo leading-relaxed text-ink-3">
+                  {worker && !worker.estrenada && <SinEstrenar />}
+                  <span>
+                    Para un portal real, primero conecta su acceso en «Portales y accesos»: ahí
+                    entras tú y el asistente reusa tu sesión.
+                  </span>
                 </p>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -843,7 +1094,10 @@ function Portales({
             >
               <div className="flex items-center gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-cuerpo font-medium text-ink">{c.sistema}</p>
+                  <p className="flex items-center gap-2 text-cuerpo font-medium text-ink">
+                    <span className="truncate">{c.sistema}</span>
+                    {!c.estrenada && <SinEstrenar />}
+                  </p>
                   {c.url_configurada ? (
                     <p className="tnum truncate text-apoyo text-ink-3">{urlBonita(c.url)}</p>
                   ) : (
@@ -1291,6 +1545,18 @@ function MisionTerminada({ m }: { m: CuaMision }) {
             {m.status === "failed" && m.error && (
               <p className="mb-3 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-apoyo text-danger">
                 {m.error}
+              </p>
+            )}
+            {typeof m.data?.documento_id === "string" && (
+              <p className="mb-3">
+                <a
+                  href={apiUrl(`/v1/documentos/${m.data.documento_id}.pdf`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cuerpo font-medium text-accent-ink underline-offset-2 hover:underline"
+                >
+                  Ver PDF
+                </a>
               </p>
             )}
             {m.steps.length > 0 && (

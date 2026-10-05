@@ -51,16 +51,21 @@ CUA_TEMPLATES: dict[str, str] = {
 # e.firma que el dueño ya guardó para la Descarga Masiva (`sat_efirma:<RFC>`), así que
 # el recado lleva el RFC en `data["_rfc"]`. `documento` es el de
 # `cua/deterministas/sat_documentos.py` y el `tipo` con que se guarda el Documento.
+# `estrenada`: False mientras nadie la haya corrido contra el portal real del SAT POR
+# EL CAMINO DEL PRODUCTO (servidor, e.firma guardada, permiso, recado). Hoy solo se han
+# corrido así contra el portal de prueba local; la consola les pone "Sin estrenar".
 RUTINAS_DETERMINISTAS: dict[str, dict] = {
     "sat_opinion_32d": {
         "sistema": "SAT · Opinión de cumplimiento",
         "nombre": "Opinión de cumplimiento (32-D)",
         "documento": "opinion_32d",
+        "estrenada": False,
     },
     "sat_constancia": {
         "sistema": "SAT · Constancia de situación fiscal",
         "nombre": "Constancia de situación fiscal",
         "documento": "constancia",
+        "estrenada": False,
     },
 }
 

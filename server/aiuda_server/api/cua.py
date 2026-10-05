@@ -15,6 +15,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from aiuda_server import audit
 from aiuda_server.api.deps import get_db, get_tenant, require_role
+from aiuda_server.api.documentos import iso_utc, serializar
 from aiuda_core.cua.fallback import (
     CUA_PORTALES_KEY,
     CUA_PORTALES_URL_KEY,
@@ -63,9 +64,9 @@ def _serialize(m: CuaMission, with_evidence: bool = False) -> dict:
         "steps": m.steps or [],
         "error": m.error or "",
         "evidencia_capturas": len(m.evidence or []),
-        "createdAt": m.created_at.isoformat() if m.created_at else None,
-        "startedAt": m.started_at.isoformat() if m.started_at else None,
-        "finishedAt": m.finished_at.isoformat() if m.finished_at else None,
+        "createdAt": iso_utc(m.created_at),
+        "startedAt": iso_utc(m.started_at),
+        "finishedAt": iso_utc(m.finished_at),
     }
     if with_evidence:
         # base64 de PNG; el front las pinta como data:image/png;base64,...
@@ -123,6 +124,9 @@ def _capacidad_publica(tenant: Tenant, capacidad: str, sistema: str, objetivo: s
         "url": (portal or {}).get("url") or "",
         "url_configurada": bool((portal or {}).get("url")),
         "editable": capacidad.startswith(PORTAL_PREFIX),
+        # Nadie ha operado todavía un portal real con el asistente de IA (solo los
+        # portales de prueba locales). La consola le pone el sello "Sin estrenar".
+        "estrenada": False,
         "tiene_sesion": tiene_sesion(tenant, capacidad),
         "sesion_guardada_en": sesion_guardada_en(tenant, capacidad),
     }
@@ -282,7 +286,6 @@ def deterministas(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> d
     from aiuda_core.cua.deterministas.sat_documentos import MSG_SIN_NAVEGADOR
     from aiuda_core.engine.sync import sat_empresas
     from aiuda_core.models import Documento
-    from aiuda_server.api.documentos import serializar
 
     navegador_listo, _ = estado_navegador()
     corridas = _corridas_deterministas(db, tenant)
@@ -307,13 +310,14 @@ def deterministas(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> d
                 {
                     "capacidad": capacidad,
                     "nombre": spec["nombre"],
+                    "estrenada": spec["estrenada"],
                     "en_curso": _en_curso(m),
                     "ultima_corrida": (
                         {
                             "id": m.id,
                             "status": m.status,
                             "error": m.error or "",
-                            "fecha": (m.finished_at or m.created_at).isoformat(),
+                            "fecha": iso_utc(m.finished_at or m.created_at),
                         }
                         if m is not None
                         else None

@@ -4,6 +4,10 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
 
+/** La dirección de un recurso del API para un enlace directo (un PDF que se abre en
+ *  otra pestaña). En dev lleva /api; en la consola empaquetada va sin prefijo. */
+export const apiUrl = (path: string) => `${API_URL}${path}`;
+
 export type AgingLine = { bucket: string; count: number; total: number };
 
 export type Cartera = {
@@ -1127,6 +1131,8 @@ export type CuaCapacidad = {
   url_configurada: boolean;
   /** true = portal a la medida (se puede borrar); false = built-in. */
   editable: boolean;
+  /** false = nadie ha operado este portal de verdad todavía (sello "Sin estrenar"). */
+  estrenada: boolean;
   tiene_sesion: boolean;
   sesion_guardada_en: string | null;
 };
@@ -1170,6 +1176,50 @@ export type CuaEstado = {
   listo: boolean;
   handoff_posible: boolean;
   handoff_detalle: string;
+};
+
+/** Un documento oficial bajado de un portal (opinión 32-D, constancia). El PDF se
+ *  abre con apiUrl(`/v1/documentos/${id}.pdf`). */
+export type Documento = {
+  id: string;
+  rfc: string;
+  tipo: string;
+  nombre: string;
+  folio: string | null;
+  /** Solo la opinión de cumplimiento: Positivo, Negativo… como lo dice el SAT. */
+  sentido: string | null;
+  fecha: string | null;
+  mission_id: string | null;
+};
+
+/** Una rutina sin IA del SAT para una empresa: su última corrida y lo último que trajo. */
+export type RutinaSat = {
+  capacidad: string;
+  nombre: string;
+  estrenada: boolean;
+  en_curso: boolean;
+  ultima_corrida: {
+    id: string;
+    status: CuaMision["status"];
+    error: string;
+    fecha: string;
+  } | null;
+  ultimo_documento: Documento | null;
+};
+
+/** Las rutinas sin IA por empresa con e.firma. `consentimiento_en` = cuándo dio el
+ *  dueño su permiso para ese RFC (null = hay que pedírselo antes de correr). */
+export type CuaDeterministas = {
+  navegador_listo: boolean;
+  navegador_detalle: string;
+  consentimiento_texto: string;
+  empresas: {
+    rfc: string;
+    nombre: string;
+    vigente_hasta: string | null;
+    consentimiento_en: string | null;
+    rutinas: RutinaSat[];
+  }[];
 };
 
 /** Una tarea de portal guardada con nombre para re-correrla con un clic. Vive en
@@ -1734,11 +1784,18 @@ export const api = {
   cuaCapacidades: () => request<CuaCapacidad[]>("/v1/cua/capacidades"),
   cuaMisiones: () => request<CuaMision[]>("/v1/cua/misiones"),
   cuaMision: (id: string) => request<CuaMision>(`/v1/cua/misiones/${id}`),
-  cuaEncolar: (capacidad: string, instruccion?: string) =>
+  cuaEncolar: (capacidad: string, instruccion?: string, rfc?: string) =>
     request<CuaMision>("/v1/cua/misiones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ capacidad, instruccion }),
+      body: JSON.stringify({ capacidad, instruccion, rfc }),
+    }),
+  cuaDeterministas: () => request<CuaDeterministas>("/v1/cua/deterministas"),
+  cuaAceptarConsentimiento: (rfc: string) =>
+    request<{ rfc: string; aceptado_en: string }>("/v1/cua/deterministas/consentimiento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rfc }),
     }),
   cuaRutinas: () => request<RutinaBackoffice[]>("/v1/cua/rutinas"),
   cuaGuardarRutina: (body: { nombre: string; capacidad: string; instruccion?: string }) =>
