@@ -264,6 +264,9 @@ export function ConectarIA({
   const [buscando, setBuscando] = useState(false);
   const [aMano, setAMano] = useState(false);
   const [verModelos, setVerModelos] = useState(false);
+  // Con algo ya conectado: abrir su propio formulario para cambiar la llave o el
+  // modelo sin tener que desconectar primero.
+  const [cambiando, setCambiando] = useState(false);
   const [direccion, setDireccion] = useState(DIRECCION_LOCAL);
   const [modeloAMano, setModeloAMano] = useState("");
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -411,6 +414,7 @@ export function ConectarIA({
       if (r.aviso) toast(r.aviso, "error");
       setTest(await api.testProvider());
       setAbierta(null);
+      setCambiando(false);
       setLlaves({});
       await mirar();
       alCambiar.current?.();
@@ -447,6 +451,7 @@ export function ConectarIA({
       setTest({ ok: false, code: "error", error: (e as Error).message });
     }
     setAbierta(null);
+    setCambiando(false);
     await mirar();
     alCambiar.current?.();
     setTrabajando("");
@@ -884,12 +889,33 @@ export function ConectarIA({
                 <SecondaryButton onClick={probar} disabled={probando}>
                   {probando ? "Probando…" : "Probar que responde"}
                 </SecondaryButton>
+                <button
+                  className="btn btn-quiet"
+                  aria-expanded={cambiando}
+                  onClick={() => {
+                    setTest(null);
+                    setCambiando((v) => !v);
+                  }}
+                >
+                  {cambiando
+                    ? "Cancelar"
+                    : enUso === "claude" || enUso === "codex"
+                      ? "Cambiar la llave"
+                      : enUso === "local" || enUso === "red"
+                        ? "Cambiar de modelo"
+                        : enUso === "chatgpt"
+                          ? "Entrar con otra cuenta"
+                          : "Volver a conectar"}
+                </button>
                 {!enAsistente && (
                   <button onClick={desconectar} className="btn btn-quiet">
                     Desconectar
                   </button>
                 )}
               </div>
+              {cambiando && (
+                <div className="reveal mt-5 border-t border-line pt-5">{panel(enUso, false)}</div>
+              )}
               {tardando && probando && (
                 <p className="mt-3 text-apoyo text-ink-3">
                   La primera vez tarda unos segundos: está despertando el programa.

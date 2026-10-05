@@ -422,7 +422,7 @@ function PasoIA({
 
       <ConectarIA enAsistente onCambio={refrescar} />
 
-      {estado.ia.conectada && (
+      {(estado.ia.conectada || estado.ia.env_key) && (
         <div className="mt-8">
           <PrimaryButton size="lg" onClick={onListo}>
             Continuar
@@ -594,7 +594,8 @@ function PasoCartera({
     );
   }
 
-  const conIA = estado.ia.conectada;
+  // Una llave puesta por fuera de la consola también sirve para leer la hoja.
+  const conIA = estado.ia.conectada || estado.ia.env_key;
 
   return (
     <div>
@@ -718,7 +719,8 @@ function PasoCierre({
   const { ayudantes } = useAyudantes();
   const nombres = (ayudantes ?? []).map((a) => a.name).join(", ");
   const { clientes, facturas } = estado.datos;
-  const listo = estado.ia.conectada && estado.ayudantes.total > 0 && facturas > 0;
+  const conIA = estado.ia.conectada || estado.ia.env_key;
+  const listo = conIA && estado.ayudantes.total > 0 && facturas > 0;
 
   const mirarWhatsapp = useCallback(
     () =>
@@ -795,13 +797,13 @@ function PasoCierre({
           valor={
             estado.ia.conectada
               ? `Conectada: ${nombreDeLaIA(estado.ia.proveedor)}`
-              : "Sin conectar. Tu ayudante no puede redactar"
+              : estado.ia.env_key
+                ? "Conectada con una llave puesta fuera de la consola"
+                : "Sin conectar. Tu ayudante no puede redactar"
           }
-          ok={estado.ia.conectada}
+          ok={conIA}
           accion={
-            !estado.ia.conectada && (
-              <SecondaryButton onClick={() => irA("ia")}>Conectarla</SecondaryButton>
-            )
+            !conIA && <SecondaryButton onClick={() => irA("ia")}>Conectarla</SecondaryButton>
           }
         />
         <Renglon
