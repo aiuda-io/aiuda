@@ -16,11 +16,13 @@ import {
   TextInput,
   inputCls,
   useApi,
+  QuietButton,
 } from "@/components/ui";
 import { Chatter, type ChatterMessage } from "@/components/chatter";
 import { ConversationsList } from "@/components/conversations-list";
 import { usePageTrail } from "@/components/rastro";
 import { toast } from "@/components/toast";
+import { telefonoMx } from "@/lib/format";
 
 export default function ConversacionesPage() {
   // useSearchParams exige un boundary de Suspense en el export estático.
@@ -39,10 +41,13 @@ function Mensajes() {
   const sinNada = !loading && !error && conversations.length === 0;
 
   return (
-    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[480px] min-w-0 gap-6">
+    // La bandeja va sobre el mismo papel que todo lo demás: una raya fina la separa
+    // del hilo. Antes era una columna gris con la conversación abierta en una ficha
+    // blanca, justo lo que DESIGN.md prohíbe.
+    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[480px] min-w-0">
       <aside
-        className={`${enHilo ? "hidden md:flex" : "flex"} w-full min-w-0 flex-col rounded-xl bg-panel ${
-          sinNada ? "" : "md:w-[360px] md:shrink-0"
+        className={`${enHilo ? "hidden md:flex" : "flex"} w-full min-w-0 flex-col ${
+          sinNada ? "" : "md:w-[340px] md:shrink-0 md:border-r md:border-line md:pr-6"
         }`}
       >
         <ConversationsList
@@ -54,7 +59,7 @@ function Mensajes() {
         />
       </aside>
       {!sinNada && (
-        <main className={`${enHilo ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col`}>
+        <main className={`${enHilo ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col md:pl-8`}>
           {enHilo ? (
             <Hilo id={id} enBandeja={conversations.find((c) => c.id === id)} onCambio={refetchQuiet} />
           ) : (
@@ -204,23 +209,23 @@ function Hilo({
             <p className="tnum truncate text-apoyo text-ink-3">
               {esCorreo
                 ? `Correo · ${data.correo?.de || "sin remitente"}${data.correo?.asunto ? ` · ${data.correo.asunto}` : ""}`
-                : `WhatsApp · ${data.remote_phone}`}
+                : `WhatsApp · ${telefonoMx(data.remote_phone, { pais: true }) || data.remote_phone}`}
             </p>
           )}
         </div>
         {data && (
           <div className="flex shrink-0 items-center gap-2">
-            <button
+            <QuietButton
               onClick={() =>
                 estado === "descartado"
                   ? hacer(() => api.undismissConversation(data.id), "No se pudo regresar", "De vuelta en la bandeja.")
                   : hacer(() => api.dismissConversation(data.id), "No se pudo descartar", "Conversación descartada.")
               }
               disabled={ocupado}
-              className="btn btn-quiet btn-sm"
-            >
+ size="sm"
+>
               {estado === "descartado" ? "Regresar a la bandeja" : "Descartar"}
-            </button>
+            </QuietButton>
             <SecondaryButton
               size="sm"
               onClick={() => hacer(() => api.takeover(data.id, !alMando), "No se pudo cambiar quién atiende")}
@@ -233,7 +238,7 @@ function Hilo({
       </header>
 
       {alMando && (
-        <p className="mb-3 shrink-0 rounded-lg bg-accent-soft px-4 py-2.5 text-cuerpo text-accent-ink">
+        <p className="mb-3 shrink-0 rounded-lg bg-panel px-4 py-2.5 text-cuerpo text-ink-2">
           Tú atiendes esta conversación. Tu ayudante no contesta aquí hasta que se la devuelvas.
         </p>
       )}
@@ -304,7 +309,8 @@ function Identificar({
   return (
     <div className="mb-3 shrink-0 rounded-xl bg-panel px-4 py-3.5">
       <p className="text-cuerpo text-ink">
-        {esCorreo ? "El correo" : "El número"} <span className="tnum font-medium">{contacto}</span> todavía
+        {esCorreo ? "El correo" : "El número"}{" "}
+        <span className="tnum font-medium">{esCorreo ? contacto : telefonoMx(contacto) || contacto}</span> todavía
         no es de ningún cliente.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">

@@ -96,10 +96,10 @@ export function ConversationsList({
 
   return (
     <div className="flex h-full min-w-0 flex-col">
-      <header className="shrink-0 px-5 pb-4 pt-5">
+      <header className="shrink-0 pb-6">
         <h1 className="text-titulo font-semibold text-ink">Mensajes</h1>
         {!loading && !error && conversations.length > 0 && (
-          <p className="mt-1 text-cuerpo text-ink-2">
+          <p className="mt-2.5 text-cuerpo text-ink-2">
             {hoy === 0
               ? "Nadie ha contestado hoy."
               : hoy === 1
@@ -112,7 +112,7 @@ export function ConversationsList({
       {error ? (
         <ErrorState message={error} retry={retry} />
       ) : loading ? (
-        <div className="space-y-2 px-5">
+        <div className="space-y-2">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-14 w-full" />
           ))}
@@ -128,7 +128,7 @@ export function ConversationsList({
         </EmptyState>
       ) : (
         <>
-          <div className="shrink-0 px-5">
+          <div className="shrink-0">
             {visibles.length > 1 && (
               <div className="-mb-4">
                 <Tabs
@@ -143,7 +143,7 @@ export function ConversationsList({
             </div>
           </div>
 
-          <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+          <ul className="-mx-3 min-h-0 flex-1 overflow-y-auto pb-3">
             {rows.length === 0 && (
               <li className="px-3 py-10 text-center text-cuerpo text-ink-3">
                 {query ? "Nadie coincide con tu búsqueda." : "No hay conversaciones aquí."}
@@ -171,7 +171,7 @@ function Fila({ c, activa }: { c: ConversationItem; activa: boolean }) {
       <Link
         href={`/conversaciones?id=${c.id}`}
         aria-current={activa ? "true" : undefined}
-        className={`block rounded-lg px-3 py-2.5 ${activa ? "bg-surface elev-sm" : "hover:bg-fill"}`}
+        className={`block rounded-lg px-3 py-3 ${activa ? "bg-fill" : "hover:bg-fill"}`}
       >
         <p className="flex items-center gap-2">
           {hoy && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
