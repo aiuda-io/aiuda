@@ -60,6 +60,33 @@ def _to_openai_tool(tool: dict) -> dict:
     }
 
 
+# En la via "Entrar con ChatGPT" las herramientas de funcion no van sueltas: su
+# documentacion (preview-limitations) pide agruparlas en un namespace. No trae ejemplo;
+# esta es la forma `namespace` de la Responses API publica. SIN VERIFICAR con una cuenta
+# real: si OpenAI la rechaza llega como `subscription_sharing_unsupported_capability`.
+ESPACIO_TOOLS = "aiuda"
+
+
+def _en_espacio(tools: list[dict]) -> list[dict]:
+    return [
+        {
+            "type": "namespace",
+            "name": ESPACIO_TOOLS,
+            "description": "Herramientas de aiuda para consultar los datos del negocio.",
+            "tools": tools,
+        }
+    ]
+
+
+# La herramienta minima con la que se prueba la conexion en esa via.
+_TOOL_DE_PRUEBA = {
+    "type": "function",
+    "name": "ping",
+    "description": "No hace nada. Existe solo para probar la conexion.",
+    "parameters": {"type": "object", "properties": {}},
+}
+
+
 class CodexError(Exception):
     """Fallo hablando con la Responses API (llave, red, o respuesta invalida). `code`
     viaja a la consola cuando el fallo tiene una salida concreta (p. ej. "limite")."""
@@ -173,7 +200,7 @@ class CodexRunner:
             "store": False,
         }
         if tools:
-            body["tools"] = tools
+            body["tools"] = _en_espacio(tools) if self._oauth else tools
             body["tool_choice"] = "auto"
 
         text, items, usage, fallo = self._consume(_api_key_headers(bearer), body)
@@ -382,7 +409,15 @@ def test_codex(runner: CodexRunner | None = None) -> dict:
     model = r.model_for("redaccion")
     t0 = time.monotonic()
     try:
-        r.complete(system="Responde en una palabra.", user="ping", task="provider_test", role="redaccion")
+        if r._oauth:
+            # Aqui lo que OpenAI mas facil rechaza son las herramientas, y los ayudantes
+            # las usan en cada platica: la prueba las manda, para que "Funciona" tambien
+            # lo diga de eso y no solo del texto.
+            entrada = [{"role": "user", "content": [{"type": "input_text", "text": "ping"}]}]
+            _t, _i, _tc, usage = r._run(model, "Responde en una palabra.", entrada, [_TOOL_DE_PRUEBA])
+            r._record(model, "provider_test", usage)
+        else:
+            r.complete(system="Responde en una palabra.", user="ping", task="provider_test", role="redaccion")
         return {"ok": True, "mode": mode, "model": model, "latency_ms": int((time.monotonic() - t0) * 1000)}
     except CodexError as exc:
         msg = str(exc)

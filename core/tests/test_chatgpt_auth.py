@@ -368,6 +368,49 @@ def test_los_rechazos_del_plan_se_dicen_en_espanol_y_sin_hablar_de_llaves(
     assert probar_codex(runner)["code"] == code
 
 
+def test_las_herramientas_viajan_agrupadas_como_lo_pide_esta_via(falso, session, tenant):
+    """La documentación de esta vía pide las herramientas de función dentro de un
+    namespace; sueltas (como van con la llave) las rechaza. El falso hace lo mismo."""
+    _conectar(falso, session, tenant)
+    falso.modo["responses"] = "tool"
+    runner = make_runner(resolve_credential(session=session, tenant_id=tenant.id))
+    pedidas: list = []
+
+    def ejecutar(nombre, args):
+        pedidas.append((nombre, args))
+        return "3 facturas vencidas"
+
+    tool = {"name": "facturas_vencidas", "description": "d", "input_schema": {"type": "object"}}
+    texto = runner.run_tool_loop(
+        system="s", user_message="u", tools=[tool], execute_tool=ejecutar
+    )
+
+    assert texto == "Hola desde el plan" and pedidas == [("facturas_vencidas", {})]
+    primera, segunda = (v["body"] for v in falso.visto["responses"])
+    assert [t["type"] for t in primera["tools"]] == ["namespace"]
+    assert primera["tools"][0]["name"] == "aiuda"
+    assert primera["tools"][0]["tools"] == [
+        {"type": "function", "name": "facturas_vencidas", "description": "d",
+         "parameters": {"type": "object"}}
+    ]
+    # La segunda vuelta regresa la llamada del modelo y su resultado.
+    assert segunda["input"][-1] == {
+        "type": "function_call_output", "call_id": "call_1", "output": "3 facturas vencidas",
+    }
+
+    # Y la prueba de conexión manda una herramienta: "Funciona" lo dice también de eso.
+    falso.visto["responses"].clear()
+    falso.modo["responses"] = "ok"
+    assert probar_codex(runner)["ok"] is True
+    assert falso.visto["responses"][0]["body"]["tools"][0]["type"] == "namespace"
+
+
+def test_si_openai_rechaza_la_forma_de_la_peticion_no_se_le_echa_la_culpa_al_plan():
+    code, mensaje = chatgpt_auth.mensaje_error(400, "subscription_sharing_unsupported_capability")
+    assert code == "no_soportado"
+    assert "por la forma en que aiuda la mandó" in mensaje and "tu plan" not in mensaje
+
+
 def test_revocar_avisa_a_openai_y_dice_la_verdad_si_no_pudo(falso, session, tenant):
     bundle = _conectar(falso, session, tenant)
     assert chatgpt_auth.revocar(bundle) is True

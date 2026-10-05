@@ -86,6 +86,12 @@ la documentación de OpenAI, pero todavía nadie ha entrado en aiuda con una cue
 real.** Si con la tuya algo no sale, la consola te dice qué pasó y puedes conectar
 tu IA por cualquiera de las otras vías.
 
+Lo menos seguro es que tus ayudantes puedan consultar tus datos al platicar contigo
+(lo que hacen sus aiuditas): OpenAI pide que esas consultas se le manden de una forma
+particular en esta vía y no publica un ejemplo. aiuda sigue lo que dice su
+documentación y, al probar la conexión en Tu IA, manda una consulta de esas para que
+"Funciona" lo diga también de eso. Si OpenAI la rechaza, te lo dice ahí mismo.
+
 Sirve para usar el plan de ChatGPT que ya pagas sin instalar Codex y sin sacar una
 llave. En Tu IA eliges "Mi plan de ChatGPT" y picas **Continuar con ChatGPT**: se
 abre tu navegador en la página de OpenAI, entras con tu cuenta, das permiso, y el

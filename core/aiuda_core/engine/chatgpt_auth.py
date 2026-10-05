@@ -359,8 +359,9 @@ def mensaje_error(status: int, codigo: str = "") -> tuple[str, str]:
         )
     if codigo == "subscription_sharing_unsupported_capability":
         return "no_soportado", (
-            "ChatGPT rechazó esta petición porque usa algo que tu plan no admite fuera "
-            "de ChatGPT."
+            "ChatGPT rechazó la petición por la forma en que aiuda la mandó, no por algo "
+            "tuyo. Esta vía sigue sin estrenar; mientras se corrige, conecta tu IA de otra "
+            "forma en Tu IA."
         )
     if codigo in ("subscription_sharing_usage_unavailable", "subscription_sharing_user_unavailable") or status == 503:
         return "no_disponible", (

@@ -46,7 +46,7 @@ class FakeChatGPT:
             "token": "ok",  # ok | caido
             "refresh": "ok",  # ok | caido | (cualquier código terminal, p. ej. invalid_grant)
             "revoke": "ok",  # ok | caido
-            "responses": "ok",  # ok | detail_403 | limite | no_elegible | cortado | 401
+            "responses": "ok",  # ok | detail_403 | limite | no_elegible | cortado | 401 | tool
             "expires_in": 3600,
             "sub": "user-falso-1",
             "email": "dueno@ejemplo.mx",
@@ -296,6 +296,30 @@ class FakeChatGPT:
                         "code": "subscription_sharing_unsupported_capability",
                         "param": next(iter(prohibidos), "body"),
                     }})
+                # Las herramientas de función van agrupadas en un namespace, no sueltas.
+                if any(t.get("type") != "namespace" for t in body.get("tools") or []):
+                    return self._json(400, {"error": {
+                        "code": "subscription_sharing_unsupported_capability", "param": "tools",
+                    }})
+                ya_contesto = any(i.get("type") == "function_call_output" for i in body["input"])
+                if modo == "tool" and not ya_contesto:
+                    espacio = body["tools"][0]
+                    llamada = {
+                        "type": "function_call", "call_id": "call_1", "arguments": "{}",
+                        "namespace": espacio["name"], "name": espacio["tools"][0]["name"],
+                    }
+                    eventos = [
+                        {"type": "response.output_item.done", "item": llamada},
+                        {"type": "response.completed", "response": {
+                            "usage": {"input_tokens": 7, "output_tokens": 2},
+                        }},
+                    ]
+                    datos = "".join(f"data: {json.dumps(e)}\n\n" for e in eventos).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.send_header("Content-Length", str(len(datos)))
+                    self.end_headers()
+                    return self.wfile.write(datos)
                 eventos: list[dict] = [{"type": "response.output_text.delta", "delta": "Hola "}]
                 if modo == "limite":
                     eventos.append({"type": "response.failed", "response": {"error": {

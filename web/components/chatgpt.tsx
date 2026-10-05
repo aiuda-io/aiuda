@@ -227,8 +227,10 @@ export function EntrarConChatGPT({
       </p>
       <p className="text-apoyo leading-relaxed text-ink-3">
         Es la vía que OpenAI abrió para programas abiertos que corren en tu computadora.
-        Todavía nadie la ha usado en aiuda con una cuenta real: si tu cuenta o tu plan no la
-        admiten, aquí mismo te lo decimos y puedes conectar tu IA de otra forma.
+        Todavía nadie la ha usado en aiuda con una cuenta real. Lo menos seguro es que tus
+        ayudantes puedan consultar tus datos al platicar contigo por esta vía. Si tu cuenta,
+        tu plan u OpenAI no lo admiten, aquí mismo te lo decimos y puedes conectar tu IA de
+        otra forma.
       </p>
 
       {chatgpt?.vencida && !esperando && !error && (
