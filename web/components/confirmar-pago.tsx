@@ -91,7 +91,11 @@ function Confirmacion({
         const entrada = entries.find((e) => e.id === writebackId);
         if (!vivo) return;
         if (entrada?.estado === "inyectada") return setLlegada("llego");
-        if (entrada && (entrada.estado !== "pendiente" || entrada.attempts > 0)) {
+        // Un intento que YA falló deja escrito su error. `attempts` solo no sirve:
+        // el servidor lo sube antes de hablar con el sistema, así que un pago que va
+        // en camino también lo trae en 1, y se decía "no respondió" de uno que
+        // llegaba un segundo después.
+        if (entrada && (entrada.estado !== "pendiente" || entrada.last_error)) {
           return setLlegada("pendiente");
         }
       } catch {

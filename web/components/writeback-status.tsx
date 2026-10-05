@@ -77,7 +77,9 @@ function detalle(e: WritebackEntry): string {
   if (e.estado === "falló") {
     return `No se pudo registrar en ${donde} después de ${plural(e.attempts, "intento", "intentos")}. Revisa que ${donde} siga conectado y reintenta.`;
   }
-  if (e.attempts > 0) {
+  // Falló un intento solo si dejó su error: `attempts` ya viene en 1 mientras el
+  // primer envío sigue en camino.
+  if (e.last_error || e.reintento_en) {
     const cuando = e.reintento_en ? ` después de las ${fechaHora(e.reintento_en)}` : "";
     return `${donde} no respondió. aiuda lo vuelve a intentar${cuando}.`;
   }
