@@ -97,8 +97,14 @@ convierte a `web/public/manual/` antes de cada build y el export lo lleva a
 - **Diseño:** KISS, tema claro, cero gradientes y glows, cero emojis, sin em
   dashes. Clickabilidad total, trazabilidad, procedencia visible.
 - **Seguridad:** nunca secretos en claro (cifrado Fernet, llave en
-  `~/.aiuda/key`); jamás manejar contraseñas del usuario (el handoff del CUA
-  existe para eso).
+  `~/.aiuda/key`). Para entrar a un portal aiuda no pide ni ve la contraseña del
+  usuario: el handoff del CUA existe para eso. **Única excepción, acotada:** la
+  e.firma del SAT, que el dueño carga y queda cifrada. Las dos rutinas
+  deterministas del SAT (`cua/deterministas/sat_documentos.py`) teclean su
+  contraseña en el campo de contraseña del portal del SAT y en ningún otro lado,
+  solo con el permiso del dueño dado una vez por RFC (se revisa en el servidor),
+  y jamás la escriben en pasos, capturas, logs ni errores. Ninguna otra rutina ni
+  ningún agente de IA maneja contraseñas.
 - **Honestidad:** todo feature nombra el resultado que mueve; los no-ops se
   marcan en UI y commit.
 - **Git:** commits en español, imperativos, sin atribución de IA.
