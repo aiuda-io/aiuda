@@ -641,6 +641,8 @@ def list_reminders(
             "sent_at": r.sent_at.isoformat() if r.sent_at else None,
             # Si el envío se intentó y tronó: el motivo visible (canal caído, sin contacto).
             "motivo_fallo": (r.meta or {}).get("motivo_fallo"),
+            # Si aiuda lo sacó de la bandeja porque la factura ya no se cobra.
+            "retirado": (r.meta or {}).get("retirado"),
             # Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…").
             "pendiente": (r.meta or {}).get("pendiente_canal"),
         }
@@ -696,6 +698,13 @@ async def approve_reminder(
     if reminder.invoice_id:
         inv = db.get(Invoice, reminder.invoice_id)
         cust = db.get(Customer, inv.customer_id) if inv else None
+
+    if inv is not None and inv.status == "cancelled":
+        motivo = (inv.meta or {}).get("cerrada_por") or "cancelada"
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta factura ya no se cobra ({motivo}). El recordatorio no se envía.",
+        )
 
     # El tope del aparato, aplicado donde de verdad importa. Antes vivía solo en
     # el modelo y en la pantalla: un invitado podía aprobar cualquier monto.
@@ -2479,6 +2488,8 @@ def invoice_detail(
         "verified": inv.verified,
         "payment_reported": inv.payment_reported,
         "paid_source": inv.paid_source,
+        # Por qué se cerró sin pago (ej. "cancelada en el SAT"); None si no aplica.
+        "motivo_cierre": (inv.meta or {}).get("cerrada_por"),
         # Comprobante fiscal: datos parseados + si hay archivos para ver/descargar.
         "cfdi": inv.cfdi or {},
         "has_xml": inv.cfdi_xml is not None,

@@ -66,3 +66,19 @@ def test_indice_invalido(session, tenant, customer, invoice):
     make_pending(session, tenant, invoice)
     reply = handle_owner_command(session, tenant, "aprobar 9")
     assert "No tengo el número 9" in reply.text
+
+
+def test_no_se_aprueba_por_whatsapp_lo_de_una_factura_que_ya_no_se_cobra(
+    session, tenant, customer, invoice
+):
+    """Aprobar por WhatsApp envía directo, sin pasar por la puerta de la consola
+    ni por la del envío. Una factura cerrada (nota de crédito, cancelada en el
+    SAT, entre tus empresas) no se ofrece ni se aprueba: se retira."""
+    r = make_pending(session, tenant, invoice)
+    invoice.status = "cancelled"
+    invoice.meta = {"cerrada_por": "nota de crédito"}
+    reply = handle_owner_command(session, tenant, "aprobar todo")
+    assert reply.send_reminders == []
+    assert "No hay nada pendiente" in reply.text
+    assert r.status == "rejected"
+    assert r.meta["retirado"] == "La factura ya no se cobra: nota de crédito."

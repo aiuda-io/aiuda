@@ -277,6 +277,47 @@ def test_agregar_empresa_reclasifica_a_intercompania(session, tenant):
     assert "intercompañía" in inv.meta["cerrada_por"]
 
 
+def test_reimportar_sana_un_cfdi_que_entro_sin_clasificar(session, tenant):
+    """Pasó con el SAT real: dos recibos de nómina entraron sin emisor ni
+    receptor por un defecto del lector (ya corregido) y quedaron 'desconocida'.
+    Volver a importarlos tiene que dejarlos como debieron quedar, con sus datos."""
+    con_empresas(tenant, HANOVA)
+    nomina = cfdi_xml(U1, tipo="N", metodo="PUE", emisor=HANOVA, receptor="XAXX010101000")
+    session.add(
+        CfdiBoveda(  # tal como lo dejó el lector viejo
+            tenant_id=tenant.id, uuid=U1, tipo="N", metodo_pago="PUE", folio="A-1",
+            direccion="desconocida", source="sat", xml=nomina,
+        )
+    )
+    session.flush()
+    res = importar_cfdis(session, tenant, [nomina], source="sat")
+    fila = session.scalar(select(CfdiBoveda))
+    assert res["duplicados"] == 1 and res["reclasificados"] == 1 and res["nuevos"] == 0
+    assert fila.direccion == "emitida"
+    assert fila.rfc_emisor == HANOVA and fila.nombre_emisor == f"Emisor {HANOVA}"
+    assert fila.rfc_receptor == "XAXX010101000"
+    assert session.scalar(select(Invoice)) is None  # nómina nunca es cartera
+
+
+def test_registrar_el_rfc_y_reimportar_arma_la_cartera(session, tenant):
+    """El aviso le pide al dueño agregar su empresa para clasificar y armar su
+    cartera. Al hacerlo y volver a subir el mismo XML, la factura a crédito
+    tiene que aparecer: antes solo cambiaba la etiqueta y la cartera seguía vacía."""
+    xml = cfdi_xml(U1, metodo="PPD", emisor=HANOVA)
+    primero = importar_cfdis(session, tenant, [xml])
+    assert primero["sin_clasificar"] == 1 and session.scalar(select(Invoice)) is None
+    con_empresas(tenant, HANOVA)
+    segundo = importar_cfdis(session, tenant, [xml])
+    assert segundo["facturas_creadas"] == 1
+    fila = session.scalar(select(CfdiBoveda))
+    inv = session.scalar(select(Invoice))
+    assert fila.direccion == "emitida" and fila.invoice_id == inv.id
+    assert inv.status == "open" and inv.amount == Decimal("11600.00")
+    # y una tercera vez ya no hace nada
+    importar_cfdis(session, tenant, [xml])
+    assert len(session.scalars(select(Invoice)).all()) == 1
+
+
 def test_cada_cfdi_queda_etiquetado_con_su_empresa(session, tenant):
     con_empresas(tenant, HANOVA, PERSONA)
     importar_cfdis(
@@ -320,3 +361,64 @@ def test_no_cfdi_avisa_sin_tronar(session, tenant):
     res = importar_cfdis(session, tenant, ["<no>es cfdi</no>", "ni siquiera xml <"])
     assert res["cfdis"] == 0 and res["nuevos"] == 0
     assert len(res["avisos"]) == 2
+
+
+def test_un_cfdi_que_no_se_puede_guardar_no_tumba_a_los_demas(
+    session, tenant, monkeypatch
+):
+    """Un comprobante que la base rechaza se omite con aviso y el resto del lote
+    entra. Antes uno solo deshacía el paquete completo, vuelta tras vuelta."""
+    from aiuda_core.engine import sync as sync_mod
+
+    con_empresas(tenant, HANOVA)
+    crear = sync_mod._sat_crear_cartera
+
+    def crear_que_choca(session, tenant, d, *a, **kw):
+        if d["uuid"] == U1:
+            session.add(Customer(tenant_id=tenant.id, name="A", phone="5215500000000"))
+            session.add(Customer(tenant_id=tenant.id, name="B", phone="5215500000000"))
+            session.flush()  # viola la unicidad (tenant, phone)
+        return crear(session, tenant, d, *a, **kw)
+
+    monkeypatch.setattr(sync_mod, "_sat_crear_cartera", crear_que_choca)
+    res = importar_cfdis(
+        session, tenant,
+        [cfdi_xml(U1, folio="1"), cfdi_xml(U2, folio="2")],
+    )
+    assert res["cfdis"] == 2 and res["nuevos"] == 1 and res["omitidos"] == 1
+    assert res["facturas_creadas"] == 1
+    assert any("A-1" in a and "se omitió" in a for a in res["avisos"])
+    assert [f.uuid for f in session.scalars(select(CfdiBoveda)).all()] == [U2]
+    assert [i.folio for i in session.scalars(select(Invoice)).all()] == ["A-2"]
+    assert session.scalar(select(Customer).where(Customer.name == "A")) is None
+
+
+def _pendiente(session, tenant, inv):
+    from aiuda_core.models import Reminder
+
+    r = Reminder(
+        tenant_id=tenant.id, invoice_id=inv.id, bucket="vencida", tone="firme",
+        message="Le recordamos su pago", status="pending_approval",
+    )
+    session.add(r)
+    session.flush()
+    return r
+
+
+def test_nota_de_credito_que_salda_retira_lo_pendiente(session, tenant):
+    con_empresas(tenant, HANOVA)
+    importar_cfdis(session, tenant, [cfdi_xml(U1, metodo="PPD", total="1000.00")])
+    r = _pendiente(session, tenant, session.scalar(select(Invoice)))
+    importar_cfdis(
+        session, tenant, [cfdi_xml(U2, tipo="E", total="1000.00", relacionados=[U1])]
+    )
+    assert r.status == "rejected" and "nota de crédito" in r.meta["retirado"]
+
+
+def test_reclasificar_a_intercompania_retira_lo_pendiente(session, tenant):
+    con_empresas(tenant, HANOVA)
+    importar_cfdis(session, tenant, [cfdi_xml(U1, metodo="PPD", receptor=PERSONA)])
+    r = _pendiente(session, tenant, session.scalar(select(Invoice)))
+    con_empresas(tenant, HANOVA, PERSONA)
+    importar_cfdis(session, tenant, [cfdi_xml(U1, metodo="PPD", receptor=PERSONA)])
+    assert r.status == "rejected" and "tus propias empresas" in r.meta["retirado"]

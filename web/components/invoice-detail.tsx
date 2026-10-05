@@ -96,6 +96,10 @@ export function InvoiceDetailContent({
       </div>
       {data.status === "paid" ? (
         <span className="rounded-full bg-ok-soft px-2.5 py-1 text-sello font-medium text-ok">Pagada</span>
+      ) : data.status === "cancelled" ? (
+        <span className="rounded-full bg-panel px-2.5 py-1 text-sello font-medium text-ink-2">
+          {data.motivo_cierre === "cancelada en el SAT" ? "Cancelada en el SAT" : "Cancelada"}
+        </span>
       ) : data.payment_reported ? (
         <span className="rounded-full bg-warn-soft px-2.5 py-1 text-rotulo font-medium text-warn">
           Cliente reporta pago
@@ -109,7 +113,13 @@ export function InvoiceDetailContent({
     </div>
   );
 
-  const acciones = data.status !== "paid" && (
+  const acciones = data.status === "cancelled" ? (
+    /* Una factura cancelada ya no se cobra: se dice por qué y no se ofrece recordar. */
+    <p className="text-cuerpo text-ink-3">
+      Esta factura ya no se cobra{data.motivo_cierre ? `: ${data.motivo_cierre}` : ""}. Salió de
+      tu cartera y no se le mandan recordatorios.
+    </p>
+  ) : data.status !== "paid" && (
     /* Acciones del registro: las mismas que en la lista, donde vive el registro.
        Si ya hay un recordatorio, en vez de bloquear, lleva a verlo. */
     <div className="flex flex-wrap gap-2">
@@ -158,6 +168,8 @@ export function InvoiceDetailContent({
         value={
           data.status === "paid" ? (
             "Pagada"
+          ) : data.status === "cancelled" ? (
+            "Cancelada"
           ) : data.days_overdue > 0 ? (
             <span className="font-medium text-danger">{data.days_overdue} días</span>
           ) : (

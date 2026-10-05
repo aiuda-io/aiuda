@@ -30,6 +30,7 @@ from aiuda_core.connectors import credentials as cred
 from aiuda_core.connectors.sat_descarga import (
     SatCredencialInvalida,
     SatDescargaClient,
+    SatSinRespuesta,
     validar_efirma,
 )
 from aiuda_core.engine.sync import (
@@ -39,7 +40,13 @@ from aiuda_core.engine.sync import (
     importar_cfdis,
     sat_empresas,
 )
-from aiuda_core.models import CfdiBoveda, IntegrationCredential, Invoice, Tenant
+from aiuda_core.models import (
+    CfdiBoveda,
+    IntegrationCredential,
+    Invoice,
+    SatPaquete,
+    Tenant,
+)
 
 router = APIRouter()
 
@@ -345,6 +352,13 @@ def sat_probar_efirma(
             base64.b64decode(datos["key"]),
             datos["password"],
         ).probar()
+    except SatSinRespuesta as exc:
+        # El SAT no contestó: no evaluó nada, así que la e.firma no queda marcada
+        # como rechazada.
+        raise HTTPException(
+            status_code=503,
+            detail="El SAT no contestó. Intenta de nuevo en unos minutos.",
+        ) from exc
     except Exception as exc:  # noqa: BLE001
         row.status = "error"
         row.last_test_at = datetime.now(timezone.utc)
@@ -373,8 +387,10 @@ def sat_borrar_efirma(
     db=Depends(get_db),
     actor=Depends(require_role("admin")),
 ):
-    """Borra la e.firma de esa empresa, de verdad: desaparece la fila cifrada.
-    La bóveda y la cartera ya descargadas se quedan (son datos del negocio)."""
+    """Borra la e.firma de esa empresa, de verdad: desaparece la fila cifrada,
+    y con ella lo que estuviera a medias con el SAT (la solicitud pendiente y los
+    paquetes bajados sin importar). La bóveda y la cartera ya descargadas se
+    quedan (son datos del negocio)."""
     rfc = _rfc_valido(rfc)
     row = db.scalar(
         select(IntegrationCredential).where(
@@ -389,6 +405,31 @@ def sat_borrar_efirma(
     plazos = dict(cfg.get("sat_plazos") or {})
     plazos.pop(rfc, None)
     cfg["sat_plazos"] = plazos
+    # Se conserva hasta dónde se había bajado y qué se pidió hoy (si la vuelven a
+    # conectar no se repite una solicitud); lo pendiente sí se suelta.
+    descarga = {k: dict(v) for k, v in (cfg.get("sat_descarga") or {}).items()}
+    carriles = []
+    for scope, st in list((descarga.get(rfc) or {}).items()):
+        st = dict(st or {})
+        if "cancelados" in st:
+            st["cancelados"] = dict(st["cancelados"] or {})
+            carriles.append(st["cancelados"])
+        carriles.append(st)
+        descarga[rfc][scope] = st
+    for st in carriles:
+        sol = st.pop("solicitud", None) or {}
+        st.pop("aviso", None)
+        for id_paquete in sol.get("paquetes") or sol.get("bajando") or []:
+            fila = db.scalar(
+                select(SatPaquete).where(
+                    SatPaquete.tenant_id == tenant.id,
+                    SatPaquete.id_paquete == id_paquete,
+                )
+            )
+            if fila is not None:
+                db.delete(fila)
+    if descarga:
+        cfg["sat_descarga"] = descarga
     tenant.config = cfg
     flag_modified(tenant, "config")
     audit.record(
@@ -431,6 +472,12 @@ def sat_estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             scope: {
                 "ultima_fecha": (st.get(scope) or {}).get("ultima_fecha"),
                 "solicitud_pendiente": bool((st.get(scope) or {}).get("solicitud")),
+                # Lo último que contestó el SAT, ya en español (o None si va al día).
+                "aviso": (st.get(scope) or {}).get("aviso"),
+                # Hasta qué día se revisó qué comprobantes se cancelaron en el SAT.
+                "cancelaciones_hasta": (
+                    (st.get(scope) or {}).get("cancelados") or {}
+                ).get("ultima_fecha"),
             }
             for scope in ("emitidas", "recibidas")
         }
@@ -443,6 +490,7 @@ def sat_estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         "recibidas": sum(1 for f in filas if f.direccion == "recibida"),
         "intercompania": sum(1 for f in filas if f.direccion == "intercompania"),
         "desconocida": sum(1 for f in filas if f.direccion == "desconocida"),
+        "canceladas": sum(1 for f in filas if (f.meta or {}).get("cancelado")),
     }
     return {
         "empresas": empresas,
@@ -487,6 +535,9 @@ def sat_boveda(
                 "direccion": f.direccion,
                 "source": f.source,
                 "invoice_id": f.invoice_id,
+                # Cancelado en el SAT después de emitido (lo dice la lista diaria).
+                "cancelado": bool((f.meta or {}).get("cancelado")),
+                "cancelado_el": (f.meta or {}).get("cancelado_el"),
             }
             for f in filas
         ],

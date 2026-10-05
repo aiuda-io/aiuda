@@ -248,3 +248,70 @@ def test_probar_efirma_autentica_sin_exponer_secretos(
     assert r.status_code == 200
     assert r.json()["ok"] is True
     assert PASSWORD not in r.text
+
+
+def test_probar_con_el_sat_caido_no_marca_la_efirma_como_rechazada(
+    client, db_session, demo, fiel, monkeypatch
+):
+    """Que el SAT no conteste no dice nada de la e.firma. Antes se guardaba como
+    error y el mensaje decía que el SAT no la había aceptado."""
+    from aiuda_core.connectors.sat_descarga import SatSinRespuesta
+
+    cer, key = fiel
+    _subir_efirma(client, cer, key)
+
+    class SatCallado:
+        def __init__(self, *a):
+            pass
+
+        def probar(self):
+            raise SatSinRespuesta("el SAT no contestó a tiempo")
+
+    monkeypatch.setattr("aiuda_server.api.sat.SatDescargaClient", SatCallado)
+    antes = db_session.scalar(select(IntegrationCredential)).status
+    r = client.post(f"/v1/sat/efirma/{RFC}/probar")
+    assert r.status_code == 503
+    assert r.json()["detail"] == "El SAT no contestó. Intenta de nuevo en unos minutos."
+    fila = db_session.scalar(select(IntegrationCredential))
+    assert fila.status == antes and fila.status != "error" and fila.last_error is None
+
+
+def test_borrar_efirma_suelta_lo_pendiente_con_el_sat(client, db_session, demo, fiel):
+    """Un paquete bajado y sin importar es un ZIP de CFDI reales: no se queda en
+    la base cuando el dueño borra la e.firma. Tampoco la solicitud a medias."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from aiuda_core.models import SatPaquete
+
+    cer, key = fiel
+    _subir_efirma(client, cer, key)
+    for id_paquete in ("P1", "M1", "AJENO"):
+        db_session.add(
+            SatPaquete(tenant_id=demo.id, id_paquete=id_paquete, contenido=b"cifrado")
+        )
+    demo.config = {
+        **demo.config,
+        "sat_descarga": {
+            RFC: {
+                "emitidas": {
+                    "ultima_fecha": "2026-07-20", "pedida_el": "2026-07-28",
+                    "solicitud": {"id": "S1", "paquetes": ["P1"]},
+                    "cancelados": {"solicitud": {"id": "C1", "bajando": ["M1"]}},
+                },
+                "recibidas": {"solicitud": {"id": "S2"}},
+            },
+            "OTRA010101AAA": {"emitidas": {"solicitud": {"id": "S9", "paquetes": ["AJENO"]}}},
+        },
+    }
+    flag_modified(demo, "config")
+    db_session.flush()
+    assert client.delete(f"/v1/sat/efirma/{RFC}").status_code == 200
+    assert [p.id_paquete for p in db_session.scalars(select(SatPaquete)).all()] == ["AJENO"]
+    st = demo.config["sat_descarga"]
+    assert st[RFC] == {
+        # hasta dónde se bajó y qué se pidió hoy se conserva: reconectar no repite
+        "emitidas": {"ultima_fecha": "2026-07-20", "pedida_el": "2026-07-28",
+                     "cancelados": {}},
+        "recibidas": {},
+    }
+    assert st["OTRA010101AAA"]["emitidas"]["solicitud"]["paquetes"] == ["AJENO"]

@@ -476,7 +476,7 @@ function Mesa({
         )}
         <div className="mt-7 flex items-center justify-between">
           <Label>Tu ayudante redactó este mensaje</Label>
-          {!readOnly && editing === null && (
+          {!readOnly && !r.retirado && editing === null && (
             <button
               onClick={() => setDraft({ id: item.id, text: r.message })}
               className="text-apoyo text-ink-3 underline-offset-2 hover:text-ink hover:underline"
@@ -509,7 +509,10 @@ function Mesa({
             </div>
           </div>
         )}
-        {!readOnly && (
+        {r.retirado && (
+          <p className="mt-4 text-cuerpo text-ink-2">aiuda lo retiró de la bandeja. {r.retirado}</p>
+        )}
+        {!readOnly && !r.retirado && (
           <>
             <div className="mt-4 flex flex-wrap items-center gap-1.5">
               <span className="text-apoyo text-ink-3">Enviar por</span>
@@ -1205,7 +1208,8 @@ function TarjetaKanban({
         </p>
       )}
 
-      {/* Rechazados: el detalle deja corregir y reenviar */}
+      {/* Rechazados: el detalle deja corregir y reenviar. Lo que aiuda retiró
+          (la factura ya no se cobra) solo se explica: no se puede enviar. */}
       {col === "rechazados" && (
         <button
           type="button"
@@ -1213,7 +1217,7 @@ function TarjetaKanban({
           disabled={act}
           className={`mt-2.5 w-full ${ghBtn}`}
         >
-          Corregir y enviar
+          {r?.retirado ? "Ver por qué se retiró" : "Corregir y enviar"}
         </button>
       )}
     </div>

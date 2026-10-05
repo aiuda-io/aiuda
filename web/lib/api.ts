@@ -49,6 +49,8 @@ export type ReminderItem = {
   sent_at?: string | null;
   /** Si el envío se intentó y tronó: el motivo visible (canal caído, sin contacto). */
   motivo_fallo?: string | null;
+  // aiuda lo retiró de la bandeja porque la factura ya no se cobra
+  retirado?: string | null;
   /** Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…"). */
   pendiente?: string | null;
 };
@@ -161,6 +163,8 @@ export type InvoiceDetail = InvoiceItem & {
   customer_id: string;
   conversation_id: string | null;
   cfdi: Cfdi | Record<string, never>;
+  // Por qué se cerró sin pago, p. ej. "cancelada en el SAT"
+  motivo_cierre: string | null;
   has_xml: boolean;
   has_pdf: boolean;
   reminders: {
@@ -773,7 +777,12 @@ export type SatEmpresa = {
   plazo_dias: number;
   sync: Record<
     "emitidas" | "recibidas",
-    { ultima_fecha: string | null; solicitud_pendiente: boolean }
+    {
+      ultima_fecha: string | null;
+      solicitud_pendiente: boolean;
+      aviso: string | null;
+      cancelaciones_hasta: string | null;
+    }
   >;
 };
 
@@ -786,6 +795,7 @@ export type SatEstado = {
     recibidas: number;
     intercompania: number;
     desconocida: number;
+    canceladas: number;
   };
   cartera: {
     por_empresa: { rfc: string; abiertas: number; total: number }[];
@@ -808,6 +818,8 @@ export type SatCfdi = {
   direccion: string;
   source: string;
   invoice_id: string | null;
+  cancelado: boolean;
+  cancelado_el: string | null;
 };
 
 export type SatBoveda = {

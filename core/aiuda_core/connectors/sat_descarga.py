@@ -29,6 +29,20 @@ class SatCredencialInvalida(ValueError):
     """La e.firma subida no sirve, con el motivo en palabras del dueño."""
 
 
+class SatSinRespuesta(RuntimeError):
+    """El SAT no contestó a tiempo o no se pudo llegar a él."""
+
+    # True solo cuando es seguro que la petición NO salió (no hubo conexión). Si
+    # el SAT se quedó callado después de recibirla, pudo haberla aceptado.
+    sin_enviar = False
+
+
+# Segundos que se espera al SAT: (para conectar, entre un tramo de respuesta y
+# el siguiente). satcfdi llama a requests.post SIN límite, así que un SAT colgado
+# dejaba colgada la corrida entera, con las demás fuentes detrás.
+SAT_TIMEOUT = (10, 60)
+
+
 ES_CSD = (
     "Estos archivos son un CSD (el sello con el que timbras facturas). "
     "El SAT solo entrega tus facturas con tu e.firma (FIEL): sube el .cer y "
@@ -49,6 +63,51 @@ def _satcfdi():
             "Falta la librería 'satcfdi' (la instala `uv sync`). Sin ella no se "
             "puede hablar con el SAT."
         ) from exc
+
+
+def _no_conecto(exc: Exception) -> bool:
+    """¿La petición ni siquiera salió? Solo si falló al ABRIR la conexión (sin
+    red, DNS, el SAT no aceptó la conexión a tiempo). Cualquier otro corte pudo
+    ocurrir con la petición ya entregada."""
+    import requests
+    from urllib3.exceptions import NewConnectionError
+
+    if isinstance(exc, requests.ConnectTimeout):
+        return True
+    causa = getattr(exc.args[0] if exc.args else None, "reason", None)
+    return isinstance(causa, NewConnectionError)
+
+
+def _servicio(signer):
+    """El cliente del SAT de satcfdi con límite de tiempo en cada llamada.
+
+    Se hereda en vez de bifurcar la librería: lo único que cambia es `_request`,
+    el punto por donde pasan autenticación, solicitud, verificación y descarga."""
+    import requests
+    from lxml import etree
+    from satcfdi.exceptions import ResponseError
+    from satcfdi.pacs.sat import SAT
+    from satcfdi.utils import parser
+
+    class _SatConLimite(SAT):
+        def _request(self, soap_url, data, soap_action, needs_token_fn, verify=True):
+            try:
+                response = requests.post(
+                    url=soap_url,
+                    data=data,
+                    headers=self._get_headers(soap_action, needs_token_fn=needs_token_fn),
+                    verify=verify,
+                    timeout=SAT_TIMEOUT,
+                )
+            except (requests.Timeout, requests.ConnectionError) as exc:
+                error = SatSinRespuesta("el SAT no contestó a tiempo")
+                error.sin_enviar = _no_conecto(exc)
+                raise error from exc
+            if not response.ok:
+                raise ResponseError(response)
+            return etree.fromstring(response.content, parser=parser)
+
+    return _SatConLimite(signer=signer)
 
 
 def _cargar_signer(cer: bytes, key: bytes, password: str):
@@ -126,6 +185,34 @@ def extraer_xmls(zip_bytes: bytes) -> list[bytes]:
         ]
 
 
+def leer_metadata(zip_bytes: bytes) -> list[dict]:
+    """Las filas de un paquete de Metadata del SAT: un .txt separado por "~" con
+    una fila por comprobante. Solo se toma lo que aiuda usa: el UUID, si está
+    cancelado (Estatus 0) y cuándo se canceló.
+
+    Se lee por posición desde las orillas (el UUID abre la fila; Estatus y
+    FechaCancelacion la cierran) porque una razón social puede traer el
+    separador adentro y recorrer las columnas de en medio."""
+    filas: list[dict] = []
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+        for info in zf.infolist():
+            if info.is_dir() or not info.filename.lower().endswith(".txt"):
+                continue
+            lineas = zf.read(info).decode("utf-8", errors="replace").splitlines()
+            for linea in lineas[1:]:  # la primera es el encabezado
+                campos = linea.strip().split("~")
+                if len(campos) < 3 or len(campos[0]) != 36:
+                    continue
+                filas.append(
+                    {
+                        "uuid": campos[0].upper(),
+                        "cancelado": campos[-2].strip() == "0",
+                        "fecha_cancelacion": campos[-1].strip() or None,
+                    }
+                )
+    return filas
+
+
 class SatDescargaClient:
     """Cliente de la Descarga Masiva para UNA empresa (un RFC, su e.firma).
 
@@ -140,10 +227,8 @@ class SatDescargaClient:
     def __init__(self, cer: bytes, key: bytes, password: str, service=None):
         self._signer = _cargar_signer(cer, key, password)
         self.rfc = str(self._signer.rfc).upper() if self._signer.rfc else ""
-        if service is None:  # pragma: no cover - construcción real, se prueba en vivo
-            from satcfdi.pacs.sat import SAT
-
-            service = SAT(signer=self._signer)
+        if service is None:
+            service = _servicio(self._signer)
         self._service = service
 
     def solicitar(self, scope: str, desde: datetime, hasta: datetime) -> dict:
@@ -164,6 +249,27 @@ class SatDescargaClient:
         else:
             raise ValueError(f"scope desconocido: {scope}")
         return dict(r)
+
+    def solicitar_cancelados(self, scope: str, desde: datetime, hasta: datetime) -> dict:
+        """Pide la METADATA (una lista, sin XML) de los comprobantes CANCELADOS
+        emitidos en ese periodo. La solicitud normal solo trae los vigentes y no
+        avisa de lo que se canceló después: esta es la única forma de enterarse.
+        Visto contra el SAT real: sin declarar el estado, la Metadata tampoco
+        incluye los cancelados."""
+        if scope == "emitidas":
+            pedir = self._service.recover_comprobante_emitted_request
+        elif scope == "recibidas":
+            pedir = self._service.recover_comprobante_received_request
+        else:
+            raise ValueError(f"scope desconocido: {scope}")
+        return dict(
+            pedir(
+                fecha_inicial=desde,
+                fecha_final=hasta,
+                tipo_solicitud="Metadata",
+                estado_comprobante="Cancelado",
+            )
+        )
 
     def verificar(self, id_solicitud: str) -> dict:
         """El estado de una solicitud. EstadoSolicitud: 1 aceptada, 2 en proceso,

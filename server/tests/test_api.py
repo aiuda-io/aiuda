@@ -293,6 +293,24 @@ def test_enviar_aprobado_varado_dispara_envio(client, db_session, tenant):
     assert ("send_reminder", (tenant.id, reminder.id)) in app.state.test_jobs
 
 
+def test_no_se_aprueba_el_recordatorio_de_una_factura_cancelada(client, db_session, tenant):
+    """Un borrador retirado puede volver a aprobarse (rechazar no es callejón sin
+    salida), pero si su factura se canceló en el SAT el envío no procede."""
+    reminder = _make_reminder(db_session, tenant, status="rejected")
+    invoice = db_session.get(Invoice, reminder.invoice_id)
+    invoice.status = "cancelled"
+    invoice.meta = {"cerrada_por": "cancelada en el SAT"}
+    db_session.flush()
+    res = client.post(f"/v1/reminders/{reminder.id}/approve", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 409
+    assert "cancelada en el SAT" in res.json()["detail"]
+    assert reminder.status == "rejected"
+    assert ("send_reminder", (tenant.id, reminder.id)) not in app.state.test_jobs
+    detalle = client.get(f"/v1/invoices/{invoice.id}", headers={"X-API-Key": "k-demo"}).json()
+    assert detalle["status"] == "cancelled"
+    assert detalle["motivo_cierre"] == "cancelada en el SAT"
+
+
 def test_enviar_rechaza_si_no_esta_aprobado(client, db_session, tenant):
     """Solo un 'approved' puede reenviarse: un pending_approval no dispara envío (409)."""
     reminder = _make_reminder(db_session, tenant, status="pending_approval")
