@@ -40,7 +40,13 @@ from aiuda_core.engine.sync import (
     importar_cfdis,
     sat_empresas,
 )
-from aiuda_core.models import CfdiBoveda, IntegrationCredential, Invoice, Tenant
+from aiuda_core.models import (
+    CfdiBoveda,
+    IntegrationCredential,
+    Invoice,
+    SatPaquete,
+    Tenant,
+)
 
 router = APIRouter()
 
@@ -381,8 +387,10 @@ def sat_borrar_efirma(
     db=Depends(get_db),
     actor=Depends(require_role("admin")),
 ):
-    """Borra la e.firma de esa empresa, de verdad: desaparece la fila cifrada.
-    La bóveda y la cartera ya descargadas se quedan (son datos del negocio)."""
+    """Borra la e.firma de esa empresa, de verdad: desaparece la fila cifrada,
+    y con ella lo que estuviera a medias con el SAT (la solicitud pendiente y los
+    paquetes bajados sin importar). La bóveda y la cartera ya descargadas se
+    quedan (son datos del negocio)."""
     rfc = _rfc_valido(rfc)
     row = db.scalar(
         select(IntegrationCredential).where(
@@ -397,6 +405,31 @@ def sat_borrar_efirma(
     plazos = dict(cfg.get("sat_plazos") or {})
     plazos.pop(rfc, None)
     cfg["sat_plazos"] = plazos
+    # Se conserva hasta dónde se había bajado y qué se pidió hoy (si la vuelven a
+    # conectar no se repite una solicitud); lo pendiente sí se suelta.
+    descarga = {k: dict(v) for k, v in (cfg.get("sat_descarga") or {}).items()}
+    carriles = []
+    for scope, st in list((descarga.get(rfc) or {}).items()):
+        st = dict(st or {})
+        if "cancelados" in st:
+            st["cancelados"] = dict(st["cancelados"] or {})
+            carriles.append(st["cancelados"])
+        carriles.append(st)
+        descarga[rfc][scope] = st
+    for st in carriles:
+        sol = st.pop("solicitud", None) or {}
+        st.pop("aviso", None)
+        for id_paquete in sol.get("paquetes") or sol.get("bajando") or []:
+            fila = db.scalar(
+                select(SatPaquete).where(
+                    SatPaquete.tenant_id == tenant.id,
+                    SatPaquete.id_paquete == id_paquete,
+                )
+            )
+            if fila is not None:
+                db.delete(fila)
+    if descarga:
+        cfg["sat_descarga"] = descarga
     tenant.config = cfg
     flag_modified(tenant, "config")
     audit.record(
