@@ -36,10 +36,18 @@ def _servidor():
         yield f
 
 
+def _nadie_abre_el_navegador(*a, **kw):
+    raise AssertionError("una prueba intentó abrir el navegador")
+
+
 @pytest.fixture()
 def falso(_servidor, monkeypatch):
     monkeypatch.setattr(settings, "chatgpt_issuer", _servidor.base)
     monkeypatch.setattr(settings, "openai_base", f"{_servidor.base}/v1")
+    # Ninguna prueba abre una pestaña, aunque el entorno diga que sí o falte el
+    # conftest de la raíz: apagado aquí, y si algo lo intenta de todos modos, falla.
+    monkeypatch.setattr(settings, "abrir_navegador", False)
+    monkeypatch.setattr("webbrowser.open", _nadie_abre_el_navegador)
     monkeypatch.setattr(settings, "anthropic_api_key", "")
     original = dict(_servidor.modo)
     for lista in ("authorize", "token", "revoke", "responses"):
@@ -154,6 +162,19 @@ def test_entrar_deja_la_ia_conectada_con_el_plan_del_dueno(falso, client, db_ses
     assert falso.visto["responses"][-1]["headers"]["authorization"] == (
         f"Bearer {bundle['access_token']}"
     )
+
+
+def test_con_el_navegador_encendido_se_abre_la_pagina_de_openai_y_nada_mas(
+    falso, client, monkeypatch
+):
+    """El único lugar donde se enciende, y con un navegador de mentira que solo anota."""
+    abiertas: list[str] = []
+    monkeypatch.setattr(settings, "abrir_navegador", True)
+    monkeypatch.setattr("webbrowser.open", lambda url: abiertas.append(url) or True)
+
+    inicio = client.post("/v1/provider/chatgpt/iniciar").json()
+    assert inicio["abierto"] is True and abiertas == [inicio["url"]]
+    assert inicio["url"].startswith(f"{falso.base}/api/accounts/authorize?")
 
 
 def test_el_aviso_de_que_se_usa_el_plan_se_marca_visto_una_vez(falso, client, tenant):

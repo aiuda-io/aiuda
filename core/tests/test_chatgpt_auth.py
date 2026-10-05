@@ -36,10 +36,18 @@ def _servidor():
         yield f
 
 
+def _nadie_abre_el_navegador(*a, **kw):
+    raise AssertionError("una prueba intentó abrir el navegador")
+
+
 @pytest.fixture()
 def falso(_servidor, monkeypatch):
     monkeypatch.setattr(settings, "chatgpt_issuer", _servidor.base)
     monkeypatch.setattr(settings, "openai_base", f"{_servidor.base}/v1")
+    # Ninguna prueba abre una pestaña, aunque el entorno diga que sí o falte el
+    # conftest de la raíz: apagado aquí, y si algo lo intenta de todos modos, falla.
+    monkeypatch.setattr(settings, "abrir_navegador", False)
+    monkeypatch.setattr("webbrowser.open", _nadie_abre_el_navegador)
     original = dict(_servidor.modo)
     for lista in ("authorize", "token", "revoke", "responses"):
         _servidor.visto[lista].clear()
