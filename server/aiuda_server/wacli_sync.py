@@ -199,7 +199,10 @@ def _lanzar(canal: _Canal, tipo: str) -> bool:
         return False
     if tipo == "sync":
         # --max-reconnect 0: sin red, wacli reintenta él mismo en vez de rendirse.
-        args = ["sync", "--follow", "--events", "--max-reconnect", "0"]
+        # --presence-mode quiet: el sync no anuncia al dueño como "en línea" ante
+        # sus contactos solo porque aiuda está abierto (existe en wacli 0.18.2).
+        args = ["sync", "--follow", "--events", "--max-reconnect", "0",
+                "--presence-mode", "quiet"]
     else:
         args = ["auth", "--qr-format", "text", "--events", "--idle-exit", "10s"]
     try:

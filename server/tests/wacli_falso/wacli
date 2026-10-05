@@ -16,7 +16,8 @@ La prueba lo maneja con archivos dentro del store:
   morir           el `sync` en curso sale con 3 sin avisar
   desactualizado  el `sync` en curso sale diciendo que WhatsApp pide otra versión
   fallar_envio    su contenido es el error del siguiente `send` (se queda puesto)
-Lo que "sale" queda en enviados.jsonl; cada arranque de sync en arranques.log.
+Lo que "sale" queda en enviados.jsonl; cada arranque de sync en arranques.log
+y sus argumentos en sync_argv.json.
 WACLI_FALSO_ESPERA_MAX acorta los --lock-wait (segundos) para que la prueba no
 espere los 30 de verdad.
 """
@@ -223,6 +224,8 @@ if cmd == "sync":
     tomar_candado()
     with open(ruta("arranques.log"), "a") as fh:
         fh.write(f"{os.getpid()}\n")
+    with open(ruta("sync_argv.json"), "w") as fh:
+        json.dump(argv, fh)
     open(ruta("sync.sock"), "w").close()
     atexit.register(lambda: consumir("sync.sock"))
 

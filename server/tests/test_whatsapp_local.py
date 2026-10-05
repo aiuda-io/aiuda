@@ -444,6 +444,14 @@ def test_arrancar_conecta_y_no_lanza_dos(falso):
     assert wacli_sync.estado("inst-a", str(falso))["telefono"] == "5215511112222"
 
 
+def test_el_sync_no_anuncia_al_dueno_como_en_linea(falso):
+    _vinculado(falso)
+    wacli_sync.arrancar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    argv = json.loads((falso / "sync_argv.json").read_text())
+    assert argv[argv.index("--presence-mode") + 1] == "quiet"
+
+
 def test_emparejar_rota_el_qr_y_al_escanear_arranca_el_sync(falso):
     primero = wacli_sync.vincular("inst-a", str(falso))
     assert primero == "QR-FALSO-1"
