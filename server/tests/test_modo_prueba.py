@@ -106,6 +106,27 @@ def test_volver_al_paso_del_negocio_respeta_lo_que_el_dueno_decidio(client, db_s
     assert tenant.config["modo_sombra"] is False
 
 
+def test_quien_salta_el_paso_del_negocio_tambien_nace_en_modo_de_prueba(client, db_session):  # noqa: F811
+    """El paso del nombre se puede saltar. Sin esto, saltarlo era la manera de
+    estrenar aiuda mandando de verdad sin haberlo decidido."""
+    tenant = _negocio(db_session)
+    # El cierre ya lo anuncia, aunque todavía no esté escrito.
+    assert client.get("/v1/setup/estado").json()["modo_prueba"] is True
+    assert "modo_sombra" not in (tenant.config or {})
+
+    client.post("/v1/setup/terminar")
+    db_session.refresh(tenant)
+    assert tenant.config["modo_sombra"] is True
+    assert client.get("/v1/settings/modo-sombra").json()["modo_sombra"] is True
+
+
+def test_cerrar_el_asistente_no_enciende_nada_a_quien_ya_decidio(client, db_session):  # noqa: F811
+    tenant = _negocio(db_session, modo_sombra=False)
+    client.post("/v1/setup/terminar")
+    db_session.refresh(tenant)
+    assert tenant.config["modo_sombra"] is False
+
+
 # --- Al apagarlo: lo retenido -------------------------------------------------
 
 

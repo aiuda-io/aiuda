@@ -136,8 +136,10 @@ def estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
         "ayudantes": {"total": int(ayudantes or 0), "listo": ayudantes_listo},
         # Extras que aiuda detecta pero no exige.
         "extras": {"wacli": wacli_bin.resolver() is not None},
-        # Para que el cierre del asistente diga la verdad: si está encendido, nada sale.
-        "modo_prueba": bool(config.get("modo_sombra")),
+        # Para que el cierre del asistente diga la verdad: el negocio está en modo de
+        # prueba, o lo va a estar al cerrar (quien saltó el paso del nombre todavía
+        # no lo tiene escrito; se le escribe en `terminar`).
+        "modo_prueba": bool(config.get("modo_sombra")) or _es_instalacion_nueva(db, tenant),
         "terminado": terminado,
         # `terminado` también se cumple solo (negocio, IA, datos y ayudante). Esto es
         # otra cosa: el dueño llegó al final y entró a su consola. El asistente lo usa
@@ -260,8 +262,15 @@ def guardar_negocio(
 
 @router.post("/v1/setup/terminar")
 def terminar(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
-    """El dueño cerró el asistente: no vuelve a salir de arranque."""
-    tenant.config = {**(tenant.config or {}), "setup_terminado": True}
+    """El dueño cerró el asistente: no vuelve a salir de arranque.
+
+    Quien saltó el paso del negocio no pasó por donde se enciende el modo de prueba,
+    y también es una instalación nueva: se le enciende aquí, con los mismos candados."""
+    config = dict(tenant.config or {})
+    if _es_instalacion_nueva(db, tenant):
+        config["modo_sombra"] = True
+    config["setup_terminado"] = True
+    tenant.config = config
     db.add(tenant)
     db.flush()
     return {"terminado": True}
