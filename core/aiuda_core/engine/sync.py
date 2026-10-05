@@ -75,7 +75,10 @@ def _ensure_customer(session: Session, tenant_id: str, name: str, phone: str) ->
             select(Customer).where(Customer.tenant_id == tenant_id, Customer.name == name)
         )
     if customer is None:
-        customer = Customer(tenant_id=tenant_id, name=name or "Cliente", phone=phone or "")
+        # Sin teléfono se guarda NULL, no "": la unicidad (tenant, phone) ignora
+        # los NULL pero NO las cadenas vacías, y el segundo cliente sin teléfono
+        # (lo normal en un CFDI, que no trae teléfono) tronaba el sync completo.
+        customer = Customer(tenant_id=tenant_id, name=name or "Cliente", phone=phone or None)
         session.add(customer)
         session.flush()
     elif phone and not customer.phone:

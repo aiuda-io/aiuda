@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from aiuda_core.cfdi import parse_cfdi
 from aiuda_core.engine.sync import importar_cfdis, sat_empresas
-from aiuda_core.models import CfdiBoveda, Invoice
+from aiuda_core.models import CfdiBoveda, Customer, Invoice
 
 HANOVA = "HCO250213281"      # empresa 1: la S.A.
 PERSONA = "GOBM980902FL1"    # empresa 2: la persona física
@@ -120,6 +120,21 @@ def test_ppd_emitida_crea_cuenta_por_cobrar(session, tenant):
     assert inv.meta["empresa_rfc"] == HANOVA
     assert "vencimiento_estimado" in inv.meta  # honesto: el CFDI no trae plazo
     assert (inv.due_date - inv.issued_date).days == 30
+
+
+def test_dos_clientes_sin_telefono_no_truenan(session, tenant):
+    """El CFDI no trae teléfono: cada receptor nuevo es un cliente sin teléfono.
+    Con el SAT real el segundo tronaba la corrida (unicidad tenant+phone con "")."""
+    con_empresas(tenant, HANOVA)
+    res = importar_cfdis(
+        session, tenant,
+        [cfdi_xml(U1, folio="1", receptor=CLIENTE), cfdi_xml(U2, folio="2", receptor=TERCERA)],
+    )
+    assert res["facturas_creadas"] == 2
+    clientes = session.scalars(select(Customer).where(Customer.tenant_id == tenant.id)).all()
+    nuevos = [c for c in clientes if c.name.startswith("Receptor ")]
+    assert len(nuevos) == 2
+    assert all(c.phone is None for c in nuevos)
 
 
 def test_pue_va_a_boveda_pero_no_infla_cartera(session, tenant):
