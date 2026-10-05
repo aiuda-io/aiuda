@@ -82,7 +82,7 @@ def resolver() -> str | None:
     instaló aiuda, y al final el del sistema."""
     explicito = (settings.wacli_bin or "").strip()
     if explicito and explicito != "wacli":
-        return shutil.which(explicito) or (explicito if os.path.isabs(explicito) else None)
+        return shutil.which(explicito)  # None si esa ruta no existe o no es ejecutable
     propio = ruta_instalada()
     if propio.is_file() and os.access(propio, os.X_OK):
         return str(propio)

@@ -30,9 +30,15 @@ def carpeta(tmp_path, monkeypatch):
 
 
 def test_resolver_prefiere_el_explicito(monkeypatch, carpeta):
-    monkeypatch.setattr(wacli_bin.settings, "wacli_bin", "/opt/otro/wacli")
+    otro = carpeta / "otro-wacli"
+    otro.write_text("#!/bin/sh\n")
+    otro.chmod(0o755)
+    monkeypatch.setattr(wacli_bin.settings, "wacli_bin", str(otro))
     monkeypatch.setattr(wacli_bin, "_del_sistema", lambda: "/opt/homebrew/bin/wacli")
-    assert wacli_bin.resolver() == "/opt/otro/wacli"
+    assert wacli_bin.resolver() == str(otro)
+    # Una ruta explícita que no existe no se da por instalada (ni cae a otro wacli).
+    monkeypatch.setattr(wacli_bin.settings, "wacli_bin", "/no/existe/wacli")
+    assert wacli_bin.resolver() is None
 
 
 def test_resolver_el_instalado_por_aiuda_gana_al_del_sistema(monkeypatch, carpeta):
