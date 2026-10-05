@@ -1,21 +1,24 @@
 "use client";
 
-// Estado del write-back donde vive el dato: lo que confirmas en aiuda (un pago,
-// un cambio de cliente) se escribe de regreso al sistema de origen, y aquí se ve
-// en qué va cada inyección — pendiente / inyectada / falló — con su evidencia
-// (qué respondió la fuente y cuándo) y reintento manual de una fallida.
-// Si el registro no tiene inyecciones (p.ej. vino de Excel: no hay a dónde
-// escribir), no pinta nada.
+// Lo que confirmas en aiuda (un pago, un cambio de cliente, un alta) se escribe de
+// regreso en el sistema de donde vino el dato. Aquí se ve en qué va cada cosa: en
+// espera, ya registrada o si no se pudo, con lo que respondió ese sistema y cuándo, y
+// el reintento a mano de lo que falló.
+// Si el registro no tiene nada que escribir (vino de Excel: no hay a dónde), no pinta nada.
 
 import { useState } from "react";
-import { api, mxn, type WritebackEntry } from "@/lib/api";
+import { api, type WritebackEntry } from "@/lib/api";
 import { SOURCE_LABEL, SOURCE_LOGO, useApi } from "@/components/ui";
 import { toast } from "@/components/toast";
 import { fechaHora } from "@/lib/format";
+import { leerFallo, plural } from "@/lib/cartera";
+
+const cifra = (n: number) =>
+  n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const CAMPO: Record<string, string> = { name: "nombre", email: "correo", phone: "teléfono" };
 
-// Altas inyectadas (aiuda-born viajando al maestro elegido).
+// Altas: algo que nació en aiuda y viaja al sistema que el dueño eligió.
 const ALTA: Record<string, string> = {
   crear_cliente: "Alta del cliente",
   crear_producto: "Alta del producto",
@@ -23,57 +26,68 @@ const ALTA: Record<string, string> = {
   crear_cita: "Alta de la cita",
 };
 
+function sistema(e: WritebackEntry): string {
+  return e.target_label && e.target_label !== e.target ? e.target_label : (SOURCE_LABEL[e.target] ?? e.target);
+}
+
 function titulo(e: WritebackEntry): string {
-  const fuente = e.target_label && e.target_label !== e.target ? e.target_label : (SOURCE_LABEL[e.target] ?? e.target);
+  const donde = sistema(e);
   if (e.action === "registrar_pago") {
-    return `Pago de ${e.folio ?? "la factura"}${e.amount != null ? ` por ${mxn(e.amount)}` : ""} → ${fuente}`;
+    // Sin el monto: la cola no guarda la moneda, y pintarlo como pesos podría mentir.
+    return `Pago de ${e.folio ?? "la factura"} en ${donde}`;
   }
   if (e.action === "actualizar_cliente") {
     const campos = Object.keys(e.changes ?? {}).map((k) => CAMPO[k] ?? k);
-    return `Datos del cliente${campos.length ? ` (${campos.join(", ")})` : ""} → ${fuente}`;
+    return `Datos del cliente${campos.length ? ` (${campos.join(", ")})` : ""} en ${donde}`;
   }
   if (ALTA[e.action]) {
-    return `${ALTA[e.action]}${e.folio ? ` ${e.folio}` : ""} → ${fuente}`;
+    return `${ALTA[e.action]}${e.folio ? ` ${e.folio}` : ""} en ${donde}`;
   }
-  return `${e.action} → ${fuente}`;
+  return `Cambio en ${donde}`;
 }
 
 function detalle(e: WritebackEntry): string {
-  const fuente = e.target_label && e.target_label !== e.target ? e.target_label : (SOURCE_LABEL[e.target] ?? e.target);
+  const donde = sistema(e);
   if (e.estado === "inyectada") {
     const r = e.evidencia?.respuesta ?? {};
-    const cuando = e.evidencia?.en ? ` · ${fechaHora(e.evidencia.en)}` : "";
+    const cuando = e.evidencia?.en ? `, ${fechaHora(e.evidencia.en)}` : "";
     if (r.detalle) return `${r.detalle}${cuando}`;
     if (r.modo === "pago") {
-      const saldo = r.saldo_odoo != null ? ` · saldo allá: ${mxn(r.saldo_odoo)}` : "";
-      return `Pago asentado en ${fuente}${saldo}${cuando}`;
+      const saldo =
+        r.saldo_odoo == null
+          ? ""
+          : r.saldo_odoo > 0
+            ? `. Allá todavía le quedan ${cifra(r.saldo_odoo)} por cobrar`
+            : ". Allá ya no debe nada";
+      return `Pago registrado en ${donde}${cuando}${saldo}`;
     }
-    if (r.modo === "nota") return `Quedó nota en ${fuente}${cuando}`;
+    if (r.modo === "nota") return `Quedó como nota en ${donde}${cuando}`;
     if (e.action === "actualizar_cliente") {
       return r.creado
-        ? `No había liga: se dio de alta en ${fuente}${cuando}`
-        : `Cliente actualizado en ${fuente}${cuando}`;
+        ? `No existía en ${donde}: se dio de alta${cuando}`
+        : `Cliente actualizado en ${donde}${cuando}`;
     }
     if (ALTA[e.action]) {
-      return `Quedó de alta en ${fuente}${r.ref ? ` (ref. ${r.ref})` : ""}${cuando}`;
+      return `Quedó de alta en ${donde}${r.ref ? ` con la referencia ${r.ref}` : ""}${cuando}`;
     }
-    return `Escrito en ${fuente}${cuando}`;
+    return `Registrado en ${donde}${cuando}`;
   }
+  // Lo que respondió el otro sistema viene en crudo (y en inglés): no se le enseña al
+  // dueño. Se dice qué pasó y qué puede hacer.
   if (e.estado === "falló") {
-    return `No se pudo escribir tras ${e.attempts} intentos${e.last_error ? `: ${e.last_error}` : "."}`;
+    return `No se pudo registrar en ${donde} después de ${plural(e.attempts, "intento", "intentos")}. Revisa que ${donde} siga conectado y reintenta.`;
   }
-  // pendiente
   if (e.attempts > 0) {
-    const cuando = e.reintento_en ? ` · reintenta después de las ${fechaHora(e.reintento_en)}` : "";
-    return `Intento ${e.attempts} falló${e.last_error ? ` (${e.last_error})` : ""}${cuando}`;
+    const cuando = e.reintento_en ? ` después de las ${fechaHora(e.reintento_en)}` : "";
+    return `${donde} no respondió. aiuda lo vuelve a intentar${cuando}.`;
   }
-  return "En cola: se escribe en la próxima corrida.";
+  return `aiuda lo manda a ${donde} en su siguiente revisión, que hace cada hora en punto mientras está abierta.`;
 }
 
-const CHIP: Record<string, string> = {
-  inyectada: "bg-ok-soft text-ok",
-  pendiente: "bg-panel text-ink-2",
-  "falló": "bg-danger-soft text-danger",
+const ESTADO: Record<string, [string, string]> = {
+  inyectada: ["var(--color-ok)", "Registrado"],
+  pendiente: ["var(--color-ink-3)", "En espera"],
+  "falló": ["var(--color-danger)", "No se pudo"],
 };
 
 export function WritebackStatus({
@@ -92,70 +106,56 @@ export function WritebackStatus({
   const [busy, setBusy] = useState<string | null>(null);
 
   const entries = data?.entries ?? [];
-  if (entries.length === 0) return null; // sin inyecciones no hay nada que reportar
+  if (entries.length === 0) return null; // nada que escribir, nada que reportar
 
   async function reintentar(id: string) {
     setBusy(id);
     try {
       await api.retryWriteback(id);
-      toast("Reintentando la inyección…", "success");
+      toast("Reintentando…", "info");
       await refetchQuiet();
-      // El procesado corre en segundo plano: un vistazo más para traer el desenlace.
+      // El intento corre aparte: un vistazo más para traer cómo quedó.
       setTimeout(() => refetchQuiet(), 4000);
     } catch (e) {
-      toast((e as Error).message, "error");
+      toast(leerFallo(e).mensaje, "error");
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <section>
-      <h3 className="text-cuerpo font-semibold text-ink">Regreso a la fuente</h3>
-      <p className="mt-0.5 text-apoyo text-ink-3">
-        Lo que confirmas aquí se escribe de vuelta en el sistema de origen.
-      </p>
-      <ul className="mt-2.5 space-y-1.5">
-        {entries.map((e) => (
-          <li
-            key={e.id}
-            className="rounded-md border border-line bg-surface px-3 py-2"
-          >
-            <div className="flex items-center gap-2.5">
-              {SOURCE_LOGO[e.target] ? (
-                <img src={SOURCE_LOGO[e.target]} alt="" className="h-4 w-4" />
-              ) : (
-                <span className="flex h-4 w-4 items-center justify-center rounded bg-panel text-sello font-bold text-ink-2">
-                  {(SOURCE_LABEL[e.target] ?? e.target).slice(0, 2)}
-                </span>
-              )}
-              <span className="min-w-0 flex-1 truncate text-cuerpo font-medium text-ink">
-                {titulo(e)}
-              </span>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-sello font-medium ${CHIP[e.estado] ?? "bg-panel text-ink-2"}`}
-              >
-                {e.estado === "inyectada"
-                  ? "Inyectada"
-                  : e.estado === "falló"
-                    ? "Falló"
-                    : "Pendiente"}
-              </span>
-            </div>
-            <div className="mt-1 flex items-start justify-between gap-3 pl-6.5">
-              <p className="text-apoyo leading-relaxed text-ink-3">{detalle(e)}</p>
-              {e.estado === "falló" && (
-                <button
-                  onClick={() => reintentar(e.id)}
-                  disabled={busy !== null}
-                  className="shrink-0 btn btn-secondary btn-sm"
-                >
-                  {busy === e.id ? "Reintentando…" : "Reintentar"}
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
+    <section className="border-t border-line pt-5">
+      <h3 className="text-cuerpo font-semibold text-ink">Lo que aiuda escribió en tus sistemas</h3>
+      <ul className="mt-3 space-y-4">
+        {entries.map((e) => {
+          const [color, palabra] = ESTADO[e.estado] ?? ESTADO.pendiente;
+          return (
+            <li key={e.id}>
+              <div className="flex items-start gap-3">
+                {SOURCE_LOGO[e.target] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={SOURCE_LOGO[e.target]} alt="" className="mt-1 h-4 w-4 shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-cuerpo text-ink">{titulo(e)}</p>
+                  <p className="mark mt-0.5" style={{ "--mark": color } as React.CSSProperties}>
+                    {palabra}
+                  </p>
+                  <p className="mt-1 text-apoyo text-ink-3">{detalle(e)}</p>
+                  {e.estado === "falló" && (
+                    <button
+                      onClick={() => reintentar(e.id)}
+                      disabled={busy !== null}
+                      className="btn btn-sm btn-secondary mt-2"
+                    >
+                      {busy === e.id ? "Reintentando…" : "Reintentar"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
