@@ -8,7 +8,6 @@ import { useState } from "react";
 import { api, type CuaEstado, type RutinaBackoffice } from "@/lib/api";
 import { Collapse } from "@/components/motion";
 import {
-  PrimaryButton,
   SecondaryButton,
   SinEstrenar,
   TextInput,
@@ -210,7 +209,7 @@ export function OtrosPortales({
                           reusa tu acceso.
                         </p>
                       )}
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <div className="barra mt-3">
                         <SecondaryButton onClick={mandarAhora} disabled={mandando}>
                           {mandando ? "Mandando…" : "Mandar ahora"}
                         </SecondaryButton>
@@ -230,9 +229,9 @@ export function OtrosPortales({
                             placeholder="Nombre: Depósitos de la quincena"
                             className="min-w-0 flex-1 basis-56"
                           />
-                          <PrimaryButton onClick={guardarEncargo} disabled={guardando || !nombre.trim()}>
+                          <SecondaryButton onClick={guardarEncargo} disabled={guardando || !nombre.trim()}>
                             {guardando ? "Guardando…" : "Guardar"}
-                          </PrimaryButton>
+                          </SecondaryButton>
                         </div>
                       </Collapse>
                     </div>

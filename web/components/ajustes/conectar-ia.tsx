@@ -849,7 +849,9 @@ export function ConectarIA({
       )}
 
       <p className="eyebrow">{enUso ? "en uso" : "recomendada para esta Mac"}</p>
-      <section className="mt-2 rounded-2xl bg-panel px-5 py-5 sm:px-6">
+      {/* Sobre el papel, entre dos rayas: antes era una ficha gris con otra lista
+          adentro. La raya de abajo es la de "Otras formas de conectar". */}
+      <section className="mt-3 border-t border-line pt-5">
         <div className="flex items-start gap-4">
           <LogoVia via={principal} grande />
           <div className="min-w-0 flex-1">
@@ -887,7 +889,7 @@ export function ConectarIA({
                   </p>
                 </div>
               )}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="barra">
                 <SecondaryButton onClick={probar} disabled={probando}>
                   {probando ? "Probando…" : "Probar que responde"}
                 </SecondaryButton>

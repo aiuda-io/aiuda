@@ -10,7 +10,6 @@ import { api, type ConversationDetail, type ConversationItem, type CustomerItem 
 import {
   ChevronLeft,
   ErrorState,
-  PrimaryButton,
   SecondaryButton,
   Skeleton,
   TextInput,
@@ -103,7 +102,11 @@ function Hilo({
   const esCorreo = data?.channel === "correo";
   const nombre =
     data?.customer ??
-    (esCorreo ? data?.correo?.nombre || data?.correo?.de || "Remitente" : data?.remote_phone) ??
+    (esCorreo
+      ? data?.correo?.nombre || data?.correo?.de || "Remitente"
+      : data?.remote_phone
+        ? telefonoMx(data.remote_phone) || data.remote_phone
+        : undefined) ??
     "…";
   const estado = enBandeja?.status ?? "identificado";
 
@@ -214,7 +217,7 @@ function Hilo({
           )}
         </div>
         {data && (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="barra shrink-0">
             <QuietButton
               onClick={() =>
                 estado === "descartado"
@@ -313,14 +316,14 @@ function Identificar({
         <span className="tnum font-medium">{esCorreo ? contacto : telefonoMx(contacto) || contacto}</span> todavía
         no es de ningún cliente.
       </p>
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="barra mt-3">
         {clientes.length > 0 && (
           <>
             <select
               value={ligar}
               onChange={(e) => setLigar(e.target.value)}
               aria-label="Ligar a un cliente que ya tienes"
-              className={`${inputCls} max-w-[16rem]`}
+              className={`${inputCls} sm:max-w-[16rem]`}
             >
               <option value="">Es un cliente que ya tengo</option>
               {clientes.map((c) => (
@@ -342,11 +345,12 @@ function Identificar({
           }}
           placeholder="O es nuevo: su nombre"
           aria-label="Nombre del cliente nuevo"
-          className="max-w-[16rem]"
+          className="sm:max-w-[16rem]"
         />
-        <PrimaryButton onClick={() => onRegistrar({ name: nombre.trim() })} disabled={!nombre.trim() || ocupado}>
+        {/* Contorno: el relleno de esta pantalla es el de enviar la respuesta. */}
+        <SecondaryButton onClick={() => onRegistrar({ name: nombre.trim() })} disabled={!nombre.trim() || ocupado}>
           Dar de alta
-        </PrimaryButton>
+        </SecondaryButton>
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ export function Filtro<K extends string>({
   label: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1">
+    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-0.5 sm:gap-1">
       {opciones.map((o) => {
         const on = o.key === activo;
         return (
@@ -30,7 +30,9 @@ export function Filtro<K extends string>({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(o.key)}
-            className={`btn btn-sm ${on ? "btn-secondary" : "btn-quiet"}`}
+            // En teléfono el filtro se aprieta un poco: así las tres opciones de Pagos
+            // caben en un renglón en vez de dejar la última sola abajo.
+            className={`btn btn-sm px-2 sm:px-3 ${on ? "btn-secondary" : "btn-quiet"}`}
           >
             {o.label}
             {typeof o.count === "number" && o.count > 0 && (

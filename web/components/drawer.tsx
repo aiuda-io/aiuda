@@ -41,8 +41,10 @@ export function Drawer({
           ).filter((el) => el.offsetParent !== null)
         : [];
 
-    // Al abrir, lleva el foco al primer control del panel (el botón Cerrar) o al panel.
-    (focusables()[0] ?? panel)?.focus();
+    // Al abrir, el foco va al panel (no a su primer control, que es la equis: quien
+    // llegaba por un enlace directo la veía rodeada de un aro azul, como si fuera lo
+    // importante). El primer Tab cae en la equis, igual que antes.
+    panel?.focus();
 
     const onKey = (e: KeyboardEvent) => {
       // Con un Modal abierto encima, Esc y Tab son suyos: sin esto un solo Esc

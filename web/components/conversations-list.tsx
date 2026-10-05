@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { type ConversationItem, type ConversationStatus } from "@/lib/api";
 import { EmptyState, ErrorState, PrimaryLink, SearchInput, Skeleton, Tabs } from "@/components/ui";
-import { esDeHoy, haceTiempo } from "@/lib/format";
+import { esDeHoy, haceTiempo, telefonoMx } from "@/lib/format";
 import { rutaAjustes } from "@/lib/ajustes";
 
 type TabKey = "identificados" | "por_identificar" | "descartados";
@@ -32,7 +32,7 @@ export function contestoHoy(c: ConversationItem): boolean {
 export function tituloDe(c: ConversationItem): string {
   if (c.customer) return c.customer;
   if (c.channel === "correo") return c.correo?.nombre || c.correo?.de || "Correo sin remitente";
-  return c.remote_phone;
+  return telefonoMx(c.remote_phone) || c.remote_phone;
 }
 
 export function ConversationsList({

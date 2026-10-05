@@ -7,20 +7,7 @@ import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
 import { RecordDrawer } from "@/components/record-drawer";
 import { AgregarSheet } from "@/components/agregar-sheet";
 import { ExportButton } from "@/components/export-button";
-import { deReloj } from "@/lib/format";
-
-function formatWhen(iso: string | null): string {
-  if (!iso) return "Sin fecha";
-  const d = deReloj(iso);
-  if (!d) return "Sin fecha";
-  return d.toLocaleString("es-MX", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { deReloj, fechaCita } from "@/lib/format";
 
 export default function CitasPage() {
   const { data, error, loading, refetch } = useApi<AppointmentItem[]>(api.appointments);
@@ -73,10 +60,10 @@ export default function CitasPage() {
         subtitle="Tus citas. De aquí lee tu ayudante de Recepción."
         right={
           agenda.total > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <>
               <ExportButton entidad="citas" filtros={{ q: query }} count={rows.length} />
               <PrimaryButton onClick={() => setAgregar(true)}>Agregar cita</PrimaryButton>
-            </div>
+            </>
           ) : undefined
         }
       />
@@ -112,7 +99,7 @@ export default function CitasPage() {
                         <span className="block truncate text-cuerpo text-ink-2 hover:text-accent-ink">
                           {a.title}
                         </span>
-                        <span className="text-apoyo text-ink-3">{formatWhen(a.starts_at)}</span>
+                        <span className="text-apoyo text-ink-3">{fechaCita(a.starts_at)}</span>
                       </button>
                     </RailRow>
                   ))}
@@ -129,19 +116,20 @@ export default function CitasPage() {
               <li
                 key={a.id}
                 onClick={() => setSelected(a)}
-                className="flex cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line py-3.5 last:border-0"
+                className="flex cursor-pointer flex-col gap-y-0.5 border-b border-line py-3.5 last:border-0 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4 sm:gap-y-1"
               >
-                {/* Botón real (no solo li onClick): el detalle se abre con teclado. */}
+                {/* Botón real (no solo li onClick): el detalle se abre con teclado. En
+                    teléfono el asunto va completo y la fecha debajo, a la izquierda. */}
                 <button
                   onClick={() => setSelected(a)}
-                  className="min-w-0 truncate text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
+                  className="min-w-0 text-left text-cuerpo font-medium text-ink hover:text-accent-ink sm:truncate"
                 >
                   {a.title}
                 </button>
                 {a.customer_name && (
-                  <span className="min-w-0 truncate text-cuerpo text-ink-2">{a.customer_name}</span>
+                  <span className="min-w-0 text-cuerpo text-ink-2 sm:truncate">{a.customer_name}</span>
                 )}
-                <span className="tnum ml-auto shrink-0 text-apoyo text-ink-3">{formatWhen(a.starts_at)}</span>
+                <span className="tnum shrink-0 text-apoyo text-ink-3 sm:ml-auto">{fechaCita(a.starts_at)}</span>
                 {a.notes && <p className="w-full text-apoyo text-ink-3">{a.notes}</p>}
               </li>
             ))}
@@ -158,13 +146,13 @@ export default function CitasPage() {
         open={selected !== null}
         onClose={() => setSelected(null)}
         title={selected?.title ?? ""}
-        subtitle={selected ? formatWhen(selected.starts_at) : undefined}
+        subtitle={selected ? fechaCita(selected.starts_at) : undefined}
         fields={
           selected
             ? [
                 { label: "Cliente", value: selected.customer_name },
                 { label: "Teléfono", value: selected.customer_phone },
-                { label: "Cuándo", value: formatWhen(selected.starts_at) },
+                { label: "Cuándo", value: fechaCita(selected.starts_at) },
                 { label: "Notas", value: selected.notes },
                 // Tras inyectarse, la cita queda LIGADA a su copia en el destino
                 // (meta.inyectada_en[destino] = ref + url): texto y salto directo.

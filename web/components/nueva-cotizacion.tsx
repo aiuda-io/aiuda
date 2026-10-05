@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, mxn, type CustomerItem, type ProductItem } from "@/lib/api";
 import { Drawer } from "@/components/drawer";
-import { PrimaryButton, PrimaryLink, SecondaryButton, inputCls } from "@/components/ui";
+import { PrimaryButton, PrimaryLink, QuietButton, SecondaryButton, inputCls } from "@/components/ui";
 import { toast } from "@/components/toast";
 
 type Linea = { product: ProductItem; cantidad: number };
@@ -220,7 +220,7 @@ export function NuevaCotizacion({
             <PrimaryButton onClick={generar} disabled={!cliente || lineas.length === 0 || enviando}>
               {enviando ? "Redactando…" : "Redactar cotización"}
             </PrimaryButton>
-            <SecondaryButton onClick={onClose}>Cancelar</SecondaryButton>
+            <QuietButton onClick={onClose}>Cancelar</QuietButton>
           </div>
         </div>
       )}

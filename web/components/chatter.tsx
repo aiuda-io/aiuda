@@ -46,6 +46,7 @@ export function Chatter({
   thinkingLabel,
   sendLabel = "Enviar",
   fill = false,
+  recientes = 6,
 }: {
   messages: ChatterMessage[];
   onSend: (body: string) => Promise<void>;
@@ -65,6 +66,10 @@ export function Chatter({
   /** Llena la altura del contenedor (el hilo crece con él) en vez del tope fijo de 420px.
    *  Para la superficie de trabajo del ayudante, donde el chat es el centro. */
   fill?: boolean;
+  /** Fuera de `fill` (la ficha de un cliente) el hilo NO es una caja con scroll
+   *  propio: se ven los últimos mensajes sobre la página y los anteriores quedan en
+   *  Mensajes, a un enlace. Cuántos se ven. */
+  recientes?: number;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -90,8 +95,12 @@ export function Chatter({
   // pantalla, con el encabezado fuera de vista.
   useEffect(() => {
     const hilo = hiloRef.current;
-    if (hilo) hilo.scrollTop = hilo.scrollHeight;
-  }, [messages.length, thinking]);
+    if (hilo && fill) hilo.scrollTop = hilo.scrollHeight;
+  }, [messages.length, thinking, fill]);
+
+  // En la ficha, solo los últimos: sin tope de alto y sin scroll dentro de la página.
+  const visibles = fill ? messages : messages.slice(-recientes);
+  const anteriores = messages.length - visibles.length;
 
   async function enviar(texto: string) {
     const body = texto.trim();
@@ -119,10 +128,14 @@ export function Chatter({
       {/* Hilo */}
       <div
         ref={hiloRef}
-        className={`space-y-4 overflow-y-auto py-4 pr-1 ${
-          fill ? "min-h-0 flex-1" : "max-h-[420px] min-h-[180px] flex-1"
-        }`}
+        className={`space-y-4 py-4 ${fill ? "min-h-0 flex-1 overflow-y-auto pr-1" : ""}`}
       >
+        {anteriores > 0 && (
+          <p className="text-apoyo text-ink-3">
+            {anteriores === 1 ? "Hay 1 mensaje anterior." : `Hay ${anteriores} mensajes anteriores.`}{" "}
+            Aquí se ven los últimos {visibles.length}.
+          </p>
+        )}
         {messages.length === 0 && !thinking && (
           <div className="flex h-full min-h-[140px] flex-col items-center justify-center px-2 text-center">
             <p className="text-cuerpo font-medium text-ink">{emptyTitle}</p>
@@ -130,15 +143,18 @@ export function Chatter({
               <p className="mt-1 max-w-sm text-cuerpo leading-relaxed text-ink-3">{emptyHint}</p>
             )}
             {suggestions.length > 0 && (
-              <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+              <div className="mt-4 flex max-w-full flex-wrap justify-center gap-1.5">
                 {suggestions.map((s) => (
                   <SecondaryButton
                     key={s}
                     type="button"
                     onClick={() => enviar(s)}
                     disabled={sending}
- size="sm"
->
+                    size="sm"
+                    // Una pregunta larga se dobla dentro de su botón: en teléfono se
+                    // salía de la pantalla por los dos lados.
+                    className="max-w-full whitespace-normal py-1.5 text-left"
+                  >
                     {s}
                   </SecondaryButton>
                 ))}
@@ -146,7 +162,7 @@ export function Chatter({
             )}
           </div>
         )}
-        {messages.map((m) => {
+        {visibles.map((m) => {
           const mine = m.side === "me";
           return (
             <div key={m.id} className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>

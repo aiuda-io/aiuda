@@ -324,21 +324,21 @@ export function CommandPalette() {
                         type="button"
                         onMouseEnter={() => setSelectedIdx(globalIdx)}
                         onClick={() => navigate(item)}
-                        className={`flex w-full items-baseline gap-3 px-5 py-2 text-left ${
+                        // En teléfono el dato va debajo del nombre: lado a lado, el nombre
+                        // quedaba cortado ("F-301 · $38,288…").
+                        className={`flex w-full flex-col gap-x-3 px-5 py-2.5 text-left sm:flex-row sm:items-baseline sm:py-2 ${
                           isSelected ? "bg-fill" : ""
                         }`}
                       >
                         <span
-                          className={`flex-1 truncate text-cuerpo text-ink ${
+                          className={`text-cuerpo text-ink sm:flex-1 sm:truncate ${
                             isSelected ? "font-medium" : ""
                           }`}
                         >
                           {item.label}
                         </span>
                         {item.sublabel && (
-                          <span
-                            className="tnum shrink-0 text-apoyo text-ink-3"
-                          >
+                          <span className="tnum text-apoyo text-ink-3 sm:shrink-0">
                             {/* Un teléfono llega crudo del servidor: se agrupa para leerlo. */}
                             {/^\+?\d{10,13}$/.test(item.sublabel) ? telefonoMx(item.sublabel) : item.sublabel}
                           </span>

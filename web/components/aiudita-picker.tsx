@@ -67,8 +67,7 @@ export function AiuditaPicker({
 
   return (
     <div
-      className="cmd-backdrop fixed inset-0 z-50 flex justify-center bg-ink/25 px-4"
-      style={{ paddingTop: "min(14vh, 80px)" }}
+      className="cmd-backdrop fixed inset-0 z-50 flex justify-center bg-ink/25 px-4 pt-4 sm:pt-20"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -77,8 +76,9 @@ export function AiuditaPicker({
         role="dialog"
         aria-modal="true"
         aria-label="Agregar aiuditas"
-className="cmd-panel elev-lg flex w-full max-w-xl flex-col self-start rounded-2xl bg-surface"
-        style={{ maxHeight: "72vh" }}
+        // En teléfono ocupa casi toda la pantalla: con el tope de escritorio quedaba
+        // una ventanita de tres renglones para una lista de veinte.
+        className="cmd-panel elev-lg flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col self-start rounded-2xl bg-surface sm:max-h-[72vh]"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
@@ -91,9 +91,10 @@ className="cmd-panel elev-lg flex w-full max-w-xl flex-col self-start rounded-2x
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar: cotizar, agendar, conciliar"
+            placeholder="Buscar: cotizar, agendar"
             aria-label="Buscar aiudita"
-            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3"
+            // Campo desnudo dentro del panel: sin el aro de foco de los campos con borde.
+            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3 focus-visible:shadow-none"
             autoComplete="off"
             spellCheck={false}
           />
@@ -200,8 +201,8 @@ function PickerRow({
         <AiuditaIcon id={spec.id} tipo={tipo} className="h-5 w-5" />
       </span>
       <span className={`min-w-0 flex-1 ${spec.live ? "" : "opacity-60"}`}>
-        <span className="block truncate text-cuerpo font-medium text-ink">{spec.label}</span>
-        <span className="block truncate text-apoyo text-ink-3">
+        <span className="block text-cuerpo font-medium text-ink">{spec.label}</span>
+        <span className="block text-apoyo text-ink-3">
           {spec.live ? spec.linea : `Todavía no funciona. ${spec.linea}`}
         </span>
       </span>

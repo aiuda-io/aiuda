@@ -50,11 +50,11 @@ export default function ProductosPage() {
         subtitle="Tu catálogo. Con estos precios cotiza tu ayudante de Ventas."
         right={
           hayProductos ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <>
               <ExportButton entidad="productos" filtros={{ q: query }} count={rows.length} />
               <SecondaryButton onClick={() => setAgregar(true)}>Agregar producto</SecondaryButton>
               <PrimaryButton onClick={() => setCotizar(true)}>Nueva cotización</PrimaryButton>
-            </div>
+            </>
           ) : undefined
         }
       />
@@ -109,8 +109,38 @@ export default function ProductosPage() {
           <div className="mb-5">
             <SearchInput value={query} onChange={setQuery} placeholder="Buscar por nombre o clave" />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px] text-left">
+          {/* Teléfono: una lista, con el precio a la vista. La tabla de cinco columnas
+              no cabe en 350px y dejaba el precio y la existencia fuera de la pantalla. */}
+          <ul className="md:hidden">
+            {rows.map((p) => (
+              <li key={p.id} className="border-b border-line last:border-0">
+                <button
+                  onClick={() => setSelected(p)}
+                  className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-0.5 py-3.5 text-left"
+                >
+                  <span className="text-cuerpo font-medium text-ink">{p.name}</span>
+                  <span className="tnum whitespace-nowrap text-right text-cuerpo font-semibold text-ink">
+                    {p.price !== null ? mxn(p.price) : <span className="font-normal text-ink-3">Sin precio</span>}
+                  </span>
+                  <span className="tnum col-span-2 text-apoyo text-ink-3">
+                    {[
+                      p.sku,
+                      p.stock !== null ? `${p.stock}${p.unit ? ` ${unidad(p.unit)}` : ""} en existencia` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "Sin clave"}
+                  </span>
+                </button>
+              </li>
+            ))}
+            {rows.length === 0 && (
+              <li className="py-12 text-center text-cuerpo text-ink-3">
+                Ningún producto coincide con lo que buscas.
+              </li>
+            )}
+          </ul>
+          <div className="hidden md:block">
+            <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-line text-rotulo text-ink-3">
                   <th className="px-4 pb-3 font-medium">Producto</th>
