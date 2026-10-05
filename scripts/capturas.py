@@ -31,13 +31,15 @@ RAIZ = Path(__file__).resolve().parent.parent
 # Qué vale la pena enseñar, en el orden en que se cuenta la historia.
 PANTALLAS = [
     ("bienvenida", "/", "El primer arranque: lo primero que se ve"),
-    ("aprobaciones", "/aprobaciones", "Lo que el ayudante propone y tú apruebas"),
+    ("hoy", "/", "Hoy: lo que el ayudante propone y tú apruebas"),
     ("cartera", "/facturas", "Tu cartera, con quién debe y desde cuándo"),
+    ("promesas", "/facturas?vista=promesas", "Las promesas de pago, dentro de Cartera"),
+    ("pagos", "/facturas?vista=pagos", "Los pagos por confirmar, dentro de Cartera"),
+    ("mensajes", "/conversaciones", "Los mensajes, con su procedencia"),
     ("cliente", "/clientes/detalle", "Un cliente: su historia y sus promesas"),
     ("ayudantes", "/ayudantes", "Los ayudantes del negocio"),
-    ("conversaciones", "/conversaciones", "Las conversaciones, con su procedencia"),
-    ("proveedor", "/proveedor", "Tu propia IA, conectada en un clic"),
-    ("centro", "/centro", "El centro: qué pasó hoy"),
+    ("conexiones", "/configuracion?seccion=conexiones", "De dónde lee y por dónde escribe"),
+    ("tu-ia", "/configuracion?seccion=ia", "Tu propia IA, conectada en un clic"),
 ]
 
 

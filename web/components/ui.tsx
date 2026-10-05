@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BUCKET_META } from "@/lib/api";
 
 export function PageHeader({
@@ -14,10 +15,10 @@ export function PageHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <header className="mb-9 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+    <header className="mb-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="min-w-0">
         <h1 className="text-titulo font-semibold text-ink">{title}</h1>
-        {subtitle && <p className="mt-2 max-w-xl text-cuerpo text-ink-2">{subtitle}</p>}
+        {subtitle && <p className="mt-2.5 max-w-xl text-cuerpo text-ink-2">{subtitle}</p>}
       </div>
       {right}
     </header>
@@ -41,12 +42,55 @@ export const SIN_ESTRENAR_NOTA =
   "Está construida, pero todavía nadie la ha usado con una cuenta real.";
 
 export function SinEstrenar() {
+  return <Sello title={SIN_ESTRENAR_NOTA}>Sin estrenar</Sello>;
+}
+
+/** SELLO: una etiqueta neutra de una o dos palabras que CLASIFICA ("Sin estrenar",
+ *  "Borrador", "WhatsApp"). Contorno fino, sin relleno y sin color. Es la única
+ *  píldora de la consola: si lo que quieres decir es cómo VA algo, es un `Estado`.
+ *  Regla de uso: a lo más un sello por renglón, y nunca uno que repita lo que ya
+ *  dice el título de la sección donde está. */
+export function Sello({ children, title }: { children: React.ReactNode; title?: string }) {
+  return (
+    <span title={title} className="sello">
+      {children}
+    </span>
+  );
+}
+
+/** Tonos de un `Estado`. El color va solo en el punto; la palabra es la señal. */
+const TONO = {
+  neutro: "var(--color-ink-3)",
+  ok: "var(--color-ok)",
+  aviso: "var(--color-warn)",
+  alerta: "var(--color-warn-strong)",
+  falla: "var(--color-danger)",
+  acento: "var(--color-accent)",
+} as const;
+export type Tono = keyof typeof TONO;
+
+/** ESTADO: cómo va algo, dicho con una palabra y una marca chica ("Enviado",
+ *  "No salió", "Vence hoy"). Sin fondo de color y sin contorno: el punto de 6px
+ *  acompaña a la palabra, nunca la sustituye. `fuerte` sube la palabra a tinta
+ *  cuando el estado es lo que hay que leer primero en el renglón. */
+export function Estado({
+  tono = "neutro",
+  fuerte,
+  title,
+  children,
+}: {
+  tono?: Tono;
+  fuerte?: boolean;
+  title?: string;
+  children: React.ReactNode;
+}) {
   return (
     <span
-      title={SIN_ESTRENAR_NOTA}
-      className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-fill px-2 py-0.5 text-sello font-medium text-ink-2"
+      title={title}
+      className={`mark ${fuerte ? "font-semibold text-ink" : ""}`}
+      style={{ "--mark": TONO[tono] } as React.CSSProperties}
     >
-      Sin estrenar
+      {children}
     </span>
   );
 }
@@ -97,6 +141,22 @@ export function SecondaryButton({
   );
 }
 
+/** El botón callado: solo la palabra, con fondo al pasar encima. Para lo que
+ *  acompaña a la acción de un renglón o de un diálogo ("Editar", "Rechazar",
+ *  "Cancelar") sin competirle. */
+export function QuietButton({
+  size = "md",
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { size?: BtnSize }) {
+  return (
+    <button
+      {...props}
+      className={`btn btn-quiet ${BTN_SIZE[size]} ${className ?? ""}`}
+    />
+  );
+}
+
 /** Ligas con ropa de botón: para CTAs que navegan (el "primer valor" de los
  *  estados vacíos deep-linkea a donde se resuelve). Mismas clases que los botones.
  *  `external` abre en pestaña nueva con rel seguro (ligas a fuentes externas). */
@@ -140,6 +200,29 @@ export function SecondaryLink({
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
       className={`btn btn-secondary ${BTN_SIZE[size]}`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+export function QuietLink({
+  href,
+  size = "md",
+  external,
+  children,
+}: {
+  href: string;
+  size?: BtnSize;
+  external?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+      className={`btn btn-quiet ${BTN_SIZE[size]}`}
     >
       {children}
     </Link>
@@ -212,7 +295,7 @@ export function FilePicker({
       onDragLeave={() => setEncima(false)}
       onDrop={soltar}
       className={`flex items-center gap-3 rounded-lg border border-dashed p-2 transition-colors ${
-        encima ? "border-accent bg-accent-soft" : "border-line-strong bg-surface"
+        encima ? "border-accent bg-accent-soft" : "border-field bg-surface"
       }`}
     >
       <input
@@ -287,7 +370,7 @@ export function useConfirm() {
       aria-modal="true"
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-lg"
+        className="w-full max-w-sm rounded-2xl bg-surface p-7 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {state.title && <p className="text-seccion font-semibold text-ink">{state.title}</p>}
@@ -409,40 +492,108 @@ export function SourceBadge({
   );
 }
 
+/** PESTAÑAS de sección: palabras sobre una raya, la activa en tinta.
+ *
+ *  Dos formas de usarlas, con la misma cara:
+ *   - de estado: `onChange` y tú guardas cuál va (filtros de una lista).
+ *   - de sección, con query: pásale `hrefFor` y cada pestaña es un enlace de
+ *     verdad (`/facturas?vista=pagos`): se puede abrir en otra ventana, compartir
+ *     y volver con Atrás. Lee cuál va con `useQueryTab`. */
 export function Tabs({
   tabs,
   active,
   onChange,
+  hrefFor,
+  label,
 }: {
   tabs: { key: string; label: string; count?: number }[];
   active: string;
-  onChange: (key: string) => void;
+  onChange?: (key: string) => void;
+  /** La dirección de cada pestaña. Si viene, las pestañas son enlaces. */
+  hrefFor?: (key: string) => string;
+  /** Nombre del grupo para lectores de pantalla ("Vistas de Cartera"). */
+  label?: string;
 }) {
   return (
-    // Control segmentado: una pista gris y la pestaña activa posada encima. Sin
-    // raya de lado a lado ni subrayado de color.
-    <div role="tablist" className="mb-8 inline-flex max-w-full gap-0.5 overflow-x-auto rounded-[11px] bg-fill p-[3px]">
+    <div role="tablist" aria-label={label} className="tabs mb-8">
       {tabs.map((t) => {
         const on = active === t.key;
-        return (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={on}
-            onClick={() => onChange(t.key)}
-            className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-1.5 text-cuerpo font-medium ${
-              on ? "bg-surface text-ink shadow-sm" : "text-ink-2 hover:text-ink"
-            }`}
-          >
+        const dentro = (
+          <>
             {t.label}
             {typeof t.count === "number" && (
-              <span className={`tnum text-apoyo ${on ? "text-ink-3" : "text-ink-3"}`}>{t.count}</span>
+              <span className="tnum text-apoyo font-medium text-ink-3">{t.count}</span>
             )}
+          </>
+        );
+        return hrefFor ? (
+          <Link
+            key={t.key}
+            href={hrefFor(t.key)}
+            role="tab"
+            aria-selected={on}
+            scroll={false}
+            onClick={() => onChange?.(t.key)}
+            className="tab"
+          >
+            {dentro}
+          </Link>
+        ) : (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange?.(t.key)}
+            className="tab"
+          >
+            {dentro}
           </button>
         );
       })}
     </div>
   );
+}
+
+/** La pestaña que manda la dirección: `?vista=pagos`, `?seccion=ia`.
+ *
+ *    const [vista, hrefFor] = useQueryTab("vista", ["facturas", "promesas", "pagos"]);
+ *    <Tabs tabs={…} active={vista} hrefFor={hrefFor} />
+ *
+ *  La primera llave es la de fábrica y su dirección va sin query (`/facturas`).
+ *  Un valor que no está en la lista cae en la de fábrica, no en una pantalla en
+ *  blanco. Los demás parámetros de la dirección se conservan.
+ *  OJO: usa `useSearchParams`, así que en el export estático el componente que lo
+ *  llame va dentro de `<Suspense>`. */
+export function useQueryTab<K extends string>(
+  param: string,
+  keys: readonly K[],
+): [K, (key: string) => string, (key: K) => void] {
+  const pathname = usePathname();
+  const router = useRouter();
+  const params = useSearchParams();
+  const raw = params.get(param);
+  const active = (keys as readonly string[]).includes(raw ?? "") ? (raw as K) : keys[0];
+  const actual = params.toString();
+
+  const hrefFor = useCallback(
+    (key: string) => {
+      const next = new URLSearchParams(actual);
+      if (key === keys[0]) next.delete(param);
+      else next.set(param, key);
+      const q = next.toString();
+      return q ? `${pathname}?${q}` : pathname;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [actual, pathname, param, keys[0]],
+  );
+  // Para cambiar de pestaña desde código (tras guardar, por ejemplo).
+  const go = useCallback(
+    (key: K) => router.replace(hrefFor(key), { scroll: false }),
+    [router, hrefFor],
+  );
+
+  return [active, hrefFor, go];
 }
 
 export function SearchInput({
@@ -469,7 +620,7 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-10 w-full rounded-lg bg-fill pl-10 pr-8 text-cuerpo text-ink placeholder:text-ink-3 hover:bg-fill-strong focus:bg-surface focus:outline-none"
+        className="field pl-10 pr-8"
       />
       {value && (
         <button
@@ -494,10 +645,10 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-xl px-6 py-20 text-center">
+    <div className="mx-auto max-w-xl px-6 py-24 text-center">
       <p className="text-seccion font-semibold text-ink">{title}</p>
       <p className="mx-auto mt-2 max-w-md text-cuerpo text-ink-2">{children}</p>
-      {action && <div className="mt-6">{action}</div>}
+      {action && <div className="mt-7">{action}</div>}
     </div>
   );
 }
