@@ -24,6 +24,16 @@ function numero(value: FormDataEntryValue | null, fallback = 30) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+// La vigencia viene como día (AAAA-MM-DD): vencida desde el día siguiente, en hora local.
+function efirmaVencida(vigenteHasta: string | null) {
+  if (!vigenteHasta) return false;
+  const ahora = new Date();
+  const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
+    ahora.getDate(),
+  ).padStart(2, "0")}`;
+  return vigenteHasta.slice(0, 10) < hoy;
+}
+
 function estadoSync(ultima: string | null, pendiente: boolean) {
   if (pendiente) return "Solicitud pendiente";
   if (ultima) return `Al día hasta ${fecha(ultima)}`;
@@ -215,7 +225,15 @@ export default function SatPage() {
                   <p className="text-seccion font-semibold text-ink">{empresa.rfc}</p>
                   <p className="mt-0.5 text-apoyo text-ink-3">
                     {empresa.nombre || "Sin razón social"} ·{" "}
-                    {empresa.efirma ? `e.firma vigente hasta ${fecha(empresa.vigente_hasta)}` : "Carga manual"}
+                    {!empresa.efirma ? (
+                      "Carga manual"
+                    ) : efirmaVencida(empresa.vigente_hasta) ? (
+                      <span className="font-medium text-danger">
+                        e.firma vencida el {fecha(empresa.vigente_hasta)}
+                      </span>
+                    ) : (
+                      <>e.firma vigente hasta {fecha(empresa.vigente_hasta)}</>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-3 text-apoyo">
