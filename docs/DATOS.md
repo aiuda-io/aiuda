@@ -18,15 +18,18 @@ queda nada en ningún lado.
 
 Dentro de `aiuda.db` está tu cartera (facturas, clientes, productos), las
 conversaciones, los recordatorios con su estado, las promesas de pago, la
-conciliación, la bitácora de aprobaciones, los aparatos que dejaste entrar y la
-configuración del negocio.
+conciliación, la bitácora de aprobaciones, los aparatos que dejaste entrar, los
+documentos que bajaste del SAT (opinión de cumplimiento y constancia, en PDF) y
+la configuración del negocio.
 
 Cifrado con la llave de `key`, dentro de la misma base:
 
 - Las credenciales de tus conectores y el secreto de tu proveedor de IA.
 - Las sesiones de portales que capturaste con el handoff del CUA (cookies y
-  storage ya autenticados; tu contraseña no se guarda nunca). Ver
+  storage ya autenticados; la contraseña de esos portales no se guarda nunca). Ver
   [CUA.md](CUA.md).
+- Tu e.firma del SAT, si la conectaste: certificado, llave y contraseña. Es la
+  única contraseña tuya que aiuda guarda. Ver [SAT.md](SAT.md).
 
 De los aparatos emparejados **no** se guarda su llave, solo su huella: quien se
 lleve la base no se lleva la entrada de ningún teléfono.

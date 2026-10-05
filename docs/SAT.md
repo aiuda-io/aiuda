@@ -67,6 +67,33 @@ Dos límites que conviene conocer:
   periodo, no avisa de lo que se canceló más tarde. Una factura a crédito que
   cancelas después sigue apareciendo abierta en aiuda.
 
+## Opinión de cumplimiento y constancia de situación fiscal
+
+Con la e.firma conectada, aiuda también puede bajarte del portal del SAT estos
+dos documentos en PDF:
+
+1. Abre **Rutinas**. Hay un bloque por cada RFC con e.firma.
+2. La primera vez te pide permiso, una sola vez por RFC: para bajarlos, aiuda
+   entra al portal con la e.firma que guardaste y escribe su contraseña por ti.
+   La firma se hace en esta computadora; la llave y la contraseña no se mandan a
+   nadie.
+3. Pulsa **Bajar ahora** en el documento que quieras. Tarda cerca de un minuto.
+
+El PDF queda guardado en esta computadora. Lo ves en Rutinas y en esta misma
+pantalla del SAT, en el bloque **Documentos**, con la fecha y, en la opinión, su
+sentido (Positivo o Negativo).
+
+Lo que conviene saber:
+
+- No usa tu IA: sigue un guion fijo y funciona aunque no tengas ninguna conectada.
+- Solo consulta y descarga. No presenta, no firma ni acepta nada. Si el portal
+  pide aceptar algo o muestra un captcha, se detiene y te lo dice.
+- Cada vez que bajas la opinión, el SAT le pone un folio nuevo.
+- La app de escritorio todavía no trae el navegador que hace falta; ahí la
+  pantalla lo avisa.
+- Todavía lleva el sello «Sin estrenar»: dentro de aiuda solo se ha corrido contra
+  un portal de prueba. Los detalles están en [CUA.md](CUA.md).
+
 ## Prueba técnica en vivo
 
 Quien opere desde terminal puede probar solo la autenticación, sin guardar nada:
