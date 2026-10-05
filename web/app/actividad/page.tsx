@@ -148,7 +148,7 @@ function Detalle({ runId }: { runId: string }) {
       {/* Lo que el dueño necesita: qué tocó y qué NO pudo, con su razón. */}
       {d.motivos.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+          <p className="mb-1 eyebrow">
             Lo que no pudo
           </p>
           <ul className="space-y-1">
@@ -164,7 +164,7 @@ function Detalle({ runId }: { runId: string }) {
 
       {d.toco.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+          <p className="mb-1 eyebrow">
             Lo que tocó
           </p>
           <ul className="flex flex-wrap gap-1.5">

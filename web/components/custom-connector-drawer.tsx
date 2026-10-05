@@ -399,7 +399,7 @@ export function CustomConnectorDrawer({
           <button
             onClick={guardar}
             disabled={!baseUrl.trim() || !name.trim() || busy !== ""}
-            className="rounded-md bg-accent px-3.5 py-2 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+            className="btn btn-primary"
           >
             {busy === "save" ? "Guardando…" : editar ? "Guardar cambios" : "Guardar conexión"}
           </button>

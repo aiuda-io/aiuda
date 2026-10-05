@@ -197,7 +197,7 @@ export function ExcelUpload({
         ) : (
           <>
             <div className="mt-3 overflow-hidden rounded-md border border-line">
-              <div className="grid grid-cols-[1fr_auto] gap-2 border-b border-line bg-panel/60 px-3 py-2 text-rotulo font-semibold uppercase tracking-[0.05em] text-ink-3">
+              <div className="grid grid-cols-[1fr_auto] gap-2 border-b border-line bg-panel/60 px-3 py-2 eyebrow">
                 <span>Tu columna</span>
                 <span>Campo en aiuda</span>
               </div>
@@ -240,7 +240,7 @@ export function ExcelUpload({
             <button
               onClick={doImport}
               disabled={busy}
-              className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+              className="mt-3 btn btn-primary"
             >
               {busy ? "Importando…" : `Importar ${analysis.row_count}`}
             </button>

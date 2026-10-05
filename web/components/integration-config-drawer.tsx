@@ -192,7 +192,7 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
             <button
               onClick={instalar}
               disabled={instalando}
-              className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+              className="mt-3 btn btn-primary"
             >
               {instalando ? "Instalando…" : actualizar ? "Actualizar" : "Instalar"}
             </button>
@@ -249,7 +249,7 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
           <button
             onClick={startQr}
             disabled={loading}
-            className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+            className="mt-3 btn btn-primary"
           >
             {loading ? "Generando QR…" : "Mostrar código QR"}
           </button>
@@ -420,7 +420,7 @@ export function IntegrationConfigDrawer({
 
         {node.does && (
           <div className="rounded-lg border border-line bg-panel/40 px-3.5 py-3">
-            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="eyebrow">
               ¿Cómo <span className="italic">aiuda</span>?
             </p>
             <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{node.does}</p>
@@ -438,7 +438,7 @@ export function IntegrationConfigDrawer({
 
         {!isExcel && node.key !== "whatsapp" && caps.length > 0 && (
           <div className="rounded-lg border border-line bg-surface px-3.5 py-3">
-            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="eyebrow">
               Qué obtener de {node.name}
             </p>
             <p className="mt-1 text-apoyo leading-relaxed text-ink-3">
@@ -571,7 +571,7 @@ export function IntegrationConfigDrawer({
               <button
                 onClick={save}
                 disabled={saving}
-                className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                className="btn btn-primary"
               >
                 {saving ? "Guardando…" : configured ? "Guardar cambios" : "Conectar"}
               </button>
@@ -652,7 +652,7 @@ function IntegrationHelp({ nodeKey, name }: { nodeKey: string; name: string }) {
           )}
           {help.credentials.length > 0 && (
             <div className="rounded-md border border-line bg-panel/40 p-3">
-              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">Dónde obtener cada dato</p>
+              <p className="eyebrow">Dónde obtener cada dato</p>
               <ul className="mt-1.5 space-y-1.5">
                 {help.credentials.map((c) => (
                   <li key={c.field} className="text-apoyo leading-relaxed text-ink-2">

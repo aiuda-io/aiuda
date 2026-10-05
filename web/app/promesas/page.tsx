@@ -123,7 +123,7 @@ export default function PromesasPage() {
           <div className="overflow-x-auto rounded-lg border border-line bg-surface">
             <table className="w-full min-w-[560px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <tr className="border-b border-line bg-panel/60 eyebrow">
                   <th className="px-4 py-2.5">Cliente</th>
                   <th className="px-4 py-2.5">Factura</th>
                   <th className="px-4 py-2.5 text-right">Monto</th>

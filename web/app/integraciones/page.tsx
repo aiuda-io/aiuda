@@ -581,7 +581,7 @@ function LoQueRegreso() {
                         toast((err as Error).message, "error");
                       }
                     }}
-                    className="ml-auto rounded-md border border-line bg-surface px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                    className="ml-auto btn btn-secondary btn-sm"
                   >
                     Reintentar
                   </button>

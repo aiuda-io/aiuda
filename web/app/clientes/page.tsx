@@ -183,7 +183,7 @@ function Clientes() {
             <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[560px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <tr className="border-b border-line bg-panel/60 eyebrow">
                   <th className="px-4 py-2.5">{viendoProspectos ? "Prospecto" : "Cliente"}</th>
                   <th className="px-4 py-2.5">WhatsApp</th>
                   {viendoProspectos ? (

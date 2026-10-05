@@ -129,7 +129,7 @@ export function AiuditaPicker({
           ) : (
             grupos.map((g) => (
               <div key={g.perfil.slug}>
-                <p className="px-4 pb-1 pt-3 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+                <p className="px-4 pb-1 pt-3 eyebrow">
                   {g.perfil.name}
                 </p>
                 {g.items.map((spec) => (

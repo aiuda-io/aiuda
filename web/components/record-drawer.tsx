@@ -33,7 +33,7 @@ export function RecordDrawer({
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-line bg-surface p-4">
           {fields.map((f) => (
             <div key={f.label}>
-              <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{f.label}</p>
+              <p className="text-rotulo text-ink-3">{f.label}</p>
               <p className="mt-0.5 text-cuerpo text-ink">
                 {f.value ?? <span className="text-ink-3">·</span>}
               </p>

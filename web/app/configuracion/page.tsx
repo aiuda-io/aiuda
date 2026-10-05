@@ -238,7 +238,7 @@ export default function ConfiguracionPage() {
         >
           <Link
             href="/ayudantes"
-            className="inline-flex rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            className="inline-flex btn btn-secondary"
           >
             Ir a tus ayudantes
           </Link>

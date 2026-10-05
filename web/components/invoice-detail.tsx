@@ -26,7 +26,7 @@ const fmtShort = (iso?: string) => (iso ? fechaDM(iso) : "");
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{label}</p>
+      <p className="text-rotulo text-ink-3">{label}</p>
       <p className="mt-0.5 text-cuerpo text-ink">{value}</p>
     </div>
   );
@@ -122,7 +122,7 @@ export function InvoiceDetailContent({
       {activeReminder ? (
         <Link
           href={`/centro?r=${activeReminder.id}`}
-          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
+          className="btn btn-primary"
         >
           Ver recordatorio
         </Link>
@@ -130,7 +130,7 @@ export function InvoiceDetailContent({
         <button
           onClick={recordar}
           disabled={busy !== null}
-          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+          className="btn btn-primary"
         >
           {busy === "remind" ? "Redactando…" : "Recordar"}
         </button>
@@ -138,7 +138,7 @@ export function InvoiceDetailContent({
       <button
         onClick={() => setConfirmarPago(true)}
         disabled={busy !== null}
-        className="rounded-md border border-line bg-surface px-3.5 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+        className="btn btn-secondary"
       >
         {data.payment_reported ? "Confirmar pago" : "Registrar pago"}
       </button>
@@ -228,7 +228,7 @@ export function InvoiceDetailContent({
           </div>
           <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
             <div className="col-span-2">
-              <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Folio fiscal (UUID)</p>
+              <p className="text-rotulo text-ink-3">Folio fiscal (UUID)</p>
               <p className="tnum mt-0.5 break-all text-cuerpo text-ink">{cfdi.uuid}</p>
             </div>
             <Field
@@ -268,7 +268,7 @@ export function InvoiceDetailContent({
                   href={apiUrl(`/v1/invoices/${data.id}/cfdi.xml`)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  className="btn btn-secondary"
                 >
                   Ver XML
                 </a>
@@ -278,7 +278,7 @@ export function InvoiceDetailContent({
                   href={apiUrl(`/v1/invoices/${data.id}/cfdi.pdf`)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  className="btn btn-secondary"
                 >
                   Ver PDF
                 </a>
@@ -389,14 +389,14 @@ export function InvoiceDetailContent({
       {data.conversation_id && (
         <Link
           href={`/conversaciones?id=${data.conversation_id}`}
-          className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+          className="btn btn-secondary"
         >
           Ver conversación
         </Link>
       )}
       <Link
         href={`/clientes/detalle?id=${data.customer_id}`}
-        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+        className="btn btn-secondary"
       >
         Ver cliente
       </Link>

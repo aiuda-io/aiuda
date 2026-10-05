@@ -132,7 +132,7 @@ export function TagPicker({
             <button
               onClick={create}
               disabled={!draft.trim() || creating}
-              className="rounded-md bg-accent px-2 py-1 text-sello font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+              className="btn btn-primary btn-sm"
             >
               Crear
             </button>
@@ -221,7 +221,7 @@ export function TagManager() {
         <button
           onClick={add}
           disabled={!draft.trim() || busy}
-          className="rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+          className="btn btn-primary"
         >
           Crear
         </button>

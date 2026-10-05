@@ -206,7 +206,7 @@ export default function AyudantesPage() {
       )}
 
       <section>
-        <h2 className="mb-2.5 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="mb-2.5 eyebrow">
           Tus ayudantes · {ayudantes.length}
         </h2>
         {error ? (
@@ -236,7 +236,7 @@ export default function AyudantesPage() {
       </section>
 
       <section className="mt-9">
-        <h2 className="mb-1 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="mb-1 eyebrow">
           Empieza desde una plantilla
         </h2>
         <p className="mb-3.5 text-cuerpo text-ink-3">

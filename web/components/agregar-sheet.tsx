@@ -40,7 +40,7 @@ type ObjSource = {
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{label}</span>
+      <span className="text-rotulo text-ink-3">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
   );
@@ -408,7 +408,7 @@ export function AgregarSheet({
         </div>
 
         {/* Los caminos de siempre, ahora secundarios. */}
-        <p className="pt-2 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <p className="pt-2 eyebrow">
           O si prefieres…
         </p>
 

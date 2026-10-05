@@ -58,7 +58,7 @@ export function AdministrarUso({ principal = false }: { principal?: boolean }) {
       onClick={abrirUso}
       className={
         principal
-          ? "rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
+          ? "btn btn-primary"
           : "font-medium text-accent-ink underline-offset-2 hover:underline"
       }
     >

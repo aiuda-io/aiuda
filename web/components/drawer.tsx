@@ -90,34 +90,35 @@ export function Drawer({
   // el velo no alcanzaba a cubrir ni el menú lateral ni la barra de arriba.
   return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="drawer-scrim absolute inset-0 bg-ink/30" onClick={onClose} />
+      <div className="drawer-scrim absolute inset-0 bg-ink/20" onClick={onClose} />
       <div
         ref={panelRef}
         tabIndex={-1}
-        className={`drawer-in relative ml-auto flex h-full w-full flex-col border-l border-line bg-surface outline-none ${
-          size === "lg" ? "max-w-[600px]" : "max-w-md"
+        className={`drawer-in relative ml-auto flex h-full w-full flex-col bg-surface shadow-lg outline-none ${
+          size === "lg" ? "max-w-[620px]" : "max-w-md"
         }`}
-        style={{ boxShadow: "0 12px 48px -12px oklch(0.3 0.04 235 / 0.24)" }}
       >
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-6 py-4">
+        <header className="flex shrink-0 items-start justify-between gap-3 px-6 pb-2 pt-6 sm:px-8 sm:pt-7">
           <div className="min-w-0">
-            <h2 className="truncate text-cuerpo font-semibold tracking-tight text-ink">{title}</h2>
-            {subtitle && <p className="mt-0.5 truncate text-cuerpo text-ink-3">{subtitle}</p>}
+            <h2 className="truncate text-seccion font-semibold text-ink">{title}</h2>
+            {subtitle && <p className="mt-0.5 truncate text-cuerpo text-ink-2">{subtitle}</p>}
           </div>
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="-mr-1.5 -mt-0.5 shrink-0 rounded-md px-1.5 py-0.5 text-titulo leading-none text-ink-3 transition-colors hover:bg-panel hover:text-ink"
+            className="-mr-2 -mt-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-fill hover:text-ink"
           >
-            &times;
+            <svg viewBox="0 0 14 14" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                <path d="m3 3 8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-4 sm:px-8">{children}</div>
       </div>
       <style>{`
         @keyframes drawerIn { from { transform: translateX(28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes drawerScrimIn { from { opacity: 0; } to { opacity: 1; } }
-        .drawer-in { animation: drawerIn .26s cubic-bezier(.2,.8,.2,1) both; }
+        .drawer-in { animation: drawerIn .32s cubic-bezier(.22,1,.36,1) both; }
         .drawer-scrim { animation: drawerScrimIn .2s ease-out both; }
         @media (prefers-reduced-motion: reduce) { .drawer-in, .drawer-scrim { animation: none; } }
       `}</style>

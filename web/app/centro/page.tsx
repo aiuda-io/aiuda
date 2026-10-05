@@ -60,7 +60,7 @@ type WorkItem = {
 const tagCls: Record<Tone, string> = {
   warn: "bg-warn-soft text-warn",
   ok: "bg-ok-soft text-ok",
-  ink: "bg-line/70 text-ink-2",
+  ink: "bg-fill text-ink-2",
 };
 
 
@@ -131,7 +131,7 @@ function Avatar({ slug, size = 32 }: { slug?: string; size?: number }) {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">{children}</p>
+    <p className="eyebrow">{children}</p>
   );
 }
 
@@ -147,7 +147,7 @@ function MontoLinea({
   return (
     <div>
       <div className="flex items-baseline gap-3">
-        <span className="tnum text-cifra font-semibold tracking-tight text-ink">{monto}</span>
+        <span className="hero-num text-cifra text-ink">{monto}</span>
         {estado && (
           <span
             className={`text-cuerpo font-medium ${estado.tone === "warn" ? "text-warn" : estado.tone === "ok" ? "text-ok" : "text-ink-3"}`}
@@ -164,7 +164,7 @@ function MontoLinea({
 export default function CentroPage() {
   // useSearchParams (deep-link ?r=) exige un límite de Suspense en Next.
   return (
-    <Suspense fallback={<div className="h-[calc(100dvh-8.5rem)] min-h-[480px] rounded-xl border border-line bg-panel/30" />}>
+    <Suspense fallback={<div className="h-[calc(100dvh-8.5rem)] min-h-[480px]" />}>
       <CentroDeMando />
     </Suspense>
   );
@@ -177,7 +177,7 @@ function AvisoTopeIA() {
   const { data, refetch } = useApi(() => api.avisoTopeIa().catch(() => ({ aviso: null })), []);
   if (!data?.aviso) return null;
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-cuerpo text-ink-2">
+    <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 rounded-xl bg-warn-soft px-5 py-3.5 text-cuerpo text-ink-2">
       <p className="min-w-0 flex-1">
         <span className="font-semibold text-ink">Tu IA está en pausa.</span> Llegó al tope de
         gasto de este mes y tus ayudantes no redactan nada nuevo hasta el mes que entra.
@@ -370,10 +370,10 @@ function CentroDeMando() {
     // Cockpit embebido en la consola: vive dentro del shell (sidebar + topbar) como un panel
     // con marco que llena el área de contenido. El aviso de modo prueba lo pone el ShadowBanner
     // global del shell.
-    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[480px] flex-col gap-2.5 text-ink">
+    <div className="flex min-h-[480px] flex-col gap-7 text-ink md:h-[calc(100dvh-8.5rem)]">
       <div className="shrink-0">
         <h1 className="text-titulo font-semibold text-ink">Despacha tu día</h1>
-        <p className="text-cuerpo text-ink-2">Lo que tu equipo dejó listo. Tú decides.</p>
+        <p className="mt-2 text-cuerpo text-ink-2">Lo que tu equipo dejó listo. Tú decides.</p>
       </div>
 
       <AvisoTopeIA />
@@ -381,7 +381,7 @@ function CentroDeMando() {
       {loading && !data ? (
         <BoardSkeleton />
       ) : vacio ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-line bg-surface px-6">
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6">
           <EmptyState
             title="Tablero limpio"
             action={<SecondaryLink href="/facturas">Revisar tu cartera</SecondaryLink>}
@@ -500,7 +500,7 @@ function Mesa({
           )}
         </div>
         {editing === null ? (
-          <div className="mt-2.5 max-w-md rounded-2xl rounded-tl-sm border border-line bg-panel/50 px-4 py-3">
+          <div className="mt-3 max-w-md rounded-2xl rounded-tl-sm bg-panel px-4 py-3">
             <WaText className="text-cuerpo leading-relaxed text-ink">{r.message}</WaText>
           </div>
         ) : (
@@ -610,7 +610,7 @@ function Mesa({
                     )
                   }
                   disabled={busy}
-                  className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="btn btn-primary"
                 >
                   {busy ? "Reintentando…" : "Reintentar envío"}
                 </button>
@@ -633,7 +633,7 @@ function Mesa({
                     )
                   }
                   disabled={busy}
-                  className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="btn btn-primary"
                 >
                   {busy ? "Enviando…" : "Enviar ahora"}
                 </button>
@@ -665,8 +665,8 @@ function Mesa({
       <>
         <Label>Tu ayudante encontró a qué factura corresponde este depósito</Label>
         <div className="mt-3 grid grid-cols-1 items-stretch gap-2.5 sm:grid-cols-[1fr_auto_1fr]">
-          <div className="rounded-xl border border-line bg-ok-soft/40 px-4 py-3">
-            <p className="text-rotulo font-medium uppercase tracking-[0.05em] text-ink-3">
+          <div className="rounded-xl bg-panel px-4 py-3">
+            <p className="eyebrow">
               Pago recibido
             </p>
             <p className="tnum mt-1 text-seccion font-semibold text-ink">{mxn(it.amount)}</p>
@@ -689,7 +689,7 @@ function Mesa({
             </span>
           </div>
           <div className="rounded-xl border border-line bg-surface px-4 py-3">
-            <p className="text-rotulo font-medium uppercase tracking-[0.05em] text-ink-3">
+            <p className="eyebrow">
               Factura por cobrar
             </p>
             {sel ? (
@@ -767,7 +767,7 @@ function Mesa({
       <div className="mt-7">
         <Label>La promesa</Label>
       </div>
-      <div className="mt-2.5 max-w-md rounded-xl border border-line bg-surface px-4 py-3 text-cuerpo leading-relaxed text-ink-2">
+      <div className="mt-3 max-w-md rounded-xl bg-panel px-4 py-3 text-cuerpo leading-relaxed text-ink-2">
         {p.customer} prometió pagar <span className="tnum font-medium text-ink">{mxn(p.amount)}</span>{" "}
         de la factura {p.folio} para el{" "}
         <span className="font-medium text-ink">{fechaDM(p.promised_date)}</span>.
@@ -819,7 +819,7 @@ function Actions({
       <button
         onClick={onPrimary}
         disabled={busy || disabledPrimary}
-        className="rounded-md bg-accent px-4 py-2 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+        className="btn btn-primary"
       >
         {primary}
       </button>
@@ -827,7 +827,7 @@ function Actions({
         <button
           onClick={secondary.onClick}
           disabled={busy}
-          className="rounded-md border border-line bg-surface px-3.5 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+          className="btn btn-secondary"
         >
           {secondary.label}
         </button>
@@ -835,7 +835,7 @@ function Actions({
       {link && (
         <Link
           href={link.href}
-          className="rounded-md border border-line bg-surface px-3.5 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+          className="btn btn-secondary"
         >
           {link.label}
         </Link>
@@ -950,7 +950,7 @@ function Tablero({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface">
+    <div className="flex min-h-0 flex-1 flex-col">
       <FilterBar
         search={search}
         onSearch={setSearch}
@@ -975,8 +975,8 @@ function Tablero({
 
       {/* Columnas: en móvil se apilan; en escritorio cada una tiene su scroll. Soltar una
           tarjeta en "En curso/Hecho" (enviar) o "Rechazados" abre el pop-up de confirmación. */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3 md:overflow-hidden">
-        <div className={`grid grid-cols-1 gap-3 md:h-full ${gridCols}`}>
+      <div className="min-h-0 flex-1 md:overflow-hidden">
+        <div className={`grid grid-cols-1 gap-4 md:h-full ${gridCols}`}>
           {cols.map((col) => {
             const isTarget = dragId !== null && targetOf(col.key) !== null;
             const isOver = overCol === col.key && isTarget;
@@ -996,28 +996,28 @@ function Tablero({
                   e.preventDefault();
                   onDropCol(col.key);
                 }}
-                className={`flex flex-col rounded-xl border p-2 transition-colors md:min-h-0 ${
+                className={`flex flex-col rounded-xl p-1.5 outline-1 -outline-offset-1 transition-colors md:min-h-0 ${
                   isOver
-                    ? "border-accent bg-accent-soft/60"
+                    ? "bg-accent-soft outline-accent"
                     : isTarget
-                      ? "border-dashed border-accent/40 bg-panel/50"
-                      : "border-line bg-panel/50"
+                      ? "bg-panel outline-dashed outline-accent/50"
+                      : "bg-panel outline-transparent"
                 }`}
               >
-                <header className="flex shrink-0 items-center gap-2 px-1.5 pb-2 pt-1">
-                  <span className={`h-2 w-2 rounded-full ${col.dot}`} />
+                <header className="flex shrink-0 items-center gap-2 px-3 pb-3 pt-3">
+                  <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
                   <span
                     className={`text-cuerpo font-semibold ${col.key === "rechazados" ? "text-ink-3" : "text-ink"}`}
                   >
                     {col.title}
                   </span>
-                  <span className="tnum ml-auto rounded-full border border-line bg-surface px-2 py-px text-sello font-semibold text-ink-3">
+                  <span className="tnum ml-auto text-apoyo font-medium text-ink-3">
                     {col.items.length}
                   </span>
                 </header>
-                <div className="reveal-stagger space-y-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
+                <div className="reveal-stagger -m-1 space-y-2 p-1 md:min-h-0 md:flex-1 md:overflow-y-auto">
                   {col.items.length === 0 ? (
-                    <p className="px-1.5 py-4 text-apoyo text-ink-3">
+                    <p className="px-2.5 py-3 text-apoyo text-ink-3">
                       {isOver
                         ? "Suéltala aquí"
                         : nFilters > 0
@@ -1053,7 +1053,7 @@ function Tablero({
       </div>
 
       {/* Guardrail HITL, ahora que SÍ se arrastra: el gesto abre un confirm, no envía solo. */}
-      <p className="flex shrink-0 items-center gap-2 border-t border-line px-3.5 py-2 text-apoyo leading-relaxed text-ink-2">
+      <p className="flex shrink-0 items-center gap-2 pt-4 text-apoyo leading-relaxed text-ink-3">
         <ShieldIcon />
         <span>Arrastra o toca una tarjeta y confirmas antes de que salga.</span>
       </p>
@@ -1104,9 +1104,8 @@ function TarjetaKanban({
   const act = busy || leaving; // no re-accionar un trabajo que ya se está resolviendo
   const canal = r ? (r.channels.filter((c) => c.connected)[0]?.key ?? r.channel) : "whatsapp";
   const okBtn =
-    "flex-1 rounded-md bg-accent px-2.5 py-1.5 text-apoyo font-semibold text-surface transition-colors hover:bg-accent-strong disabled:opacity-50";
-  const ghBtn =
-    "rounded-md border border-line bg-panel px-2.5 py-1.5 text-apoyo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50";
+    "btn btn-sm btn-primary min-h-9 flex-1 px-3";
+  const ghBtn = "btn btn-sm btn-secondary min-h-9 px-3";
   return (
     <div
       draggable={draggable}
@@ -1115,8 +1114,8 @@ function TarjetaKanban({
         onDragStart();
       }}
       onDragEnd={onDragEnd}
-      className={`rounded-lg border bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgba(13,45,62,.05)] transition ${
-        failed ? "border-danger/30" : "border-line"
+      className={`rounded-[10px] bg-surface p-3.5 shadow-sm transition ${
+        failed ? "outline-1 -outline-offset-1 outline-danger/50" : ""
       } ${leaving ? "row-leaving" : ""} ${
         draggable ? "cursor-grab active:cursor-grabbing" : ""
       } ${dragging ? "opacity-40" : ""}`}
@@ -1135,8 +1134,8 @@ function TarjetaKanban({
             <span className="tnum ml-auto text-cuerpo font-semibold text-ink">{mxn(w.amount)}</span>
           )}
         </span>
-        <span className="mt-1.5 block text-seccion font-semibold leading-snug text-ink">{w.customer}</span>
-        <span className="mt-1 flex flex-wrap items-center gap-1.5">
+        <span className="mt-3 block text-seccion font-semibold text-ink">{w.customer}</span>
+        <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
           {w.type === "recordatorio" && r ? (
             <>
               <BucketPill bucket={r.bucket} />
@@ -1160,7 +1159,7 @@ function TarjetaKanban({
       {/* Espera tu OK: recordatorio se aprueba/rechaza inline; el detalle (editar/canal) en la Mesa */}
       {col === "por_aprobar" &&
         (r ? (
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <div className="mt-4 flex gap-2">
             <button
               onClick={() =>
                 run(
@@ -1189,7 +1188,7 @@ function TarjetaKanban({
             type="button"
             onClick={() => onOpen(w.id)}
             disabled={act}
-            className={`mt-2.5 w-full ${ghBtn}`}
+            className={`mt-4 w-full ${ghBtn}`}
           >
             Revisar
           </button>
@@ -1197,7 +1196,7 @@ function TarjetaKanban({
 
       {/* En curso: fallido reintenta (approve), aprobado envía (send); sombra retiene */}
       {col === "sin_enviar" && r && (failed || !sombra) && (
-        <div className="mt-2.5">
+        <div className="mt-4">
           {failed ? (
             <button
               onClick={() =>
@@ -1222,8 +1221,7 @@ function TarjetaKanban({
 
       {/* Hecho: solo lectura, con el sello de la hora real de envío */}
       {col === "enviados" && (
-        <p className="mt-2 inline-flex items-center gap-1.5 text-sello font-semibold text-ok">
-          <span className="h-1.5 w-1.5 rounded-full bg-ok" />
+        <p className="mark mt-3" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
           Enviado {r?.sent_at ? haceTiempo(r.sent_at) : w.time}
         </p>
       )}
@@ -1235,7 +1233,7 @@ function TarjetaKanban({
           type="button"
           onClick={() => onOpen(w.id)}
           disabled={act}
-          className={`mt-2.5 w-full ${ghBtn}`}
+          className={`mt-4 w-full ${ghBtn}`}
         >
           {r?.retirado ? "Ver por qué se retiró" : "Corregir y enviar"}
         </button>
@@ -1300,7 +1298,7 @@ function FilterBar({
 }) {
   const vencActivo = fVenc ? vencOpts.find((o) => o.key === fVenc) : null;
   return (
-    <div className="shrink-0 border-b border-line px-3 py-2.5">
+    <div className="shrink-0 pb-5">
       <div className="flex flex-wrap items-center gap-2">
         <ClienteBuscador value={search} onChange={onSearch} clientes={clientes} />
 
@@ -1408,7 +1406,7 @@ function ClienteBuscador({
 
   return (
     <div ref={ref} className="relative min-w-[190px] flex-1 sm:max-w-xs">
-      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-3">
+      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-3">
         <SearchIcon />
       </span>
       <input
@@ -1420,7 +1418,7 @@ function ClienteBuscador({
         onFocus={() => setOpen(true)}
         placeholder="Buscar cliente…"
         aria-label="Buscar cliente"
-        className="w-full rounded-md border border-line bg-surface py-1.5 pl-8 pr-7 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+        className="h-10 w-full rounded-lg bg-fill pl-10 pr-8 text-cuerpo text-ink placeholder:text-ink-3 hover:bg-fill-strong focus:bg-surface focus:outline-none"
       />
       {value && (
         <button
@@ -1435,7 +1433,7 @@ function ClienteBuscador({
         </button>
       )}
       {open && clientes.length > 0 && (
-        <div className="absolute left-0 top-full z-30 mt-1.5 max-h-64 w-full min-w-[220px] overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-[0_12px_32px_-12px_oklch(0.3_0.04_235/0.28)]">
+        <div className="absolute left-0 top-full z-30 mt-1.5 max-h-64 w-full min-w-[220px] overflow-y-auto rounded-xl bg-surface p-1.5 shadow-md">
           {shown.length === 0 ? (
             <p className="px-2 py-2 text-cuerpo text-ink-3">Ningún cliente coincide.</p>
           ) : (
@@ -1501,20 +1499,18 @@ function FilterChip({
   return (
     <div ref={ref} className="relative shrink-0">
       <div
-        className={`flex items-center rounded-full border text-cuerpo font-medium transition-colors ${
-          active
-            ? "border-accent/40 bg-accent-soft text-accent-ink"
-            : "border-line bg-surface text-ink-2 hover:border-line-strong"
+        className={`flex h-10 items-center rounded-lg text-cuerpo font-medium transition-colors ${
+          active ? "bg-accent-soft text-accent-ink" : "bg-fill text-ink-2 hover:bg-fill-strong hover:text-ink"
         }`}
       >
         <button
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          className="flex items-center gap-1.5 py-1 pl-2.5 pr-1.5"
+          className="flex h-full items-center gap-2 pl-3.5 pr-3.5"
         >
           {active ? (
             <>
-              <span className="text-ink-3">{label}:</span>
+              <span className="text-ink-2">{label}:</span>
               <span>{valueLabel}</span>
             </>
           ) : (
@@ -1528,14 +1524,14 @@ function FilterChip({
           <button
             onClick={onClear}
             aria-label={`Quitar filtro ${label}`}
-            className="pr-2 text-cuerpo leading-none text-ink-3 transition-colors hover:text-ink"
+            className="-ml-1.5 flex h-full items-center pr-3 text-seccion leading-none text-ink-2 hover:text-ink"
           >
             &times;
           </button>
         )}
       </div>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1.5 max-h-64 min-w-[190px] overflow-y-auto rounded-lg border border-line bg-surface p-1 shadow-[0_12px_32px_-12px_oklch(0.3_0.04_235/0.28)]">
+        <div className="absolute left-0 top-full z-30 mt-1.5 max-h-64 min-w-[190px] overflow-y-auto rounded-xl bg-surface p-1.5 shadow-md">
           {options.map((o) => (
             <button
               key={o.key}
@@ -1599,7 +1595,7 @@ function ConfirmSend({
         </div>
         {editing === null ? (
           <div>
-            <div className="rounded-2xl rounded-tl-sm border border-line bg-panel/50 px-4 py-3">
+            <div className="rounded-2xl rounded-tl-sm bg-panel px-4 py-3">
               <WaText className="text-cuerpo leading-relaxed text-ink">{r.message}</WaText>
             </div>
             {enviar && (
@@ -1638,7 +1634,7 @@ function ConfirmSend({
               : `Se envía por ${canalLabel} a ${dest}.`
             : "Queda en Rechazados. Puedes corregirlo y reenviarlo después."}
         </p>
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-2">
           <button
             onClick={() =>
               onConfirm(
@@ -1646,9 +1642,7 @@ function ConfirmSend({
               )
             }
             disabled={busy}
-            className={`rounded-md px-4 py-2 text-cuerpo font-medium text-surface transition-colors disabled:opacity-50 ${
-              enviar ? "bg-accent hover:bg-accent-strong" : "bg-ink hover:bg-ink/90"
-            }`}
+            className={`btn ${enviar ? "btn-primary" : "bg-ink text-surface hover:bg-ink/85"}`}
           >
             {enviar
               ? sombra
@@ -1658,7 +1652,7 @@ function ConfirmSend({
           </button>
           <button
             onClick={onCancel}
-            className="rounded-md border border-line bg-surface px-3.5 py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+            className="btn btn-secondary"
           >
             Cancelar
           </button>
@@ -1689,7 +1683,7 @@ function BoardSkeleton() {
   return (
     <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 md:grid-cols-3">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="rounded-xl border border-line bg-panel/50 p-2">
+        <div key={i} className="rounded-xl bg-panel p-2">
           <Skeleton className="mb-2 h-5 w-24 rounded" />
           <div className="space-y-2">
             {[0, 1].map((j) => (
@@ -1743,7 +1737,7 @@ function ContextoInline({
   const presence = customer?.presence ?? item.reminder?.procedencia?.presence ?? null;
   const nombre = customer?.name ?? item.customer;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line bg-panel/40 px-4 py-2.5 text-cuerpo">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl bg-panel px-4 py-3 text-cuerpo">
       {customerId ? (
         <Link
           href={`/clientes/detalle?id=${customerId}`}

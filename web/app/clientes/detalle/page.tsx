@@ -214,22 +214,22 @@ function ClienteDetalle() {
             <div className="mb-5 max-w-3xl rounded-lg border border-line bg-surface p-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Nombre</label>
+                  <label className="text-rotulo text-ink-3">Nombre</label>
                   <input className={`mt-1 ${inputCls}`} value={draft.name} onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">WhatsApp</label>
+                  <label className="text-rotulo text-ink-3">WhatsApp</label>
                   <input className={`mt-1 ${inputCls}`} value={draft.phone} placeholder="opcional" onChange={(e) => setDraft((d) => ({ ...d, phone: e.target.value }))} />
                 </div>
                 <div>
-                  <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Correo</label>
+                  <label className="text-rotulo text-ink-3">Correo</label>
                   <input className={`mt-1 ${inputCls}`} value={draft.email} onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))} placeholder="opcional" />
                 </div>
               </div>
 
               {/* Datos extra editables: tan flexible como tu Excel, no solo 3 campos */}
               <div className="mt-4 border-t border-line/60 pt-3">
-                <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Datos extra</p>
+                <p className="text-rotulo text-ink-3">Datos extra</p>
                 <div className="mt-2 space-y-2">
                   {Object.entries(draft.meta).map(([key, value]) => (
                     <div key={key} className="grid grid-cols-[8rem_1fr_auto] items-center gap-2">
@@ -335,7 +335,7 @@ function ClienteDetalle() {
                   <div className="flex items-center gap-2.5">
                     <h1 className="text-seccion font-semibold tracking-tight text-ink">{data.name}</h1>
                     {data.kind === "prospecto" && (
-                      <span className="rounded bg-panel px-1.5 py-px text-rotulo font-medium uppercase tracking-[0.04em] text-ink-3">
+                      <span className="rounded bg-panel px-1.5 py-px eyebrow">
                         Prospecto
                       </span>
                     )}

@@ -167,7 +167,7 @@ export function BancoUpload({
         <button
           onClick={importar}
           disabled={busy || !previa.cuadra || previa.depositos.n === 0}
-          className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+          className="mt-3 btn btn-primary"
         >
           {busy
             ? "Importando…"

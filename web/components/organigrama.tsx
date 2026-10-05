@@ -263,7 +263,7 @@ function YouNode({ businessName }: { businessName: string }) {
       </span>
       <div className="leading-tight">
         <div className="text-seccion font-semibold">{name}</div>
-        <div className="text-rotulo uppercase tracking-[0.1em] text-surface/70">Tú</div>
+        <div className="text-rotulo text-surface/70">Tú</div>
       </div>
     </div>
   );
@@ -510,7 +510,7 @@ function AyudanteDrawer({
       <div className="space-y-6">
         {auto && (
           <section>
-            <p className="mb-2.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="mb-2.5 eyebrow">
               Autonomía
             </p>
             <AutonomiaControl key={a.id} info={auto} ayudanteId={a.id} />
@@ -518,7 +518,7 @@ function AyudanteDrawer({
         )}
 
         <section>
-          <p className="mb-2.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+          <p className="mb-2.5 eyebrow">
             Lo que sabe hacer
           </p>
           {r.rows.length > 0 ? (
@@ -674,7 +674,7 @@ function CrearDrawer({
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-md bg-accent px-3 py-3 text-cuerpo font-semibold text-surface transition-colors hover:bg-accent-strong disabled:opacity-60"
+          className="w-full btn btn-primary"
         >
           {saving
             ? "Creando…"
@@ -807,7 +807,7 @@ export function Organigrama({
               </p>
               <div className="grid grid-cols-1 divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
                 <div className="px-6 py-5">
-                  <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="eyebrow">
                     Paso 1
                   </p>
                   <h3 className="mt-1.5 text-seccion font-semibold text-ink">
@@ -830,7 +830,7 @@ export function Organigrama({
                   </button>
                 </div>
                 <div className="px-6 py-5">
-                  <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="eyebrow">
                     Paso 2
                   </p>
                   <h3 className="mt-1.5 text-seccion font-semibold text-ink">
@@ -859,7 +859,7 @@ export function Organigrama({
                   con información real el espacio que antes quedaba en blanco. */}
               {conectados.length > 0 && (
                 <div className="border-t border-line bg-panel/25 px-6 py-4">
-                  <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="eyebrow">
                     De dónde ya puede leer
                   </p>
                   <div className="mt-2.5 flex flex-wrap gap-2">

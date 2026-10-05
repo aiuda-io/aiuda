@@ -35,7 +35,7 @@ export function ConnectionTester({ intKey, disabled }: { intKey: string; disable
       <button
         onClick={probar}
         disabled={busy || disabled}
-        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
+        className="btn btn-secondary"
       >
         {busy ? "Probando…" : "Probar conexión"}
       </button>

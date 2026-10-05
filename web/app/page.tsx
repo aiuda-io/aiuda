@@ -294,7 +294,7 @@ function SinEquipo() {
       </p>
       <Link
         href="/ayudantes"
-        className="mt-3 inline-block rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
+        className="mt-3 inline-block btn btn-primary"
       >
         Crear el primero
       </Link>
@@ -334,12 +334,12 @@ function Figure({
 }) {
   const inner = (
     <div className="px-5 py-4">
-      <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">{label}</p>
+      <p className="eyebrow">{label}</p>
       {value === null ? (
         <Skeleton className="mt-2 h-7 w-24" />
       ) : (
         <p
-          className={`hero-num mt-1.5 text-cifra font-semibold leading-none ${
+          className={`hero-num mt-2 text-titulo leading-none ${
             accent ? "text-warn" : "text-ink"
           }`}
         >

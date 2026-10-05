@@ -148,7 +148,7 @@ export function WritebackStatus({
                 <button
                   onClick={() => reintentar(e.id)}
                   disabled={busy !== null}
-                  className="shrink-0 rounded-md border border-line bg-surface px-2.5 py-1 text-sello font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                  className="shrink-0 btn btn-secondary btn-sm"
                 >
                   {busy === e.id ? "Reintentando…" : "Reintentar"}
                 </button>
