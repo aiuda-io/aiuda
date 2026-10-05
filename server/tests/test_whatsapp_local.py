@@ -348,6 +348,7 @@ def falso(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "wacli_store_root", str(tmp_path / "stores"))
     monkeypatch.setattr(wacli_sync, "default_data_dir", lambda: datos)
     monkeypatch.setattr(wacli_sync, "_TICK_S", 0.05)
+    monkeypatch.setattr(wacli_sync, "_apagando", False)  # otra prueba pudo apagarlo
     monkeypatch.setattr(wacli_sync, "_REANUDAR_S", 0.1)
     monkeypatch.setattr(wacli_sync, "_ESPERAS", (0.2, 0.2))
     monkeypatch.setattr(wacli_sync, "_ESPERA_EXTERNO", 0.3)
@@ -435,6 +436,93 @@ def test_un_qr_que_nadie_escanea_no_se_queda_con_el_candado(falso):
     _que_venza_el_qr()
     assert _esperar(lambda: not _candado_tomado(falso))
     assert _estado(falso) == "sin_vincular"
+
+
+def _escanear(store) -> None:
+    (store / "escanear").write_text("")
+    assert _esperar(lambda: (store / "session.json").exists())
+
+
+def test_cerrar_la_ventana_ya_escaneado_no_mata_el_emparejamiento(falso):
+    assert wacli_sync.vincular("inst-a", str(falso))
+    _escanear(falso)  # wacli sigue en su arranque inicial
+    wacli_sync.cancelar_vinculacion("inst-a")
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    assert len(_arranques(falso)) == 1
+
+
+def test_el_plazo_del_qr_no_corta_a_quien_ya_escaneo(falso):
+    assert wacli_sync.vincular("inst-a", str(falso))
+    _escanear(falso)
+    canal = wacli_sync._canales["inst-a"]
+    _que_venza_el_qr()
+    # Primer plazo: se le da otro. Segundo: se corta y sigue el sync. En los dos
+    # casos (o si wacli termina solo antes) el negocio acaba con su sync corriendo.
+    assert _esperar(lambda: canal.prorrogado or canal.tipo != "auth")
+    _que_venza_el_qr()
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    assert canal.deseado
+    assert len(_arranques(falso)) == 1
+
+
+def test_si_wacli_no_contesta_no_se_da_por_desvinculado(falso, monkeypatch):
+    _vinculado(falso)
+    with monkeypatch.context() as m:
+        m.setattr(wacli_sync, "sesion", lambda *a: None)
+        assert wacli_sync.arrancar("inst-a", str(falso)) == "sin_vincular"  # el de inicio
+        assert _arranques(falso) == []
+    # El sondeo de entrada vuelve a preguntar y ahora sí arranca.
+    wacli_sync.asegurar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    wacli_sync.asegurar("inst-a", str(falso))  # con el sync vivo no hace nada
+    assert len(_arranques(falso)) == 1
+
+
+def test_sesion_distingue_no_contesto_de_sin_sesion(falso, tmp_path):
+    mudo = tmp_path / "mudo"
+    mudo.write_text("#!/bin/sh\nexit 0\n")
+    mudo.chmod(0o755)
+    assert wacli_sync.sesion(str(mudo), str(falso)) is None
+    assert wacli_sync.sesion(WACLI_FALSO, str(falso)) == {"authenticated": False}
+
+
+def test_asegurar_no_insiste_cuando_hace_falta_el_dueno(falso):
+    _vinculado(falso)
+    wacli_sync.arrancar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    (falso / "desactualizado").write_text("")
+    assert _esperar(lambda: _estado(falso) == "desactualizado")
+    wacli_sync.asegurar("inst-a", str(falso))
+    time.sleep(0.3)
+    assert len(_arranques(falso)) == 1
+
+
+def test_un_envio_no_disfraza_de_conectando_a_un_sync_caido(falso, monkeypatch):
+    _vinculado(falso)
+    wacli_sync.arrancar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    canal = wacli_sync._canales["inst-a"]
+    monkeypatch.setattr(wacli_sync, "_ESPERAS", (300.0,))
+    (falso / "morir").write_text("")
+    assert _esperar(lambda: canal.estado == "sin_conexion")
+    with wacli_sync.pausado("inst-a"):
+        pass
+    assert canal.estado == "sin_conexion"
+
+
+def test_despues_de_apagar_ya_no_se_lanza_nada(falso):
+    _vinculado(falso)
+    wacli_sync.arrancar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    wacli_sync.detener_todo()
+    # Una consulta de estado que llega tarde, o el hilo de arranque.
+    wacli_sync.arrancar("inst-a", str(falso))
+    with wacli_sync.pausado("inst-a"):
+        pass
+    time.sleep(0.3)
+    assert len(_arranques(falso)) == 1
+    assert not _candado_tomado(falso)
+    assert not _pidfile(falso).exists()
 
 
 def test_pausar_para_enviar_y_reanudar(falso):
@@ -549,6 +637,14 @@ def test_api_cerrar_la_ventana_cancela_el_emparejamiento(client, tenant, falso):
     assert _candado_tomado(falso)
     assert client.delete("/v1/integrations/whatsapp/qr").status_code == 200
     assert not _candado_tomado(falso)
+
+
+def test_api_cerrar_la_ventana_ya_escaneado_deja_el_negocio_vinculado(client, tenant, falso):
+    assert client.post("/v1/integrations/whatsapp/qr").json()["qr"]
+    _escanear(falso)
+    assert client.delete("/v1/integrations/whatsapp/qr").json() == {"connected": True}
+    assert _esperar(lambda: _status(client)["estado"] == "conectado")
+    assert _conectado_en_lista(client)  # quedó anotada la vía: el sondeo de entrada lo ve
 
 
 def test_api_qr_que_caduca_lo_dice_en_espanol(client, tenant, falso):

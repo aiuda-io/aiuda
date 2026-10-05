@@ -133,11 +133,12 @@ def whatsapp_qr(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
 
 
 @router.delete("/v1/integrations/whatsapp/qr")
-def whatsapp_qr_cancelar(tenant: Tenant = Depends(get_tenant)):
+def whatsapp_qr_cancelar(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     """El dueño cerró la ventana sin escanear: el emparejamiento se cancela para
-    que no se quede ocupando el WhatsApp de esta computadora."""
+    que no se quede ocupando el WhatsApp de esta computadora. Si alcanzó a
+    escanear, no se cancela nada y el negocio queda anotado como vinculado."""
     wacli_sync.cancelar_vinculacion(tenant.evolution_instance)
-    return {"connected": False}
+    return {"connected": _estado_vivo(tenant, db)["connected"]}
 
 
 @router.get("/v1/integrations/whatsapp/status")

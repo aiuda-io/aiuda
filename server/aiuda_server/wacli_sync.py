@@ -84,12 +84,16 @@ class _Canal:
     caidas: int = 0
     vence: float = 0.0  # monotonic: hasta cuándo se espera el escaneo
     cerro_sesion: bool = False
+    prorrogado: bool = False  # el plazo del QR venció ya escaneado y se le dio otro
 
 
 _canales: dict[str, _Canal] = {}
 _lock = threading.RLock()
 _parar = threading.Event()
 _vigia: threading.Thread | None = None
+# aiuda se está apagando: ya no se lanza nada, aunque llegue tarde una consulta
+# de estado o el hilo de arranque.
+_apagando = False
 
 
 def _fijar(canal: _Canal, estado: str) -> None:
@@ -103,9 +107,11 @@ def _args_store(store_dir: str | None) -> list[str]:
     return ["--store", store_dir] if store_dir else []
 
 
-def sesion(binario: str, store_dir: str | None) -> dict:
+def sesion(binario: str, store_dir: str | None) -> dict | None:
     """`auth status`: {"authenticated": bool, "phone"?}. No toma el candado, así
-    que se puede preguntar con un sync o un emparejamiento corriendo."""
+    que se puede preguntar con un sync o un emparejamiento corriendo. None si
+    wacli no contestó (tardó, no corrió, respondió basura): eso NO es "sin
+    sesión", y quien pregunta no debe tratarlo como tal."""
     try:
         out = subprocess.run(
             [binario, "auth", "status", *_args_store(store_dir), "--json"],
@@ -113,10 +119,10 @@ def sesion(binario: str, store_dir: str | None) -> dict:
             text=True,
             timeout=10,
         )
-        data = json.loads(out.stdout or "{}").get("data")
-        return data if isinstance(data, dict) else {}
-    except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
-        return {}
+        data = json.loads(out.stdout).get("data")
+        return data if isinstance(data, dict) else None
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        return None
 
 
 # ---------- archivo de pid: reconocer al huérfano ----------
@@ -183,6 +189,8 @@ def _limpiar_huerfano(instance: str) -> bool:
 
 def _lanzar(canal: _Canal, tipo: str) -> bool:
     """Arranca `sync --follow` o `auth` para el canal. Con `_lock` tomado."""
+    if _apagando:
+        return False
     binario = wacli_bin.resolver()
     if binario is None:
         _fijar(canal, SIN_INSTALAR)
@@ -217,6 +225,7 @@ def _lanzar(canal: _Canal, tipo: str) -> bool:
     canal.qr = None
     if tipo == "auth":
         canal.vence = time.monotonic() + _VINCULACION_MAX_S
+        canal.prorrogado = False
     _fijar(canal, CONECTANDO if tipo == "sync" else VINCULANDO)
     try:
         _pidfile(canal.instance).write_text(json.dumps({"pid": proc.pid, "server": os.getpid()}))
@@ -254,7 +263,7 @@ def _leer(canal: _Canal, proc: subprocess.Popen) -> None:
     datos: dict = {}
     if canal.tipo == "auth" and canal.proc is proc:
         binario = wacli_bin.resolver()
-        datos = sesion(binario, canal.store_dir) if binario else {}
+        datos = (sesion(binario, canal.store_dir) if binario else None) or {}
     with _lock:
         if canal.proc is proc:
             _termino(canal, datos)
@@ -338,6 +347,8 @@ def _detener_proc(canal: _Canal) -> None:
 
 def _asegurar_vigia() -> None:
     global _vigia
+    if _apagando:
+        return
     if _vigia is None or not _vigia.is_alive():
         _parar.clear()
         _vigia = threading.Thread(target=_vigilar, name="aiuda-wacli-vigia", daemon=True)
@@ -357,9 +368,37 @@ def _vigilar() -> None:
                 elif canal.tipo == "auth" and ahora >= canal.vence:
                     vencidos.append(canal)
         for canal in vencidos:
-            log.info("WhatsApp %s: nadie escaneó el QR; se cancela", canal.instance)
-            cancelar_vinculacion(canal.instance)
-            canal.ultimo_error = "QR code timed out"
+            _vencio(canal)
+
+
+def _escaneado(canal: _Canal) -> bool:
+    """¿El teléfono ya escaneó el QR de este emparejamiento? (Subproceso: sin lock.)"""
+    binario = wacli_bin.resolver()
+    return bool(binario and (sesion(binario, canal.store_dir) or {}).get("authenticated"))
+
+
+def _vencio(canal: _Canal) -> None:
+    """Se acabó el plazo del emparejamiento. Sin escanear, se cancela. Ya
+    escaneado, wacli está en su arranque inicial (bajar el historial tarda): se le
+    da un plazo más y, si tampoco termina, se corta y sigue el sync, que retoma."""
+    if not _escaneado(canal):
+        log.info("WhatsApp %s: nadie escaneó el QR; se cancela", canal.instance)
+        _cancelar(canal)
+        canal.ultimo_error = "QR code timed out"
+        return
+    with _lock:
+        if canal.tipo != "auth":
+            return  # terminó solo mientras se preguntaba
+        if not canal.prorrogado:
+            canal.prorrogado = True
+            canal.vence = time.monotonic() + _VINCULACION_MAX_S
+            return
+    log.warning("WhatsApp %s: el arranque inicial no terminó; sigue el sync", canal.instance)
+    _detener_proc(canal)
+    with _lock:
+        if canal.proc is None:
+            canal.deseado, canal.caidas, canal.proximo = True, 0, 0.0
+            _lanzar(canal, "sync")
 
 
 def _canal(instance: str, store_dir: str | None) -> _Canal:
@@ -388,6 +427,8 @@ def arrancar(instance: str, store_dir: str | None) -> str:
     with _lock:
         if canal.proc is not None and canal.proc.poll() is None:
             return canal.estado
+        if datos is None:
+            return canal.estado  # wacli no contestó: no se concluye nada; se vuelve a preguntar
         if not datos.get("authenticated"):
             canal.deseado = False
             if canal.estado != SESION_CERRADA:
@@ -415,6 +456,23 @@ def arrancar_conectados() -> None:
         log.exception("no se pudo arrancar el sync de WhatsApp")
 
 
+def asegurar(instance: str, store_dir: str | None) -> None:
+    """Lo llama el sondeo de entrada en cada vuelta: un negocio vinculado siempre
+    termina con su sync corriendo, aunque `auth status` no haya contestado al
+    abrir aiuda o el emparejamiento se haya cerrado a medias. Con un proceso vivo
+    o un relanzado ya programado no hace nada; tampoco insiste donde hace falta
+    el dueño (volver a escanear, actualizar)."""
+    with _lock:
+        canal = _canal(instance, store_dir)
+        if (
+            canal.deseado
+            or canal.proc is not None
+            or canal.estado in (SESION_CERRADA, DESACTUALIZADO)
+        ):
+            return
+    arrancar(instance, store_dir)
+
+
 @contextmanager
 def pausado(instance: str):
     """Suelta el store mientras dura un envío: wacli solo deja un proceso por
@@ -424,17 +482,22 @@ def pausado(instance: str):
         canal = _canales.get(instance)
         if canal is not None:
             canal.pausas += 1
+    detuvo = False
     try:
         if canal is not None and canal.tipo == "sync":
             _detener_proc(canal)
+            detuvo = True
         yield
     finally:
         if canal is not None:
             with _lock:
                 canal.pausas -= 1
-                if canal.deseado and canal.proc is None:
+                # Solo si ESTE envío detuvo un sync vuelve "conectando": uno que ya
+                # estaba caído o en manos de otro programa sigue diciendo lo suyo.
+                if detuvo and canal.deseado and canal.proc is None:
                     canal.proximo = max(canal.proximo, time.monotonic() + _REANUDAR_S)
                     _fijar(canal, CONECTANDO)
+                if canal.deseado:
                     _asegurar_vigia()
 
 
@@ -457,21 +520,32 @@ def vincular(instance: str, store_dir: str | None, espera_s: float = 15.0) -> st
             if canal.qr:
                 return canal.qr
         time.sleep(0.1)
-    cancelar_vinculacion(instance)
+    _cancelar(canal)
     return None
 
 
-def cancelar_vinculacion(instance: str) -> None:
-    """El dueño cerró la ventana sin escanear (o se acabó el tiempo): el proceso
-    de emparejamiento se termina y suelta el candado."""
+def _cancelar(canal: _Canal) -> None:
+    """Termina el emparejamiento del canal y suelta el candado."""
     with _lock:
-        canal = _canales.get(instance)
-        if canal is None or canal.tipo != "auth":
+        if canal.tipo != "auth":
             return
     _detener_proc(canal)
     with _lock:
         if canal.proc is None:
             _fijar(canal, SIN_VINCULAR)
+
+
+def cancelar_vinculacion(instance: str) -> None:
+    """El dueño cerró la ventana sin escanear: el proceso de emparejamiento se
+    termina y suelta el candado. Si ya había escaneado no se toca: wacli termina
+    su arranque inicial y el sync arranca solo (matarlo ahí dejaría el teléfono
+    vinculado y a aiuda sin recibir nada)."""
+    with _lock:
+        canal = _canales.get(instance)
+        if canal is None or canal.tipo != "auth":
+            return
+    if not _escaneado(canal):
+        _cancelar(canal)
 
 
 def desvincular(instance: str, store_dir: str | None) -> str | None:
@@ -486,7 +560,8 @@ def desvincular(instance: str, store_dir: str | None) -> str | None:
         with _lock:
             _fijar(canal, SIN_INSTALAR)
         return None
-    if not sesion(binario, store_dir).get("authenticated"):
+    datos = sesion(binario, store_dir)
+    if datos is not None and not datos.get("authenticated"):
         with _lock:
             _fijar(canal, SIN_VINCULAR)
         return None  # ya no había sesión que cerrar
@@ -521,6 +596,9 @@ def estado(instance: str, store_dir: str | None) -> dict:
                 _fijar(canal, SIN_INSTALAR)
     elif not corriendo or tipo == "auth":
         datos = sesion(binario, store_dir)
+        if datos is None:
+            with _lock:
+                return _foto(canal)  # wacli no contestó: se queda lo que ya se sabía
         with _lock:
             canal.telefono = datos.get("phone") if datos.get("authenticated") else None
             if tipo == "auth" and corriendo:
@@ -563,9 +641,12 @@ def tras_instalar() -> None:
 
 def detener_todo() -> None:
     """Al apagar aiuda: ningún wacli se queda vivo a espaldas del dueño. Se llama
-    desde las tres salidas del proceso; llamarlo de más no hace daño."""
+    desde las tres salidas del proceso; llamarlo de más no hace daño. Es
+    definitivo: lo que pida arrancar después ya no lanza nada."""
+    global _apagando
     _parar.set()
     with _lock:
+        _apagando = True
         canales = list(_canales.values())
         for canal in canales:
             canal.deseado = False

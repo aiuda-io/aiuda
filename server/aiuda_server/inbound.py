@@ -98,6 +98,8 @@ def poll_wacli_once(client_factory=None) -> int:
     el fallo de uno no detiene a los demás."""
     from aiuda_core.connectors.wacli import WacliClient
     from aiuda_core.connectors.wacli_inbound import collect_inbound
+    from aiuda_core.connectors.channel import wacli_store_dir
+    from aiuda_server import wacli_sync
     from aiuda_server.worker.main import process_incoming_message_blocking
 
     with session_scope() as db:
@@ -105,6 +107,8 @@ def poll_wacli_once(client_factory=None) -> int:
     total = 0
     for tenant_id, instance in objetivos:
         try:
+            # El sync es lo que llena el espejo que aquí se lee: si no está, se arranca.
+            wacli_sync.asegurar(instance, wacli_store_dir(instance))
             store_dir = (
                 str(Path(settings.wacli_store_root) / instance)
                 if settings.wacli_store_root
