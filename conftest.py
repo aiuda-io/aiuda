@@ -31,3 +31,7 @@ os.environ.setdefault(
 # 30 segundos dispararían una corrida de cobranza de verdad (con sus envíos)
 # desde adentro de la suite.
 os.environ.setdefault("AIUDA_SCHEDULER_ENABLED", "false")
+
+# Ni ventanas: "Entrar con ChatGPT" abre el navegador de la computadora, y una
+# corrida de pruebas no debe abrirle pestañas a nadie (ni tocar un login real).
+os.environ.setdefault("AIUDA_ABRIR_NAVEGADOR", "false")

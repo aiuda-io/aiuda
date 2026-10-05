@@ -253,6 +253,12 @@ _SIN_LLAVE = frozenset({"/health", "/v1/emparejar"})
 # ponen dos frenos: cuerpo chico y pocos intentos. El código en sí no se puede
 # adivinar (72 bits), pero sin esto se puede tumbar la herramienta del negocio.
 _MAX_CUERPO_EMPAREJAR = 2048
+
+# El regreso de "Entrar con ChatGPT". Llega desde el navegador del sistema, que no trae
+# la cookie de la consola, así que pasa sin ella, pero SOLO por la puerta de esta
+# computadora: no está en _SIN_LLAVE a propósito, para que la puerta de la red no lo
+# conteste. Lo valida la propia ruta, con el `state` del intento (api/provider.py).
+_REGRESO_CHATGPT = "/auth/callback"
 _INTENTOS_POR_MINUTO = 10
 _intentos: dict[str, list[float]] = {}
 _candado_intentos = threading.Lock()
@@ -354,7 +360,7 @@ async def local_session_guard(request: Request, call_next):
         return await call_next(request)
 
     token = settings.session_token
-    if not token or request.url.path in _SIN_LLAVE:
+    if not token or request.url.path in _SIN_LLAVE or request.url.path == _REGRESO_CHATGPT:
         return await call_next(request)
     import hmac as _hmac
 

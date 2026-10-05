@@ -70,7 +70,7 @@ def _conectar(falso, session, tenant) -> dict:
         tok, previo={"client_id": vuelta["client_id"], "subject": datos["sub"]}
     )
     bundle["model"] = chatgpt_auth.elegir_modelo(bundle["access_token"])
-    credentials.set_credential(session, tenant.id, "ia", chatgpt_auth._valores(bundle))
+    credentials.set_credential(session, tenant.id, "ia", chatgpt_auth.valores(bundle))
     chatgpt_auth.recordar(tenant.id, bundle)
     session.commit()
     return bundle
@@ -84,7 +84,7 @@ def _guardado(session, tenant) -> dict:
 def _envejecer(session, tenant, bundle, **cambios) -> dict:
     """Reescribe el bundle guardado (p. ej. como si ya estuviera por vencer)."""
     viejo = {**bundle, **cambios}
-    credentials.refresh_secret(session, tenant.id, "ia", chatgpt_auth._valores(viejo))
+    credentials.refresh_secret(session, tenant.id, "ia", chatgpt_auth.valores(viejo))
     chatgpt_auth.recordar(tenant.id, viejo)
     session.commit()
     return viejo

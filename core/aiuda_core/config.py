@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     # que las pruebas apunten a un servidor falso en vez de a una cuenta real.
     chatgpt_issuer: str = Field("https://auth.openai.com", validation_alias=propia("chatgpt_issuer"))
     openai_base: str = Field("https://api.openai.com/v1", validation_alias=propia("openai_base"))
+    # Abrir el navegador de esta computadora cuando el dueño lo pide desde la consola
+    # (entrar con ChatGPT, ver su uso). Apagado en las pruebas.
+    abrir_navegador: bool = Field(True, validation_alias=propia("abrir_navegador"))
 
     # Canal de WhatsApp por default cuando el tenant no declara su vía: "wacli".
     whatsapp_provider: str = "wacli"

@@ -426,7 +426,8 @@ def parse_secret(secret: str) -> dict:
     return bundle if isinstance(bundle, dict) else {}
 
 
-def _valores(bundle: dict) -> dict:
+def valores(bundle: dict) -> dict:
+    """Lo que se guarda en la fila 'ia': el bundle va entero dentro del secreto cifrado."""
     return {"name": "chatgpt", "mode": "oauth", "secret": json.dumps(bundle, separators=(",", ":"))}
 
 
@@ -465,11 +466,11 @@ def _persistir(session, tenant_id: str, bundle: dict) -> None:
 
     _ultimo[tenant_id] = bundle
     if _ya_escribe(session):
-        credentials.refresh_secret(session, tenant_id, IA, _valores(bundle))
+        credentials.refresh_secret(session, tenant_id, IA, valores(bundle))
         return
     try:
         with Session(bind=session.get_bind()) as aparte:
-            credentials.refresh_secret(aparte, tenant_id, IA, _valores(bundle))
+            credentials.refresh_secret(aparte, tenant_id, IA, valores(bundle))
             aparte.commit()
     except OperationalError:
         logger.warning("chatgpt: no se pudo guardar el token renovado; queda en memoria")
