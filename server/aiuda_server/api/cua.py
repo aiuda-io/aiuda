@@ -6,7 +6,7 @@ Nunca mira el navegador — todo es headless, en segundo plano.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
@@ -17,16 +17,20 @@ from aiuda_server import audit
 from aiuda_server.api.deps import get_db, get_tenant, require_role
 from aiuda_server.api.documentos import iso_utc, serializar
 from aiuda_core.cua.fallback import (
+    CANDADO_SAT,
     CUA_PORTALES_KEY,
     CUA_PORTALES_URL_KEY,
     CUA_TEMPLATES,
     CONSENTIMIENTO_SAT_TEXTO,
     MSG_FALTA_CONSENTIMIENTO,
+    MSG_YA_CORRIENDO,
     PORTAL_PREFIX,
     RUTINAS_DETERMINISTAS,
     aceptar_consentimiento_sat,
     borrar_sesion,
     consentimiento_sat,
+    corrida_sat_en_curso,
+    corrida_viva,
     efirmas_guardadas,
     ejecutar_recado,
     enqueue_cua_mission,
@@ -187,15 +191,6 @@ class NuevoRecado(BaseModel):
     rfc: str | None = None
 
 
-# Una corrida del SAT tarda cerca de un minuto. Si una lleva más que esto "en curso",
-# se quedó colgada (se cerró aiuda a media corrida) y no debe bloquear la siguiente.
-_CORRIDA_COLGADA = timedelta(minutes=10)
-
-
-def _como_utc(dt: datetime) -> datetime:
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
 def _corridas_deterministas(db, tenant: Tenant) -> dict[tuple[str, str], CuaMission]:
     """La corrida más reciente de cada rutina determinista por RFC."""
     filas = db.scalars(
@@ -211,14 +206,6 @@ def _corridas_deterministas(db, tenant: Tenant) -> dict[tuple[str, str], CuaMiss
     for m in filas:
         ultimas.setdefault((m.capacidad, str((m.data or {}).get("_rfc") or "")), m)
     return ultimas
-
-
-def _en_curso(m: CuaMission | None) -> bool:
-    return (
-        m is not None
-        and m.status in ("queued", "running")
-        and datetime.now(timezone.utc) - _como_utc(m.created_at) < _CORRIDA_COLGADA
-    )
 
 
 def _encolar_determinista(body: NuevoRecado, background, db, tenant: Tenant) -> dict:
@@ -239,14 +226,14 @@ def _encolar_determinista(body: NuevoRecado, background, db, tenant: Tenant) -> 
         )
     if not consentimiento_sat(tenant, rfc):
         raise HTTPException(status_code=409, detail=MSG_FALTA_CONSENTIMIENTO)
-    if _en_curso(_corridas_deterministas(db, tenant).get((body.capacidad, rfc))):
-        raise HTTPException(
-            status_code=409,
-            detail="Esa rutina ya está corriendo para ese RFC. Espera a que termine.",
-        )
-    recado = enqueue_cua_mission(db, tenant, body.capacidad, rfc=rfc)
-    # Confirmado antes de despachar: la corrida abre su propia sesión de base.
-    db.commit()
+    # Revisar y apartar bajo el candado: dos peticiones a la vez no pasan las dos.
+    with CANDADO_SAT:
+        if corrida_sat_en_curso(db, tenant, body.capacidad, rfc):
+            raise HTTPException(status_code=409, detail=MSG_YA_CORRIENDO)
+        recado = enqueue_cua_mission(db, tenant, body.capacidad, rfc=rfc)
+        # Confirmado antes de soltar el candado y de despachar: la otra petición y la
+        # corrida abren su propia sesión de base.
+        db.commit()
     background.add_task(run_recado_blocking, recado.id)
     return _serialize(recado)
 
@@ -311,7 +298,7 @@ def deterministas(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> d
                     "capacidad": capacidad,
                     "nombre": spec["nombre"],
                     "estrenada": spec["estrenada"],
-                    "en_curso": _en_curso(m),
+                    "en_curso": corrida_viva(m),
                     "ultima_corrida": (
                         {
                             "id": m.id,

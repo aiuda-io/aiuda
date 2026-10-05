@@ -19,8 +19,9 @@ import asyncio
 import base64
 import json
 import logging
+import threading
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -480,6 +481,52 @@ def efirmas_guardadas(session: Session, tenant: Tenant) -> list[str]:
     return [e["rfc"] for e in sat_empresas(session, tenant) if e.get("efirma")]
 
 
+# Revisar si una rutina del SAT ya corre y apartarla es UN solo paso: dos peticiones a la
+# vez (dos pestañas, la Mac y el teléfono) no deben entrar las dos al portal con la misma
+# e.firma. aiuda es un solo proceso, así que basta un candado de proceso.
+CANDADO_SAT = threading.Lock()
+# El guion, sumando todas sus esperas, no pasa de unos diez minutos. Una corrida que
+# lleva más que esto "en curso" se quedó colgada (se cerró aiuda a media corrida) y no
+# debe bloquear la siguiente.
+CORRIDA_COLGADA = timedelta(minutes=15)
+MSG_YA_CORRIENDO = "Esa rutina ya está corriendo para ese RFC. Espera a que termine."
+
+
+def corrida_viva(m: CuaMission | None) -> bool:
+    """En cola o corriendo, y no colgada. La edad se mide desde que empezó a correr."""
+    if m is None or m.status not in ("queued", "running"):
+        return False
+    desde = m.started_at or m.created_at
+    if desde.tzinfo is None:
+        desde = desde.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - desde < CORRIDA_COLGADA
+
+
+def corrida_sat_en_curso(
+    session: Session,
+    tenant: Tenant,
+    capacidad: str,
+    rfc: str,
+    *,
+    excepto: str | None = None,
+    estados: tuple[str, ...] = ("queued", "running"),
+) -> bool:
+    """¿Hay otra corrida viva de esa rutina para ese RFC? Llamar con `CANDADO_SAT`."""
+    filas = session.scalars(
+        select(CuaMission).where(
+            CuaMission.tenant_id == tenant.id,
+            CuaMission.capacidad == capacidad,
+            CuaMission.status.in_(estados),
+        )
+    ).all()
+    return any(
+        m.id != excepto
+        and str((m.data or {}).get("_rfc") or "").upper() == rfc.upper()
+        and corrida_viva(m)
+        for m in filas
+    )
+
+
 def _ejecutar_determinista(
     session: Session, tenant: Tenant, recado: CuaMission, now: datetime | None
 ) -> CuaMission:
@@ -524,11 +571,18 @@ def _ejecutar_determinista(
     if not estado_navegador()[0]:
         return no_pudo(sat_documentos.MSG_SIN_NAVEGADOR)
 
-    recado.status = "running"
-    recado.started_at = now or datetime.now(timezone.utc)
-    # Se confirma ya: la corrida tarda cerca de un minuto y no debe tener la base
-    # tomada ni esconderle a la consola que está adentro del portal.
-    session.commit()
+    # Última revisión antes de abrir el navegador, en el mismo paso que marcarla como
+    # corriendo: nunca dos navegadores en el SAT con la misma e.firma y el mismo documento.
+    with CANDADO_SAT:
+        if corrida_sat_en_curso(
+            session, tenant, recado.capacidad, rfc, excepto=recado.id, estados=("running",)
+        ):
+            return no_pudo(MSG_YA_CORRIENDO)
+        recado.status = "running"
+        recado.started_at = now or datetime.now(timezone.utc)
+        # Se confirma ya: la corrida tarda cerca de un minuto y no debe tener la base
+        # tomada ni esconderle a la consola que está adentro del portal.
+        session.commit()
 
     try:
         resultado = sat_documentos.bajar_documento(cer, key, password, rfc, spec["documento"])

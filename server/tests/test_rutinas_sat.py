@@ -297,6 +297,98 @@ def test_no_despacha_dos_veces_la_misma_rutina(client, db_session, demo, fiel, m
     assert despachar(client, "sat_opinion_32d").status_code == 201
 
 
+def test_dos_despachos_a_la_vez_solo_entra_uno(tmp_path, demo_login, fiel, monkeypatch):
+    """Dos pestañas (o la Mac y el teléfono) piden la misma rutina en el mismo instante:
+    con una sesión de base por petición, como en producción, solo una se encola."""
+    import threading
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'carrera.db'}", connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(engine)
+    fabrica = sessionmaker(bind=engine, expire_on_commit=False)
+
+    def por_peticion():
+        s = fabrica()
+        try:
+            yield s
+            s.commit()
+        except Exception:
+            s.rollback()
+            raise
+        finally:
+            s.close()
+
+    with fabrica() as s:
+        s.add(Tenant(
+            name="Demo", owner_phone="52155", evolution_instance="demo-carrera",
+            config={"demo": True, "members": []},
+        ))
+        s.commit()
+    app.dependency_overrides[get_db] = fabrica  # solo para que demo_login lea el negocio
+    try:
+        cliente = TestClient(app)
+        demo_login(cliente)
+        app.dependency_overrides[get_db] = por_peticion
+        monkeypatch.setattr("aiuda_server.api.cua.run_recado_blocking", lambda _id: None)
+        subir_efirma(cliente, fiel)
+        aceptar(cliente)
+
+        # Las dos peticiones se esperan justo antes de revisar si ya hay una corriendo.
+        juntas = threading.Barrier(2)
+        real = consentimiento_sat
+
+        def las_dos_llegaron(tenant, rfc):
+            try:
+                juntas.wait(timeout=5)
+            except threading.BrokenBarrierError:
+                pass
+            return real(tenant, rfc)
+
+        monkeypatch.setattr("aiuda_server.api.cua.consentimiento_sat", las_dos_llegaron)
+        codigos = []
+        hilos = [
+            threading.Thread(
+                target=lambda: codigos.append(despachar(cliente, "sat_opinion_32d").status_code)
+            )
+            for _ in range(2)
+        ]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join(timeout=30)
+        assert sorted(codigos) == [201, 409]
+        with fabrica() as s:
+            assert len(s.scalars(select(CuaMission)).all()) == 1
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_al_correr_no_entra_si_la_misma_rutina_ya_esta_adentro(
+    client, db_session, demo, fiel, monkeypatch
+):
+    """Aunque dos recados de la misma rutina llegaran a existir, el segundo no abre
+    navegador mientras el primero está adentro del portal."""
+    from aiuda_core.cua.fallback import MSG_YA_CORRIENDO, enqueue_cua_mission
+
+    subir_efirma(client, fiel)
+    aceptar(client)
+    adentro = enqueue_cua_mission(db_session, demo, "sat_opinion_32d", rfc=RFC)
+    adentro.status = "running"
+    adentro.started_at = datetime.now(timezone.utc)
+    segundo = enqueue_cua_mission(db_session, demo, "sat_opinion_32d", rfc=RFC)
+    db_session.flush()
+    monkeypatch.setattr("aiuda_core.cua.computer.estado_navegador", lambda: (True, ""))
+
+    def no_debe_abrir(*a, **k):
+        raise AssertionError("no debe entrar al portal")
+
+    monkeypatch.setattr(sat_documentos, "bajar_documento", no_debe_abrir)
+    ejecutar_recado(db_session, segundo)
+    assert segundo.status == "failed" and segundo.error == MSG_YA_CORRIENDO
+
+
 def test_los_documentos_son_de_cada_negocio(client, db_session, demo):
     otro = Tenant(name="Otro", owner_phone="52156", evolution_instance="otro", config={})
     db_session.add(otro)
