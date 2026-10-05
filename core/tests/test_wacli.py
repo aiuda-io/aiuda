@@ -8,9 +8,23 @@ import pytest
 
 from aiuda_core.config import Settings
 from aiuda_core.connectors import wacli as wacli_mod
+from aiuda_core.connectors import wacli_bin
 from aiuda_core.connectors.wacli import WacliClient, WacliError, explicar_fallo_wacli
 
 DEFAULT_TEMPLATE = "{bin} send text --to {phone} --message {message}"
+# Una ruta que no existe: si alguna prueba olvidara interceptar subprocess.run, el
+# sistema no encontraría nada que ejecutar.
+BIN_DE_PRUEBA = "/sin-wacli/wacli"
+
+
+@pytest.fixture(autouse=True)
+def _como_en_la_computadora_del_dueno(monkeypatch):
+    """Estas pruebas fijan el argv del modo de siempre: hay un wacli instalado y
+    aiuda corre sobre la base del dueño, así que sin store propio no se pasa
+    ``--store``. La corrida de pruebas usa una base desechable, donde la regla es
+    la contraria (ver ``test_wacli_store.py``); aquí se simula la del dueño."""
+    monkeypatch.setattr(wacli_bin, "_del_sistema", lambda: BIN_DE_PRUEBA)
+    monkeypatch.setattr(wacli_bin, "store_del_host", lambda: None)
 
 
 class _Result:

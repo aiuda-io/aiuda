@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { api, mxn } from "@/lib/api";
-import { EmptyState, ErrorState, PageHeader, Skeleton, Tabs, useApi } from "@/components/ui";
+import { api } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
+import { EmptyState, ErrorState, PageHeader, Skeleton, Tabs, useApi, useQueryTab } from "@/components/ui";
 import { RenglonEnviado } from "@/components/hoy/enviado";
 import { Marca, TextoMensaje } from "@/components/hoy/piezas";
 import { TrabajoAyudantes } from "@/components/hoy/trabajo-ayudantes";
-import { claseDe, diaYHora, nombreDe, type Mensaje } from "@/components/hoy/tipos";
+import { claseDe, nombreDe, type Mensaje } from "@/components/hoy/tipos";
+import { fechaHora } from "@/lib/format";
 
 /** Actividad: el historial detrás de Hoy. No está en el menú; se llega con "Ver todo
  *  lo enviado". Tres vistas: lo que salió, lo que se rechazó y lo que hicieron los
@@ -21,17 +23,16 @@ export default function ActividadPage() {
   );
 }
 
-type Vista = "enviado" | "rechazado" | "ayudantes";
+const VISTAS = ["enviado", "rechazado", "ayudantes"] as const;
 const DE_A = 50;
 
 function Actividad() {
   const params = useSearchParams();
   // `?r=<id>` abre un trabajo de ayudante en particular (ligas viejas a esta página).
   const trabajo = params.get("r") ?? "";
-  const pedida = params.get("vista");
-  const [vista, setVista] = useState<Vista>(
-    trabajo ? "ayudantes" : pedida === "rechazado" || pedida === "ayudantes" ? pedida : "enviado",
-  );
+  const [pedida, hrefFor] = useQueryTab("vista", VISTAS);
+  // Una liga a un trabajo en particular abre "Tus ayudantes" aunque no diga la vista.
+  const vista = trabajo && !params.get("vista") ? "ayudantes" : pedida;
 
   const { data, error, loading, refetch } = useApi(async () => {
     const [enviados, rechazados] = await Promise.all([
@@ -53,15 +54,11 @@ function Actividad() {
       <PageHeader
         title="Actividad"
         subtitle="Todo lo que salió a tus clientes, lo que rechazaste y lo que hicieron tus ayudantes."
-        right={
-          <Link href="/" className="btn btn-secondary">
-            Ir a Hoy
-          </Link>
-        }
       />
       <Tabs
         active={vista}
-        onChange={(k) => setVista(k as Vista)}
+        hrefFor={hrefFor}
+        label="Vistas de Actividad"
         tabs={[
           { key: "enviado", label: "Enviado", count: data?.enviados.length },
           { key: "rechazado", label: "Rechazado", count: data?.rechazados.length },
@@ -149,12 +146,12 @@ function Rechazado({ m }: { m: Mensaje }) {
           </span>
         </div>
         {m.amount != null && (
-          <span className="tnum text-cuerpo font-medium text-ink">{mxn(m.amount)}</span>
+          <span className="tnum text-cuerpo font-medium text-ink">{dinero(m.amount, m.currency)}</span>
         )}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-apoyo text-ink-3">
         <Marca>{m.retirado ? "Retirado" : "Lo rechazaste"}</Marca>
-        {m.updated_at && <span>{diaYHora(m.updated_at)}</span>}
+        {m.updated_at && <span>{fechaHora(m.updated_at)}</span>}
         <button
           type="button"
           onClick={() => setVer((v) => !v)}

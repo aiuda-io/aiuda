@@ -2,20 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { useConfirm } from "@/components/ui";
-
-// Evento que se dispara al prender o apagar el modo de prueba (aquí y en Ajustes),
-// para que la franja y las pantallas se enteren sin recargar.
-export const SHADOW_EVENT = "shadow-mode-changed";
+import { SHADOW_EVENT, useApagarModoPrueba } from "@/components/modo-prueba";
 
 // LA franja del modo de prueba, y la única: mientras está encendido, nada sale a
 // los clientes. Se queda pegada arriba al hacer scroll, porque una advertencia que
-// se va de la vista deja de advertir. Se apaga aquí mismo.
+// se va de la vista deja de advertir. Se apaga aquí mismo, pasando por el mismo
+// diálogo que Ajustes (components/modo-prueba.tsx): lo ya aprobado no se va solo.
 export function ShadowBanner() {
   const [on, setOn] = useState(false);
-  const [apagando, setApagando] = useState(false);
-  const [fallo, setFallo] = useState(false);
-  const { confirm, dialog } = useConfirm();
+  const { apagar, apagando, dialogo } = useApagarModoPrueba();
 
   useEffect(() => {
     api
@@ -27,29 +22,7 @@ export function ShadowBanner() {
     return () => window.removeEventListener(SHADOW_EVENT, handler);
   }, []);
 
-  async function apagar() {
-    // Apagarlo cambia lo que hace "Aprobar": de aquí en adelante sí manda. Un
-    // clic suelto en una franja no debe bastar para eso.
-    const ok = await confirm({
-      title: "Apagar el modo de prueba",
-      message: "Desde ahora, lo que apruebes sí se envía a tus clientes.",
-      confirmLabel: "Apagar",
-    });
-    if (!ok) return;
-    setApagando(true);
-    setFallo(false);
-    try {
-      const res = await api.setShadowMode(false);
-      setOn(res.modo_sombra);
-      window.dispatchEvent(new CustomEvent(SHADOW_EVENT, { detail: { activo: res.modo_sombra } }));
-    } catch {
-      setFallo(true);
-    } finally {
-      setApagando(false);
-    }
-  }
-
-  if (!on) return dialog;
+  if (!on) return dialogo;
 
   return (
     <>
@@ -60,16 +33,15 @@ export function ShadowBanner() {
         <span>
           <span className="font-semibold">Modo de prueba:</span> nada sale a tus clientes
         </span>
-        {fallo && <span className="text-danger">No se pudo apagar. Intenta de nuevo.</span>}
         <button
           onClick={apagar}
           disabled={apagando}
           className="font-semibold underline decoration-ink/40 underline-offset-[3px] hover:decoration-ink disabled:opacity-50"
         >
-          {apagando ? "Apagando" : "Apagar"}
+          Apagar
         </button>
       </div>
-      {dialog}
+      {dialogo}
     </>
   );
 }

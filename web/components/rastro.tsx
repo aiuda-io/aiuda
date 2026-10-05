@@ -10,7 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SECTION_LABELS, isSection } from "@/lib/sections";
+import { SECTION_LABELS, isSection, puertaDe } from "@/lib/sections";
 
 // El Rastro recuerda el camino real que recorriste para llegar a donde estás.
 // No son migas de jerarquía: son tus pasos, cada uno clickeable. Así nunca
@@ -23,18 +23,30 @@ type RastroValue = {
   direction: "forward" | "back";
 };
 
+/** La etiqueta de una página que trae su PROPIA salida (la de "esta pantalla no
+ *  existe"): en ella el "Volver a…" del marco no se pinta. */
+const SIN_REGRESO = "\u0000sin-regreso";
+
 const RastroContext = createContext<RastroValue | null>(null);
 
 // Reconcilia el rastro cuando cambia la ruta:
 //  - Sección de primer nivel (destino del menú): reinicia a [Resumen, sección].
 //  - Detalle: continúa el camino. Si ya estabas en esa página, recorta hasta
 //    ahí (regresaste); si no, la agrega al final.
+//  - Llegada directa a un detalle (un enlace pegado, una recarga): no hay camino
+//    recorrido, así que se regresa a la puerta bajo la que vive esa pantalla
+//    ("Volver a Cartera" desde el SAT), no a Hoy. Es la única salida que se pinta:
+//    las páginas ya no traen su propio "‹ Cartera" encima del Rastro.
 function reconcile(prev: string[], p: string): string[] {
   if (p === "/") return ["/"];
   if (isSection(p)) return ["/", p];
   const idx = prev.indexOf(p);
   if (idx >= 0) return prev.slice(0, idx + 1);
-  return [...(prev.length ? prev : ["/"]), p];
+  if (prev.length === 0) {
+    const puerta = puertaDe(p);
+    return puerta && puerta !== "/" && puerta !== p ? ["/", puerta, p] : ["/", p];
+  }
+  return [...prev, p];
 }
 
 function sameTrail(a: string[], b: string[]): boolean {
@@ -78,6 +90,12 @@ export function RastroProvider({ children }: { children: React.ReactNode }) {
   return <RastroContext.Provider value={value}>{children}</RastroContext.Provider>;
 }
 
+/** Para una página que ya ofrece su única salida: quita el "Volver a…" del marco
+ *  mientras está en pantalla. Dos salidas, una encima de la otra, es una de más. */
+export function useSinRegreso() {
+  usePageTrail(SIN_REGRESO);
+}
+
 // Una página de detalle declara su etiqueta humana: usePageTrail("Factura M-107").
 // No-op si no hay provider (ej. /entrar).
 export function usePageTrail(label: string | undefined | null) {
@@ -102,6 +120,7 @@ export function useRastroBack(): { href: string; label: string } | null {
   if (!ctx || ctx.trail.length < 2) return null;
   if (pathname === "/" || isSection(pathname)) return null;
   if (SELF_NAV_SUBTREES.some((p) => pathname.startsWith(p))) return null;
+  if (ctx.labelFor(pathname) === SIN_REGRESO) return null;
   const href = ctx.trail[ctx.trail.length - 2];
   return { href, label: ctx.labelFor(href) };
 }

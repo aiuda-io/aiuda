@@ -111,7 +111,7 @@ Lo que un invitado **no** toca nunca, aunque su teléfono esté emparejado:
 
 | No puede | Por qué |
 |---|---|
-| Cambiar el proveedor de IA | Apuntar la IA a otro lado manda tu cartera a donde diga quien lo cambió |
+| Cambiar tu IA | Apuntar la IA a otro lado manda tu cartera a donde diga quien lo cambió |
 | Tocar integraciones y conectores | Ahí viven las llaves de tus sistemas |
 | Encargar misiones del navegador (CUA) | Usarían las sesiones de portales que tú ya dejaste abiertas |
 | Cambiar la configuración del negocio | Ahí se apaga el modo de prueba, o sea, ahí se sueltan mensajes a clientes reales |

@@ -7,7 +7,15 @@ import Link from "next/link";
 import { useState } from "react";
 import { api, type CuaEstado, type RutinaBackoffice } from "@/lib/api";
 import { Collapse } from "@/components/motion";
-import { PrimaryButton, SecondaryButton, SinEstrenar, TextInput, inputCls, useConfirm } from "@/components/ui";
+import {
+  PrimaryButton,
+  SecondaryButton,
+  SinEstrenar,
+  TextInput,
+  inputCls,
+  useConfirm,
+  QuietButton,
+} from "@/components/ui";
 import { toast } from "@/components/toast";
 import { Accesos } from "@/components/portales/accesos";
 import type { Portal } from "@/components/portales/comunes";
@@ -136,7 +144,7 @@ export function OtrosPortales({
           </p>
 
           {disponible && faltaIa && (
-            <p className="max-w-2xl rounded-lg bg-warn-soft px-4 py-3 text-cuerpo text-ink-2">
+            <p className="max-w-2xl rounded-lg bg-panel px-4 py-3 text-cuerpo text-ink-2">
               {estado?.ia_detalle}{" "}
               <Link href="/configuracion?seccion=ia" className="font-medium text-accent-ink hover:underline">
                 Ir a Tu IA
@@ -175,7 +183,7 @@ export function OtrosPortales({
                                 ? "Acceso conectado"
                                 : "Sin acceso todavía"
                           }
-                          className={`btn btn-sm ${on ? "bg-accent-soft text-accent-ink" : "btn-secondary"}`}
+                          className={`btn btn-sm ${on ? "btn-elegida" : "btn-secondary"}`}
                         >
                           {p.sistema}
                         </button>
@@ -206,9 +214,9 @@ export function OtrosPortales({
                         <SecondaryButton onClick={mandarAhora} disabled={mandando}>
                           {mandando ? "Mandando…" : "Mandar ahora"}
                         </SecondaryButton>
-                        <button onClick={() => setGuardar((v) => !v)} aria-expanded={guardar} className="btn btn-quiet">
+                        <QuietButton onClick={() => setGuardar((v) => !v)} aria-expanded={guardar}>
                           Guardar para repetirlo
-                        </button>
+                        </QuietButton>
                       </div>
                       <Collapse open={guardar}>
                         <div className="flex flex-wrap items-center gap-2 pt-3">
@@ -248,9 +256,9 @@ export function OtrosPortales({
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      <button onClick={() => borrar(r)} className="btn btn-quiet btn-sm">
+                      <QuietButton onClick={() => borrar(r)} size="sm">
                         Borrar
-                      </button>
+                      </QuietButton>
                       {disponible && (
                         <SecondaryButton size="sm" onClick={() => repetir(r)} disabled={repitiendo === r.id}>
                           {repitiendo === r.id ? "Mandando…" : "Mandar"}

@@ -1,5 +1,5 @@
 import { Redireccion } from "@/components/ajustes/redireccion";
-import { rutaAjustes } from "@/lib/ajustes-api";
+import { rutaAjustes } from "@/lib/ajustes";
 
 // Tus aparatos es ahora Ajustes > Teléfono y equipo.
 export default function AparatosRedirect() {

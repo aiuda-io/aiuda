@@ -11,10 +11,11 @@ import { Collapse } from "@/components/motion";
 import { SecondaryButton, SinEstrenar, inputCls } from "@/components/ui";
 import { removeAiudita, setAiudita } from "@/lib/ayudantes-store";
 import { toast } from "@/components/toast";
+import { rutaAjustes } from "@/lib/ajustes";
 
 /** El catálogo ya trae estas dos frases por tarea (`aiuditas/catalog.py`). Vacías en
  *  las que todavía no funcionan. */
-export type Tarea = AiuditaSpec & { cuando?: string; aprobacion?: string };
+export type Tarea = AiuditaSpec;
 
 type Valor = string | number | boolean;
 
@@ -242,7 +243,7 @@ function PerillaField({
                 role="radio"
                 aria-checked={on}
                 onClick={() => onSave(o.value)}
-                className={`btn btn-sm ${on ? "bg-accent-soft text-accent-ink" : "btn-secondary"}`}
+                className={`btn btn-sm ${on ? "btn-elegida" : "btn-secondary"}`}
               >
                 {o.label}
               </button>
@@ -306,7 +307,7 @@ function FuenteField({
       </p>
       <div className="flex flex-wrap items-center gap-1.5">
         {fuentes.map((f) => {
-          const nombre = f.experimental ? "Entrando al portal" : f.name;
+          const nombre = f.name;
           if (f.live || f.experimental) {
             const on = value === f.key;
             return (
@@ -314,7 +315,7 @@ function FuenteField({
                 key={f.key}
                 onClick={() => onSelect(f.key)}
                 aria-pressed={on}
-                className={`btn btn-sm ${on ? "bg-accent-soft text-accent-ink" : "btn-secondary"}`}
+                className={`btn btn-sm ${on ? "btn-elegida" : "btn-secondary"}`}
               >
                 {nombre}
                 {f.experimental && <SinEstrenar />}
@@ -322,7 +323,11 @@ function FuenteField({
             );
           }
           return (
-            <Link key={f.key} href={`/integraciones/detalle?key=${f.key}`} className="btn btn-quiet btn-sm">
+            <Link
+              key={f.key}
+              href={rutaAjustes("conexiones", f.key)}
+              className="btn btn-quiet btn-sm"
+            >
               Conectar {nombre}
             </Link>
           );

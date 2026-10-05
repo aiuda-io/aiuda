@@ -154,6 +154,8 @@ def test_dos_tenants_envian_por_sus_stores_sin_cruzarse(db_session, monkeypatch)
         stdout = ""
 
     commands: list[list[str]] = []
+    # Hay un wacli "instalado" (ruta que no existe: subprocess.run va interceptado).
+    monkeypatch.setattr(wacli_mod.wacli_bin, "_del_sistema", lambda: "/sin-wacli/wacli")
     monkeypatch.setattr(
         wacli_mod.subprocess, "run", lambda cmd, **kw: commands.append(cmd) or _Ok()
     )
@@ -209,6 +211,8 @@ def test_inbound_baja_marca_optout_y_confirma_sin_llm(db_session, monkeypatch):
         stdout = ""
 
     enviados: list[list[str]] = []
+    # Hay un wacli "instalado" (ruta que no existe: subprocess.run va interceptado).
+    monkeypatch.setattr(wacli_mod.wacli_bin, "_del_sistema", lambda: "/sin-wacli/wacli")
     monkeypatch.setattr(
         wacli_mod.subprocess, "run", lambda cmd, **kw: enviados.append(cmd) or _Ok()
     )

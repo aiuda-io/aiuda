@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, mxn } from "@/lib/api";
+import { api } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { fechaDM, telefonoMx } from "@/lib/format";
-import { SourceBadge } from "@/components/ui";
+import { SourceBadge, QuietButton } from "@/components/ui";
 import { Cabeza, Fila, Marca, TextoMensaje, Tramo } from "@/components/hoy/piezas";
 import {
   canalPorDefecto,
@@ -57,6 +58,7 @@ export function RenglonMensaje({
   ejecutar,
   corregir,
   abiertoDeInicio,
+  principal,
 }: {
   m: Mensaje;
   prueba: boolean;
@@ -65,6 +67,9 @@ export function RenglonMensaje({
   ejecutar: Ejecutar;
   corregir?: boolean;
   abiertoDeInicio?: boolean;
+  /** El renglón que lleva el ÚNICO botón relleno de la pantalla (el primero de la
+   *  lista). En los demás, la misma acción va con contorno. */
+  principal?: boolean;
 }) {
   const id = idMensaje(m);
   const [abierto, setAbierto] = useState(Boolean(abiertoDeInicio));
@@ -103,7 +108,7 @@ export function RenglonMensaje({
       <Cabeza
         nombre={nombreDe(m)}
         clienteId={m.customer_id}
-        monto={m.amount != null ? mxn(m.amount) : null}
+        monto={m.amount != null ? dinero(m.amount, m.currency) : null}
       >
         {corregir && <Marca>Lo rechazaste</Marca>}
         <DatosMensaje m={m} />
@@ -156,7 +161,7 @@ export function RenglonMensaje({
                 onClick={() => setCanalElegido(c.key)}
                 className={`rounded-md px-2 py-0.5 text-apoyo font-medium ${
                   canal === c.key
-                    ? "bg-accent-soft text-accent-ink"
+                    ? "btn-elegida"
                     : "text-ink-2 hover:bg-fill hover:text-ink"
                 }`}
               >
@@ -176,51 +181,47 @@ export function RenglonMensaje({
             <button type="button" onClick={rechazar} disabled={quieto} className="btn btn-danger">
               Sí, rechazar
             </button>
-            <button
+            <QuietButton
               type="button"
               onClick={() => setPorRechazar(false)}
               disabled={quieto}
-              className="btn btn-quiet"
             >
               Cancelar
-            </button>
+            </QuietButton>
           </div>
         </div>
       ) : (
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={aprobar} disabled={quieto} className="btn btn-primary">
+          <button type="button" onClick={aprobar} disabled={quieto} className={`btn ${principal ? "btn-primary" : "btn-secondary"}`}>
             {prueba ? "Aprobar (prueba, no se envía)" : "Aprobar y enviar"}
           </button>
           {borrador === null ? (
             <>
-              <button
+              <QuietButton
                 type="button"
                 onClick={() => setBorrador(m.message)}
                 disabled={quieto}
-                className="btn btn-quiet"
               >
                 Editar
-              </button>
+              </QuietButton>
               {!corregir && (
-                <button
+                <QuietButton
                   type="button"
                   onClick={() => setPorRechazar(true)}
                   disabled={quieto}
-                  className="btn btn-quiet"
                 >
                   Rechazar
-                </button>
+                </QuietButton>
               )}
             </>
           ) : (
-            <button
+            <QuietButton
               type="button"
               onClick={() => setBorrador(null)}
               disabled={quieto}
-              className="btn btn-quiet"
             >
               Cancelar cambios
-            </button>
+            </QuietButton>
           )}
         </div>
       )}

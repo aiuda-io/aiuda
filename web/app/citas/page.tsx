@@ -7,10 +7,12 @@ import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
 import { RecordDrawer } from "@/components/record-drawer";
 import { AgregarSheet } from "@/components/agregar-sheet";
 import { ExportButton } from "@/components/export-button";
+import { deReloj } from "@/lib/format";
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "Sin fecha";
-  const d = new Date(iso);
+  const d = deReloj(iso);
+  if (!d) return "Sin fecha";
   return d.toLocaleString("es-MX", {
     weekday: "short",
     day: "numeric",
@@ -52,12 +54,12 @@ export default function CitasPage() {
     const todayStr = now.toDateString();
     const weekEnd = now.getTime() + 7 * 864e5;
     const upcoming = (data ?? [])
-      .filter((a) => a.starts_at && new Date(a.starts_at).getTime() >= now.getTime())
-      .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime());
+      .filter((a) => a.starts_at && (deReloj(a.starts_at)?.getTime() ?? 0) >= now.getTime())
+      .sort((a, b) => (deReloj(a.starts_at)?.getTime() ?? 0) - (deReloj(b.starts_at)?.getTime() ?? 0));
     return {
       total: (data ?? []).length,
-      hoy: upcoming.filter((a) => new Date(a.starts_at!).toDateString() === todayStr).length,
-      semana: upcoming.filter((a) => new Date(a.starts_at!).getTime() <= weekEnd).length,
+      hoy: upcoming.filter((a) => deReloj(a.starts_at)?.toDateString() === todayStr).length,
+      semana: upcoming.filter((a) => (deReloj(a.starts_at)?.getTime() ?? 0) <= weekEnd).length,
       proximas: upcoming.slice(0, 5),
     };
   }, [data]);

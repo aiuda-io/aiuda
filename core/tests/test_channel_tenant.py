@@ -92,6 +92,8 @@ def test_dos_tenants_wacli_envian_por_stores_distintos(session, monkeypatch):
     a = _tenant(session, "A", "inst-a", {"integrations": {"whatsapp": {"via": "wacli"}}})
     b = _tenant(session, "B", "inst-b", {"integrations": {"whatsapp": {"via": "wacli"}}})
     commands: list[list[str]] = []
+    # Hay un wacli "instalado" (ruta que no existe: subprocess.run va interceptado).
+    monkeypatch.setattr(wacli_mod.wacli_bin, "_del_sistema", lambda: "/sin-wacli/wacli")
     monkeypatch.setattr(
         wacli_mod.subprocess, "run",
         lambda command, **kw: commands.append(command) or _Result(),

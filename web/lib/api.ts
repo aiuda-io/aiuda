@@ -25,6 +25,23 @@ export type Cartera = {
   payment_reports: number;
   by_source: Record<string, number>;
   aging: AgingLine[];
+  /** La moneda de la cifra grande: pesos si hay, si no la que más facturas tenga.
+   *  `open_total`, `open_count`, `aging` y `recovered_this_month` hablan SOLO de ella. */
+  moneda_principal: string;
+  /** El desglose por moneda. Pesos y dólares nunca se suman. */
+  por_moneda: CarteraMoneda[];
+  /** Facturas abiertas en cualquier moneda. */
+  open_count_todas: number;
+};
+
+/** Una moneda del desglose de `GET /v1/cartera` (`por_moneda`). */
+export type CarteraMoneda = {
+  moneda: string;
+  open_total: number;
+  open_count: number;
+  overdue_total: number;
+  recovered_this_month: number;
+  aging: AgingLine[];
 };
 
 export type ReminderItem = {
@@ -61,6 +78,12 @@ export type ReminderItem = {
   retirado?: string | null;
   /** Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…"). */
   pendiente?: string | null;
+  /** Cuenta en "Por aprobar": la regla vive en el server (`_recordatorio_pide_decision`). */
+  pide_decision?: boolean;
+  /** null = no va ligado a una factura. */
+  factura_abierta?: boolean | null;
+  /** Cuándo cambió de estado por última vez. */
+  updated_at?: string | null;
 };
 
 /** Procedencia de un dato: qué es + de qué fuente(s) viene, con su presencia. */
@@ -98,6 +121,8 @@ export type PromiseItem = {
   customer: string;
   customer_id: string;
   amount: number;
+  /** La moneda de la factura prometida. */
+  currency?: string;
   promised_date: string;
   note: string | null;
   days_left: number;
@@ -107,6 +132,9 @@ export type PromiseItem = {
   vencida: boolean;
   /** false = la factura ya se pagó o se canceló: la promesa ya no pide nada. */
   factura_abierta: boolean;
+  /** El dueño ya la dio por incumplida ("No cumplió"): sigue sin cumplir, pero ya no
+   *  cuenta en "Por aprobar". */
+  incumplida?: boolean;
 };
 
 export type ChatMessage = {
@@ -136,7 +164,10 @@ export type CustomerDetail = {
   meta: Record<string, string>;
   // El cliente pidió no recibir mensajes (BAJA/STOP); null = puede recibir.
   opt_out: { at: string; via: string } | null;
+  /** SOLO de `moneda`; el desglose completo va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   open_count: number;
   conversation_id: string | null;
   human_takeover: boolean;
@@ -145,13 +176,14 @@ export type CustomerDetail = {
     id: string;
     folio: string;
     amount: number;
+    currency: string;
     status: string;
     bucket: string;
     days_overdue: number;
   }[];
   reminders: { id: string; folio: string | null; status: string; channel: string; bucket: string; created_at: string }[];
   promises: { id: string; folio: string | null; promised_date: string; fulfilled: boolean }[];
-  payments: { id: string; amount: number; paid_at: string; source: string; folio: string | null; status: string }[];
+  payments: { id: string; amount: number; currency: string; paid_at: string; source: string; folio: string | null; status: string }[];
   citas: { id: string; title: string; starts_at: string | null }[];
 };
 
@@ -235,12 +267,19 @@ export type WritebackEntry = {
   done_at: string | null;
 };
 
+/** Lo que se debe en UNA moneda. Pesos y dólares nunca se suman. */
+export type SaldoMoneda = { moneda: string; open_total: number; open_count: number };
+
 export type CustomerItem = {
   id: string;
   name: string;
   phone: string | null;
+  /** Facturas abiertas en cualquier moneda. */
   open_invoices: number;
+  /** SOLO de `moneda` (pesos si debe algo en pesos). El resto va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   tags: string[];
   kind: string;
   meta: Record<string, string>;
@@ -559,7 +598,7 @@ export class ApiError extends Error {
 }
 
 /** ¿El error se arregla en Tu IA? (no hay IA conectada, o la que hay no respondió).
- *  Quien lo pinta pone la liga a /proveedor junto al mensaje. */
+ *  Quien lo pinta pone la liga a Tu IA junto al mensaje. */
 export function errorDeIA(e: unknown): boolean {
   return e instanceof ApiError && (e.code === "ia_no_conectada" || e.code === "ia_fallo");
 }
@@ -621,6 +660,28 @@ export type ExportEntidad =
 export type WorkspaceInfo = {
   business_name: string;
   role: string;
+  /** La versión de aiuda que corre en esta computadora. */
+  version?: string;
+};
+
+/** Modo de prueba. `retenidos` = lo aprobado que no ha salido: lo que se iría a
+ *  clientes reales al apagarlo. */
+export type ModoPrueba = { modo_sombra: boolean; retenidos: number };
+
+export type ModoPruebaCambio = ModoPrueba & {
+  retenidos_accion: "enviando" | "no_enviados" | null;
+};
+
+/** Lo que responde registrar un pago. */
+export type PagoRegistrado = {
+  id: string;
+  status: string;
+  paid_source: string;
+  promesas_cumplidas?: number;
+  recordatorios_retirados?: number;
+  /** La entrada de la cola que lleva el pago a su sistema de origen; null si no
+   *  regresa a ninguno. Se manda al momento: su estado real está en /v1/writeback. */
+  writeback_id?: string | null;
 };
 
 export type SearchResponse = {
@@ -659,6 +720,9 @@ export type SetupEstado = {
   ayudantes: { total: number; listo: boolean };
   extras: { wacli: boolean };
   terminado: boolean;
+  /** El negocio sigue en modo de prueba (toda instalación nueva nace así). */
+  modo_prueba?: boolean;
+  cerrado_por_el_dueno?: boolean;
 };
 
 /** Un modelo que aiuda recomienda para ESTA computadora. `cabe` es el veredicto
@@ -842,9 +906,16 @@ export type SatEstado = {
     desconocida: number;
     canceladas: number;
   };
+  /** `total` es SOLO de `moneda`; `por_moneda` trae el desglose. */
   cartera: {
-    por_empresa: { rfc: string; abiertas: number; total: number }[];
-    todo_junto: { abiertas: number; total: number };
+    por_empresa: {
+      rfc: string;
+      abiertas: number;
+      total: number;
+      moneda: string;
+      por_moneda: SaldoMoneda[];
+    }[];
+    todo_junto: { abiertas: number; total: number; moneda: string; por_moneda: SaldoMoneda[] };
   };
 };
 
@@ -1047,7 +1118,7 @@ export type RunTurno = {
   error: string | null;
 };
 
-/** Estado del proveedor de IA conectado (panel /proveedor). */
+/** Estado de la IA conectada (Ajustes > Tu IA). */
 export type ProviderState = {
   name: ProviderName;
   mode: ProviderMode;
@@ -1116,6 +1187,10 @@ export type AiuditaSpec = {
   /** Fuentes posibles para esa capacidad. Aquí el dueño define DE DÓNDE lee. */
   fuentes?: Fuente[];
   perillas: Perilla[];
+  /** Cuándo trabaja, dicho para el dueño ("Cada hora", "Cuando se lo pides"). */
+  cuando?: string;
+  /** Si lo que hace pasa por la aprobación del dueño, dicho para él. */
+  aprobacion?: string;
 };
 
 export type PerfilSpec = { slug: string; name: string; desc: string };
@@ -1193,6 +1268,8 @@ export type CuaCapacidad = {
   estrenada: boolean;
   tiene_sesion: boolean;
   sesion_guardada_en: string | null;
+  /** Lo registró el dueño, o le puso dirección o sesión a uno de fábrica. */
+  del_dueno?: boolean;
 };
 
 /** Un portal a la medida que el dueño registró por URL. */
@@ -1545,12 +1622,14 @@ export const api = {
     request<{ aviso: { mes: string; desde: string | null } | null }>("/v1/avisos/tope-ia"),
   descartarAvisoTopeIa: () =>
     request<{ aviso: null }>("/v1/avisos/tope-ia/descartar", { method: "POST" }),
-  shadowMode: () => request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra"),
-  setShadowMode: (activo: boolean) =>
-    request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra", {
+  shadowMode: () => request<ModoPrueba>("/v1/settings/modo-sombra"),
+  /** `retenidos` solo cuenta al apagar: mandar ya lo aprobado que no ha salido, o
+   *  dejarlo en "No salió" para que no se vaya solo a clientes reales. */
+  setShadowMode: (activo: boolean, retenidos?: "enviar" | "no_enviar") =>
+    request<ModoPruebaCambio>("/v1/settings/modo-sombra", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activo }),
+      body: JSON.stringify({ activo, retenidos: retenidos ?? null }),
     }),
   ventanaEnvio: () => request<{ ventana: string }>("/v1/settings/ventana-envio"),
   setVentanaEnvio: (ventana: string) =>
@@ -1812,7 +1891,8 @@ export const api = {
         ? `/v1/learning/summary?ayudante_id=${encodeURIComponent(ayudanteId)}`
         : `/v1/learning/summary`,
     ),
-  pay: (invoiceId: string) => request(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
+  pay: (invoiceId: string) =>
+    request<PagoRegistrado>(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
   remind: (invoiceId: string) =>
     request<{ id: string; status: string; message: string }>(
       `/v1/invoices/${invoiceId}/remind`,
@@ -1820,6 +1900,12 @@ export const api = {
     ),
   fulfill: (promiseId: string) =>
     request(`/v1/promises/${promiseId}/fulfill`, { method: "POST" }),
+  /** Dar una promesa vencida por incumplida: sale de Hoy; la factura sigue abierta. */
+  promesaNoCumplio: (promiseId: string) =>
+    request<{ id: string; fulfilled: boolean; incumplida: boolean }>(
+      `/v1/promises/${promiseId}/no-cumplio`,
+      { method: "POST" },
+    ),
   reconciliation: () => request<ReconcileBandeja>("/v1/reconciliation"),
   // Acepta una factura o varias (un pago puede liquidar un grupo).
   confirmReconcile: (paymentId: string, invoiceIds: string | string[]) =>
@@ -2090,9 +2176,9 @@ export const mxn = (value: number) =>
 export const BUCKET_META: Record<string, { label: string; fg: string; bg: string; bar: string }> = {
   por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-line-strong" },
   vence_pronto: { label: "Vence pronto", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },
-  vencida_reciente: { label: "Vencida 1–15 d", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
-  vencida: { label: "Vencida 16–45 d", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
-  critica: { label: "Vencida +45 d", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
+  vencida_reciente: { label: "Vencida 1 a 15 días", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
+  vencida: { label: "Vencida 16 a 45 días", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
+  critica: { label: "Vencida más de 45 días", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
   // No es antigüedad de cartera: es una respuesta de correo propuesta por el
   // ayudante que espera tu aprobación (misma pill en el Centro).
   respuesta_correo: { label: "Respuesta de correo", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },

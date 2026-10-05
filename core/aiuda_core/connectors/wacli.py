@@ -29,7 +29,7 @@ class WacliError(RuntimeError):
 # Los textos de wacli salen de su código (v0.20.0); "not authenticated" además se
 # vio en vivo. El crudo va al log, nunca a la pantalla.
 _SIN_VINCULAR = (
-    "Tu WhatsApp no está vinculado. Ve a Integraciones, abre WhatsApp y escanea el código QR."
+    "Tu WhatsApp no está vinculado. Ve a Ajustes, Conexiones, abre WhatsApp y escanea el código QR."
 )
 _SESION_CERRADA = (
     "WhatsApp cerró la sesión de esta computadora, casi siempre porque se quitó desde "
@@ -49,7 +49,7 @@ _SIN_RED = (
 _SIN_WHATSAPP = "Ese número no parece tener WhatsApp. Revisa el teléfono del cliente."
 FALLO_GENERICO = (
     "WhatsApp no pudo enviar el mensaje. Intenta de nuevo; si sigue fallando, usa "
-    "Probar conexión en Integraciones."
+    "Probar conexión en Ajustes, Conexiones."
 )
 _FALLOS: tuple[tuple[str, str], ...] = (
     ("not authenticated", _SIN_VINCULAR),
@@ -63,7 +63,7 @@ _FALLOS: tuple[tuple[str, str], ...] = (
     ("send timed out", _TARDO),
     (
         "client outdated",
-        "WhatsApp pidió una versión más nueva del conector. Ve a Integraciones y abre "
+        "WhatsApp pidió una versión más nueva del conector. Ve a Ajustes, Conexiones y abre "
         "WhatsApp para ver cómo actualizarlo.",
     ),
     ("qr code timed out", "El código QR caducó. Genera uno nuevo y escanéalo."),
@@ -115,17 +115,22 @@ class WacliClient:
         # Placeholders: {bin}, {phone}, {message}
         self.send_template = send_template or settings.wacli_send_template
         # Ruta absoluta (el PATH de la app de escritorio no trae Homebrew). Sin
-        # ninguno instalado queda el nombre pelón y el envío falla con el aviso de
-        # instalar, no con un error crudo.
-        self.bin = wacli_bin.resolver() or settings.wacli_bin
+        # ninguno instalado queda vacío y `_run` responde con el aviso de instalar
+        # SIN ejecutar nada: antes caía al nombre pelón "wacli", y el sistema
+        # ejecutaba el primero que encontrara en el PATH aunque aiuda hubiera
+        # decidido que no había ninguno que usar.
+        explicito = (settings.wacli_bin or "").strip()
+        self.bin = wacli_bin.resolver() or (explicito if explicito != "wacli" else "")
         self.timeout = timeout
         # Store propio del workspace o None = store default del host.
         self.store_dir = store_dir
 
     def _store_args(self) -> list[str]:
-        return ["--store", self.store_dir] if self.store_dir else []
+        return wacli_bin.args_store(self.store_dir)
 
     def _run(self, command: list[str]) -> subprocess.CompletedProcess:
+        if not self.bin:
+            raise WacliError(wacli_bin.SIN_INSTALAR)
         try:
             return subprocess.run(command, capture_output=True, text=True, timeout=self.timeout)
         except FileNotFoundError as exc:

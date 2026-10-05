@@ -4,45 +4,86 @@
 
 const MX = "es-MX";
 
-function parse(iso: string | null | undefined): Date | null {
+// "2 oct": día sin cero y mes corto, separados por un espacio. El navegador, según
+// su versión, arma "02-oct" o "02 oct." para es-MX; aquí se compone a mano para
+// que una fecha se lea igual en toda la consola.
+function diaMes(d: Date): string {
+  const mes = d.toLocaleDateString(MX, { month: "short" }).replace(".", "");
+  return `${d.getDate()} ${mes}`;
+}
+
+function hora(d: Date): string {
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+/** Un instante que manda el servidor, como fecha de verdad. LA única lectura de
+ *  fechas de la consola: todo lo demás de este archivo pasa por aquí.
+ *
+ *  Tres casos:
+ *   - Fecha sola ("2026-05-18") o periodo ("2026-06"): medianoche LOCAL. Leída como
+ *     UTC, en México retrocede un día y mostraría "17 may".
+ *   - Fecha con hora y SIN zona ("2026-10-05T16:11:08"): es UTC. El servidor guarda
+ *     en UTC y SQLite no conserva la zona. Leída como local queda seis horas
+ *     adelantada: "hace un momento" para algo de hace seis horas.
+ *   - Fecha con zona ("…Z", "…+00:00", "…-06:00"): se respeta tal cual.
+ *
+ *  La única hora que NO es un instante es la de una cita (la que el dueño tecleó,
+ *  hora de su reloj): esa se lee con `deReloj`. */
+export function instante(iso: string | null | undefined): Date | null {
   if (!iso) return null;
-  // Fechas SIN hora se interpretan como medianoche LOCAL, no UTC: si no,
-  // `new Date("2026-05-18")` es UTC y en huso México (-6) retrocede un dia
-  // (mostraria "17 may"). Las cadenas con hora/zona se respetan tal cual.
-  let s = iso;
-  if (/^\d{4}-\d{2}$/.test(s)) s = `${s}-01T00:00:00`; // periodo "2026-06"
-  else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s = `${s}T00:00:00`; // fecha sola
+  let s = iso.trim();
+  if (/^\d{4}-\d{2}$/.test(s)) s = `${s}-01T00:00:00`;
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s = `${s}T00:00:00`;
+  else if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && !/(Z|[+-]\d{2}:?\d{2})$/i.test(s)) {
+    s = `${s.replace(" ", "T")}Z`;
+  }
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** 18 may 2026 — fecha con año. El formato por defecto de la consola. */
+/** Una hora de reloj, sin zona a propósito: la de una cita. "A las 10" es a las 10
+ *  de quien la agendó, esté donde esté el servidor. */
+export function deReloj(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso.trim().replace(/(Z|[+-]\d{2}:?\d{2})$/i, ""));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+const parse = instante;
+
+/** ¿El instante cae en el día de hoy de quien mira? */
+export function esDeHoy(iso: string | null | undefined): boolean {
+  const d = instante(iso);
+  return d !== null && d.toDateString() === new Date().toDateString();
+}
+
+/** 18 may 2026: fecha con año. El formato por defecto de la consola. */
 export function fecha(iso: string | null | undefined): string {
   const d = parse(iso);
-  return d ? d.toLocaleDateString(MX, { day: "2-digit", month: "short", year: "numeric" }) : "·";
+  return d ? `${diaMes(d)} ${d.getFullYear()}` : "·";
 }
 
-/** 18 may — día y mes, sin año (listas densas donde el año se sobreentiende). */
+/** 18 may: día y mes, sin año (listas densas donde el año se sobreentiende). */
 export function fechaDM(iso: string | null | undefined): string {
   const d = parse(iso);
-  return d ? d.toLocaleDateString(MX, { day: "2-digit", month: "short" }) : "·";
+  return d ? diaMes(d) : "·";
 }
 
-/** 18 may, 14:30 — fecha y hora (mensajes, actividad). */
+/** 18 may, 14:30: fecha y hora (mensajes, actividad), en la zona de quien mira. */
 export function fechaHora(iso: string | null | undefined): string {
   const d = parse(iso);
-  return d
-    ? d.toLocaleString(MX, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-    : "·";
+  return d ? `${diaMes(d)}, ${hora(d)}` : "·";
 }
 
-/** junio 2026 — mes y año (periodos como "Plan y uso"). Sin arg = mes actual. */
+/** junio 2026: mes y año (periodos como "Plan y uso"). Sin arg = mes actual. */
 export function periodo(iso?: string | null): string {
   const d = iso === undefined ? new Date() : parse(iso);
   return d ? d.toLocaleDateString(MX, { month: "long", year: "numeric" }) : "·";
 }
 
-/** 14,851 — número con separador de miles. */
+/** 14,851: número con separador de miles. */
 export function num(value: number): string {
   return Number(value).toLocaleString(MX);
 }
@@ -89,7 +130,15 @@ export function unidad(u: string | null | undefined): string {
   return UOM_ES[key] ?? u.trim();
 }
 
-/** hace 4 min · hace 1 h · hace 2 d — tiempo relativo corto (bandejas). */
+/** "Hoy, 10:11" si fue hoy; si no, "05 oct, 10:11". Para bitácoras. */
+export function hoyOFecha(iso: string | null | undefined): string {
+  const d = instante(iso);
+  if (!d) return "";
+  if (d.toDateString() !== new Date().toDateString()) return fechaHora(iso);
+  return `Hoy, ${hora(d)}`;
+}
+
+/** hace 4 min, hace 1 h, hace 2 d: tiempo relativo corto (bandejas). */
 export function haceTiempo(iso: string | null | undefined): string {
   const d = parse(iso);
   // Timestamps basura (datetime.min del backend, epoch 0 de contactos de sistema

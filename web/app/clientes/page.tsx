@@ -2,8 +2,10 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { api, mxn, type CustomerItem, type Tag } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { api, type CustomerItem, type Tag } from "@/lib/api";
+import { Saldo } from "@/components/cartera-partes";
+import { dinero, nombreMoneda, totalesPorMoneda } from "@/lib/cartera";
 import { telefonoMx } from "@/lib/format";
 import {
   EmptyState,
@@ -15,6 +17,7 @@ import {
   SecondaryButton,
   Skeleton,
   Tabs,
+  useQueryTab,
   useApi,
 } from "@/components/ui";
 import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
@@ -23,7 +26,8 @@ import { AgregarSheet } from "@/components/agregar-sheet";
 import { Drawer } from "@/components/drawer";
 import { ExportButton } from "@/components/export-button";
 
-type Ver = "todos" | "clientes" | "prospectos";
+const VER = ["todos", "clientes", "prospectos"] as const;
+type Ver = (typeof VER)[number];
 
 export default function ClientesPage() {
   // useSearchParams (?ver=prospectos) exige un boundary de Suspense en el export estático.
@@ -42,10 +46,8 @@ function Clientes() {
   const lista = useMemo(() => todos ?? [], [todos]);
   const clientes = useMemo(() => lista.filter((c) => c.kind !== "prospecto"), [lista]);
   const prospectos = useMemo(() => lista.filter((c) => c.kind === "prospecto"), [lista]);
-  const [elegido, setElegido] = useState<Ver | null>(
-    useSearchParams().get("ver") === "prospectos" ? "prospectos" : null,
-  );
-  const ver: Ver = prospectos.length === 0 ? "todos" : (elegido ?? "todos");
+  const [pedido, hrefFor] = useQueryTab<Ver>("ver", VER);
+  const ver: Ver = prospectos.length === 0 ? "todos" : pedido;
   const [query, setQuery] = useState("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
@@ -69,24 +71,33 @@ function Clientes() {
     );
   }, [lista, clientes, prospectos, ver, query, filterTag]);
 
-  // Resumen de cartera, derivado de los mismos clientes (riel de contexto).
-  const resumen = useMemo(
-    () => ({
-      cartera: clientes.reduce((a, c) => a + c.open_total, 0),
-      conSaldo: clientes.filter((c) => c.open_total > 0).length,
+  // Resumen de cartera, derivado de los mismos clientes (riel de contexto). Cada
+  // moneda por su lado: lo que un cliente debe en dólares no se suma a los pesos.
+  const resumen = useMemo(() => {
+    const saldos = clientes.flatMap((c) => c.por_moneda ?? []);
+    const totales = totalesPorMoneda(
+      saldos,
+      (s) => s.open_total,
+      (s) => s.moneda,
+    );
+    return {
+      totales,
+      // La moneda en la que se ordena "Mayor saldo": la principal del negocio.
+      moneda: totales[0]?.moneda ?? "MXN",
+      conSaldo: clientes.filter((c) => c.open_invoices > 0).length,
       sinTel: clientes.filter((c) => !c.phone).length,
-    }),
-    [clientes],
-  );
+    };
+  }, [clientes]);
 
-  const mayorSaldo = useMemo(
-    () =>
-      clientes
-        .filter((c) => c.open_total > 0)
-        .sort((a, b) => b.open_total - a.open_total)
-        .slice(0, 6),
-    [clientes],
-  );
+  const mayorSaldo = useMemo(() => {
+    const debe = (c: CustomerItem) =>
+      (c.por_moneda ?? []).find((s) => s.moneda === resumen.moneda)?.open_total ?? 0;
+    return clientes
+      .filter((c) => debe(c) > 0)
+      .sort((a, b) => debe(b) - debe(a))
+      .slice(0, 6)
+      .map((c) => ({ ...c, debe: debe(c) }));
+  }, [clientes, resumen.moneda]);
 
   if (error) return <ErrorState message={error} retry={refetch} />;
 
@@ -145,7 +156,16 @@ function Clientes() {
           rail={
             <>
               <RailSection label="Cartera">
-                <RailStat label="Por cobrar" value={mxn(resumen.cartera)} strong />
+                {/* Una cifra por moneda, cada una en su renglón: juntas no caben. */}
+                {resumen.totales.length === 0 && <RailStat label="Por cobrar" value={dinero(0)} strong />}
+                {resumen.totales.map((t, i) => (
+                  <RailStat
+                    key={t.moneda}
+                    label={i === 0 ? "Por cobrar" : `En ${nombreMoneda(t.moneda)}`}
+                    value={dinero(t.total, t.moneda)}
+                    strong={i === 0}
+                  />
+                ))}
                 <RailStat label="Clientes con saldo" value={String(resumen.conSaldo)} />
                 <RailStat
                   label="Sin WhatsApp"
@@ -164,7 +184,9 @@ function Clientes() {
                       >
                         {c.name}
                       </Link>
-                      <span className="tnum shrink-0 text-cuerpo font-medium text-ink">{mxn(c.open_total)}</span>
+                      <span className="tnum shrink-0 text-cuerpo font-medium text-ink">
+                        {dinero(c.debe, resumen.moneda)}
+                      </span>
                     </RailRow>
                   ))}
                 </RailSection>
@@ -180,7 +202,8 @@ function Clientes() {
                 { key: "prospectos", label: "Prospectos", count: prospectos.length },
               ]}
               active={ver}
-              onChange={(k) => setElegido(k as Ver)}
+              hrefFor={hrefFor}
+              label="Qué ver"
             />
           )}
           <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -247,7 +270,11 @@ function Clientes() {
                         {prospecto ? <span className="text-ink-3">·</span> : c.open_invoices}
                       </td>
                       <td className="tnum whitespace-nowrap px-4 py-3.5 text-right text-cuerpo font-semibold text-ink">
-                        {c.open_total > 0 ? mxn(c.open_total) : <span className="font-normal text-ink-3">·</span>}
+                        {c.open_invoices > 0 ? (
+                          <Saldo por={c.por_moneda} />
+                        ) : (
+                          <span className="font-normal text-ink-3">·</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -268,8 +295,10 @@ function Clientes() {
                       {c.phone ? telefonoMx(c.phone) : "Sin teléfono"}
                     </p>
                   </div>
-                  {c.open_total > 0 && (
-                    <span className="tnum shrink-0 text-cuerpo font-semibold text-ink">{mxn(c.open_total)}</span>
+                  {c.open_invoices > 0 && (
+                    <span className="tnum shrink-0 text-right text-cuerpo font-semibold text-ink">
+                      <Saldo por={c.por_moneda} />
+                    </span>
                   )}
                 </Link>
               </li>

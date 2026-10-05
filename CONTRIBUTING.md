@@ -24,7 +24,7 @@ Extras opcionales: `uv sync --extra cua` más
 `.venv/bin/playwright install chromium` para el CUA. Para la app de escritorio
 necesitas además node y Rust: `scripts/build-app.sh`.
 
-La IA se conecta desde la consola (/proveedor): API key, el Claude Code o Codex
+La IA se conecta desde la consola (Ajustes, Tu IA): API key, el Claude Code o Codex
 que ya tengas instalado, o un modelo local con Ollama. Los tests no necesitan ninguna (el LLM va mockeado).
 
 ## Antes de abrir un PR

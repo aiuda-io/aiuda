@@ -139,7 +139,7 @@ aiuda solo corre sobre SQLite. `DATABASE_URL` sirve para apuntar a otro archivo
 ## Aparatos en la red local
 
 El teléfono no pasa por ningún servidor: le habla directo a la computadora del
-negocio. Al prender la red en **Tus aparatos** se abre una segunda puerta
+negocio. Al prender la red en **Ajustes, Teléfono y equipo** se abre una segunda puerta
 (`server/aiuda_server/red_local.py`, puerto 4748) con HTTPS y un certificado que
 la máquina se firma sola. La huella de ese certificado viaja en el QR del
 emparejamiento y el teléfono acepta esa huella y ninguna otra. Esa puerta

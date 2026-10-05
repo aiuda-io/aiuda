@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { telefonoMx } from "@/lib/format";
 import { useAyudantes } from "@/lib/ayudantes-store";
 import { type Destino, dentroDe, destinos, oficiosDe } from "@/lib/sections";
 
@@ -69,23 +70,6 @@ function irA(q: string, lista: Destino[]): SearchGroup | null {
   };
 }
 
-// El servidor todavía nombra dos grupos y dos rutas como antes de la fusión. Se
-// traducen aquí para que el buscador hable igual que el menú y no pase por una
-// redirección; cuando `server/aiuda_server/api/search.py` se ponga al día, sobra.
-const TITULO: Record<string, string> = {
-  Conversaciones: "Mensajes",
-  "Promesas de pago": "Promesas",
-};
-const RUTA: Record<string, string> = {
-  "/promesas": "/facturas?vista=promesas",
-  "/integraciones": "/configuracion?seccion=conexiones",
-};
-function alDia(groups: SearchGroup[]): SearchGroup[] {
-  return groups.map((g) => ({
-    title: TITULO[g.title] ?? g.title,
-    items: g.items.map((it) => ({ ...it, href: RUTA[it.href] ?? it.href })),
-  }));
-}
 
 // ── Componente ────────────────────────────────────────────────────────────────
 
@@ -182,7 +166,8 @@ export function CommandPalette() {
         // Llegó tarde: hay una búsqueda más nueva en curso, descarta esta respuesta.
         if (runId !== runIdRef.current) return;
         // Los destinos van primero: quien escribe "pagos" quiere la pantalla.
-        setGroups([...local(), ...alDia(data.groups)]);
+        // Los títulos y las rutas ya vienen del servidor con los nombres de la consola.
+        setGroups([...local(), ...data.groups]);
         setSelectedIdx(0);
       } finally {
         if (runId === runIdRef.current) setLoading(false);
@@ -354,7 +339,8 @@ export function CommandPalette() {
                           <span
                             className="tnum shrink-0 text-apoyo text-ink-3"
                           >
-                            {item.sublabel}
+                            {/* Un teléfono llega crudo del servidor: se agrupa para leerlo. */}
+                            {/^\+?\d{10,13}$/.test(item.sublabel) ? telefonoMx(item.sublabel) : item.sublabel}
                           </span>
                         )}
                       </button>

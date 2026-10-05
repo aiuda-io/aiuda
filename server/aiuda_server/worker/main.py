@@ -322,16 +322,20 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
         if reminder.invoice_id:
             invoice = session.get(Invoice, reminder.invoice_id)
             customer = session.get(Customer, invoice.customer_id) if invoice else None
-            if invoice is not None and invoice.status == "cancelled":
-                # Última puerta: una factura cancelada (en el SAT, por nota de
-                # crédito o por ser entre tus empresas) ya no se cobra, aunque el
-                # recordatorio se hubiera aprobado antes.
-                from aiuda_core.engine.sync import retirar_recordatorios
+            if invoice is not None and invoice.status != "open":
+                # Última puerta: una factura que ya no está abierta no se cobra,
+                # aunque el recordatorio se hubiera aprobado antes. Cancelada (en
+                # el SAT, por nota de crédito o por ser entre tus empresas) o
+                # PAGADA: un aprobado que esperaba canal, o uno que falló, salía
+                # al conectar el canal aunque el cliente ya hubiera pagado.
+                from aiuda_core.engine.sync import YA_SE_PAGO, retirar_recordatorios
 
-                retirar_recordatorios(
-                    session, invoice,
-                    f"La factura ya no se cobra: {(invoice.meta or {}).get('cerrada_por') or 'cancelada'}.",
-                )
+                if invoice.status == "paid":
+                    motivo = YA_SE_PAGO
+                else:
+                    cerrada_por = (invoice.meta or {}).get("cerrada_por") or "cancelada"
+                    motivo = f"La factura ya no se cobra: {cerrada_por}."
+                retirar_recordatorios(session, invoice, motivo)
                 return
         field = CHANNELS.get(channel, {}).get("recipient_field", "phone")
         if field == "email":
@@ -449,7 +453,7 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
 ENVIOS_FALLIDOS_KEY = "envios_fallidos"
 _MAX_ENVIOS_FALLIDOS = 200
 
-SIN_CANAL = "WhatsApp no está conectado. Ve a Integraciones, abre WhatsApp y conéctalo."
+SIN_CANAL = "WhatsApp no está conectado. Ve a Ajustes, Conexiones, abre WhatsApp y conéctalo."
 ADJUNTO_PERDIDO = "El envío del archivo se interrumpió. Vuelve a adjuntarlo."
 
 

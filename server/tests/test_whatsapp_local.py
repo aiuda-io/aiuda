@@ -427,6 +427,33 @@ def _candado_tomado(store) -> bool:
     return json.loads(out.stdout)["data"]["lock_held"]
 
 
+def test_abrir_el_panel_con_una_base_desechable_no_toca_el_store_por_defecto(
+    falso, client, tenant, tmp_path, monkeypatch
+):
+    """El incidente del candado: aiuda sobre una base desechable y SIN
+    ``WACLI_STORE_ROOT``. Pedir el estado de WhatsApp (lo hace el panel de
+    Conexiones y el último paso del asistente) preguntaba por el store por defecto
+    de wacli, el del dueño, y le dejaba un sync encima.
+
+    Ahora todo lo que se lanza lleva ``--store`` junto a la base. El wacli falso
+    lo comprueba por su lado: sin ``--store`` no hace nada y sale con error."""
+    monkeypatch.setattr(settings, "wacli_store_root", "")  # modo de un solo número
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{tmp_path}/prueba.db")
+    junto_a_la_base = tmp_path / "wacli"
+    junto_a_la_base.mkdir()
+    _vinculado(junto_a_la_base)
+
+    r = client.get("/v1/integrations/whatsapp/status").json()
+
+    # Encontró la sesión que vive junto a la base (no una "del host")...
+    assert r["connected"] is True and r["telefono"] == "5215511112222"
+    # ...y el sync que dejó corriendo está sobre ese mismo store.
+    assert _esperar(lambda: (junto_a_la_base / "sync_argv.json").exists())
+    argv = json.loads((junto_a_la_base / "sync_argv.json").read_text())
+    assert argv[argv.index("--store") + 1] == str(junto_a_la_base.resolve())
+    assert _candado_tomado(junto_a_la_base)
+
+
 def test_sin_sesion_no_se_lanza_nada(falso):
     assert wacli_sync.arrancar("inst-a", str(falso)) == "sin_vincular"
     assert _arranques(falso) == []

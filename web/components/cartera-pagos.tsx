@@ -22,6 +22,7 @@ import {
   EmptyState,
   ErrorState,
   PrimaryButton,
+  QuietButton,
   SecondaryButton,
   Skeleton,
   inputCls,
@@ -207,9 +208,9 @@ export function CarteraPagos({ onChanged }: { onChanged?: () => void }) {
         <span className="flex flex-wrap items-center gap-2 md:ml-auto">
           {/* Se exporta lo resuelto: lo pendiente todavía no es un hecho. */}
           {vista === "resueltos" && <ExportButton entidad="conciliacion" />}
-          <button onClick={() => setRegistrar(true)} className="btn btn-quiet">
+          <QuietButton onClick={() => setRegistrar(true)}>
             Registrar un pago
-          </button>
+          </QuietButton>
           {!vacioPendientes && (
             <SecondaryButton onClick={() => setSubirEstado(true)}>Subir estado de cuenta</SecondaryButton>
           )}
@@ -218,8 +219,8 @@ export function CarteraPagos({ onChanged }: { onChanged?: () => void }) {
 
       {cargando ? (
         <div className="space-y-4">
-          <Skeleton className="h-40 w-full rounded-[14px]" />
-          <Skeleton className="h-40 w-full rounded-[14px]" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
         </div>
       ) : (
         data && (
@@ -296,15 +297,15 @@ function ListaPendientes({
   onReject: (item: { id: string }) => void;
 }) {
   return (
-    <ul className="reveal-stagger space-y-4">
-      {items.map((item) => {
+    <ul>
+      {items.map((item, i) => {
         const opts = opcionesDe(item);
         const selKey = choice[item.id] ?? defaultKey(item);
         const sel = opts.find((o) => o.key === selKey) ?? null;
         const diff = sel ? item.amount - sel.monto : 0;
         const elegir = opts.length > (item.ambiguo ? 0 : 1);
         return (
-          <li key={item.id} className="rounded-[14px] bg-panel p-5">
+          <li key={item.id} className="border-t border-line py-7 first:border-t-0 first:pt-1">
             <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
               <div className="min-w-0">
                 <p className="eyebrow">Entró</p>
@@ -391,16 +392,18 @@ function ListaPendientes({
                   </p>
                 )}
               </div>
-              <button onClick={() => onReject(item)} disabled={busy !== null} className="btn btn-quiet">
-                Rechazar
-              </button>
-              <SecondaryButton
+              <QuietButton onClick={() => onReject(item)} disabled={busy !== null}>
+                Descartar
+              </QuietButton>
+              {/* Un solo botón relleno en la pantalla: el del primer pago. */}
+              <button
+                type="button"
                 onClick={() => sel && onConfirm(item, sel)}
                 disabled={busy !== null || !sel}
-                className="bg-fill-strong"
+                className={`btn ${i === 0 ? "btn-primary" : "btn-secondary"}`}
               >
                 {busy === item.id ? "Confirmando…" : sel?.parcial ? "Aplicar pago parcial" : "Confirmar pago"}
-              </SecondaryButton>
+              </button>
             </div>
           </li>
         );
@@ -429,9 +432,9 @@ function ListaDichos({
     );
   }
   return (
-    <ul className="reveal-stagger space-y-4">
+    <ul>
       {dichos.map((d) => (
-        <li key={d.invoice_id} className="rounded-[14px] bg-panel p-5">
+        <li key={d.invoice_id} className="border-t border-line py-7 first:border-t-0 first:pt-1">
           <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
             <div className="min-w-0">
               <p className="text-seccion font-semibold text-ink">
@@ -461,7 +464,7 @@ function ListaDichos({
               <SecondaryButton
                 onClick={() => onConfirmar(d)}
                 disabled={busy !== null}
-                className="shrink-0 bg-fill-strong"
+                className="shrink-0"
               >
                 {busy === d.invoice_id ? "Confirmando…" : "Confirmar pago"}
               </SecondaryButton>
@@ -597,7 +600,7 @@ function RegistrarPagoSheet({
       open={open}
       onClose={onClose}
       title="Registrar un pago"
-      subtitle="Un depósito que no llegó por tu banco conectado: efectivo o transferencia"
+      subtitle="Un depósito que no viene en tu estado de cuenta: efectivo o una transferencia"
     >
       <div className="space-y-4">
         <p className="text-cuerpo text-ink-2">

@@ -17,7 +17,6 @@ import {
 } from "@/components/ui";
 import { SettingsField, SettingsPage, SettingsSection } from "@/components/settings";
 import { toast } from "@/components/toast";
-import { RegresoACartera } from "@/components/cartera-partes";
 import { dinero, leerFallo, plural, RUTA } from "@/lib/cartera";
 
 const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
@@ -192,7 +191,6 @@ export default function SatPage() {
 
   return (
     <SettingsPage>
-      <RegresoACartera />
       <PageHeader
         title="Traer del SAT"
         subtitle="Tus facturas (CFDI) tal como las tiene el SAT, guardadas en esta computadora. Las que te deben entran solas a tu cartera."
@@ -227,7 +225,7 @@ export default function SatPage() {
       >
         <div className="space-y-4">
           {empresas.map((empresa) => (
-            <article key={empresa.rfc} className="rounded-[14px] bg-panel p-5">
+            <article key={empresa.rfc} className="rounded-2xl bg-panel p-5">
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
                 <div className="min-w-0">
                   <p className="tnum text-seccion font-semibold text-ink">{empresa.rfc}</p>

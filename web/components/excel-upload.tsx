@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { api, type ImportAnalysis, type ImportResult } from "@/lib/api";
-import { PrimaryButton, SecondaryButton, inputCls } from "@/components/ui";
+import { PrimaryButton, SecondaryButton, inputCls, QuietButton } from "@/components/ui";
 import { FalloAccion } from "@/components/cartera-partes";
 import { leerFallo, plural, type Fallo } from "@/lib/cartera";
 
@@ -240,9 +240,9 @@ export function ExcelUpload({
               {busy ? "Cargando…" : `Cargar ${plural(analysis.row_count, "fila", "filas")}`}
             </PrimaryButton>
           )}
-          <button onClick={reset} disabled={busy} className="btn btn-quiet">
+          <QuietButton onClick={reset} disabled={busy}>
             Cancelar
-          </button>
+          </QuietButton>
         </div>
         {fallo && (
           <div className="mt-3">

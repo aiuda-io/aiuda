@@ -25,7 +25,7 @@ corre `aiuda start`, que abre el navegador con la llave del momento).
 
 **El ayudante no redacta nada.**
 Puede ser que no haya IA conectada (lo ves en **Tu IA**), que el tope mensual de
-gasto de IA ya se haya agotado (el Centro de mando lo avisa arriba, y queda en la
+gasto de IA ya se haya agotado (Hoy lo avisa arriba, y queda en la
 bitácora), o que el modelo local elegido no sepa consultar tus datos. Ver
 [IA.md](IA.md).
 
@@ -49,7 +49,7 @@ procedencia, así que en la ficha se ve de dónde vino y cuándo.
 
 **WhatsApp no envía.**
 El mensaje que no salió dice por qué, junto a "No se envió" en la conversación o
-en el Centro. Para ver cómo está la sesión, entra a Ajustes, a Conexiones, y abre WhatsApp
+en Hoy, en "No salió". Para ver cómo está la sesión, entra a Ajustes, a Conexiones, y abre WhatsApp
 y usa "Probar conexión". Lo más común:
 
 - **No está vinculado, o WhatsApp cerró la sesión.** Pasa si quitaste esta
@@ -125,7 +125,7 @@ aiuda doctor (0.1.0)
   [ok] Carpeta de datos: /Users/tu/.aiuda
   [ok] Base de datos: /Users/tu/.aiuda/aiuda.db
   [ok] Llave de cifrado: /Users/tu/.aiuda/key
-  [--] Proveedor de IA: sin conectar, hazlo en la consola (/proveedor)
+  [--] Tu IA: sin conectar, hazlo en la consola (Ajustes > Tu IA)
   [ok] Claude Code / Codex instalados: claude, conéctalos con un clic en la consola
   [ok] Ollama (IA local): respondiendo (200)
   [ok] Consola: .../aiuda_server/static
@@ -135,7 +135,7 @@ aiuda doctor (0.1.0)
 
 `[--]` no siempre es un problema: los CLIs, Ollama, el CUA y wacli son
 opcionales (wacli se instala con un clic desde Ajustes, en Conexiones, al abrir WhatsApp). Lo que sí importa es que la carpeta de datos, la base y la llave
-digan `[ok]`, y que haya un proveedor de IA si esperas que el ayudante redacte.
+digan `[ok]`, y que Tu IA esté conectada si esperas que el ayudante redacte.
 
 ## Si nada de eso aplica
 

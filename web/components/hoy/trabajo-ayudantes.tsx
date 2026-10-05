@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type RunDetalle, type RunItem, type RunTurno } from "@/lib/api";
 import { EmptyState, ErrorState, Skeleton, useApi } from "@/components/ui";
 import { Marca } from "@/components/hoy/piezas";
-import { instante } from "@/components/hoy/tipos";
+import { hoyOFecha } from "@/lib/format";
 
 /* Qué hizo cada ayudante cada vez que trabajó.
  *
@@ -27,13 +27,7 @@ const POR_QUE: Record<string, string> = {
   corrida: "Revisión del día",
 };
 
-function cuando(iso: string | null): string {
-  const d = instante(iso);
-  if (!d) return "";
-  const hora = d.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" });
-  if (d.toDateString() === new Date().toDateString()) return `hoy ${hora}`;
-  return `${d.toLocaleDateString("es-MX", { day: "numeric", month: "short" })} ${hora}`;
-}
+const cuando = hoyOFecha;
 
 function duracion(ms: number | null): string {
   if (!ms) return "";
@@ -209,7 +203,7 @@ function Detalle({ runId }: { runId: string }) {
 
 function Turno({ t }: { t: RunTurno }) {
   return (
-    <div className="rounded-[14px] bg-panel px-4 py-3">
+    <div className="rounded-2xl bg-panel px-4 py-3">
       <p className="text-apoyo text-ink-3">
         {[t.task, t.model, `${t.latencia_ms} ms`].filter(Boolean).join(" · ")}
       </p>

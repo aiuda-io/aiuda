@@ -4,9 +4,8 @@
 // Ayudantes. Va primero lo que sí funciona y ya se usó de verdad (los dos documentos
 // del SAT); lo que nadie ha usado todavía va junto, cerrado y con su sello. Las piezas
 // viven en components/portales/.
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ErrorState, PageHeader, Skeleton } from "@/components/ui";
+import { ErrorState, PageHeader, Skeleton } from "@/components/ui";
 import {
   api,
   type CuaDeterministas,
@@ -79,9 +78,6 @@ export default function PortalesPage() {
 
   return (
     <div className="min-w-0">
-      <Link href="/ayudantes" className="mb-5 inline-flex items-center gap-1.5 text-apoyo text-ink-3 hover:text-ink">
-        <ChevronLeft /> Ayudantes
-      </Link>
       <PageHeader title="Portales" subtitle="aiuda entra a un sitio web por ti y te trae lo que necesitas." />
 
       {error ? (
@@ -94,7 +90,7 @@ export default function PortalesPage() {
       ) : (
         <div className="reveal max-w-3xl space-y-12">
           {!disponible && (
-            <div className="rounded-xl bg-warn-soft px-5 py-4">
+            <div className="rounded-xl bg-panel px-5 py-4">
               <p className="text-seccion font-semibold text-ink">No disponible en esta instalación</p>
               <p className="mt-1 text-cuerpo text-ink-2">{sat.navegador_detalle}</p>
             </div>

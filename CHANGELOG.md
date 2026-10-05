@@ -39,12 +39,16 @@ código hoy.
   e.firma.
 - SAT: aiuda revisa una vez al día qué facturas tuyas se cancelaron en el SAT,
   las saca de la cartera y retira sus recordatorios pendientes.
-- Rutinas sin IA para el SAT: bajar la opinión de cumplimiento (32-D) y la
+- Portales sin IA para el SAT: bajar la opinión de cumplimiento (32-D) y la
   constancia de situación fiscal en PDF con la e.firma guardada, con tu permiso
   una vez por RFC. Estrenadas contra el SAT real el 5 de octubre de 2026 (una
   opinión Positiva y una constancia, con una e.firma). La app de escritorio
   todavía no trae el navegador que usan.
-- Aviso en el Centro de mando cuando la IA se pausa por el tope de gasto del mes.
+- Aviso en Hoy cuando la IA se pausa por el tope de gasto del mes.
+- Una promesa de pago vencida se puede dar por incumplida ("No cumplió") sin
+  registrar un pago: sale de Hoy y la factura se sigue cobrando.
+- Al registrar o conciliar un pago, aiuda lo manda a su sistema de origen en ese
+  momento y dice si llegó; antes esperaba a la revisión de cada hora.
 - App de iPhone (repo aparte): se empareja por QR en la red de la oficina. Aún no
   está en la App Store.
 
@@ -52,8 +56,8 @@ código hoy.
 - App de escritorio Tauri con el servidor y la consola estática embebidos.
 - Ayudantes configurables con propuestas, aprobación humana y bitácora.
 - Cobranza, conversaciones, conciliación bancaria y write-back con procedencia.
-- Proveedor de IA propio: Claude, OpenAI/Codex u OpenAI-compatible local.
-- Integraciones cifradas, conectores a la medida y catálogo por capacidades.
+- Tu IA propia: Claude, OpenAI/Codex u OpenAI-compatible local.
+- Conexiones cifradas, conectores a la medida y catálogo por capacidades.
 - Acceso opcional de aparatos en la red local, con permisos y topes.
 - Bóveda SAT para hasta tres RFCs: XML/ZIP, e.firma cifrada, Descarga Masiva,
   PPD/PUE, pagos, egresos, deduplicación e intercompañía.
@@ -64,8 +68,26 @@ código hoy.
 
 - Consola legible para quien no es técnico: escala tipográfica semántica de siete
   niveles con el cuerpo en 15px como piso, en lugar de 1012 tamaños clavados en
-  píxeles (el más chico, de 9px). Integraciones deja de plegar sus diez
-  necesidades: las opciones se ven sin dar un clic.
+  píxeles (el más chico, de 9px).
+- La consola se reorganizó en seis destinos: Hoy (el inicio y la pantalla de
+  trabajo, antes Centro de mando, Aprobaciones y Resumen), Cartera (Facturas,
+  Promesas y Pagos en una sola pantalla), Mensajes (antes Conversaciones),
+  Clientes, Ayudantes (con Portales, antes Rutinas) y Ajustes (Negocio,
+  Conexiones, Tu IA, Teléfono y equipo). Las direcciones viejas siguen llegando.
+- Dirección visual "Atelier claro": jerarquía por tamaño y peso, rayas finas en
+  vez de fichas grises, un solo botón relleno por pantalla.
+- Pesos y dólares ya no se suman en ninguna cifra: cartera, clientes y SAT dicen
+  cada moneda por separado.
+- Toda instalación nueva nace en modo de prueba. Apagarlo pregunta qué hacer con
+  lo ya aprobado, desde Ajustes y desde la franja.
+
+### Corregido
+
+- Las horas de la consola salían seis horas adelantadas (el servidor manda UTC).
+- Un recordatorio aprobado de una factura que después se pagó ya no puede salir.
+- Con una base de pruebas (`AIUDA_DATABASE_URL`) y el HOME real, aiuda podía
+  tomar la sesión de WhatsApp del dueño en `~/.wacli`. Una base que no es la del
+  dueño ya nunca usa ese store.
 
 ### Seguridad
 

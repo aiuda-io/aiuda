@@ -203,7 +203,7 @@ def cmd_daily(_args: argparse.Namespace) -> int:
     from aiuda_server.worker.main import run_daily_blocking
 
     create_all()
-    print("Corrida de cobranza: sincroniza fuentes, redacta y deja todo en Aprobaciones…")
+    print("Revisión de cobranza: lee tus fuentes, redacta y deja todo en Hoy, por aprobar…")
     report = run_daily_blocking()
     print(f"Listo: {report}" if report else "Listo.")
     return 0
@@ -252,13 +252,13 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         cred = credential_from_store(db, tenant.id) or credential_from_config(tenant.config or {})
     if cred is not None and not esta_conectada(cred):
         # Mientras esa fila exista no se cae a la llave del entorno: se dice tal cual.
-        _check("Proveedor de IA", False, "la sesión de ChatGPT venció, vuelve a entrar en la consola (/proveedor)")
+        _check("Tu IA", False, "la sesión de ChatGPT venció, vuelve a entrar en la consola (Ajustes > Tu IA)")
     elif cred is not None:
-        _check("Proveedor de IA", True, f"{cred.name} ({cred.mode}) conectado en la consola")
+        _check("Tu IA", True, f"{cred.name} ({cred.mode}) conectado en la consola")
     elif settings.anthropic_api_key:
-        _check("Proveedor de IA", True, "ANTHROPIC_API_KEY del entorno")
+        _check("Tu IA", True, "ANTHROPIC_API_KEY del entorno")
     else:
-        _check("Proveedor de IA", False, "sin conectar, hazlo en la consola (/proveedor)")
+        _check("Tu IA", False, "sin conectar, hazlo en la consola (Ajustes > Tu IA)")
 
     # El CLI ya instalado: la vía de un clic desde la consola.
     from aiuda_core.engine.cli_runner import detectar
@@ -307,7 +307,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     _check(
         "wacli (WhatsApp local)",
         wacli is not None,
-        wacli or "sin instalar (opcional; se instala desde Integraciones > WhatsApp)",
+        wacli or "sin instalar (opcional; se instala desde Ajustes > Conexiones > WhatsApp)",
     )
     return 0
 

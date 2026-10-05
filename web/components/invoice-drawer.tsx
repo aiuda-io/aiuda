@@ -88,7 +88,7 @@ export function InvoiceDrawer({
             <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">
               <path d="M2 7v3h3M10 5V2H7M10 2 6.5 5.5M2 10l3.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Abrir vista completa
+            Abrir la factura completa
           </Link>
           <InvoiceDetailContent data={data} onChanged={refresh} />
         </div>

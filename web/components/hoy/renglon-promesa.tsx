@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, errorDeIA, mxn, type PromiseItem } from "@/lib/api";
+import { api, errorDeIA, type PromiseItem } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { fechaDM } from "@/lib/format";
 import { ConfirmarPago } from "@/components/confirmar-pago";
 import { Cabeza, Fila, Marca } from "@/components/hoy/piezas";
+import { QuietButton, useConfirm } from "@/components/ui";
 import { idPromesa, type Ejecutar } from "@/components/hoy/tipos";
 
 /** Una promesa de pago que ya venció con la factura todavía abierta: el cliente
@@ -15,18 +17,40 @@ export function RenglonPromesa({
   ocupado,
   saliendo,
   ejecutar,
+  principal,
 }: {
   p: PromiseItem;
   ocupado: boolean;
   saliendo: boolean;
   ejecutar: Ejecutar;
+  /** El renglón que lleva el ÚNICO botón relleno de la pantalla (el primero de la
+   *  lista). En los demás, la misma acción va con contorno. */
+  principal?: boolean;
 }) {
   const id = idPromesa(p);
   // La factura cuyo pago se está por registrar: abre la confirmación con monto.
   const [pagoDe, setPagoDe] = useState<string | null>(null);
   const [faltaIA, setFaltaIA] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const quieto = ocupado || saliendo;
   const dias = -p.days_left;
+
+  // La salida honesta cuando no hubo pago: la promesa se da por incumplida y deja de
+  // pedir una decisión. No se marca cumplida ni se toca la factura.
+  async function noCumplio() {
+    const ok = await confirm({
+      title: "Dar la promesa por incumplida",
+      message: `${p.customer} quedó de pagar el ${fechaDM(p.promised_date)} y no pagó. La promesa sale de Hoy. La factura ${p.folio} sigue abierta y se sigue cobrando.`,
+      confirmLabel: "No cumplió",
+      borra: false,
+    });
+    if (!ok) return;
+    await ejecutar(
+      () => api.promesaNoCumplio(p.id),
+      "Promesa dada por incumplida. La factura sigue abierta.",
+      id,
+    );
+  }
 
   async function recordar() {
     setFaltaIA(false);
@@ -44,7 +68,7 @@ export function RenglonPromesa({
 
   return (
     <Fila id={id} saliendo={saliendo}>
-      <Cabeza nombre={p.customer} clienteId={p.customer_id} monto={mxn(p.amount)}>
+      <Cabeza nombre={p.customer} clienteId={p.customer_id} monto={dinero(p.amount, p.currency)}>
         <span className="font-medium text-ink-2">Promesa vencida</span>
         <span className="tnum">Factura {p.folio}</span>
         <Marca color="warn">
@@ -52,7 +76,7 @@ export function RenglonPromesa({
         </Marca>
       </Cabeza>
 
-      <div className="mt-4 max-w-2xl rounded-[14px] bg-panel px-4 py-3">
+      <div className="cita mt-4 max-w-2xl">
         <p className="text-cuerpo leading-relaxed text-ink">
           Quedó de pagar el <span className="font-semibold">{fechaDM(p.promised_date)}</span> y la
           factura sigue abierta.
@@ -77,14 +101,18 @@ export function RenglonPromesa({
           type="button"
           onClick={() => setPagoDe(p.invoice_id)}
           disabled={quieto}
-          className="btn btn-primary"
+          className={`btn ${principal ? "btn-primary" : "btn-secondary"}`}
         >
           Registrar pago
         </button>
-        <button type="button" onClick={recordar} disabled={quieto} className="btn btn-quiet">
+        <QuietButton type="button" onClick={recordar} disabled={quieto}>
           Recordar de nuevo
-        </button>
+        </QuietButton>
+        <QuietButton type="button" onClick={noCumplio} disabled={quieto}>
+          No cumplió
+        </QuietButton>
       </div>
+      {dialog}
 
       {/* La misma confirmación que en Cartera: cliente, folio, monto y a dónde más se escribe. */}
       <ConfirmarPago

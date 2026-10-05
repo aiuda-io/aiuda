@@ -431,7 +431,7 @@ export function AgregarSheet({
           desc="Trae muchos de golpe; la IA detecta qué es y los carga. Re-subir no duplica."
         />
         <OptionCard
-          href="/integraciones"
+          href="/configuracion?seccion=conexiones"
           onClose={onClose}
           title="Conecta una fuente"
           desc="Odoo, tu tienda y más: entran solos, cada uno con su procedencia marcada."

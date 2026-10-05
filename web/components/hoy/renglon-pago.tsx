@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { api, mxn, CONCILIACION_ORIGEN, type ReconcileItem } from "@/lib/api";
+import { QuietButton, QuietLink } from "@/components/ui";
+import { api, CONCILIACION_ORIGEN, type ReconcileItem } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { fechaDM } from "@/lib/format";
 import { Cabeza, Fila, Marca } from "@/components/hoy/piezas";
 import { idPago, type Ejecutar } from "@/components/hoy/tipos";
@@ -58,11 +59,15 @@ export function RenglonPago({
   ocupado,
   saliendo,
   ejecutar,
+  principal,
 }: {
   p: ReconcileItem;
   ocupado: boolean;
   saliendo: boolean;
   ejecutar: Ejecutar;
+  /** El renglón que lleva el ÚNICO botón relleno de la pantalla (el primero de la
+   *  lista). En los demás, la misma acción va con contorno. */
+  principal?: boolean;
 }) {
   const id = idPago(p);
   const opciones = opcionesDe(p);
@@ -75,31 +80,31 @@ export function RenglonPago({
 
   return (
     <Fila id={id} saliendo={saliendo}>
-      <Cabeza nombre={p.counterparty ?? sel?.cliente ?? "Pago recibido"} monto={mxn(p.amount)}>
+      <Cabeza nombre={p.counterparty ?? sel?.cliente ?? "Pago recibido"} monto={dinero(p.amount, p.currency)}>
         <span className="font-medium text-ink-2">Pago por confirmar</span>
         <span>{p.origen ?? CONCILIACION_ORIGEN[p.source] ?? p.source}</span>
         <span className="tnum">recibido {fechaDM(p.paid_at)}</span>
         {p.reference && <span className="tnum">{p.reference}</span>}
       </Cabeza>
 
-      <div className="mt-4 max-w-2xl rounded-[14px] bg-panel px-4 py-3">
+      <div className="cita mt-4 max-w-2xl">
         {sel ? (
           <>
             <p className="text-cuerpo leading-relaxed text-ink">
               {variasFacturas ? "Contra las facturas " : "Contra la factura "}
               <span className="tnum font-semibold">{sel.folios}</span> de {sel.cliente}, por{" "}
-              <span className="tnum font-semibold">{mxn(sel.porCobrar)}</span>.
+              <span className="tnum font-semibold">{dinero(sel.porCobrar, p.currency)}</span>.
             </p>
             <p className="mt-2">
               {sel.cuadra ? (
                 <Marca color="ok">El monto cuadra</Marca>
               ) : sel.parcial ? (
                 <Marca color="warn">
-                  Es un abono: faltarían {mxn(Math.abs(diferencia))} y la factura sigue abierta
+                  Es un abono: faltarían {dinero(Math.abs(diferencia), p.currency)} y la factura sigue abierta
                 </Marca>
               ) : (
                 <Marca color="warn">
-                  No cuadra: {diferencia > 0 ? "sobran" : "faltan"} {mxn(Math.abs(diferencia))}
+                  No cuadra: {diferencia > 0 ? "sobran" : "faltan"} {dinero(Math.abs(diferencia), p.currency)}
                 </Marca>
               )}
             </p>
@@ -122,7 +127,7 @@ export function RenglonPago({
                 >
                   {opciones.map((o) => (
                     <option key={o.key} value={o.key}>
-                      {o.folios} · {o.cliente} · {mxn(o.porCobrar)}
+                      {o.folios} · {o.cliente} · {dinero(o.porCobrar, p.currency)}
                     </option>
                   ))}
                 </select>
@@ -152,14 +157,13 @@ export function RenglonPago({
             >
               Sí, descartar
             </button>
-            <button
+            <QuietButton
               type="button"
               onClick={() => setPorDescartar(false)}
               disabled={quieto}
-              className="btn btn-quiet"
             >
               Cancelar
-            </button>
+            </QuietButton>
           </div>
         </div>
       ) : (
@@ -177,22 +181,21 @@ export function RenglonPago({
                   id,
                 )
               }
-              className="btn btn-primary"
+              className={`btn ${principal ? "btn-primary" : "btn-secondary"}`}
             >
               Confirmar pago
             </button>
           )}
-          <button
+          <QuietButton
             type="button"
             onClick={() => setPorDescartar(true)}
             disabled={quieto}
-            className="btn btn-quiet"
           >
             Descartar pago
-          </button>
-          <Link href="/facturas?vista=pagos" className="btn btn-quiet">
+          </QuietButton>
+          <QuietLink href="/facturas?vista=pagos">
             Ver en Pagos
-          </Link>
+          </QuietLink>
         </div>
       )}
     </Fila>

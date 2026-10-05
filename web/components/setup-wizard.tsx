@@ -26,14 +26,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   api,
-  mxn,
   type Cartera,
   type SetupEstado,
   type WhatsappStatus,
 } from "@/lib/api";
-import { PrimaryButton, SecondaryButton, inputCls, inputLgCls } from "@/components/ui";
+import { PrimaryButton, SecondaryButton, inputCls, inputLgCls, QuietButton } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
 import { appearanceForSlug } from "@/lib/look";
+import { dinero } from "@/lib/cartera";
 import { createAyudante, useAyudantes, useCatalog } from "@/lib/ayudantes-store";
 import { fieldsFor } from "@/lib/integration-fields";
 import { ConectarIA, nombreDeLaIA } from "@/components/ajustes/conectar-ia";
@@ -104,7 +104,7 @@ const AYUDANTE_SUGERIDO = "Tavo";
 const OFICIO = "cobranza"; // el único oficio maduro; los demás se agregan en Ayudantes
 
 /** El estado del asistente, con lo que el servidor agrega y lib/api aún no tipa. */
-type Estado = SetupEstado & { modo_prueba?: boolean; cerrado_por_el_dueno?: boolean };
+type Estado = SetupEstado;
 
 // --- Piezas visuales --------------------------------------------------------
 
@@ -255,15 +255,15 @@ export function SetupWizard() {
         {paso !== "cierre" && (
           <footer className="mt-10 flex items-center justify-between border-t border-line pt-5">
             {indice > 0 ? (
-              <button className="btn btn-quiet" onClick={atras}>
+              <QuietButton onClick={atras}>
                 Atrás
-              </button>
+              </QuietButton>
             ) : (
               <span />
             )}
-            <button className="btn btn-quiet" onClick={avanzar}>
+            <QuietButton onClick={avanzar}>
               Saltar por ahora
-            </button>
+            </QuietButton>
           </footer>
         )}
       </div>
@@ -499,7 +499,7 @@ function OdooEnLinea({ onListo }: { onListo: () => void }) {
             : "Conectar y traer mi cartera"}
       </SecondaryButton>
       {fallo && (
-        <p role="status" className="rounded-[10px] bg-danger-soft px-4 py-3 text-cuerpo text-ink">
+        <p role="status" className="rounded-lg bg-panel px-4 py-3 text-cuerpo text-ink">
           {fallo}
         </p>
       )}
@@ -561,7 +561,7 @@ function PasoCartera({
 
         {cartera && facturas > 0 ? (
           <div>
-            <p className="hero-num tnum text-cifra text-ink">{mxn(cartera.open_total)}</p>
+            <p className="hero-num tnum text-cifra text-ink">{dinero(cartera.open_total, cartera.moneda_principal)}</p>
             <p className="mt-1.5 text-cuerpo text-ink-2">
               por cobrar en {plural(cartera.open_count, "factura abierta", "facturas abiertas")}.
               Ya tenemos {partes.join(" de ")}.

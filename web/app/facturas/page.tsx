@@ -6,19 +6,14 @@
 // /promesas y /conciliacion redirigen aquí.
 
 import { Suspense, useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api, type ReconcileBandeja } from "@/lib/api";
-import { PageHeader, SecondaryLink, Tabs, useApi } from "@/components/ui";
+import { PageHeader, SecondaryLink, Tabs, useApi, useQueryTab } from "@/components/ui";
 import { CarteraFacturas } from "@/components/cartera-facturas";
 import { CarteraPromesas } from "@/components/cartera-promesas";
 import { CarteraPagos } from "@/components/cartera-pagos";
-import { RUTA, type CarteraConMonedas } from "@/lib/cartera";
+import { RUTA } from "@/lib/cartera";
 
-type Vista = "facturas" | "promesas" | "pagos";
-
-function vistaDe(valor: string | null): Vista {
-  return valor === "promesas" || valor === "pagos" ? valor : "facturas";
-}
+const VISTAS = ["facturas", "promesas", "pagos"] as const;
 
 export default function CarteraPage() {
   // useSearchParams exige un boundary de Suspense en el export estático.
@@ -30,14 +25,12 @@ export default function CarteraPage() {
 }
 
 function Cartera() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
-  const vista = vistaDe(params.get("vista"));
+  // La pestaña vive en la dirección y cada una es un enlace de verdad.
+  const [vista, hrefFor] = useQueryTab("vista", VISTAS);
 
   // Los números de las pestañas: cuántas promesas siguen abiertas y cuántos pagos
   // esperan confirmación. Se vuelven a contar tras cualquier escritura.
-  const cartera = useApi<CarteraConMonedas>(() => api.cartera() as Promise<CarteraConMonedas>);
+  const cartera = useApi(() => api.cartera());
   const pagos = useApi<ReconcileBandeja>(api.reconciliation);
   const recontarCartera = cartera.refetchQuiet;
   const recontarPagos = pagos.refetchQuiet;
@@ -50,13 +43,6 @@ function Cartera() {
     return () => window.removeEventListener("aiuda-escritura", recontar);
   }, [recontarCartera, recontarPagos]);
 
-  const ir = (v: string) => {
-    const next = new URLSearchParams(params.toString());
-    if (v === "facturas") next.delete("vista");
-    else next.set("vista", v);
-    const q = next.toString();
-    router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
-  };
 
   return (
     <div className="min-w-0">
@@ -77,7 +63,8 @@ function Cartera() {
           { key: "pagos", label: "Pagos", count: pagos.data?.count || undefined },
         ]}
         active={vista}
-        onChange={ir}
+        hrefFor={hrefFor}
+        label="Vistas de Cartera"
       />
 
       {vista === "facturas" && <CarteraFacturas />}

@@ -27,6 +27,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from aiuda_server import audit
 from aiuda_server.api.deps import ErrorConCodigo, get_db, get_tenant, require_role
+from aiuda_server.api.monedas import saldos_por_moneda, total_principal
 from aiuda_core.connectors import credentials as cred
 from aiuda_core.cua.fallback import olvidar_consentimiento_sat
 from aiuda_core.connectors.sat_descarga import (
@@ -469,21 +470,36 @@ def sat_borrar_efirma(
 
 def _cartera_por_empresa(db, tenant: Tenant, rfcs: list[str]) -> dict:
     """Totales de cartera abierta por empresa (meta.empresa_rfc) y todo junto.
-    Lo intercompañía nunca llega aquí: el importador no lo mete a cartera."""
+    Lo intercompañía nunca llega aquí: el importador no lo mete a cartera.
+
+    Pesos y dólares no se suman (mismo criterio que `/v1/cartera`): `total` habla
+    SOLO de `moneda`, la principal de ese grupo, y `por_moneda` trae el desglose.
+    `abiertas` sí cuenta las facturas de cualquier moneda."""
     abiertas = db.scalars(
         select(Invoice).where(Invoice.tenant_id == tenant.id, Invoice.status == "open")
     ).all()
-    por_rfc = {rfc: {"rfc": rfc, "abiertas": 0, "total": 0.0} for rfc in rfcs}
-    todo = {"abiertas": 0, "total": 0.0}
+    montos: dict[str | None, list[tuple[str | None, float]]] = {rfc: [] for rfc in rfcs}
+    todas: list[tuple[str | None, float]] = []
     for inv in abiertas:
-        monto = float(inv.amount or 0)
-        todo["abiertas"] += 1
-        todo["total"] += monto
+        par = (inv.currency, float(inv.amount or 0))
+        todas.append(par)
         rfc = (inv.meta or {}).get("empresa_rfc")
-        if rfc in por_rfc:
-            por_rfc[rfc]["abiertas"] += 1
-            por_rfc[rfc]["total"] += monto
-    return {"por_empresa": list(por_rfc.values()), "todo_junto": todo}
+        if rfc in montos:
+            montos[rfc].append(par)
+
+    def resumen(pares: list[tuple[str | None, float]]) -> dict:
+        principal, por_moneda = saldos_por_moneda(pares)
+        return {
+            "abiertas": len(pares),
+            "total": total_principal(principal, por_moneda),
+            "moneda": principal,
+            "por_moneda": por_moneda,
+        }
+
+    return {
+        "por_empresa": [{"rfc": rfc, **resumen(montos[rfc])} for rfc in rfcs],
+        "todo_junto": resumen(todas),
+    }
 
 
 @router.get("/v1/sat/estado")
@@ -544,7 +560,12 @@ def sat_boveda(
     if rfc:
         rfc = rfc.strip().upper()
         filas = [f for f in filas if rfc in (f.rfc_emisor, f.rfc_receptor)]
-    total = sum(Decimal(str(f.total)) for f in filas if f.total is not None)
+    # La suma de la bóveda tampoco mezcla monedas: `suma_total` es la de
+    # `moneda` (la principal de lo filtrado) y `suma_por_moneda` trae el resto.
+    principal, por_moneda = saldos_por_moneda(
+        (f.moneda, float(f.total)) for f in filas if f.total is not None
+    )
+    total = Decimal(str(total_principal(principal, por_moneda)))
     return {
         "cfdis": [
             {
@@ -570,4 +591,9 @@ def sat_boveda(
         ],
         "count": len(filas),
         "suma_total": float(total),
+        "moneda": principal,
+        "suma_por_moneda": [
+            {"moneda": p["moneda"], "total": p["open_total"], "count": p["open_count"]}
+            for p in por_moneda
+        ],
     }

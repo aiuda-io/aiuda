@@ -165,3 +165,55 @@ def test_promesas_traen_la_moneda_de_su_factura(client, db_session, tenant, cust
     _promesa(db_session, tenant, _inv(db_session, tenant, customer, "U-1", 900, currency="USD"))
 
     assert client.get("/v1/promises").json()[0]["currency"] == "USD"
+
+
+# ---------- 3. El mismo criterio en clientes y en el SAT ----------
+
+
+def test_la_lista_de_clientes_no_suma_pesos_con_dolares(client, db_session, tenant, customer):
+    solo_usd = Customer(tenant_id=tenant.id, name="Exportadora Norte", phone="5215511110002")
+    sin_saldo = Customer(tenant_id=tenant.id, name="Zapatería Sol", phone="5215511110003")
+    db_session.add_all([solo_usd, sin_saldo])
+    db_session.flush()
+    _inv(db_session, tenant, customer, "M-1", 1000)
+    _inv(db_session, tenant, customer, "U-1", 10000, currency="USD")
+    _inv(db_session, tenant, solo_usd, "U-2", 250, currency="usd")
+    _inv(db_session, tenant, solo_usd, "U-3", 50, currency="USD", status="paid")
+
+    por_nombre = {c["name"]: c for c in client.get("/v1/customers").json()}
+
+    mixto = por_nombre["Papelería Bic"]
+    assert (mixto["open_total"], mixto["moneda"], mixto["open_invoices"]) == (1000, "MXN", 2)
+    assert mixto["por_moneda"] == [
+        {"moneda": "MXN", "open_total": 1000, "open_count": 1},
+        {"moneda": "USD", "open_total": 10000, "open_count": 1},
+    ]
+    usd = por_nombre["Exportadora Norte"]
+    assert (usd["open_total"], usd["moneda"], usd["open_invoices"]) == (250, "USD", 1)
+    vacio = por_nombre["Zapatería Sol"]
+    assert (vacio["open_total"], vacio["moneda"], vacio["por_moneda"]) == (0, "MXN", [])
+
+
+def test_la_ficha_del_cliente_dice_la_moneda_de_cada_cifra(client, db_session, tenant, customer):
+    _inv(db_session, tenant, customer, "M-1", 1000)
+    _inv(db_session, tenant, customer, "U-1", 10000, currency="USD")
+
+    ficha = client.get(f"/v1/customers/{customer.id}").json()
+
+    assert (ficha["open_total"], ficha["moneda"], ficha["open_count"]) == (1000, "MXN", 2)
+    assert [(p["moneda"], p["open_total"]) for p in ficha["por_moneda"]] == [
+        ("MXN", 1000), ("USD", 10000),
+    ]
+    assert {i["folio"]: i["currency"] for i in ficha["invoices"]} == {"M-1": "MXN", "U-1": "USD"}
+
+
+def test_el_sat_tampoco_suma_pesos_con_dolares(client, db_session, tenant, customer):
+    _inv(db_session, tenant, customer, "M-1", 1000)
+    _inv(db_session, tenant, customer, "U-1", 10000, currency="USD")
+
+    todo = client.get("/v1/sat/estado").json()["cartera"]["todo_junto"]
+
+    assert (todo["abiertas"], todo["total"], todo["moneda"]) == (2, 1000, "MXN")
+    assert [(p["moneda"], p["open_total"]) for p in todo["por_moneda"]] == [
+        ("MXN", 1000), ("USD", 10000),
+    ]

@@ -234,7 +234,7 @@ export function EntrarConChatGPT({
       </p>
 
       {chatgpt?.vencida && !esperando && !error && (
-        <p className="rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-cuerpo text-ink">
+        <p className="rounded-md bg-panel px-3 py-2 text-cuerpo text-ink">
           Tu conexión con ChatGPT venció. Vuelve a entrar.
         </p>
       )}
@@ -286,7 +286,7 @@ export function EntrarConChatGPT({
       )}
 
       {error && (
-        <p className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-cuerpo text-danger">
+        <p className="rounded-md bg-panel px-3 py-2 text-cuerpo text-danger">
           {error}
         </p>
       )}

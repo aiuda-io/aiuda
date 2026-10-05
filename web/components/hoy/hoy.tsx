@@ -81,7 +81,7 @@ export function Hoy() {
   }
 
   const { cartera } = data;
-  const hayCartera = cartera.open_count > 0 || Object.keys(cartera.by_source ?? {}).length > 0;
+  const hayCartera = (cartera.open_count_todas ?? cartera.open_count) > 0 || Object.keys(cartera.by_source ?? {}).length > 0;
   const hayCifras = hayCartera || cartera.recovered_this_month > 0;
   // Hasta saber qué hay conectado no se dice que falta algo: decirlo de más espanta.
   const sabemosQueFalta = !ia.loading && !cargandoAyudantes;
@@ -101,7 +101,7 @@ export function Hoy() {
 
   return (
     <div className="min-w-0">
-      <PageHeader title="Hoy" subtitle={`${cartera.business_name} · ${fecha}`} />
+      <PageHeader title="Hoy" subtitle={fecha} />
 
       <AvisoTopeIA />
 
@@ -143,7 +143,7 @@ export function Hoy() {
               <p className="text-cuerpo text-ink-2">Ningún cliente con ese nombre espera aprobación.</p>
             ) : (
               <ul>
-                {visibles.map((r) =>
+                {visibles.map((r, i) =>
                   r.clase === "mensaje" ? (
                     <RenglonMensaje
                       key={r.id}
@@ -153,6 +153,7 @@ export function Hoy() {
                       saliendo={saliendo.has(r.id)}
                       ejecutar={ejecutar}
                       abiertoDeInicio={r.mensaje.id === abrir}
+                      principal={i === 0}
                     />
                   ) : r.clase === "pago" ? (
                     <RenglonPago
@@ -161,6 +162,7 @@ export function Hoy() {
                       ocupado={ocupado}
                       saliendo={saliendo.has(r.id)}
                       ejecutar={ejecutar}
+                      principal={i === 0}
                     />
                   ) : (
                     <RenglonPromesa
@@ -169,6 +171,7 @@ export function Hoy() {
                       ocupado={ocupado}
                       saliendo={saliendo.has(r.id)}
                       ejecutar={ejecutar}
+                      principal={i === 0}
                     />
                   ),
                 )}
@@ -183,6 +186,7 @@ export function Hoy() {
             saliendo={saliendo}
             ejecutar={ejecutar}
             abrir={abrir}
+            principal={porAprobar.length === 0}
           />
 
           <Enviado mensajes={enviado} abrir={abrir} />

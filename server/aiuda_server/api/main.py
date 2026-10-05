@@ -117,7 +117,7 @@ def _purgar_secretos_en_claro() -> None:
             if borrados:
                 log.warning(
                     "Se borraron %d credenciales que estaban en texto plano en la config. "
-                    "Vuelve a capturarlas desde Integraciones: ahora se guardan cifradas.",
+                    "Vuelve a capturarlas desde Ajustes, Conexiones: ahora se guardan cifradas.",
                     borrados,
                 )
             if movidas:
@@ -723,6 +723,13 @@ async def approve_reminder(
             status_code=409,
             detail=f"Esta factura ya no se cobra ({motivo}). El recordatorio no se envía.",
         )
+    if inv is not None and inv.status == "paid":
+        # Aprobar (o reintentar un fallido) de una factura que ya se pagó sería
+        # cobrarle a quien ya pagó.
+        raise HTTPException(
+            status_code=409,
+            detail="Esta factura ya se pagó. El recordatorio no se envía.",
+        )
 
     # El tope del aparato, aplicado donde de verdad importa. Antes vivía solo en
     # el modelo y en la pantalla: un invitado podía aprobar cualquier monto.
@@ -908,9 +915,26 @@ def _recordatorio_pide_decision(recordatorio: Reminder, factura: Invoice | None)
     )
 
 
-def _promesa_vencida(promesa: PaymentPromise, factura: Invoice, today) -> bool:
+# Promesas que el dueño ya dio por incumplidas ("No cumplió"): {id: fecha ISO}.
+# Vive en Tenant.config porque el modelo de la promesa solo sabe si se cumplió, y
+# marcarla cumplida para sacarla de Hoy sería mentir. La promesa sigue SIN cumplir
+# (el motor la sigue viendo como rota al redactar el siguiente recordatorio); solo
+# deja de pedirle una decisión al dueño.
+PROMESAS_INCUMPLIDAS_KEY = "promesas_incumplidas"
+
+
+def _promesas_incumplidas(tenant: Tenant) -> dict[str, str]:
+    return dict((tenant.config or {}).get(PROMESAS_INCUMPLIDAS_KEY) or {})
+
+
+def _promesa_vencida(
+    promesa: PaymentPromise, factura: Invoice, today, incumplidas: dict | None = None
+) -> bool:
     return (
-        not promesa.fulfilled and factura.status == "open" and promesa.promised_date < today
+        not promesa.fulfilled
+        and factura.status == "open"
+        and promesa.promised_date < today
+        and promesa.id not in (incumplidas or {})
     )
 
 
@@ -931,24 +955,21 @@ def _espera_tu_ok(db, tenant: Tenant, today) -> int:
         .join(Invoice, PaymentPromise.invoice_id == Invoice.id)
         .where(PaymentPromise.tenant_id == tenant.id, PaymentPromise.fulfilled.is_(False))
     ).all()
-    vencidas = sum(1 for p, inv in promesas if _promesa_vencida(p, inv, today))
+    incumplidas = _promesas_incumplidas(tenant)
+    vencidas = sum(1 for p, inv in promesas if _promesa_vencida(p, inv, today, incumplidas))
     return por_aprobar + int(pagos or 0) + vencidas
 
 
-MONEDA_BASE = "MXN"
+from aiuda_server.api.monedas import (  # noqa: E402
+    moneda_de,
+    saldos_por_moneda,
+    total_principal,
+)
+from aiuda_server.api.monedas import moneda_principal as _moneda_principal  # noqa: E402
 
 
 def _moneda(invoice: Invoice) -> str:
-    return (invoice.currency or MONEDA_BASE).strip().upper() or MONEDA_BASE
-
-
-def _moneda_principal(conteo: dict[str, int]) -> str:
-    """La moneda en la que se dicen las cifras sueltas de la cartera. Pesos si hay
-    al menos una factura abierta en pesos (o ninguna factura); si el negocio solo
-    cobra en otra moneda, la que más facturas abiertas tenga."""
-    if not conteo or conteo.get(MONEDA_BASE):
-        return MONEDA_BASE
-    return max(sorted(conteo), key=lambda m: conteo[m])
+    return moneda_de(invoice.currency)
 
 
 @app.get("/v1/cartera")
@@ -1676,6 +1697,7 @@ def get_conversation(
 @app.post("/v1/invoices/{invoice_id}/pay")
 def register_payment(
     invoice_id: str,
+    background: BackgroundTasks,
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
     principal: Principal = Depends(get_principal),
@@ -1704,15 +1726,28 @@ def register_payment(
     from aiuda_core.engine.sync import cerrar_pendientes_por_pago
     from aiuda_core.engine.writeback import queue_payment_writeback
 
-    queue_payment_writeback(db, tenant, invoice)
+    entrada = queue_payment_writeback(db, tenant, invoice)
     # Pagada: sus promesas abiertas quedan cumplidas y lo que aún no salía se retira.
     promesas, retirados = cerrar_pendientes_por_pago(db, invoice, invoice.paid_at)
+    if entrada is not None:
+        # El pago regresa a su sistema de origen AHORA, sin esperar a la revisión de
+        # cada hora y sin detener esta respuesta. Si el sistema no contesta o no
+        # está conectado, la entrada se queda en la cola y la revisión horaria la
+        # reintenta: la consola lee el estado real (GET /v1/writeback) antes de
+        # decir que ya llegó.
+        db.commit()  # durable antes del background (las BackgroundTasks corren pre-teardown)
+        from aiuda_server.api.writeback import mandar_ya
+
+        mandar_ya(background, tenant.id)
     return {
         "id": invoice.id,
         "status": invoice.status,
         "paid_source": invoice.paid_source,
         "promesas_cumplidas": promesas,
         "recordatorios_retirados": retirados,
+        # La entrada de la cola que lleva este pago a su sistema (None: no regresa
+        # a ninguno). Con ella la consola pregunta si ya llegó.
+        "writeback_id": entrada.id if entrada is not None else None,
     }
 
 
@@ -1810,6 +1845,45 @@ def fulfill_promise(
     return {"id": promise.id, "fulfilled": True}
 
 
+@app.post("/v1/promises/{promise_id}/no-cumplio")
+def promise_not_kept(
+    promise_id: str,
+    tenant: Tenant = Depends(get_tenant),
+    db=Depends(get_db),
+    principal: Principal = Depends(get_principal),
+):
+    """El dueño da una promesa vencida por incumplida: sale de "Por aprobar" sin
+    registrar un pago que no existe. No toca la factura (sigue abierta y se sigue
+    cobrando) ni marca la promesa como cumplida."""
+    promise = db.scalar(
+        select(PaymentPromise).where(
+            PaymentPromise.tenant_id == tenant.id, PaymentPromise.id == promise_id
+        )
+    )
+    if promise is None:
+        raise HTTPException(status_code=404, detail="Promesa no encontrada")
+    if promise.fulfilled:
+        raise HTTPException(status_code=409, detail="Esta promesa ya está cumplida.")
+    if promise.promised_date >= datetime.now(MX_TZ).date():
+        raise HTTPException(
+            status_code=409,
+            detail="Esta promesa todavía no vence: no se puede dar por incumplida.",
+        )
+    incumplidas = _promesas_incumplidas(tenant)
+    incumplidas.setdefault(promise.id, datetime.now(timezone.utc).date().isoformat())
+    _update_config(db, tenant, **{PROMESAS_INCUMPLIDAS_KEY: incumplidas})
+    audit.record(
+        db,
+        tenant_id=tenant.id,
+        action="promise.no_cumplio",
+        entity_type="promise",
+        entity_id=promise.id,
+        principal=principal,
+        after={"incumplida": True},
+    )
+    return {"id": promise.id, "fulfilled": False, "incumplida": True}
+
+
 @app.get("/v1/promises")
 def list_promises(
     status: str = Query(default="active"),  # active | fulfilled
@@ -1817,6 +1891,7 @@ def list_promises(
     db=Depends(get_db),
 ):
     today = datetime.now(MX_TZ).date()
+    incumplidas = _promesas_incumplidas(tenant)
     query = (
         select(PaymentPromise, Invoice, Customer)
         .join(Invoice, PaymentPromise.invoice_id == Invoice.id)
@@ -1841,7 +1916,9 @@ def list_promises(
             "days_left": (p.promised_date - today).days,
             "fulfilled_at": p.fulfilled_at.isoformat() if p.fulfilled_at else None,
             # Cuenta en "Por aprobar" (misma regla que el globo del menú).
-            "vencida": _promesa_vencida(p, inv, today),
+            "vencida": _promesa_vencida(p, inv, today, incumplidas),
+            # El dueño ya la dio por incumplida: sigue sin cumplir, pero no le pide nada.
+            "incumplida": not p.fulfilled and p.id in incumplidas,
             # Una promesa de una factura ya cerrada no le pide nada al dueño.
             "factura_abierta": inv.status == "open",
         }
@@ -1861,26 +1938,35 @@ def list_customers(
     customers = db.scalars(query.order_by(Customer.name)).all()
     from aiuda_core.optout import claves_dadas_de_baja, contact_key
 
-    # En una consulta, no una por cliente: esta lista ya arrastra un N+1 por el conteo
-    # de facturas y no hay por qué agregarle otro.
+    # En una consulta, no una por cliente.
     bajas = claves_dadas_de_baja(db, tenant)
+    # Lo abierto de todos, también en UNA consulta (antes era una por cliente), y
+    # separado por moneda: pesos y dólares no se suman.
+    abiertas: dict[str, list[tuple[str | None, float]]] = {}
+    for customer_id, currency, amount in db.execute(
+        select(Invoice.customer_id, Invoice.currency, Invoice.amount).where(
+            Invoice.tenant_id == tenant.id, Invoice.status == "open"
+        )
+    ):
+        abiertas.setdefault(customer_id, []).append((currency, float(amount or 0)))
 
     out = []
     for cust in customers:
-        open_rows = db.execute(
-            select(func.count(Invoice.id), func.coalesce(func.sum(Invoice.amount), 0)).where(
-                Invoice.tenant_id == tenant.id,
-                Invoice.customer_id == cust.id,
-                Invoice.status == "open",
-            )
-        ).one()
+        suyas = abiertas.get(cust.id, [])
+        principal, por_moneda = saldos_por_moneda(suyas)
         out.append(
             {
                 "id": cust.id,
                 "name": cust.name,
                 "phone": cust.phone,
-                "open_invoices": int(open_rows[0]),
-                "open_total": float(open_rows[1]),
+                # Facturas abiertas en cualquier moneda.
+                "open_invoices": len(suyas),
+                # `open_total` habla SOLO de `moneda` (pesos si debe algo en pesos;
+                # si no, la moneda en la que más facturas tiene). El resto, en
+                # `por_moneda`: [{moneda, open_total, open_count}].
+                "open_total": total_principal(principal, por_moneda),
+                "moneda": principal,
+                "por_moneda": por_moneda,
                 "tags": cust.tags or [],
                 "kind": cust.kind or "cliente",
                 # Quién pidió que no lo contacten. Sin esto, la lista no tiene
@@ -2033,7 +2119,11 @@ def customer_detail(
         .order_by(Invoice.due_date)
     ).all()
     conv = find_conversation_by_phone(db, tenant.id, cust.phone)
-    open_total = sum(float(i.amount) for i in invoices if i.status == "open")
+    # Lo que debe, por moneda: una factura en dólares no se suma a las de pesos.
+    principal, por_moneda = saldos_por_moneda(
+        (i.currency, float(i.amount)) for i in invoices if i.status == "open"
+    )
+    open_total = total_principal(principal, por_moneda)
 
     # El 360: todo lo que cuelga del cliente, no solo sus facturas. Colgado de sus facturas
     # (recordatorios, promesas, pagos conciliados) y de su nombre (citas).
@@ -2087,7 +2177,10 @@ def customer_detail(
         # El cliente pidió no recibir mensajes (BAJA/STOP): {"at", "via"} o None.
         # Bloquea los envíos automatizados; el dueño puede reactivarlo desde aquí.
         "opt_out": opted_out(db, tenant, cust.phone),
+        # `open_total` es SOLO de `moneda`; el desglose completo va en `por_moneda`.
         "open_total": open_total,
+        "moneda": principal,
+        "por_moneda": por_moneda,
         "open_count": sum(1 for i in invoices if i.status == "open"),
         "reminders": [
             {
@@ -2113,6 +2206,7 @@ def customer_detail(
             {
                 "id": p.id,
                 "amount": float(p.amount),
+                "currency": moneda_de(p.currency),
                 "paid_at": p.paid_at.isoformat(),
                 "source": p.source,
                 "folio": folio_by_id.get(p.invoice_id),
@@ -2136,6 +2230,7 @@ def customer_detail(
                 "id": i.id,
                 "folio": i.folio,
                 "amount": float(i.amount),
+                "currency": moneda_de(i.currency),
                 "status": i.status,
                 "bucket": str(classify(i.due_date, today)),
                 "days_overdue": (today - i.due_date).days,

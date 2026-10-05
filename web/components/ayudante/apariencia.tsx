@@ -43,7 +43,7 @@ export function Apariencia({
   };
 
   const opcion = (on: boolean) =>
-    `flex h-11 w-11 items-center justify-center rounded-lg ${on ? "bg-accent-soft text-accent-ink" : "bg-fill text-ink-2 hover:bg-fill-strong"}`;
+    `flex h-11 w-11 items-center justify-center rounded-lg ${on ? "btn-elegida" : "bg-fill text-ink-2 hover:bg-fill-strong"}`;
 
   return (
     <section className="max-w-2xl">
@@ -64,7 +64,7 @@ export function Apariencia({
                 role="tab"
                 aria-selected={parte === t.key}
                 onClick={() => setParte(t.key)}
-                className={`btn btn-sm ${parte === t.key ? "bg-accent-soft text-accent-ink" : "btn-quiet"}`}
+                className={`btn btn-sm ${parte === t.key ? "btn-elegida" : "btn-quiet"}`}
               >
                 {t.label}
               </button>

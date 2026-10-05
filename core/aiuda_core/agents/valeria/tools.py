@@ -16,7 +16,7 @@ VALERIA_TOOLS: list[dict] = [
         "name": "consultar_agenda",
         "description": (
             "Consulta las citas próximas de la agenda. Úsala SIEMPRE antes de hablar de "
-            "horarios o disponibilidad — nunca inventes una cita. Por defecto trae los "
+            "horarios o disponibilidad: nunca inventes una cita. Por defecto trae los "
             "próximos 7 días; puedes pedir más días."
         ),
         "input_schema": {

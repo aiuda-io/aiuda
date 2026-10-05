@@ -3,8 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { api, mxn, type CustomerDetail, type ChatMessage } from "@/lib/api";
-import { fechaDM } from "@/lib/format";
+import { api, type CustomerDetail, type ChatMessage } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
+import { fechaDM, telefonoMx } from "@/lib/format";
 import {
   BucketPill,
   ErrorState,
@@ -15,6 +16,8 @@ import {
   SOURCE_LABEL,
   TextInput,
   useApi,
+  Estado,
+  QuietButton,
 } from "@/components/ui";
 import { usePageTrail } from "@/components/rastro";
 import { Chatter, type ChatterMessage } from "@/components/chatter";
@@ -235,9 +238,9 @@ function ClienteDetalle() {
                       value={value}
                       onChange={(e) => setDraft((d) => ({ ...d, meta: { ...d.meta, [key]: e.target.value } }))}
                     />
-                    <button onClick={() => removeField(key)} className="btn btn-quiet btn-sm">
+                    <QuietButton onClick={() => removeField(key)} size="sm">
                       Quitar
-                    </button>
+                    </QuietButton>
                   </div>
                 ))}
                 <div className="grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-center gap-2">
@@ -296,7 +299,7 @@ function ClienteDetalle() {
                     {data.kind === "prospecto" && <span className="mark shrink-0">Prospecto</span>}
                   </div>
                   <p className="tnum mt-2 truncate text-cuerpo text-ink-2">
-                    {data.phone ? `WhatsApp ${data.phone}` : "Sin teléfono"}
+                    {data.phone ? `WhatsApp ${telefonoMx(data.phone, { pais: true })}` : "Sin teléfono"}
                     {data.email ? ` · ${data.email}` : ""}
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -337,7 +340,16 @@ function ClienteDetalle() {
                 {data.kind !== "prospecto" && (
                   <div className="shrink-0">
                     <p className="eyebrow">Te debe</p>
-                    <p className="hero-num mt-1 text-cifra text-ink">{mxn(data.open_total)}</p>
+                    <p className="hero-num mt-1 whitespace-nowrap text-cifra text-ink">
+                      {dinero(data.open_total, data.moneda)}
+                    </p>
+                    {(data.por_moneda ?? [])
+                      .filter((s) => s.moneda !== data.moneda)
+                      .map((s) => (
+                        <p key={s.moneda} className="tnum mt-1 text-seccion font-semibold text-ink">
+                          {dinero(s.open_total, s.moneda)}
+                        </p>
+                      ))}
                     <p className="mt-1 text-apoyo text-ink-3">
                       {data.open_count === 0
                         ? "Sin facturas abiertas"
@@ -350,7 +362,7 @@ function ClienteDetalle() {
               {/* Pidió no recibir mensajes (escribió BAJA). Mientras siga así, no le llega
                   nada automático; tú puedes escribirle. Reactivarlo lo decides tú. */}
               {data.opt_out && (
-                <div className="mb-10 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl bg-warn-soft px-5 py-4">
+                <div className="mb-10 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl bg-panel px-5 py-4">
                   <div className="min-w-0 flex-1 basis-72">
                     <p className="text-cuerpo font-semibold text-ink">
                       Pidió no recibir mensajes
@@ -396,14 +408,14 @@ function ClienteDetalle() {
                         >
                           <span className="tnum min-w-0 truncate text-cuerpo font-medium text-ink">{inv.folio}</span>
                           {inv.status === "paid" ? (
-                            <span className="mark" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
+                            <Estado tono="ok">
                               Pagada
-                            </span>
+                            </Estado>
                           ) : (
                             <BucketPill bucket={inv.bucket} />
                           )}
                           <span className="tnum ml-auto shrink-0 text-cuerpo font-semibold text-ink">
-                            {mxn(inv.amount)}
+                            {dinero(inv.amount, inv.currency)}
                           </span>
                         </Link>
                       </li>
@@ -445,7 +457,7 @@ function ClienteDetalle() {
                   <ul>
                     {data.payments.map((p) => (
                       <Renglon key={p.id}>
-                        <span className="tnum text-cuerpo font-medium text-ink">{mxn(p.amount)}</span>
+                        <span className="tnum text-cuerpo font-medium text-ink">{dinero(p.amount, p.currency)}</span>
                         {p.folio && <span className="tnum truncate text-apoyo text-ink-3">{p.folio}</span>}
                         <span className="ml-auto shrink-0 text-apoyo text-ink-3">{fechaDM(p.paid_at)}</span>
                       </Renglon>

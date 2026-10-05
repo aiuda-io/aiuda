@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { api, type BancoAnalisis, type BancoImportResult } from "@/lib/api";
 import { fechaDM } from "@/lib/format";
-import { PrimaryButton, SecondaryButton } from "@/components/ui";
+import { PrimaryButton, SecondaryButton, QuietButton } from "@/components/ui";
 import { FalloAccion } from "@/components/cartera-partes";
 import { dinero, leerFallo, plural, type Fallo } from "@/lib/cartera";
 
@@ -171,9 +171,9 @@ export function BancoUpload({
                 ? "No hay depósitos que pasar"
                 : `Pasar ${plural(previa.depositos.n, "depósito", "depósitos")} a Pagos`}
           </PrimaryButton>
-          <button onClick={reset} disabled={busy} className="btn btn-quiet">
+          <QuietButton onClick={reset} disabled={busy}>
             Cancelar
-          </button>
+          </QuietButton>
         </div>
         {fallo && (
           <div className="mt-3">
@@ -199,8 +199,8 @@ export function BancoUpload({
           const f = e.dataTransfer.files?.[0];
           if (f) pick(f);
         }}
-        className={`rounded-[14px] border border-dashed px-5 py-6 transition-colors ${
-          arrastrando ? "border-accent bg-accent-soft" : "border-line-strong"
+        className={`rounded-2xl border border-dashed px-5 py-6 transition-colors ${
+          arrastrando ? "border-ink bg-fill" : "border-line-strong"
         }`}
       >
         <p className="text-cuerpo font-medium text-ink">Arrastra aquí el PDF de tu estado de cuenta</p>

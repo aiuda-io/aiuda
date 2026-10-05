@@ -5,7 +5,7 @@ import type { CuaCapacidad, CuaMision } from "@/lib/api";
 /** Un portal como lo manda el servidor. `del_dueno`: lo registró él, o le puso
  *  dirección o acceso a uno de fábrica. Los de fábrica sin tocar solo se han corrido
  *  contra portales de prueba y no se le enseñan. */
-export type Portal = CuaCapacidad & { del_dueno?: boolean };
+export type Portal = CuaCapacidad;
 
 /** Estado de un encargo, con el color de su marca y si sigue vivo (en cola o
  *  trabajando: se refresca solo). */

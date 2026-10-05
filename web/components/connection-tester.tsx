@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SecondaryButton } from "@/components/ui";
 import { api } from "@/lib/api";
 
 type Result = { ok: boolean | null; message: string; details?: Record<string, number | string> };
@@ -43,9 +44,9 @@ export function ConnectionTester({
 
   return (
     <div>
-      <button onClick={probar} disabled={busy || disabled} className="btn btn-secondary">
+      <SecondaryButton onClick={probar} disabled={busy || disabled}>
         {busy ? "Probando…" : "Probar conexión"}
-      </button>
+      </SecondaryButton>
       {result && (
         <div role="status" className="mt-3 max-w-md text-cuerpo">
           <p

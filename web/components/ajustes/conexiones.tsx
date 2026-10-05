@@ -1,5 +1,7 @@
 "use client";
 
+import { fechaHora, instante } from "@/lib/format";
+
 /**
  * Ajustes > Conexiones: UNA lista.
  *
@@ -24,6 +26,8 @@ import {
   SinEstrenar,
   Skeleton,
   useApi,
+  Estado,
+  QuietButton,
 } from "@/components/ui";
 import { IntegrationConfigDrawer } from "@/components/integration-config-drawer";
 import { CAP_LABEL, CustomConnectorDrawer } from "@/components/custom-connector-drawer";
@@ -37,7 +41,7 @@ const DESTINO: Record<string, { href: string; accion: string }> = {
 
 function Logo({ node }: { node: IntegrationNode }) {
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-fill">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fill">
       {node.logo ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img src={node.logo} alt="" className="h-5 w-5 object-contain" />
@@ -82,9 +86,9 @@ function Fila({
         Revisar
       </span>
     ) : node.connected ? (
-      <span className="mark" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
+      <Estado tono="ok">
         Conectado
-      </span>
+      </Estado>
     ) : (
       <span className="text-apoyo font-medium text-accent-ink">{destino?.accion ?? "Conectar"}</span>
     );
@@ -110,7 +114,7 @@ function Fila({
   );
 
   const cls =
-    "-mx-3 flex w-[calc(100%+1.5rem)] items-center gap-3.5 rounded-[10px] px-3 py-3 text-left hover:bg-fill";
+    "-mx-3 flex w-[calc(100%+1.5rem)] items-center gap-3.5 rounded-lg px-3 py-3 text-left hover:bg-fill";
   return (
     <li>
       {destino ? (
@@ -129,10 +133,10 @@ function Fila({
 /** Semáforo honesto de una conexión a la medida: la última lectura y el último Probar. */
 function EstadoPropia({ c }: { c: CustomConnector }) {
   // Manda la señal MÁS RECIENTE: si acabas de probarla y funciona, el error de una
-  // lectura vieja ya no dice "Revisar" (y al revés). Los ISO comparan bien como texto.
-  const testEsMasReciente = Boolean(
-    c.last_test_at && (!c.last_sync_at || c.last_test_at > c.last_sync_at),
-  );
+  // lectura vieja ya no dice "Revisar" (y al revés).
+  const probada = instante(c.last_test_at)?.getTime() ?? 0;
+  const leida = instante(c.last_sync_at)?.getTime() ?? 0;
+  const testEsMasReciente = probada > 0 && probada > leida;
   const falla = testEsMasReciente ? c.last_test_ok === false : Boolean(c.last_error);
   if (falla) {
     return (
@@ -147,16 +151,16 @@ function EstadoPropia({ c }: { c: CustomConnector }) {
   }
   if (!c.has_secret && c.auth_type) {
     return (
-      <span className="mark" style={{ "--mark": "var(--color-warn)" } as React.CSSProperties}>
+      <Estado tono="aviso">
         Falta tu clave
-      </span>
+      </Estado>
     );
   }
   if (c.last_sync_at && !c.last_error) {
     return (
       <span
         className="mark"
-        title={`Última lectura: ${c.last_sync_at}`}
+        title={`Última lectura: ${fechaHora(c.last_sync_at)}`}
         style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}
       >
         Leyó {registros(c.last_count ?? 0)}
@@ -165,12 +169,12 @@ function EstadoPropia({ c }: { c: CustomConnector }) {
   }
   if (c.last_test_ok) {
     return (
-      <span className="mark" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
+      <Estado tono="ok">
         Probada
-      </span>
+      </Estado>
     );
   }
-  return <span className="mark">Sin probar</span>;
+  return <Estado>Sin probar</Estado>;
 }
 
 /** Lo que aiuda REGRESÓ a tus sistemas. Solo aparece cuando hay algo que decir: un
@@ -205,9 +209,9 @@ function LoQueRegreso() {
             <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-cuerpo">
               <span className="font-medium text-ink">{e.target_label ?? e.target}</span>
               <span className="text-ink-2">{e.folio ?? e.action.replace(/_/g, " ")}</span>
-              <span className="mark" style={{ "--mark": "var(--color-danger)" } as React.CSSProperties}>
+              <Estado tono="falla">
                 {e.last_error ?? "No se pudo asentar"}
-              </span>
+              </Estado>
               <SecondaryButton
                 size="sm"
                 className="ml-auto"
@@ -349,7 +353,7 @@ export function AjustesConexiones({
       {loading && !data ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-[10px]" />
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))}
         </div>
       ) : (
@@ -384,7 +388,7 @@ export function AjustesConexiones({
                 type="button"
                 aria-expanded={verOtras}
                 onClick={() => setVerOtras((v) => !v)}
-                className="-mx-3 flex w-[calc(100%+1.5rem)] items-center gap-3 rounded-[10px] px-3 py-3 text-left hover:bg-fill"
+                className="-mx-3 flex w-[calc(100%+1.5rem)] items-center gap-3 rounded-lg px-3 py-3 text-left hover:bg-fill"
               >
                 <span className="min-w-0 flex-1 text-cuerpo font-medium text-ink">
                   {otras.length === 1 ? "Otra, sin estrenar" : `Otras ${otras.length}, sin estrenar`}
@@ -430,14 +434,13 @@ export function AjustesConexiones({
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <SecondaryButton onClick={() => setCrear(true)}>Crear una conexión</SecondaryButton>
-            <button
+            <QuietButton
               type="button"
-              className="btn btn-quiet"
               onClick={() => importRef.current?.click()}
               title="Carga una conexión que alguien te compartió (un archivo sin claves)"
             >
               Importar
-            </button>
+            </QuietButton>
           </div>
         </div>
         <input
@@ -468,26 +471,26 @@ export function AjustesConexiones({
                 </div>
                 <EstadoPropia c={c} />
                 <div className="flex shrink-0 items-center gap-1">
-                  <button
+                  <QuietButton
                     onClick={() => probarPropia(c)}
                     disabled={probando === c.id}
-                    className="btn btn-quiet btn-sm"
-                  >
+ size="sm"
+>
                     {probando === c.id ? "Probando…" : "Probar"}
-                  </button>
-                  <button onClick={() => setEditar(c)} className="btn btn-quiet btn-sm">
+                  </QuietButton>
+                  <QuietButton onClick={() => setEditar(c)} size="sm">
                     Editar
-                  </button>
-                  <button
+                  </QuietButton>
+                  <QuietButton
                     onClick={() => exportarPropia(c)}
                     title="Descarga esta conexión (sin claves) para compartirla"
-                    className="btn btn-quiet btn-sm"
-                  >
+ size="sm"
+>
                     Exportar
-                  </button>
-                  <button onClick={() => quitarPropia(c.id)} className="btn btn-quiet btn-sm">
+                  </QuietButton>
+                  <QuietButton onClick={() => quitarPropia(c.id)} size="sm">
                     Quitar
-                  </button>
+                  </QuietButton>
                 </div>
               </li>
             ))}

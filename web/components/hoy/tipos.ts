@@ -1,15 +1,8 @@
 import { type PromiseItem, type ReconcileItem, type ReminderItem } from "@/lib/api";
 
 /** Un mensaje redactado por un ayudante (recordatorio, cotización, respuesta de
- *  correo), con lo que el server le agrega para Hoy. */
-export type Mensaje = ReminderItem & {
-  /** Cuenta en "Por aprobar": la regla vive en el server (`_recordatorio_pide_decision`). */
-  pide_decision?: boolean;
-  /** null = no va ligado a una factura. */
-  factura_abierta?: boolean | null;
-  /** Cuándo cambió de estado por última vez. */
-  updated_at?: string | null;
-};
+ *  correo). Es el `ReminderItem` del API con el nombre que le da Hoy. */
+export type Mensaje = ReminderItem;
 
 /** Las tres formas de renglón de "Por aprobar". */
 export type Renglon =
@@ -53,47 +46,6 @@ export function canalPorDefecto(m: Mensaje): string {
 
 export function etiquetaCanal(m: Mensaje, key: string): string {
   return m.channels.find((c) => c.key === key)?.label ?? "WhatsApp";
-}
-
-/** Un instante que manda el server, como fecha de verdad.
- *
- *  El server guarda en UTC y SQLite no conserva la zona, así que la hora llega sin
- *  ella ("2026-10-05T16:11:08"). Leída tal cual, el navegador la toma como hora local
- *  y en México queda seis horas adelantada: "enviado hace un momento" para algo de
- *  hace dos horas, y lo enviado en la tarde ya no cuenta como de hoy. */
-export function instante(iso: string | null | undefined): Date | null {
-  if (!iso) return null;
-  const conZona = /T/.test(iso) && !/(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? `${iso}Z` : iso;
-  const d = new Date(conZona);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-export function esDeHoy(iso: string | null | undefined): boolean {
-  const d = instante(iso);
-  return d !== null && d.toDateString() === new Date().toDateString();
-}
-
-/** "hace 20 min", "hace 2 h", "hace 3 d". */
-export function haceRato(iso: string | null | undefined): string {
-  const d = instante(iso);
-  if (!d) return "";
-  const mins = Math.max(0, Math.floor((Date.now() - d.getTime()) / 60000));
-  if (mins < 1) return "hace un momento";
-  if (mins < 60) return `hace ${mins} min`;
-  if (mins < 60 * 24) return `hace ${Math.floor(mins / 60)} h`;
-  return `hace ${Math.floor(mins / (60 * 24))} d`;
-}
-
-/** "5 oct, 10:11": día y hora en la zona de quien mira. */
-export function diaYHora(iso: string | null | undefined): string {
-  const d = instante(iso);
-  if (!d) return "";
-  return d.toLocaleString("es-MX", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }
 
 /** ¿El texto pasa de lo que cabe a la vista sin expandir? */

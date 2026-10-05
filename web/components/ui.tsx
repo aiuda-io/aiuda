@@ -295,7 +295,7 @@ export function FilePicker({
       onDragLeave={() => setEncima(false)}
       onDrop={soltar}
       className={`flex items-center gap-3 rounded-lg border border-dashed p-2 transition-colors ${
-        encima ? "border-accent bg-accent-soft" : "border-field bg-surface"
+        encima ? "border-ink bg-fill" : "border-field bg-surface"
       }`}
     >
       <input
@@ -324,23 +324,26 @@ export function FilePicker({
 export const inputLgCls =
   "field field-lg focus:border-accent focus:outline-none";
 
-/** Confirmación destructiva no-bloqueante (reemplaza el confirm() nativo, que bloquea
- *  y no es estilizable). Uso:
+/** Confirmación no-bloqueante (reemplaza el confirm() nativo, que bloquea y no es
+ *  estilizable). Uso:
  *    const { confirm, dialog } = useConfirm();
  *    if (!(await confirm({ title, message, confirmLabel }))) return;
- *  ...y renderiza {dialog} una vez dentro del componente. */
+ *  ...y renderiza {dialog} una vez dentro del componente.
+ *  Por defecto es la confirmación de algo que BORRA (botón rojo). Con
+ *  `borra: false` confirma una decisión que no destruye nada (botón primario). */
 export function useConfirm() {
   const [state, setState] = useState<{
     title?: string;
     message: string;
     confirmLabel: string;
+    borra: boolean;
     resolve: (v: boolean) => void;
   } | null>(null);
 
   const confirm = useCallback(
-    (opts: { title?: string; message: string; confirmLabel?: string }) =>
+    (opts: { title?: string; message: string; confirmLabel?: string; borra?: boolean }) =>
       new Promise<boolean>((resolve) =>
-        setState({ confirmLabel: "Eliminar", ...opts, resolve }),
+        setState({ confirmLabel: "Eliminar", borra: true, ...opts, resolve }),
       ),
     [],
   );
@@ -376,12 +379,12 @@ export function useConfirm() {
         {state.title && <p className="text-seccion font-semibold text-ink">{state.title}</p>}
         <p className="mt-2 text-cuerpo text-ink-2">{state.message}</p>
         <div className="mt-6 flex justify-end gap-2">
-          <SecondaryButton onClick={() => close(false)} autoFocus>
+          <QuietButton onClick={() => close(false)} autoFocus>
             Cancelar
-          </SecondaryButton>
+          </QuietButton>
           <button
             onClick={() => close(true)}
-            className="btn btn-danger"
+            className={`btn ${state.borra ? "btn-danger" : "btn-primary"}`}
           >
             {state.confirmLabel}
           </button>
@@ -439,7 +442,7 @@ export function SourceBadge({
         const logo = SOURCE_LOGO[sys];
         const external = presence?.[sys]?.url;
         // Un registro nacido en aiuda no vive en otro sistema: sin liga (una liga
-        // a /integraciones aquí mentiría; no hay nada que conectar para verlo).
+        // a Conexiones aquí mentiría; no hay nada que conectar para verlo).
         if (sys === "aiuda" && !external) {
           return (
             <span
@@ -456,7 +459,7 @@ export function SourceBadge({
         return (
           <a
             key={sys}
-            href={external ?? "/integraciones"}
+            href={external ?? "/configuracion?seccion=conexiones"}
             target={external ? "_blank" : undefined}
             rel={external ? "noreferrer" : undefined}
             title={

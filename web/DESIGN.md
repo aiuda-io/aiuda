@@ -18,7 +18,11 @@ y "fichas grises con tarjetas blancas". Las reglas de abajo existen para no volv
 4. **El acento se usa con avaricia.** En una pantalla, el azul aparece en el botón que la
    resuelve, en el globo de pendientes, en un enlace dentro de un texto y en el foco. Si
    una pantalla tiene más de tres manchas azules, sobra alguna.
-5. **Un solo botón relleno por pantalla.** Lo demás es contorno o palabra.
+5. **Un solo botón relleno por pantalla.** Lo demás es contorno o palabra. En una lista
+   de decisiones (Por aprobar en Hoy, Pagos por confirmar) el relleno va en el PRIMER
+   renglón; la misma acción en los demás lleva contorno. Así la pantalla dice por dónde
+   empezar sin pintar ocho botones azules. Un diálogo cuenta como su propia pantalla:
+   su acción va rellena y "Cancelar" es callado.
 
 ## Color
 
@@ -125,7 +129,20 @@ con utilidades, y a un `.btn` no se le pone `inline-block` (lo descuadra).
   6px con el tono (`neutro`, `ok`, `aviso`, `alerta`, `falla`, `acento`). Sin fondo.
 
 Si te dan ganas de una píldora de color, es un `Estado`. Si no es ninguno de los dos, es
-texto.
+texto. Las etiquetas que el dueño les pone a sus clientes también son un sello: su
+color va solo en la marca de 6px, nunca de fondo.
+
+**Lo que se cita y lo que se elige.**
+
+- `.cita`: el mensaje tal como lo va a leer el cliente (y la propuesta de a qué factura
+  va un pago). Una raya fina y neutra a la izquierda y aire. Sin caja y sin fondo gris:
+  ocho cajas grises en una lista son ocho fichas.
+- `.btn-elegida`: la opción puesta de un grupo (tono, canal, fuente, parte de la cara).
+  Contorno en tinta y relleno `fill`. Nunca en acento: elegir no es la acción de la
+  pantalla.
+- Un aviso dentro de una página (falta algo, se detuvo algo) va sobre `panel`, con su
+  texto en tinta. No hay bandas ámbar, rojas ni azules: la única zona con color es la
+  franja del modo de prueba.
 
 **Lo demás.**
 
@@ -134,6 +151,12 @@ texto.
 - `Tabs`: palabras sobre una raya; la activa pesa más y lleva su tramo en tinta. Sin pista
   gris. Para pestañas de sección con query, `useQueryTab("vista", [...])` más
   `hrefFor`: cada pestaña es un enlace de verdad. Quien lo use va dentro de `<Suspense>`.
+  Ninguna página lee su pestaña de la dirección a mano.
+- Una lista de registros es una lista: renglones separados por una raya. Ni una ficha
+  gris por renglón ni una columna gris con la fila activa en una tarjeta blanca; el
+  renglón activo lleva `fill`.
+- Un hilo de mensajes va sobre el papel, sin marco. Lo que llega va sobre `fill`; lo que
+  sale, con contorno fino. El acento se guarda para el botón de enviar.
 - `PageHeader`, `EmptyState`, `ErrorState`, `Skeleton`, `BucketPill` (ya es una marca).
 - `RailLayout` y compañía (`components/rail.tsx`): contenido más riel de contexto.
 
@@ -154,6 +177,21 @@ texto.
   fija arriba, "Modo de prueba: nada sale a tus clientes", con "Apagar".
 - **Destinos y nombres**: `lib/sections.ts` es la fuente única. De ahí salen el menú, el
   buscador y el Rastro. Un destino nuevo se agrega ahí y en ningún otro lado.
+- **Un solo regreso** (`components/rastro.tsx`): las pantallas sin renglón en el menú
+  llevan arriba "Volver a…", y es el único. Regresa a donde venías; si llegaste directo
+  (un enlace, una recarga), a la puerta bajo la que vive esa pantalla ("Volver a
+  Cartera" desde el SAT). Ninguna página pinta su propio regreso encima, y la que ya
+  trae su única salida (la de "esta pantalla no existe") lo quita con `useSinRegreso`.
+
+## Datos en pantalla
+
+- **Fechas**: siempre por `lib/format.ts`. "2 oct", "2 oct 2026", "2 oct, 10:11". Sin
+  cero a la izquierda, sin guion y sin "a.m.". Toda hora que manda el servidor es UTC
+  y se lee con `instante`; la de una cita es de reloj y se lee con `deReloj`.
+- **Dinero**: siempre con `dinero(monto, moneda)` de `lib/cartera.ts`. Pesos sale
+  "$1,234.00"; cualquier otra moneda lleva su código por delante. Dos monedas nunca se
+  suman: la principal va grande y la otra en su propio renglón.
+- **Teléfonos**: `telefonoMx`. Nunca el número crudo de trece dígitos.
 
 ## Elevación
 
@@ -172,4 +210,5 @@ hover con translate ni con escala.
 Gradientes, blur y glow, sombras de color, píldoras de colores, fondos de color por estado,
 columnas grises con tarjetas blancas, cajas dentro de cajas, grids de tarjetas idénticas,
 border-left de acento, versalitas espaciadas, rayas largas en el texto, serif, tema
-oscuro, `text-[Npx]` y `rounded-[Npx]`.
+oscuro, `text-[Npx]` y `rounded-[Npx]`, dos regresos en la misma pantalla, y una opción
+elegida pintada de azul.

@@ -2,18 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { mxn } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { Marca, Seccion, TextoMensaje } from "@/components/hoy/piezas";
 import { destinoLegible } from "@/components/hoy/renglon-mensaje";
 import {
   claseDe,
-  diaYHora,
   etiquetaCanal,
-  haceRato,
   idMensaje,
   nombreDe,
   type Mensaje,
 } from "@/components/hoy/tipos";
+import { fechaHora, haceTiempo } from "@/lib/format";
 
 /** Un mensaje que ya salió: quién, cuánto, por dónde y cuándo, con su texto a un clic.
  *  `conFecha` pone la fecha completa (historial); sin él dice "hace 2 h" (lo de hoy). */
@@ -49,12 +48,12 @@ export function RenglonEnviado({
           </span>
         </div>
         {m.amount != null && (
-          <span className="tnum text-cuerpo font-medium text-ink">{mxn(m.amount)}</span>
+          <span className="tnum text-cuerpo font-medium text-ink">{dinero(m.amount, m.currency)}</span>
         )}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-apoyo text-ink-3">
         <Marca color="ok">
-          Enviado {conFecha ? diaYHora(m.sent_at) : haceRato(m.sent_at)}
+          Enviado {conFecha ? fechaHora(m.sent_at) : haceTiempo(m.sent_at)}
         </Marca>
         <span>
           por {etiquetaCanal(m, m.channel)}
