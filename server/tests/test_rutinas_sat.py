@@ -181,6 +181,18 @@ def test_borrar_la_efirma_olvida_el_permiso(client, db_session, demo, fiel):
     assert consentimiento_sat(demo, RFC) is None
 
 
+def test_cambiar_la_efirma_por_otra_vuelve_a_pedir_el_permiso(client, db_session, demo, fiel):
+    subir_efirma(client, fiel)
+    dado = aceptar(client)
+    # Volver a subir la MISMA e.firma no molesta al dueño otra vez.
+    subir_efirma(client, fiel)
+    assert consentimiento_sat(demo, RFC) == dado["aceptado_en"]
+    # Una e.firma renovada (otro certificado del mismo RFC) sí: el permiso era para la otra.
+    subir_efirma(client, efirma_prueba(password=PASSWORD))
+    assert consentimiento_sat(demo, RFC) is None
+    assert despachar(client, "sat_opinion_32d").status_code == 409
+
+
 # --- La corrida completa ----------------------------------------------------------
 
 

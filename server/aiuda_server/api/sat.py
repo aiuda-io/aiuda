@@ -287,13 +287,23 @@ def sat_conectar_efirma(
     except RuntimeError as exc:  # falta satcfdi en este entorno
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     _tope_empresas(db, tenant, info["rfc"])
+    proveedor = f"{SAT_EFIRMA_PREFIX}{info['rfc']}"
+    cer_b64 = base64.b64encode(cer_bytes).decode()
+    # El permiso para entrar al portal era para la e.firma que estaba guardada. Si este
+    # certificado es otro (una renovación), se vuelve a pedir; si es el mismo, se queda.
+    try:
+        mismo_cer = (cred.get_credential(db, tenant.id, proveedor) or {}).get("cer") == cer_b64
+    except Exception:  # la guardada no abre: no se puede saber, se vuelve a pedir
+        mismo_cer = False
+    if not mismo_cer:
+        olvidar_consentimiento_sat(db, tenant, info["rfc"])
     cred.set_credential(
         db,
         tenant.id,
-        f"{SAT_EFIRMA_PREFIX}{info['rfc']}",
+        proveedor,
         {
             # Secretos (van cifrados): los archivos en base64 y la contraseña.
-            "cer": base64.b64encode(cer_bytes).decode(),
+            "cer": cer_b64,
             "key": base64.b64encode(key_bytes).decode(),
             "password": password,
             # Público (lo único que la UI puede enseñar).

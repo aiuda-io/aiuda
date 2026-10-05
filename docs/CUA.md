@@ -42,8 +42,8 @@ Lo que las hace distintas del asistente con IA:
   computadora: la llave y la contraseña no se mandan a nadie.
 - **Piden tu permiso una vez por RFC.** Antes de la primera corrida aceptas un
   texto que dice justo eso. Queda guardado con fecha y en la bitácora. Sin ese
-  permiso el servidor se niega a correrlas. Si borras la e.firma, el permiso se
-  olvida.
+  permiso el servidor se niega a correrlas. Si borras la e.firma o la cambias
+  por otra (una renovación), el permiso se olvida y se vuelve a pedir.
 - **Solo consultan y descargan.** No presentan, no firman ni aceptan nada.
 
 Se detienen, con una captura y el motivo en la bitácora, cuando:
