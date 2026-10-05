@@ -2176,9 +2176,9 @@ export const mxn = (value: number) =>
 export const BUCKET_META: Record<string, { label: string; fg: string; bg: string; bar: string }> = {
   por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-line-strong" },
   vence_pronto: { label: "Vence pronto", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },
-  vencida_reciente: { label: "Vencida 1–15 d", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
-  vencida: { label: "Vencida 16–45 d", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
-  critica: { label: "Vencida +45 d", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
+  vencida_reciente: { label: "Vencida 1 a 15 días", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
+  vencida: { label: "Vencida 16 a 45 días", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
+  critica: { label: "Vencida más de 45 días", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
   // No es antigüedad de cartera: es una respuesta de correo propuesta por el
   // ayudante que espera tu aprobación (misma pill en el Centro).
   respuesta_correo: { label: "Respuesta de correo", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },

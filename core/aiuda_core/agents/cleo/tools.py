@@ -20,7 +20,7 @@ CLEO_TOOLS: list[dict] = [
         "name": "consultar_cartera",
         "description": (
             "Consulta las facturas abiertas del negocio con su atraso actual. Úsala SIEMPRE "
-            "antes de mencionar montos, folios o fechas — nunca los inventes. Puedes filtrar "
+            "antes de mencionar montos, folios o fechas: nunca los inventes. Puedes filtrar "
             "por teléfono del cliente."
         ),
         "input_schema": {
@@ -58,7 +58,7 @@ CLEO_TOOLS: list[dict] = [
         "name": "registrar_pago",
         "description": (
             "Registra que el CLIENTE REPORTA haber pagado una factura. Úsala cuando diga "
-            "que ya pagó. OJO: esto NO marca la factura como cobrada — queda pendiente de "
+            "que ya pagó. OJO: esto NO marca la factura como cobrada: queda pendiente de "
             "verificación contra el banco o el registro del negocio. Un dicho no es un pago."
         ),
         "input_schema": {

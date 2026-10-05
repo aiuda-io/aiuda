@@ -22,7 +22,7 @@ DIEGO_TOOLS: list[dict] = [
             "Consulta los pagos detectados (depósitos del banco o la pasarela) pendientes de "
             "conciliar y, para cada uno, la factura a la que probablemente corresponde con la "
             "razón del match. Úsala SIEMPRE antes de afirmar si un depósito ya se aplicó o qué "
-            "factura cubre — nunca lo supongas. Solo consulta: conciliar (confirmar el match) "
+            "factura cubre: nunca lo supongas. Solo consulta: conciliar (confirmar el match) "
             "lo hace el humano en Conciliación."
         ),
         "input_schema": {

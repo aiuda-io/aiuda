@@ -5,9 +5,9 @@ import { BUCKET_META } from "@/lib/api";
 import { WaText } from "@/components/wa-text";
 import { esLargo } from "@/components/hoy/tipos";
 
-/** El tramo de antigüedad dicho sin raya: "Vencida 1 a 15 d". */
+/** El tramo de antigüedad con sus palabras: "Vencida 1 a 15 días". */
 export function etiquetaTramo(bucket: string): string {
-  return (BUCKET_META[bucket]?.label ?? bucket).replace("–", " a ");
+  return BUCKET_META[bucket]?.label ?? bucket;
 }
 
 /** Marca de estado: un punto y la palabra. El color va solo en el punto. */
