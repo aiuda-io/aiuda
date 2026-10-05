@@ -316,6 +316,13 @@
   }
   /* El foco por teclado va por dentro: la fila de pestañas recorta lo que sale. */
   .tab:focus-visible { outline-offset: -2px; }
+  /* En teléfono las pestañas se juntan y bajan un escalón de letra: las cuatro de
+     Ajustes y las cuatro de un ayudante caben completas en 350px. Antes la última
+     quedaba cortada ("Teléfono y eq") y había que adivinar que la fila se deslizaba. */
+  @media (max-width: 639px) {
+    .tabs { gap: 14px; }
+    .tab { gap: 6px; font-size: var(--text-apoyo); }
+  }
 
   /* El wordmark: Avenir Next, como siempre. Es la marca, no un nivel de la escala. */
   .wordmark {
@@ -463,10 +470,57 @@ p {
 /* En pantallas táctiles los inputs suben a 16px: por debajo, iOS hace zoom al
    enfocar (rompe el layout). En desktop mantienen la densidad de consola. */
 @media (pointer: coarse) {
-  input,
-  textarea,
-  select {
+  /* Menos los campos que ya van más grandes (el nombre de un ayudante, que es su
+     título; los del asistente): a esos el `!important` los encogía a 16. */
+  :is(input, textarea, select):not(.text-titulo, .text-seccion, .field-lg) {
     font-size: 16px !important;
+  }
+}
+
+/* ÁREA TÁCTIL: con el dedo, todo lo que se toca mide al menos 44 por 44.
+   - El botón normal y el campo crecen de verdad, de 40 a 44 de alto.
+   - Lo que es chico a propósito (un botón de renglón de 32, un enlace de una
+     palabra, la equis de un panel, un interruptor) conserva su tamaño a la vista y
+     gana un área invisible alrededor, centrada, que es la que recibe el dedo. Así la
+     densidad de la pantalla no cambia y nada queda a medio centímetro de fallarle.
+   El área va en @layer base: un `absolute` o un `fixed` puesto con una utilidad
+   sigue ganando. El alto del botón y del campo va con ellos, en components. */
+@layer components {
+  @media (pointer: coarse) {
+    .btn:not(.btn-sm, .btn-lg),
+    .field:not(.field-lg) {
+      min-height: 44px;
+    }
+  }
+}
+@layer base {
+  @media (pointer: coarse) {
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"]),
+    select {
+      min-height: 44px;
+    }
+    a,
+    button,
+    summary,
+    [role="button"],
+    [role="tab"],
+    [role="switch"] {
+      position: relative;
+    }
+    a::after,
+    button::after,
+    summary::after,
+    [role="button"]::after,
+    [role="tab"]::after,
+    [role="switch"]::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
   }
 }
 

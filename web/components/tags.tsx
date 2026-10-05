@@ -91,7 +91,7 @@ export function TagPicker({
     <div ref={ref} className="relative inline-block">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 rounded-full bg-fill px-2.5 py-0.5 text-apoyo font-medium text-ink-2 hover:bg-fill-strong hover:text-ink"
+        className="btn btn-quiet btn-sm px-2"
       >
         + Etiqueta
       </button>

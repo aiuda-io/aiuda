@@ -39,7 +39,7 @@ export function Topbar() {
       <button
         aria-label="Abrir menú"
         onClick={() => window.dispatchEvent(new Event("toggle-sidebar"))}
-        className="-ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-fill lg:hidden"
+        className="-ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-fill lg:hidden"
       >
         <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
           <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -53,9 +53,9 @@ export function Topbar() {
         <Link
           href="/configuracion?seccion=negocio"
           title="Ajustes del negocio"
-          className="min-w-0 truncate text-cuerpo font-semibold text-ink hover:text-accent-ink"
+          className="flex h-11 min-w-0 items-center text-cuerpo font-semibold text-ink hover:text-accent-ink"
         >
-          {businessName}
+          <span className="truncate">{businessName}</span>
         </Link>
       )}
 
@@ -71,7 +71,7 @@ export function Topbar() {
       <button
         onClick={openCommandPalette}
         aria-label="Buscar"
-        className="-mr-2.5 ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-fill sm:hidden"
+        className="-mr-3 ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-fill sm:hidden"
       >
         <Lupa className="h-4 w-4" />
       </button>

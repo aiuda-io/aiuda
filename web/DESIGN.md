@@ -166,8 +166,9 @@ color va solo en la marca de 6px, nunca de fondo.
 - `.field` (`TextInput`, `inputCls`, `SearchInput`): el único objeto con borde oscuro,
   porque es donde se escribe.
 - `Tabs`: palabras sobre una raya; la activa pesa más y lleva su tramo en tinta. Sin pista
-  gris. Para pestañas de sección con query, `useQueryTab("vista", [...])` más
-  `hrefFor`: cada pestaña es un enlace de verdad. Quien lo use va dentro de `<Suspense>`.
+  gris. En teléfono se juntan para caber completas (ver "En teléfono"). Para pestañas
+  de sección con query, `useQueryTab("vista", [...])` más `hrefFor`: cada pestaña es un
+  enlace de verdad. Quien lo use va dentro de `<Suspense>`.
   Ninguna página lee su pestaña de la dirección a mano.
 - Una lista de registros es una lista: renglones separados por una raya. Ni una ficha
   gris por renglón ni una columna gris con la fila activa en una tarjeta blanca; el
@@ -202,6 +203,29 @@ color va solo en la marca de 6px, nunca de fondo.
   Cartera" desde el SAT). Ninguna página pinta su propio regreso encima, y la que ya
   trae su única salida (la de "esta pantalla no existe") lo quita con `useSinRegreso`.
 
+## En teléfono
+
+La consola se usa también desde el celular (390px). Lo que cambia ahí, y nada más:
+
+- **Área táctil de 44 por 44.** Con el dedo (`pointer: coarse`) el botón normal y el
+  campo miden 44 de alto. Lo que es chico a propósito (botón de renglón de 32, enlace de
+  una palabra, la equis de un panel, un interruptor) conserva su tamaño a la vista y gana
+  un área invisible, centrada, que es la que recibe el dedo. Sale sola de
+  `app/globals.css` para todo `a`, `button` y `[role]` interactivo: no se le pone nada a
+  mano. Lo único que la rompe es `overflow: hidden` en el propio elemento (un `truncate`
+  en un enlace): el recorte va en un `span` adentro.
+- **Las barras de acciones** siguen la regla de `.barra` (arriba).
+- **Las pestañas caben completas.** Se juntan y bajan a `text-apoyo`. Si un grupo nuevo no
+  cabe en 350px se le acorta el nombre; no se deja una pestaña cortada ni una fila que haya
+  que adivinar que se desliza.
+- **Nada se desliza de lado y nada trae scroll propio.** Una tabla que no cabe se vuelve
+  lista (Clientes, Productos, Cartera); el hilo de la ficha de un cliente enseña los
+  últimos mensajes sobre la página y el resto queda en Mensajes. Las únicas superficies con
+  scroll propio son las que flotan: panel lateral, diálogo y la pantalla de chat.
+- **El texto no se corta.** Un nombre largo se dobla en los renglones que pida; los puntos
+  suspensivos son para una celda de tabla en escritorio, con el nombre completo en `title`.
+- **El título y la cifra bajan un escalón** (25 y 32).
+
 ## Datos en pantalla
 
 - **Fechas**: siempre por `lib/format.ts`. "2 oct", "2 oct 2026", "2 oct, 10:11". Sin
@@ -210,7 +234,15 @@ color va solo en la marca de 6px, nunca de fondo.
 - **Dinero**: siempre con `dinero(monto, moneda)` de `lib/cartera.ts`. Pesos sale
   "$1,234.00"; cualquier otra moneda lleva su código por delante. Dos monedas nunca se
   suman: la principal va grande y la otra en su propio renglón.
-- **Teléfonos**: `telefonoMx`. Nunca el número crudo de trece dígitos.
+- **Teléfonos**: `telefonoMx`. Nunca el número crudo de trece dígitos, tampoco como
+  nombre de una conversación sin identificar.
+- **Citas**: `fechaCita`. "lun 5 oct, 16:00": reloj de 24 horas, sin "p.m.".
+- **Otros datos** (lo que no cupo en nombre, teléfono y correo): la llave se enseña con
+  `etiquetaDato`. "municipio" es "Municipio", "dias_credito" es "Días de crédito"; lo que
+  el dueño escribió en su Excel se respeta tal cual, y una llave de máquina desconocida se
+  separa en palabras. Nunca la llave cruda.
+- **De dónde viene un registro** (`ProvenanceBar`): una línea de texto con su marca, sin
+  caja ni relleno. Es un dato, no un aviso.
 
 ## Elevación
 
