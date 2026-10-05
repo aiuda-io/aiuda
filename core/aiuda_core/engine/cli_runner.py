@@ -209,7 +209,16 @@ def _motivo(cli: str, stdout: str, stderr: str) -> str:
     except ValueError:
         pass
     detalle = detalle or (stderr or "").strip()
+    # Avisos del propio CLI que no son el motivo y solo estorban al leerlo.
+    detalle = "\n".join(
+        ln for ln in detalle.splitlines() if not ln.lower().startswith("reading additional input")
+    ).strip()
     nombre = "Claude Code" if cli == "claude" else "Codex"
+    if "trusted directory" in detalle.lower():
+        return (
+            f"{nombre} no quiso trabajar desde la carpeta donde corre aiuda. "
+            f"Actualiza {nombre} a su versión más reciente y vuelve a intentar."
+        )
     if any(p in detalle.lower() for p in ("not logged in", "please run /login", "unauthorized", "no auth")):
         return f"{nombre} está instalado pero sin sesión iniciada. Ábrelo una vez, inicia sesión y vuelve aquí."
     return f"{nombre} no pudo responder: {detalle[:200]}" if detalle else f"{nombre} no pudo responder."
@@ -382,7 +391,13 @@ class CliRunner:
                 "--include-partial-messages",
                 "--verbose",  # stream-json lo exige
             ]
-        return [self.binario, "exec", *(["--json"] if moderno else []), prompt]
+        if not moderno:
+            return [self.binario, "exec", prompt]
+        # --skip-git-repo-check: Codex se niega a trabajar fuera de un repositorio
+        # de git "de confianza", y aiuda casi nunca corre dentro de uno (la app
+        # abierta desde el Finder arranca en la raíz del disco). Sin la bandera el
+        # clic de "Usar Codex" quedaba como conectado y ningún ayudante redactaba.
+        return [self.binario, "exec", "--json", "--skip-git-repo-check", prompt]
 
     def _pedir(self, system: str, user: str, task: str, model: str) -> str:
         if self.budget_check is not None:

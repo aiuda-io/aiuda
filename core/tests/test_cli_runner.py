@@ -229,6 +229,32 @@ def test_claude_pide_el_modo_de_eventos():
     assert "--include-partial-messages" in llamadas[0]
 
 
+def test_codex_trabaja_fuera_de_un_repositorio_de_git():
+    """Sin la bandera, Codex contesta "Not inside a trusted directory" en cuanto
+    aiuda corre fuera de un repo de git: o sea, siempre en la app instalada."""
+    llamadas = []
+    salida = json.dumps(
+        {"type": "item.completed", "item": {"id": "i1", "type": "agent_message", "text": "ok"}}
+    )
+    runner = CliRunner("codex", correr=lambda cmd, e: llamadas.append(cmd) or salida)
+    runner.complete(system="", user="x", task="t")
+    assert llamadas[0][1] == "exec"
+    assert "--skip-git-repo-check" in llamadas[0]
+    assert llamadas[0][-1] == "x"  # el encargo sigue siendo el último argumento
+
+
+def test_la_carpeta_sin_confianza_se_explica_en_espanol():
+    from aiuda_core.engine.cli_runner import _motivo
+
+    crudo = (
+        "Reading additional input from stdin...\n"
+        "Not inside a trusted directory and --skip-git-repo-check was not specified."
+    )
+    motivo = _motivo("codex", "", crudo)
+    assert "trusted" not in motivo and "stdin" not in motivo
+    assert "Actualiza Codex" in motivo
+
+
 def test_codex_ya_reporta_sus_tokens():
     """Antes se registraba la llamada en ceros porque la salida no los traía."""
     eventos = []
