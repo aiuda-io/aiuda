@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,8 @@ from sqlalchemy.pool import StaticPool
 
 from aiuda_core.config import settings
 from aiuda_core.connectors import wacli_bin
-from aiuda_core.models import Base, Tenant
+import aiuda_server.worker.main as worker_main
+from aiuda_core.models import Base, Customer, Tenant
 from aiuda_server import wacli_sync
 from aiuda_server.api.main import app, get_db
 
@@ -93,6 +95,70 @@ def test_qr_sin_conector_pide_instalarlo(client, tenant):
     r = client.post("/v1/integrations/whatsapp/qr")
     assert r.status_code == 409
     assert "presiona Instalar" in r.json()["detail"]
+
+
+# ---------- el veredicto del envío, con sesiones de base separadas ----------
+
+@pytest.fixture()
+def api_real(tmp_path, monkeypatch):
+    """Como corre de verdad: cada request con SU sesión (commit al terminar) y el
+    envío en segundo plano con otra. Con una sola sesión compartida, las pruebas
+    no ven que la tarea corre ANTES del commit del request."""
+    engine = create_engine(f"sqlite:///{tmp_path}/api.db", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    Sesion = sessionmaker(bind=engine, expire_on_commit=False)
+
+    def _get_db():
+        s = Sesion()
+        try:
+            yield s
+            s.commit()
+        except Exception:
+            s.rollback()
+            raise
+        finally:
+            s.close()
+
+    @contextmanager
+    def _scope():
+        yield from _get_db()
+
+    monkeypatch.setattr(worker_main, "session_scope", _scope)
+    with Sesion() as s:
+        t = Tenant(
+            name="Negocio", owner_phone="5215500000000", evolution_instance="inst-a",
+            config={"integrations": {"whatsapp": {"via": "wacli", "instance": "inst-a"}}},
+        )
+        s.add(t)
+        s.flush()
+        c = Customer(tenant_id=t.id, name="Cliente", phone="5215599998888")
+        s.add(c)
+        s.commit()
+        cliente_id = c.id
+    app.dependency_overrides[get_db] = _get_db
+    yield TestClient(app), cliente_id
+    app.dependency_overrides.clear()
+
+
+def _mensaje(http, conv_id, message_id) -> dict:
+    mensajes = http.get(f"/v1/conversations/{conv_id}").json()["messages"]
+    return next(m for m in mensajes if m["id"] == message_id)
+
+
+def test_mensaje_desde_la_ficha_queda_sent_y_no_pending(api_real, monkeypatch):
+    """Visto en vivo: la tarea de envío corría antes de que el request guardara el
+    mensaje, no lo encontraba para marcarlo y se quedaba 'pending'; el barrido de
+    pendientes lo habría mandado otra vez."""
+    http, cliente_id = api_real
+    monkeypatch.setattr(worker_main, "get_whatsapp_sender", lambda wa, w=None: lambda p, t: None)
+    r = http.post(f"/v1/customers/{cliente_id}/messages", json={"body": "Hola"}).json()
+    assert _mensaje(http, r["conversation_id"], r["id"])["delivery"] == "sent"
+    # Y desde el hilo, y al reintentar: mismo veredicto.
+    r2 = http.post(f"/v1/conversations/{r['conversation_id']}/messages", json={"body": "Otra"}).json()
+    assert _mensaje(http, r["conversation_id"], r2["id"])["delivery"] == "sent"
+    url = f"/v1/conversations/{r['conversation_id']}/messages/{r2['id']}/resend"
+    assert http.post(url).status_code == 200
+    assert _mensaje(http, r["conversation_id"], r2["id"])["delivery"] == "sent"
 
 
 # ---------- el server es dueño del proceso de wacli ----------

@@ -1260,11 +1260,13 @@ def send_human_message(
     )
     from aiuda_server.worker.main import send_correo_reply_blocking, send_human_message_blocking
 
+    # Commit explícito ANTES de agendar: la tarea re-lee el mensaje en su propia
+    # sesión y las BackgroundTasks corren antes del commit del teardown de get_db
+    # (FastAPI 0.136). Sin esto el correo leería el estado viejo, y el WhatsApp no
+    # encontraría el mensaje para marcarlo: se quedaba en 'pending' para siempre y
+    # el barrido de pendientes lo volvía a mandar.
+    db.commit()
     if conv.channel == "correo":
-        # Commit explícito ANTES de agendar: la tarea re-lee el mensaje en su propia
-        # sesión y las BackgroundTasks corren antes del commit del teardown de get_db
-        # (FastAPI 0.136) — sin esto, leería el estado viejo.
-        db.commit()
         background.add_task(send_correo_reply_blocking, tenant.id, conv.id, message.id)
     else:
         background.add_task(
@@ -1301,8 +1303,8 @@ def resend_message(
     db.flush()
     from aiuda_server.worker.main import send_correo_reply_blocking, send_human_message_blocking
 
+    db.commit()  # la tarea re-lee el mensaje; ver send_human_message
     if conv.channel == "correo":
-        db.commit()  # la tarea re-lee el mensaje; ver send_human_message
         background.add_task(send_correo_reply_blocking, tenant.id, conv.id, message.id)
     else:
         background.add_task(
@@ -1975,6 +1977,7 @@ def message_customer(
     )
     from aiuda_server.worker.main import send_human_message_blocking
 
+    db.commit()  # la tarea marca el mensaje en su propia sesión; ver send_human_message
     background.add_task(
         send_human_message_blocking, tenant.id, cust.phone, message.body, message.id
     )
