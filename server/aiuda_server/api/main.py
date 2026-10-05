@@ -723,6 +723,13 @@ async def approve_reminder(
             status_code=409,
             detail=f"Esta factura ya no se cobra ({motivo}). El recordatorio no se envía.",
         )
+    if inv is not None and inv.status == "paid":
+        # Aprobar (o reintentar un fallido) de una factura que ya se pagó sería
+        # cobrarle a quien ya pagó.
+        raise HTTPException(
+            status_code=409,
+            detail="Esta factura ya se pagó. El recordatorio no se envía.",
+        )
 
     # El tope del aparato, aplicado donde de verdad importa. Antes vivía solo en
     # el modelo y en la pantalla: un invitado podía aprobar cualquier monto.

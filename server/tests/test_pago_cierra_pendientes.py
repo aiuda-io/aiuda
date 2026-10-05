@@ -166,6 +166,59 @@ def test_un_abono_parcial_no_cumple_la_promesa(client, db_session, tenant, custo
     assert promesa.fulfilled is False and pendiente.status == "pending_approval"
 
 
+@pytest.mark.parametrize("estado_factura", ["paid", "cancelled"])
+def test_el_envio_no_deja_salir_lo_aprobado_de_una_factura_cerrada(
+    monkeypatch, db_session, tenant, customer, estado_factura
+):
+    """La última puerta. Un recordatorio aprobado (esperando canal, o que se quedó
+    atrás del cierre por pago) no sale si la factura ya no está abierta: ni se
+    resuelve el canal ni se intenta el envío."""
+    from contextlib import contextmanager
+
+    import aiuda_server.worker.main as worker_main
+
+    inv = _inv(db_session, tenant, customer, "M-1", 1000)
+    aprobado = _reminder(db_session, tenant, inv, "approved")
+    fallido = _reminder(db_session, tenant, inv, "failed")
+    inv.status = estado_factura
+    db_session.flush()
+
+    @contextmanager
+    def scope():
+        yield db_session
+
+    monkeypatch.setattr(worker_main, "session_scope", scope)
+
+    def no_debe_llegar(*args, **kwargs):
+        raise AssertionError("se intentó enviar un recordatorio de una factura cerrada")
+
+    monkeypatch.setattr(worker_main, "resolve_whatsapp", no_debe_llegar)
+
+    worker_main.send_reminder_blocking(tenant.id, aprobado.id)
+
+    assert aprobado.status == "rejected"
+    # El fallido de la misma factura tampoco queda vivo para un reintento.
+    assert fallido.status == "rejected"
+    if estado_factura == "paid":
+        assert aprobado.meta["retirado"] == "La factura ya se pagó."
+
+
+def test_no_se_aprueba_ni_se_reintenta_lo_de_una_factura_pagada(
+    client, db_session, tenant, customer
+):
+    inv = _inv(db_session, tenant, customer, "M-1", 1000)
+    pendiente = _reminder(db_session, tenant, inv, "pending_approval")
+    fallido = _reminder(db_session, tenant, inv, "failed")
+    inv.status = "paid"
+    db_session.flush()
+
+    for r in (pendiente, fallido):
+        res = client.post(f"/v1/reminders/{r.id}/approve")
+        assert res.status_code == 409
+        assert "ya se pagó" in res.json()["detail"]
+    assert pendiente.status == "pending_approval" and fallido.status == "failed"
+
+
 def test_cerrar_pendientes_retira_solo_lo_que_aun_podia_salir(db_session, tenant, customer):
     from aiuda_core.engine.sync import cerrar_pendientes_por_pago
 
