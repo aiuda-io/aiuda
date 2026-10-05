@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { PrimaryButton, SecondaryButton, useApi } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { useApi } from "@/components/ui";
 import { SettingsField, SettingsSection, settingsInputCls } from "@/components/settings";
-import { Modal } from "@/components/modal";
+
 import { TagManager } from "@/components/tags";
 import { api } from "@/lib/api";
-import { ajustesApi } from "@/lib/ajustes-api";
 import { toast } from "@/components/toast";
-import { SHADOW_EVENT } from "@/components/shadow-banner";
+import { SHADOW_EVENT, avisarModoPrueba, useApagarModoPrueba } from "@/components/modo-prueba";
 
 // Aviso chico para un ajuste que no cargó: sin esto el control pintaba su valor
 // de fábrica (posiblemente FALSO) como si fuera el real.
@@ -24,53 +23,39 @@ function SettingLoadError({ retry }: { retry: () => void }) {
   );
 }
 
-/** Modo de prueba: un solo nombre, un solo interruptor.
- *
- *  Apagarlo no es inocuo: lo que el dueño aprobó mientras estaba encendido se
- *  quedó esperando, y al apagarlo saldría a clientes de verdad. Si hay algo así,
- *  se le pregunta antes: mandarlo ya, o no mandarlo. */
+/** Modo de prueba: un solo nombre, un solo interruptor. Apagarlo pasa por el mismo
+ *  diálogo que la franja (components/modo-prueba.tsx), que pregunta qué hacer con lo
+ *  ya aprobado antes de dejarlo salir a clientes de verdad. */
 function ModoPrueba() {
-  const { data, loading, error, refetch, refetchQuiet } = useApi(() => ajustesApi.modoPrueba(), []);
+  const { data, loading, error, refetch, refetchQuiet } = useApi(() => api.shadowMode(), []);
   const [override, setOverride] = useState<boolean | null>(null);
   const [guardando, setGuardando] = useState(false);
-  const [preguntar, setPreguntar] = useState(false);
+  const { apagar, apagando, dialogo } = useApagarModoPrueba(() => refetchQuiet());
   const activo = override ?? data?.modo_sombra ?? false;
   const retenidos = data?.retenidos ?? 0;
 
-  async function cambiar(siguiente: boolean, quehacer?: "enviar" | "no_enviar") {
+  // Lo apague la franja o este interruptor, los dos se enteran sin recargar.
+  useEffect(() => {
+    const oir = (e: Event) =>
+      setOverride(!!(e as CustomEvent<{ activo: boolean }>).detail?.activo);
+    window.addEventListener(SHADOW_EVENT, oir);
+    return () => window.removeEventListener(SHADOW_EVENT, oir);
+  }, []);
+
+  async function encender() {
     setGuardando(true);
-    setOverride(siguiente); // optimista
+    setOverride(true); // optimista
     try {
-      const res = await ajustesApi.cambiarModoPrueba(siguiente, quehacer);
-      setOverride(res.modo_sombra);
-      window.dispatchEvent(
-        new CustomEvent(SHADOW_EVENT, { detail: { activo: res.modo_sombra } }),
-      );
-      const n = res.retenidos;
-      const cuantos = n === 1 ? "1 mensaje" : `${n} mensajes`;
-      toast(
-        res.modo_sombra
-          ? "Modo de prueba encendido: nada sale a tus clientes."
-          : res.retenidos_accion === "enviando"
-            ? `Modo de prueba apagado. Se ${n === 1 ? "está mandando" : "están mandando"} ${cuantos}.`
-            : res.retenidos_accion === "no_enviados"
-              ? `Modo de prueba apagado. ${cuantos} ${n === 1 ? "quedó" : "quedaron"} sin mandar, en Hoy.`
-              : "Modo de prueba apagado: lo que apruebes ya se envía.",
-        "info",
-      );
-      setPreguntar(false);
+      const res = await api.setShadowMode(true);
+      avisarModoPrueba(res.modo_sombra);
+      toast("Modo de prueba encendido: nada sale a tus clientes.", "info");
       refetchQuiet();
     } catch (e) {
-      setOverride(!siguiente); // revierte
+      setOverride(false); // revierte
       toast((e as Error).message, "error");
     } finally {
       setGuardando(false);
     }
-  }
-
-  function alternar() {
-    if (activo && retenidos > 0) setPreguntar(true);
-    else cambiar(!activo);
   }
 
   if (error) return <SettingLoadError retry={refetch} />;
@@ -85,10 +70,10 @@ function ModoPrueba() {
           role="switch"
           aria-checked={activo}
           aria-label="Modo de prueba"
-          onClick={alternar}
-          disabled={loading || guardando}
+          onClick={activo ? apagar : encender}
+          disabled={loading || guardando || apagando}
           className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60 ${
-            activo ? "bg-accent" : "bg-line-strong"
+            activo ? "bg-accent" : "bg-field"
           }`}
         >
           <span
@@ -107,39 +92,7 @@ function ModoPrueba() {
           preguntamos qué hacer con {retenidos === 1 ? "él" : "ellos"}.
         </p>
       )}
-
-      <Modal
-        open={preguntar}
-        onClose={() => !guardando && setPreguntar(false)}
-        title={`Tienes ${cuantos} sin mandar`}
-        size="sm"
-      >
-        <p className="text-cuerpo leading-relaxed text-ink-2">
-          {retenidos === 1 ? "Lo aprobaste" : "Los aprobaste"} en modo de prueba y por eso no{" "}
-          {retenidos === 1 ? "salió" : "salieron"}. Si apagas el modo de prueba,{" "}
-          {retenidos === 1 ? "puede irse a un cliente" : "pueden irse a clientes"} de verdad. Tú
-          decides.
-        </p>
-        <p className="mt-3 text-cuerpo leading-relaxed text-ink-2">
-          Si no {retenidos === 1 ? "lo mandas" : "los mandas"}, {retenidos === 1 ? "queda" : "quedan"}{" "}
-          en Hoy, en No salió, y puedes reintentar {retenidos === 1 ? "ese" : "el que quieras"}.
-        </p>
-        <div className="mt-6 flex flex-col gap-2">
-          <PrimaryButton onClick={() => cambiar(false, "enviar")} disabled={guardando}>
-            {retenidos === 1 ? "Apagar y mandarlo ahora" : `Apagar y mandar los ${retenidos} ahora`}
-          </PrimaryButton>
-          <SecondaryButton onClick={() => cambiar(false, "no_enviar")} disabled={guardando}>
-            {retenidos === 1 ? "Apagar sin mandarlo" : "Apagar sin mandarlos"}
-          </SecondaryButton>
-          <button
-            className="btn btn-quiet"
-            onClick={() => setPreguntar(false)}
-            disabled={guardando}
-          >
-            Dejarlo encendido
-          </button>
-        </div>
-      </Modal>
+      {dialogo}
     </div>
   );
 }
