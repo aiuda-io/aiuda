@@ -126,9 +126,9 @@ uv sync --extra cua
 .venv/bin/playwright install chromium
 ```
 
-Sin eso nada truena ni se inventa: la misión termina con el faltante exacto y el
-comando para instalarlo, `GET /v1/cua/estado` lo reporta y la consola lo dice
-antes de encolar.
+Sin eso nada truena ni se inventa: la misión termina diciendo que falta el
+navegador, `GET /v1/cua/estado` lo reporta y la consola lo dice antes de encolar,
+sin comandos. El comando lo repite `aiuda doctor`, para quien instala.
 
 Dos límites honestos:
 

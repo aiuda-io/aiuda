@@ -291,7 +291,11 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     try:
         from aiuda_core.cua.computer import estado_navegador
 
+        from aiuda_core.cua.computer import COMANDO_INSTALAR
+
         listo, detalle = estado_navegador()
+        if not listo:  # aquí sí: quien corre `doctor` está en una terminal
+            detalle = f"{detalle} Para instalarlo: {COMANDO_INSTALAR}"
         _check("CUA (Playwright/Chromium)", listo, detalle)
     except Exception as exc:  # noqa: BLE001
         _check("CUA (Playwright/Chromium)", False, f"opcional — {exc}")
