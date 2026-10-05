@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     LargeBinary,
     Numeric,
     String,
@@ -184,6 +185,23 @@ class CfdiBoveda(Base, TenantMixin, TimestampMixin):
     invoice_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     xml: Mapped[str] = mapped_column(Text)
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class SatPaquete(Base, TenantMixin, TimestampMixin):
+    """Un paquete de la Descarga Masiva ya bajado y todavía sin importar.
+
+    El SAT limita cuántas veces entrega cada paquete. Si la importación fallaba
+    después de bajarlo, la corrida siguiente lo volvía a descargar y gastaba ese
+    límite. Aquí se guarda el ZIP ANTES de importar (cifrado, como los demás
+    secretos) y se borra cuando la importación termina bien."""
+
+    __tablename__ = "sat_paquetes"
+    __table_args__ = (UniqueConstraint("tenant_id", "id_paquete"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    id_paquete: Mapped[str] = mapped_column(String(64), index=True)
+    contenido: Mapped[bytes] = mapped_column(LargeBinary)  # el ZIP, cifrado (Fernet)
+    key_version: Mapped[int] = mapped_column(Integer, default=1)
 
 
 class Reminder(Base, TenantMixin, TimestampMixin):

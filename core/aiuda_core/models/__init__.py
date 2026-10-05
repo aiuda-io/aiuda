@@ -17,6 +17,7 @@ from aiuda_core.models.entities import (
     Product,
     PurchaseOrder,
     Reminder,
+    SatPaquete,
     Tenant,
     UsageEvent,
     WhatsappChat,
@@ -56,6 +57,8 @@ __all__ = [
     "CuaMission",
     # La bóveda fiscal: cada CFDI del SAT, una vez (dedupe por UUID)
     "CfdiBoveda",
+    # Paquetes del SAT bajados y aún sin importar (para no gastar descargas)
+    "SatPaquete",
     # Los teléfonos y tabletas emparejados con este aiuda
     "Dispositivo",
     # Credenciales cifradas y auditoría local

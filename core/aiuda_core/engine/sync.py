@@ -11,6 +11,7 @@ hay credenciales configuradas.
 """
 
 import base64
+import copy
 import logging
 import re
 from dataclasses import dataclass, field
@@ -41,6 +42,7 @@ from aiuda_core.models import (
     Payment,
     Product,
     PurchaseOrder,
+    SatPaquete,
     Tenant,
 )
 from aiuda_core.phones import normalize_mx
@@ -1297,7 +1299,36 @@ def _sat_codigo(st: dict, sol: dict, codigo: str, rfc: str, scope: str,
     return True
 
 
-def _sat_ciclo_scope(
+def _sat_paquete(session: Session, tenant: Tenant, id_paquete: str) -> SatPaquete | None:
+    return session.scalar(
+        select(SatPaquete).where(
+            SatPaquete.tenant_id == tenant.id, SatPaquete.id_paquete == id_paquete
+        )
+    )
+
+
+def _sat_guardar_paquete(
+    session: Session, tenant: Tenant, id_paquete: str, contenido: bytes
+) -> None:
+    from aiuda_core.security import crypto  # perezoso, como en credentials
+
+    cifrado, version = crypto.encrypt(base64.b64encode(contenido).decode())
+    session.add(
+        SatPaquete(
+            tenant_id=tenant.id, id_paquete=id_paquete,
+            contenido=cifrado, key_version=version,
+        )
+    )
+    session.flush()
+
+
+def _sat_leer_paquete(fila: SatPaquete) -> bytes:
+    from aiuda_core.security import crypto
+
+    return base64.b64decode(crypto.decrypt(fila.contenido, fila.key_version))
+
+
+def _sat_traer(
     session: Session,
     tenant: Tenant,
     rfc: str,
@@ -1306,23 +1337,25 @@ def _sat_ciclo_scope(
     st: dict,
     today: date,
     report: SyncReport,
-    crear_cartera: bool,
 ) -> None:
-    """Una vuelta del ciclo para (empresa, emitidas|recibidas). El web service es
-    asíncrono: se SOLICITA un periodo, el SAT lo prepara y en una corrida
-    siguiente se VERIFICA y DESCARGA.
+    """Primera mitad de una vuelta para (empresa, emitidas|recibidas): lo que se
+    habla con el SAT. El web service es asíncrono: se SOLICITA un periodo, el SAT
+    lo prepara y en una corrida siguiente se VERIFICA y DESCARGA.
 
-    Dos reglas para no gastar el servicio (el SAT limita las solicitudes con los
-    mismos parámetros: 5002 las agota de por vida, 5005 rechaza la duplicada):
+    Reglas para no gastar el servicio (el SAT limita las solicitudes con los
+    mismos parámetros, 5002 y 5005, y las descargas de cada paquete):
 
     - La solicitud pendiente se PERSISTE (tenant.config) y se verifica por su
       id las vueltas que haga falta: jamás se re-pide a ciegas.
     - Se pide UNA vez al día por empresa y dirección. La corrida es horaria y
       antes repetía el mismo periodo varias veces el mismo día; ahora la fecha
-      final de cada solicitud es distinta a la de todas las anteriores."""
-    from aiuda_core.connectors.sat_descarga import extraer_xmls
-
+      final de cada solicitud es distinta a la de todas las anteriores.
+    - Cada paquete se GUARDA en cuanto baja. La importación (_sat_importar) lee
+      de esa copia: si falla, la vuelta siguiente no le vuelve a pedir nada al
+      SAT."""
     sol = st.get("solicitud")
+    if sol and "paquetes" in sol:
+        return  # ya está todo bajado y guardado: solo falta importarlo
     if sol:
         v = client.verificar(sol["id"])
         estado = int(v.get("EstadoSolicitud") or 0)
@@ -1330,21 +1363,22 @@ def _sat_ciclo_scope(
         if estado in (1, 2):  # aceptada / en proceso: el SAT sigue preparando
             st["aviso"] = _SAT_PREPARANDO
             return
-        st.pop("solicitud", None)
-        if estado == 3:  # terminada: descargar los paquetes e importar
-            xmls: list[bytes] = []
-            for paquete in v.get("IdsPaquetes") or []:
-                xmls.extend(extraer_xmls(client.descargar(paquete)))
-            res = importar_cfdis(
-                session, tenant, xmls, today=today, source="sat",
-                crear_cartera=crear_cartera,
-            )
-            report.cfdis_importados += res["nuevos"]
-            report.pedidos_importados += res["facturas_creadas"]
-            report.avisos.extend(res["avisos"])
-            st["ultima_fecha"] = sol["hasta"][:10]
-            st.pop("aviso", None)
+        if estado == 3:  # terminada: bajar lo que falte y guardarlo
+            paquetes = list(v.get("IdsPaquetes") or [])
+            for id_paquete in paquetes:
+                if _sat_paquete(session, tenant, id_paquete) is not None:
+                    continue  # ese ya se había bajado en una vuelta anterior
+                try:
+                    contenido = client.descargar(id_paquete)
+                except Exception as exc:  # noqa: BLE001 — los ya guardados se conservan
+                    log.warning("SAT %s (%s): %s", rfc, scope, exc)
+                    st["aviso"] = _SAT_FALLO
+                    report.avisos.append(f"SAT {rfc} ({scope}): no se pudo: {exc}")
+                    return
+                _sat_guardar_paquete(session, tenant, id_paquete, contenido)
+            st["solicitud"] = {**sol, "paquetes": paquetes}
             return
+        st.pop("solicitud", None)
         if _sat_codigo(st, sol, codigo, rfc, scope, report):
             return
         # 4 error, 5 con otro código, 6 vencida, o una respuesta rara: se suelta
@@ -1387,6 +1421,44 @@ def _sat_ciclo_scope(
     )
 
 
+def _sat_importar(
+    session: Session,
+    tenant: Tenant,
+    st: dict,
+    today: date,
+    report: SyncReport,
+    crear_cartera: bool,
+) -> None:
+    """Segunda mitad: importar los paquetes YA guardados, sin hablar con el SAT.
+    Corre en su propio savepoint: si la base rechaza algo, los paquetes siguen
+    guardados y se reintenta desde ahí. Al terminar bien se borran."""
+    from aiuda_core.connectors.sat_descarga import extraer_xmls
+
+    sol = st.get("solicitud")
+    if not sol or "paquetes" not in sol:
+        return
+    filas = [_sat_paquete(session, tenant, p) for p in sol["paquetes"]]
+    if any(f is None for f in filas):
+        # Falta una copia (la base se restauró o se limpió): se vuelve a verificar
+        # y solo se baja la que falte.
+        st["solicitud"] = {k: v for k, v in sol.items() if k != "paquetes"}
+        return
+    xmls: list[bytes] = []
+    for fila in filas:
+        xmls.extend(extraer_xmls(_sat_leer_paquete(fila)))
+    res = importar_cfdis(
+        session, tenant, xmls, today=today, source="sat", crear_cartera=crear_cartera,
+    )
+    report.cfdis_importados += res["nuevos"]
+    report.pedidos_importados += res["facturas_creadas"]
+    report.avisos.extend(res["avisos"])
+    for fila in filas:
+        session.delete(fila)
+    st["ultima_fecha"] = sol["hasta"][:10]
+    st.pop("solicitud", None)
+    st.pop("aviso", None)
+
+
 def _sync_sat(
     session: Session,
     tenant: Tenant,
@@ -1409,22 +1481,28 @@ def _sync_sat(
             report.avisos.append(f"SAT {rfc}: no se pudo usar la e.firma: {client}")
             continue
         for scope in ("emitidas", "recibidas"):
-            antes = dict(st_rfc[scope])
-            try:
-                # Savepoint por vuelta: si la base rechaza un CFDI a media
-                # importación, se deshace SOLO esa vuelta. Sin esto la sesión
-                # quedaba envenenada y se caían la otra dirección, las demás
-                # empresas y los lectores que corren después.
-                with session.begin_nested():
-                    _sat_ciclo_scope(
-                        session, tenant, rfc, client, scope, st_rfc[scope], today,
-                        report, crear_cartera,
-                    )
-            except Exception as exc:  # noqa: BLE001 — se avisa y se sigue con lo demás
-                # La solicitud pendiente se conserva; se reintenta la siguiente vuelta.
-                st_rfc[scope] = {**antes, "aviso": _SAT_FALLO}
-                log.warning("SAT %s (%s): %s", rfc, scope, exc)
-                report.avisos.append(f"SAT {rfc} ({scope}): no se pudo: {exc}")
+            st = st_rfc[scope]
+            pasos = (
+                lambda: _sat_traer(session, tenant, rfc, client, scope, st, today, report),
+                lambda: _sat_importar(session, tenant, st, today, report, crear_cartera),
+            )
+            for paso in pasos:
+                antes = copy.deepcopy(st)
+                try:
+                    # Savepoint por paso: si la base rechaza un CFDI a media
+                    # importación, se deshace SOLO la importación (los paquetes
+                    # bajados siguen guardados). Sin esto la sesión quedaba
+                    # envenenada y se caían la otra dirección, las demás
+                    # empresas y los lectores que corren después.
+                    with session.begin_nested():
+                        paso()
+                except Exception as exc:  # noqa: BLE001 — se avisa y se sigue con lo demás
+                    # Lo pendiente se conserva; se reintenta la siguiente vuelta.
+                    st.clear()
+                    st.update({**antes, "aviso": _SAT_FALLO})
+                    log.warning("SAT %s (%s): %s", rfc, scope, exc)
+                    report.avisos.append(f"SAT {rfc} ({scope}): no se pudo: {exc}")
+                    break
         estado[rfc] = st_rfc
     cfg["sat_descarga"] = estado
     tenant.config = cfg

@@ -260,6 +260,79 @@ def test_un_cfdi_que_la_base_rechaza_no_envenena_la_corrida(session, tenant, mon
     assert [c.name for c in session.scalars(select(Customer)).all()].count("Choca") == 0
 
 
+def test_si_la_importacion_falla_no_se_vuelve_a_descargar(session, tenant, monkeypatch):
+    """El SAT limita las descargas de cada paquete. Antes, si importar tronaba,
+    la vuelta siguiente verificaba y bajaba el mismo paquete otra vez. Ahora el
+    ZIP queda guardado (cifrado) y el reintento importa de esa copia."""
+    from aiuda_core.engine import sync as sync_mod
+    from aiuda_core.models import SatPaquete
+
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    xml = cfdi_basico(uuid="CCCC0010-0000-4000-8000-000000000010", emisor=HANOVA)
+    paquete = _zip(xml)
+    fake = FakeSat(
+        verificaciones=[{"EstadoSolicitud": 3, "IdsPaquetes": ["P1"], "NumeroCFDIs": 1}],
+        paquetes={"P1": paquete},
+    )
+    fake.verificadas = 0
+    verificar = fake.verificar
+
+    def contar(id_solicitud):
+        fake.verificadas += 1
+        return verificar(id_solicitud)
+
+    fake.verificar = contar
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # solicita
+
+    importar = sync_mod.importar_cfdis
+
+    def importar_que_truena(*a, **kw):
+        raise RuntimeError("la base rechazó un CFDI")
+
+    monkeypatch.setattr(sync_mod, "importar_cfdis", importar_que_truena)
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert any("emitidas" in a and "no se pudo" in a for a in r.avisos)
+    guardado = session.scalars(select(SatPaquete)).all()
+    assert [g.id_paquete for g in guardado] == ["P1"]
+    assert paquete not in guardado[0].contenido  # cifrado, no el ZIP en claro
+    assert _estado(tenant, HANOVA)["emitidas"]["solicitud"]["paquetes"] == ["P1"]
+    assert session.scalar(select(Invoice)) is None
+
+    # La vuelta siguiente, ya con la importación sana: ni verifica ni descarga.
+    monkeypatch.setattr(sync_mod, "importar_cfdis", importar)
+    verificadas = fake.verificadas
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert fake.descargas == ["P1"]  # una sola descarga en total
+    assert fake.verificadas == verificadas + 1  # solo la de recibidas
+    assert r.cfdis_importados == 1
+    assert session.scalar(select(Invoice)).folio == "S-0010"
+    assert session.scalars(select(SatPaquete)).all() == []  # se limpia al terminar
+    st = _estado(tenant, HANOVA)["emitidas"]
+    assert "solicitud" not in st and st["ultima_fecha"] == "2026-07-28"
+
+
+def test_varios_paquetes_solo_se_baja_el_que_falta(session, tenant):
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    uno = cfdi_basico(uuid="CCCC0011-0000-4000-8000-000000000011", emisor=HANOVA)
+    dos = cfdi_basico(uuid="CCCC0012-0000-4000-8000-000000000012", emisor=HANOVA)
+    lista = {"EstadoSolicitud": 3, "IdsPaquetes": ["P1", "P2"], "NumeroCFDIs": 2}
+    en_proceso = {"EstadoSolicitud": 2}
+    fake = FakeSat(
+        verificaciones=[lista, en_proceso, lista, en_proceso],
+        paquetes={"P1": _zip(uno)},  # P2 todavía no se puede bajar
+    )
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # solicita
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert fake.descargas == ["P1", "P2"]  # P2 falló
+    assert any("emitidas" in a and "no se pudo" in a for a in r.avisos)
+    assert session.scalar(select(Invoice)) is None  # nada a medias
+
+    fake.paquetes["P2"] = _zip(dos)
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert fake.descargas == ["P1", "P2", "P2"]  # P1 no se volvió a pedir
+    assert r.cfdis_importados == 2
+
+
 def test_redescargar_el_mismo_paquete_no_duplica(session, tenant):
     tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
     xml = cfdi_basico(uuid="CCCC0002-0000-4000-8000-000000000002", emisor=HANOVA)
