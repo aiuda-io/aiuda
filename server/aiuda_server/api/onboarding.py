@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 
 from aiuda_server.api.deps import get_db, get_tenant
-from aiuda_core.engine.provider import credential_from_config, credential_from_store
+from aiuda_core.engine.provider import (
+    credential_from_config,
+    credential_from_store,
+    esta_conectada,
+)
 from aiuda_core.models import Customer, Reminder, Tenant
 
 router = APIRouter()
@@ -34,9 +38,8 @@ def onboarding_state(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         )
     )
     # IA conectada: fila cifrada o config legado (cualquiera de las dos).
-    ai_connected = (
-        credential_from_store(db, tenant.id) is not None
-        or credential_from_config(config) is not None
+    ai_connected = esta_conectada(
+        credential_from_store(db, tenant.id) or credential_from_config(config)
     )
     # Primer recordatorio aprobado: el momento HITL estrella (soberanía humana).
     approved = bool(

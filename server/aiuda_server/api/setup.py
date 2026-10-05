@@ -26,7 +26,11 @@ from aiuda_core.engine.maquina import (
     progreso_descarga,
 )
 from aiuda_core.engine.openai_compat import DEFAULT_BASE_URL
-from aiuda_core.engine.provider import credential_from_config, credential_from_store
+from aiuda_core.engine.provider import (
+    credential_from_config,
+    credential_from_store,
+    esta_conectada,
+)
 from aiuda_core.models import Ayudante, Customer, IntegrationCredential, Invoice, Tenant
 from aiuda_server.api.deps import DEFAULT_WORKSPACE_NAME, get_db, get_tenant
 
@@ -106,7 +110,8 @@ def estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
         "negocio": {"nombre": tenant.name, "listo": negocio_listo},
         # La IA: si hay un modelo local corriendo, es el camino sin fricción.
         "ia": {
-            "conectada": ia is not None,
+            # Un ChatGPT con la sesión vencida sigue siendo el proveedor, pero no conecta.
+            "conectada": esta_conectada(ia),
             "proveedor": ia.name if ia else None,
             "ollama_corriendo": modelos is not None,
             "modelos_locales": modelos or [],

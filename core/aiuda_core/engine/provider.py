@@ -137,6 +137,20 @@ def credential_from_store(session, tenant_id: str) -> ProviderCredential | None:
     return ProviderCredential(name=name, mode=mode, secret=secret)
 
 
+def esta_conectada(credential: ProviderCredential | None) -> bool:
+    """¿Con esta credencial se puede llamar hoy? Casi siempre basta con que exista. La
+    excepción es ChatGPT con la sesión vencida: la credencial se sigue devolviendo (para
+    que la corrida diga "vuelve a entrar" y no caiga a otra llave), pero ya no trae
+    tokens. Quien le cuente al dueño si su IA está conectada pregunta aquí."""
+    if credential is None:
+        return False
+    if credential.name == "chatgpt":
+        from aiuda_core.engine import chatgpt_auth
+
+        return bool(chatgpt_auth.parse_secret(credential.secret).get("access_token"))
+    return True
+
+
 def resolve_credential(
     config: dict | None = None,
     *,

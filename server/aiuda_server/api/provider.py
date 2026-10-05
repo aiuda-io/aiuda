@@ -121,7 +121,10 @@ def _state(db, tenant: Tenant) -> dict:
         "connected": conectado,
         # Honestidad: sin credencial en el panel pero con API key en el entorno,
         # la app igual funciona. La UI lo muestra como "activo por variable de entorno".
-        "env_fallback": (not conectado) and bool(settings.anthropic_api_key),
+        # Con ChatGPT guardado (aunque esté vencido) NO se cae a esa llave: no se anuncia.
+        "env_fallback": (
+            (not conectado) and v["name"] != "chatgpt" and bool(settings.anthropic_api_key)
+        ),
         # ChatGPT no tiene nada que pegar ni que enmascarar.
         "secret": "" if retirado or v["name"] == "chatgpt" else (MASK if has_secret else ""),
         "chatgpt": _estado_chatgpt(tenant, v),

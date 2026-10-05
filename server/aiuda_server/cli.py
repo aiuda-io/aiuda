@@ -225,11 +225,18 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     create_all()
     with session_scope() as db:
         from aiuda_server.api.deps import get_workspace
-        from aiuda_core.engine.provider import credential_from_config, credential_from_store
+        from aiuda_core.engine.provider import (
+            credential_from_config,
+            credential_from_store,
+            esta_conectada,
+        )
 
         tenant = get_workspace(db)
         cred = credential_from_store(db, tenant.id) or credential_from_config(tenant.config or {})
-    if cred is not None:
+    if cred is not None and not esta_conectada(cred):
+        # Mientras esa fila exista no se cae a la llave del entorno: se dice tal cual.
+        _check("Proveedor de IA", False, "la sesión de ChatGPT venció, vuelve a entrar en la consola (/proveedor)")
+    elif cred is not None:
         _check("Proveedor de IA", True, f"{cred.name} ({cred.mode}) conectado en la consola")
     elif settings.anthropic_api_key:
         _check("Proveedor de IA", True, "ANTHROPIC_API_KEY del entorno")

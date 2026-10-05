@@ -390,7 +390,9 @@ def test_el_guardia_de_sesion_solo_deja_pasar_el_regreso(falso, client, monkeypa
 
 
 # --- vencer y desconectar ----------------------------------------------------
-def test_sesion_vencida_se_ve_en_el_estado_y_la_prueba_lo_dice(falso, client, db_session, tenant):
+def test_sesion_vencida_se_ve_en_el_estado_y_la_prueba_lo_dice(
+    falso, client, db_session, tenant, monkeypatch
+):
     _entrar(client)
     bundle = _bundle(db_session, tenant)
     chatgpt_auth._persistir(db_session, tenant.id, {**bundle, "expires_at": 0})
@@ -405,12 +407,23 @@ def test_sesion_vencida_se_ve_en_el_estado_y_la_prueba_lo_dice(falso, client, db
     assert estado["connected"] is False and estado["name"] == "chatgpt"
     assert estado["chatgpt"]["vencida"] is True and estado["chatgpt"]["registrada"] is True
 
+    # Todo lo que le cuenta al dueño si su IA está conectada dice lo mismo, y con una
+    # llave en el entorno no se anuncia un respaldo que no se va a usar.
+    monkeypatch.setattr(settings, "anthropic_api_key", "sk-env")
+    assert client.get("/v1/provider").json()["env_fallback"] is False
+    ia = client.get("/v1/setup/estado").json()["ia"]
+    assert ia["conectada"] is False and ia["proveedor"] == "chatgpt"
+    pasos = {p["key"]: p["done"] for p in client.get("/v1/onboarding/state").json()["steps"]}
+    assert pasos["ia_conectada"] is False
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+
     # Volver a entrar la revive con el mismo registro.
     falso.modo["refresh"] = "ok"
     assert _entrar(client).status_code == 200
     assert falso.visto["authorize"][-1]["client_id"] == bundle["client_id"]
     assert falso.visto["authorize"][-1]["login_hint"] == "dueno@ejemplo.mx"
     assert client.get("/v1/provider").json()["connected"] is True
+    assert client.get("/v1/setup/estado").json()["ia"]["conectada"] is True
 
 
 def test_el_limite_del_plan_llega_a_la_consola_con_su_codigo(falso, client):
