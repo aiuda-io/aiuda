@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
+import { IrAHoy } from "@/components/hoy/ir-a-hoy";
 
-// Consolidado en el Centro de mando: una sola puerta para aprobar/rechazar/corregir.
-// Se mantiene la ruta como redirección para no romper enlaces viejos o marcadores.
+// Aprobar vive en Hoy (/). La ruta se queda como redirección para no romper ligas
+// viejas ni marcadores.
 export default function AprobacionesRedirect() {
-  redirect("/centro");
+  return <IrAHoy />;
 }
