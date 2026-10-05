@@ -505,3 +505,40 @@ def test_una_renovacion_en_curso_no_le_escribe_encima_a_la_ia_que_el_dueno_acaba
     assert (fila["name"], fila["mode"], fila["secret"]) == ("codex", "api_key", "sk-del-dueno")
     # Y nada en memoria que la reviva en la siguiente llamada.
     assert t.id not in chatgpt_auth._ultimo
+
+
+def test_al_abrir_un_trabajo_el_token_se_renueva_y_queda_en_disco_antes_de_escribir(
+    falso, base_en_disco
+):
+    """Si la app se cierra a media corrida, lo que no se confirmó se pierde. El token
+    recién rotado no puede estar ahí: se renueva al abrir el run, antes de su primera
+    escritura, y otra conexión ya lo ve en disco con el run todavía abierto."""
+    from aiuda_core.observabilidad import abrir_run
+
+    hacer, s, t = base_en_disco
+    # Le quedan 10 minutos: no vence todavía, pero sí durante un trabajo largo.
+    bundle = _envejecer(s, t, _conectar(falso, s, t), expires_at=int(time.time()) + 600)
+
+    corrida = hacer()
+    with abrir_run(corrida, corrida.get(Tenant, t.id), disparo="corrida"):
+        en_disco = _guardado(hacer(), t)
+        assert en_disco["refresh_token"] != bundle["refresh_token"]
+        # La llamada de verdad ya no renueva dentro de la transacción del trabajo.
+        assert chatgpt_auth.token_vigente(corrida, t.id) == en_disco["access_token"]
+    # La app "muere" sin confirmar nada de la corrida y sin memoria.
+    corrida.connection().connection.dbapi_connection.rollback()
+    corrida.close()
+    chatgpt_auth._ultimo.clear()
+
+    assert _guardado(hacer(), t)["refresh_token"] == en_disco["refresh_token"]
+    assert [f["grant_type"] for f in falso.visto["token"]].count("refresh_token") == 1
+
+
+def test_adelantar_la_renovacion_no_hace_nada_si_la_ia_no_es_chatgpt(falso, session, tenant):
+    credentials.set_credential(
+        session, tenant.id, "ia", {"name": "codex", "mode": "api_key", "secret": "sk-x"}
+    )
+    session.commit()
+    chatgpt_auth.adelantar_renovacion(session, tenant.id)
+    assert falso.visto["token"] == []
+    assert credentials.read_stored(session, tenant.id, "ia")["secret"] == "sk-x"

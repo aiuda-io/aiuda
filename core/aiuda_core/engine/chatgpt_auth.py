@@ -60,6 +60,8 @@ USO_URL = "https://chatgpt.com/settings/usage"
 
 # Se renueva cuando al token le quedan menos de cinco minutos.
 MARGEN_S = 300
+# Antes de empezar un trabajo se renueva con más holgura (ver `adelantar_renovacion`).
+MARGEN_PREVIO_S = 1200
 _TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 
 # Códigos con los que el servidor dice que el token de renovación ya no sirve y hay que
@@ -539,7 +541,9 @@ def bundle_actual(session, tenant_id: str) -> dict:
     return bundle
 
 
-def token_vigente(session, tenant_id: str, *, rechazado: str | None = None) -> str:
+def token_vigente(
+    session, tenant_id: str, *, rechazado: str | None = None, margen: int = MARGEN_S
+) -> str:
     """El access token para la siguiente llamada, renovándolo si hace falta.
 
     Sin `rechazado`: renueva si está por vencer. Con `rechazado` (el token al que OpenAI
@@ -557,7 +561,7 @@ def token_vigente(session, tenant_id: str, *, rechazado: str | None = None) -> s
             toca = bundle["access_token"] == rechazado
         else:
             toca = (
-                bundle.get("expires_at", 0) - ahora < MARGEN_S
+                bundle.get("expires_at", 0) - ahora < margen
                 and ahora >= bundle.get("earliest_refresh_at", 0)
             )
         if not toca:
@@ -581,3 +585,22 @@ def token_vigente(session, tenant_id: str, *, rechazado: str | None = None) -> s
             raise
         _persistir(session, tenant_id, nuevo)
         return nuevo["access_token"]
+
+
+def adelantar_renovacion(session, tenant_id: str) -> None:
+    """Renueva YA si al token le queda poco, antes de que quien llama empiece a escribir.
+
+    Una corrida o un turno de chat anotan su bitácora y luego esperan a la IA con esa
+    transacción abierta. Si la renovación cayera ahí adentro, el token nuevo viviría
+    solo en esa transacción sin confirmar y en memoria: si la app se cierra en ese
+    rato, se pierde, el viejo ya está gastado y el dueño tiene que volver a entrar.
+    Hecha aquí, con la sesión todavía sin escribir, queda confirmada en disco de una
+    vez (ver `_persistir`). La holgura es mayor que la normal para que el trabajo que
+    empieza no tenga que renovar a medio camino.
+
+    Nunca lanza: si la IA no es ChatGPT no hace nada, y si algo falla ya lo dirá la
+    llamada de verdad."""
+    try:
+        token_vigente(session, tenant_id, margen=MARGEN_PREVIO_S)
+    except Exception:  # noqa: BLE001 — es un adelanto, no la llamada
+        pass
