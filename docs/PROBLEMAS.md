@@ -48,9 +48,27 @@ devuelve es el del servidor de Odoo, tal cual. Cada dato importado guarda su
 procedencia, así que en la ficha se ve de dónde vino y cuándo.
 
 **WhatsApp no envía.**
-El envío usa wacli, que se pelea consigo mismo si tienes un `wacli sync
---follow` retenido en el store. El envío espera el lock unos segundos y si no lo
-suelta, falla. Cierra el sync y reintenta.
+El mensaje que no salió dice por qué, junto a "No se envió" en la conversación o
+en el Centro. Para ver cómo está la sesión, entra a Integraciones, abre WhatsApp
+y usa "Probar conexión". Lo más común:
+
+- **No está vinculado, o WhatsApp cerró la sesión.** Pasa si quitaste esta
+  computadora desde tu teléfono, en Dispositivos vinculados. Vuelve a escanear
+  el código QR.
+- **Sin conexión.** Tu número sigue vinculado y aiuda reintenta solo; revisa el
+  internet de la computadora.
+- **WhatsApp abierto en otro programa.** Solo un programa puede tener abierta la
+  sesión. aiuda la mantiene abierta por su cuenta mientras está corriendo; si
+  además dejaste un `wacli sync` en una terminal, ciérralo y aiuda la retoma en
+  menos de un minuto.
+- **Falta el conector.** En Integraciones, abre WhatsApp y presiona Instalar.
+  Necesita macOS 15 o más nuevo.
+
+**No llegan las respuestas de mis clientes.**
+Llegan mientras aiuda está abierto: es aiuda quien mantiene conectada la sesión
+de WhatsApp de esta computadora. Con aiuda cerrado los mensajes se quedan en tu
+teléfono y entran cuando lo vuelves a abrir. Si aiuda está abierto y no llegan,
+usa "Probar conexión" en Integraciones.
 
 **"No se pudo descifrar" o 409 al guardar una credencial.**
 La llave con la que se guardó ese secreto ya no está. Si tienes respaldo de
@@ -105,7 +123,7 @@ aiuda doctor (0.1.0)
 ```
 
 `[--]` no siempre es un problema: los CLIs, Ollama, el CUA y wacli son
-opcionales. Lo que sí importa es que la carpeta de datos, la base y la llave
+opcionales (wacli se instala con un clic desde Integraciones, en WhatsApp). Lo que sí importa es que la carpeta de datos, la base y la llave
 digan `[ok]`, y que haya un proveedor de IA si esperas que el ayudante redacte.
 
 ## Si nada de eso aplica

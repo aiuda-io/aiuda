@@ -13,6 +13,7 @@ app de escritorio (Tauri)          o          aiuda start (terminal)
               │  los aparatos emparejados; apagada por default
               ├─ consola: export estático de Next servido por el mismo proceso
               ├─ scheduler (hilos): corrida horaria + WhatsApp entrante (wacli)
+              ├─ wacli: `sync --follow` como proceso hijo, supervisado
               ├─ SQLite ~/.aiuda/aiuda.db (WAL)
               ├─ llave Fernet en ~/.aiuda/key (0600), una sola fuente
               ├─ IA BYO: llave (Claude / OpenAI), el Claude Code o Codex ya
@@ -93,6 +94,15 @@ No hay Redis, ni cola, ni proceso aparte. Dos hilos dentro del mismo proceso: un
 dispara la corrida de cobranza una vez por hora de reloj (idempotente y con
 cooldowns, así que correr de más no duplica nada) y otro sondea WhatsApp entrante
 cada 20 segundos. `aiuda daily` hace lo mismo en primer plano.
+
+WhatsApp con tu número sí trae un proceso aparte, pero no lo opera nadie a mano:
+`server/aiuda_server/wacli_sync.py` es dueño del `wacli sync --follow` de cada
+negocio vinculado (mantiene la sesión conectada y llena el espejo local que el
+sondeo lee) y del `wacli auth` del emparejamiento. Lo arranca al abrir, lo
+detiene para enviar (wacli deja un solo proceso por store) y lo reanuda, lo
+relanza si muere y lo termina al apagar. El binario lo resuelve
+`core/aiuda_core/connectors/wacli_bin.py`, siempre por ruta absoluta: el que
+instaló la consola en `~/.aiuda/bin`, o el del sistema.
 
 La corrida no depende de que el hilo despierte en el minuto exacto: cada 30
 segundos compara la hora actual contra la última corrida (guardada en

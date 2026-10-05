@@ -103,8 +103,12 @@ Instalar no basta: aiuda necesita una IA y una fuente de datos.
   modelo local. Ver [IA.md](IA.md).
 - **Fuente:** tu Odoo, un Excel o cualquier API con el conector a la medida. Se
   conecta desde la consola.
-- **Canal (opcional):** WhatsApp con tu número (necesita
-  [wacli](https://github.com/steipete/wacli)) o el correo del negocio.
+- **Canal (opcional):** WhatsApp con tu número o el correo del negocio. Para
+  WhatsApp, la consola instala con un clic el conector
+  ([wacli](https://github.com/openclaw/wacli), software libre de terceros) y
+  lo vinculas escaneando un código QR. Necesita macOS 15 o más nuevo. Es una
+  vía no oficial: queda fuera de las condiciones de uso de Meta y Meta puede
+  suspender el número.
 - **Teléfono (opcional):** la app de iPhone, dentro del WiFi de tu oficina. Ver
   [APARATOS.md](APARATOS.md).
 
