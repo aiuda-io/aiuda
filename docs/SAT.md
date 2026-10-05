@@ -53,8 +53,19 @@ La pantalla muestra, por dirección, la última fecha cubierta o si hay una
 solicitud pendiente. Un rechazo definitivo del SAT se conserva para no repetir
 la misma solicitud y agotar el servicio.
 
-Esta ruta está implementada y probada con dobles del protocolo. La autenticación
-y la descarga completas todavía deben verificarse con una e.firma real.
+Esta ruta se probó contra el SAT real el 4 de octubre de 2026 con una e.firma
+vigente: autenticación, solicitud, verificación, descarga e importación, en
+emitidos y recibidos. En esa prueba el paquete de emitidos estuvo listo en menos
+de un minuto; el SAT puede tardar más.
+
+Dos límites que conviene conocer:
+
+- **Recibidos: solo vigentes.** El SAT ya no entrega el XML de un CFDI recibido
+  que está cancelado, así que aiuda pide únicamente los vigentes.
+- **Cancelaciones posteriores.** Un CFDI que emitiste y cancelas después de que
+  aiuda lo descargó no se actualiza solo: la descarga trae los vigentes del
+  periodo, no avisa de lo que se canceló más tarde. Una factura a crédito que
+  cancelas después sigue apareciendo abierta en aiuda.
 
 ## Prueba técnica en vivo
 
