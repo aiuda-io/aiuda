@@ -63,8 +63,8 @@ _FALLOS: tuple[tuple[str, str], ...] = (
     ("send timed out", _TARDO),
     (
         "client outdated",
-        "WhatsApp pidió una versión más nueva del conector. Ve a Integraciones, abre "
-        "WhatsApp y presiona Actualizar.",
+        "WhatsApp pidió una versión más nueva del conector. Ve a Integraciones y abre "
+        "WhatsApp para ver cómo actualizarlo.",
     ),
     ("qr code timed out", "El código QR caducó. Genera uno nuevo y escanéalo."),
     (
