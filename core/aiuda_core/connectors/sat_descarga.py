@@ -29,6 +29,16 @@ class SatCredencialInvalida(ValueError):
     """La e.firma subida no sirve, con el motivo en palabras del dueño."""
 
 
+class SatSinRespuesta(RuntimeError):
+    """El SAT no contestó a tiempo o no se pudo llegar a él."""
+
+
+# Segundos que se espera al SAT: (para conectar, entre un tramo de respuesta y
+# el siguiente). satcfdi llama a requests.post SIN límite, así que un SAT colgado
+# dejaba colgada la corrida entera, con las demás fuentes detrás.
+SAT_TIMEOUT = (10, 60)
+
+
 ES_CSD = (
     "Estos archivos son un CSD (el sello con el que timbras facturas). "
     "El SAT solo entrega tus facturas con tu e.firma (FIEL): sube el .cer y "
@@ -49,6 +59,39 @@ def _satcfdi():
             "Falta la librería 'satcfdi' (la instala `uv sync`). Sin ella no se "
             "puede hablar con el SAT."
         ) from exc
+
+
+def _servicio(signer):
+    """El cliente del SAT de satcfdi con límite de tiempo en cada llamada.
+
+    Se hereda en vez de bifurcar la librería: lo único que cambia es `_request`,
+    el punto por donde pasan autenticación, solicitud, verificación y descarga."""
+    import requests
+    from lxml import etree
+    from satcfdi.exceptions import ResponseError
+    from satcfdi.pacs.sat import SAT
+    from satcfdi.utils import parser
+
+    class _SatConLimite(SAT):
+        def _request(self, soap_url, data, soap_action, needs_token_fn, verify=True):
+            try:
+                response = requests.post(
+                    url=soap_url,
+                    data=data,
+                    headers=self._get_headers(soap_action, needs_token_fn=needs_token_fn),
+                    verify=verify,
+                    timeout=SAT_TIMEOUT,
+                )
+            except (requests.Timeout, requests.ConnectionError) as exc:
+                raise SatSinRespuesta(
+                    "el SAT no contestó a tiempo; se intenta de nuevo en la "
+                    "siguiente corrida"
+                ) from exc
+            if not response.ok:
+                raise ResponseError(response)
+            return etree.fromstring(response.content, parser=parser)
+
+    return _SatConLimite(signer=signer)
 
 
 def _cargar_signer(cer: bytes, key: bytes, password: str):
@@ -140,10 +183,8 @@ class SatDescargaClient:
     def __init__(self, cer: bytes, key: bytes, password: str, service=None):
         self._signer = _cargar_signer(cer, key, password)
         self.rfc = str(self._signer.rfc).upper() if self._signer.rfc else ""
-        if service is None:  # pragma: no cover - construcción real, se prueba en vivo
-            from satcfdi.pacs.sat import SAT
-
-            service = SAT(signer=self._signer)
+        if service is None:
+            service = _servicio(self._signer)
         self._service = service
 
     def solicitar(self, scope: str, desde: datetime, hasta: datetime) -> dict:

@@ -233,3 +233,44 @@ def test_recibidas_se_piden_solo_vigentes(fiel):
 
     assert espia.pedidos[0][1]["estado_comprobante"] == "Vigente"
     assert "estado_comprobante" not in espia.pedidos[1][1]
+
+
+def test_un_sat_colgado_no_cuelga_la_corrida(fiel, monkeypatch):
+    """satcfdi llama a requests.post sin límite: un SAT que acepta la conexión y
+    no contesta dejaba la corrida esperando para siempre. Aquí un servidor local
+    hace exactamente eso y la llamada tiene que soltar sola."""
+    import socket
+    import threading
+
+    from satcfdi.pacs import sat as satcfdi_sat
+
+    from aiuda_core.connectors import sat_descarga
+    from aiuda_core.connectors.sat_descarga import SatSinRespuesta
+
+    mudo = socket.socket()
+    mudo.bind(("127.0.0.1", 0))
+    mudo.listen(1)  # acepta en el kernel y jamás responde
+    monkeypatch.setattr(
+        satcfdi_sat._CFDIAutenticacion,
+        "soap_url",
+        f"http://127.0.0.1:{mudo.getsockname()[1]}/",
+    )
+    monkeypatch.setattr(sat_descarga, "SAT_TIMEOUT", (2, 0.3))
+    cer, key = fiel
+    cliente = SatDescargaClient(cer, key, PASSWORD)
+    resultado: list = []
+
+    def llamar():
+        try:
+            cliente.probar()
+            resultado.append("contestó")
+        except Exception as exc:  # noqa: BLE001 - el tipo se revisa abajo
+            resultado.append(exc)
+
+    hilo = threading.Thread(target=llamar, daemon=True)
+    hilo.start()
+    hilo.join(timeout=10)
+    mudo.close()
+    assert not hilo.is_alive(), "la llamada al SAT se quedó colgada"
+    assert isinstance(resultado[0], SatSinRespuesta)
+    assert "no contestó a tiempo" in str(resultado[0])
