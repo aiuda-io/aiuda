@@ -154,8 +154,12 @@ class SatDescargaClient:
                 fecha_inicial=desde, fecha_final=hasta
             )
         elif scope == "recibidas":
+            # Recibidas exige pedir SOLO vigentes: el SAT ya no entrega el XML de
+            # un recibido cancelado y, si no se declara el estado, rechaza la
+            # solicitud entera (CodEstatus 301: "No se permite la descarga de xml
+            # que se encuentren cancelados"). Visto contra el SAT real.
             r = self._service.recover_comprobante_received_request(
-                fecha_inicial=desde, fecha_final=hasta
+                fecha_inicial=desde, fecha_final=hasta, estado_comprobante="Vigente"
             )
         else:
             raise ValueError(f"scope desconocido: {scope}")

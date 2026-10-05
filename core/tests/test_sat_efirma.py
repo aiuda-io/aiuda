@@ -19,6 +19,7 @@ from sqlalchemy import select
 from aiuda_core.connectors import credentials as cred
 from aiuda_core.connectors.sat_descarga import (
     SatCredencialInvalida,
+    SatDescargaClient,
     extraer_xmls,
     validar_efirma,
 )
@@ -202,3 +203,33 @@ def test_extraer_xmls_solo_lee_en_memoria():
         zf.writestr("dos.XML", "<Comprobante/>")
         zf.writestr("meta.txt", "no")
     assert len(extraer_xmls(buf.getvalue())) == 2
+
+
+class _ServicioEspia:
+    """El web service del SAT de satcfdi, anotando con qué se le pide."""
+
+    def __init__(self):
+        self.pedidos: list[tuple[str, dict]] = []
+
+    def recover_comprobante_emitted_request(self, **kw):
+        self.pedidos.append(("emitidas", kw))
+        return {"IdSolicitud": "S1", "CodEstatus": "5000"}
+
+    def recover_comprobante_received_request(self, **kw):
+        self.pedidos.append(("recibidas", kw))
+        return {"IdSolicitud": "S2", "CodEstatus": "5000"}
+
+
+def test_recibidas_se_piden_solo_vigentes(fiel):
+    """El SAT real rechaza (301) una solicitud de recibidas que no declare el
+    estado: ya no entrega XML de recibidos cancelados."""
+    cer, key = fiel
+    espia = _ServicioEspia()
+    cliente = SatDescargaClient(cer, key, PASSWORD, service=espia)
+    desde, hasta = datetime(2026, 9, 1), datetime(2026, 9, 30, 23, 59, 59)
+
+    cliente.solicitar("recibidas", desde, hasta)
+    cliente.solicitar("emitidas", desde, hasta)
+
+    assert espia.pedidos[0][1]["estado_comprobante"] == "Vigente"
+    assert "estado_comprobante" not in espia.pedidos[1][1]
