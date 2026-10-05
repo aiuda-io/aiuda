@@ -279,14 +279,17 @@ body {
 
 /* Navegar se siente fluido: el contenido llega con peso (sobrio, ~180ms), en
  * la dirección del viaje (adelante = te metiste; atrás = regresaste). El
- * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve. */
+ * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve.
+ * Termina en `transform: none` y no en `translateY(0)`: con `both`, un transform
+ * que se queda puesto encierra a todo `position: fixed` de la página (velos,
+ * selectores) y deja de cubrir la ventana completa. */
 @keyframes page-enter-fwd {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes page-enter-back {
   from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 .page-enter-fwd { animation: page-enter-fwd 0.18s var(--ease-out) both; }
 .page-enter-back { animation: page-enter-back 0.18s var(--ease-out) both; }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { lockScroll } from "@/lib/scroll-lock";
 
 // Panel lateral (derecha) para el detalle de un registro. Es EL gesto de detalle de la
 // consola: preserva el contexto (el tablero/lista se queda detrás) mientras actúas. Acabado
@@ -43,6 +45,9 @@ export function Drawer({
     (focusables()[0] ?? panel)?.focus();
 
     const onKey = (e: KeyboardEvent) => {
+      // Con un Modal abierto encima, Esc y Tab son suyos: sin esto un solo Esc
+      // cerraba las dos capas y el Tab se peleaba entre los dos paneles.
+      if (document.querySelector("[data-capa-modal]")) return;
       if (e.key === "Escape") {
         onClose();
         return;
@@ -69,18 +74,21 @@ export function Drawer({
     };
 
     window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
+    const soltarScroll = lockScroll();
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      soltarScroll();
       // Devuelve el foco a donde estaba antes de abrir.
       opener?.focus?.();
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Portal a <body>: el contenido de la página vive dentro de un ancestro con `transform`
+  // (la animación de entrada), y eso encierra a cualquier `position: fixed`. Montado ahí,
+  // el velo no alcanzaba a cubrir ni el menú lateral ni la barra de arriba.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={title}>
       <div className="drawer-scrim absolute inset-0 bg-ink/30" onClick={onClose} />
       <div
@@ -113,6 +121,7 @@ export function Drawer({
         .drawer-scrim { animation: drawerScrimIn .2s ease-out both; }
         @media (prefers-reduced-motion: reduce) { .drawer-in, .drawer-scrim { animation: none; } }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }
