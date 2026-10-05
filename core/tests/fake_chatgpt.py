@@ -48,6 +48,7 @@ class FakeChatGPT:
             "revoke": "ok",  # ok | caido
             "responses": "ok",  # ok | detail_403 | limite | no_elegible | cortado | 401 | tool
             "expires_in": 3600,
+            "demora": 0,  # segundos que tarda en contestar /v1/responses
             "sub": "user-falso-1",
             "email": "dueno@ejemplo.mx",
             "modelos": ["gpt-falso-grande", "gpt-falso-chico"],
@@ -275,6 +276,7 @@ class FakeChatGPT:
                     "body": body,
                 })
                 modo = falso.modo["responses"]
+                time.sleep(falso.modo["demora"])
                 if modo == "401" or not self._bearer_valido():
                     return self._json(401, {"error": {"code": "invalid_token", "message": "x"}})
                 if modo == "detail_403":
