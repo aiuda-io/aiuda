@@ -450,20 +450,34 @@ def _ya_escribe(session) -> bool:
         return False
 
 
+def _guardar(session, tenant_id: str, bundle: dict) -> bool:
+    """Escribe el bundle en la fila 'ia' SOLO si esa fila sigue siendo esta misma
+    conexión de ChatGPT. Si mientras se renovaba el dueño guardó otra IA (o entró con
+    otra cuenta), lo suyo manda: no se le escribe encima y el bundle se suelta."""
+    from aiuda_core.connectors import credentials
+
+    guardado = credentials.read_stored(session, tenant_id, IA) or {}
+    if (
+        guardado.get("name") != "chatgpt"
+        or parse_secret(guardado.get("secret") or "").get("client_id") != bundle.get("client_id")
+    ):
+        _ultimo.pop(tenant_id, None)
+        return False
+    return credentials.refresh_secret(session, tenant_id, IA, valores(bundle))
+
+
 def _escribir_aparte(bind, tenant_id: str) -> None:
     """Escribe el bundle de memoria en su fila con una transacción propia, confirmada
     en el acto. Si no logra entrar (otro está escribiendo), queda en memoria."""
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
 
-    from aiuda_core.connectors import credentials
-
     bundle = _ultimo.get(tenant_id)
     if bundle is None:
         return
     try:
         with Session(bind=bind) as aparte:
-            credentials.refresh_secret(aparte, tenant_id, IA, valores(bundle))
+            _guardar(aparte, tenant_id, bundle)
             aparte.commit()
     except OperationalError:
         logger.warning("chatgpt: no se pudo guardar el token renovado; queda en memoria")
@@ -480,13 +494,12 @@ def _persistir(session, tenant_id: str, bundle: dict) -> None:
     esa transacción se revierte, se repone aparte en cuanto suelta la base."""
     from sqlalchemy import event
 
-    from aiuda_core.connectors import credentials
-
     _ultimo[tenant_id] = bundle
     if not _ya_escribe(session):
         _escribir_aparte(session.get_bind(), tenant_id)
         return
-    credentials.refresh_secret(session, tenant_id, IA, valores(bundle))
+    if not _guardar(session, tenant_id, bundle):
+        return
     event.listen(
         session,
         "after_rollback",

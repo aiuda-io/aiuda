@@ -476,3 +476,32 @@ def test_dos_hilos_a_la_vez_renuevan_una_sola_vez(falso, base_en_disco):
     assert len(set(tokens)) == 1
     # Un token de renovación usado dos veces sería `refresh_token_reused` y adiós sesión.
     assert [f["grant_type"] for f in falso.visto["token"]].count("refresh_token") == 1
+
+
+def test_una_renovacion_en_curso_no_le_escribe_encima_a_la_ia_que_el_dueno_acaba_de_guardar(
+    falso, base_en_disco, monkeypatch
+):
+    """Mientras se renueva (la llamada a OpenAI tarda), el dueño cambia de IA en Tu IA.
+    Lo que guardó manda: el token renovado no regresa la fila a ChatGPT."""
+    hacer, s, t = base_en_disco
+    _envejecer(s, t, _conectar(falso, s, t), expires_at=int(time.time()) + 60)
+    renovar = chatgpt_auth.renovar
+
+    def renovar_lento(bundle):
+        nuevo = renovar(bundle)
+        with hacer() as otra:  # lo que hace PUT /v1/provider en otra petición
+            credentials.set_credential(
+                otra, t.id, "ia", {"name": "codex", "mode": "api_key", "secret": "sk-del-dueno"}
+            )
+            otra.commit()
+        return nuevo
+
+    monkeypatch.setattr(chatgpt_auth, "renovar", renovar_lento)
+    corrida = hacer()
+    chatgpt_auth.token_vigente(corrida, t.id)
+    corrida.close()
+
+    fila = credentials.read_stored(hacer(), t.id, "ia")
+    assert (fila["name"], fila["mode"], fila["secret"]) == ("codex", "api_key", "sk-del-dueno")
+    # Y nada en memoria que la reviva en la siguiente llamada.
+    assert t.id not in chatgpt_auth._ultimo
