@@ -910,10 +910,34 @@ export type AgentSystems = {
 // "claude_cli"/"codex_cli" (modo "cli") = el Claude Code o el Codex que el dueño YA
 // tiene instalado y con su sesión iniciada. Se conecta con un clic: el secreto va
 // vacío porque no hay ninguno que guardar, la sesión vive dentro del propio programa.
-export type ProviderName = "claude" | "codex" | "local" | "claude_cli" | "codex_cli";
+// "chatgpt" (modo "oauth") = el dueño entró con su cuenta de ChatGPT por el flujo
+// oficial de OpenAI. No se guarda con saveProvider: empieza en chatgptIniciar y lo
+// termina el regreso del navegador.
+export type ProviderName =
+  | "claude"
+  | "codex"
+  | "local"
+  | "claude_cli"
+  | "codex_cli"
+  | "chatgpt";
 // Ya no existe "subscription": esa vía mandaba el token del dueño haciéndose pasar
-// por el CLI oficial del proveedor. Quien tiene suscripción usa "cli".
-export type ProviderMode = "api_key" | "cli";
+// por el CLI oficial del proveedor. Quien tiene suscripción usa "cli" u "oauth".
+export type ProviderMode = "api_key" | "cli" | "oauth";
+
+/** Cómo va "Entrar con ChatGPT" (viene dentro de GET /v1/provider). */
+export type ChatGPTEstado = {
+  /** Hay un login abierto en el navegador y todavía no regresa. */
+  pendiente: boolean;
+  /** Cómo terminó el último intento, si terminó mal. */
+  error: string | null;
+  /** La cuenta registrada. Se conserva al desconectar, para volver a entrar. */
+  email: string | null;
+  registrada: boolean;
+  /** Era la IA conectada y su sesión venció: toca volver a entrar. */
+  vencida: boolean;
+  /** El dueño ya leyó el aviso de que se usa su plan. */
+  bienvenida_vista: boolean;
+};
 
 /** Lo que hizo un ayudante en una unidad de trabajo. La narrativa la escribe el
  *  backend en español; el front no la arma para no poder contradecirla. */
@@ -974,6 +998,7 @@ export type ProviderState = {
   local_config?: { base_url: string; model: string };
   /** Venías de la vía retirada por suscripción: qué pasó y qué hacer, en una frase. */
   aviso_retirado?: string;
+  chatgpt?: ChatGPTEstado;
 };
 
 /** Veredicto de la prueba de conexión REAL del proveedor (POST /v1/provider/test):
@@ -1288,7 +1313,20 @@ export const api = {
       body: JSON.stringify({ name, mode, secret }),
     }),
   disconnectProvider: () =>
-    request<{ connected: boolean; env_fallback: boolean }>("/v1/provider", { method: "DELETE" }),
+    request<{ connected: boolean; env_fallback: boolean; aviso?: string }>("/v1/provider", {
+      method: "DELETE",
+    }),
+  /** Empieza a entrar con ChatGPT. El servidor abre el navegador; `url` es el respaldo. */
+  chatgptIniciar: (otraCuenta = false) =>
+    request<{ url: string; abierto: boolean }>("/v1/provider/chatgpt/iniciar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ otra_cuenta: otraCuenta }),
+    }),
+  chatgptEntendido: () =>
+    request<{ bienvenida_vista: boolean }>("/v1/provider/chatgpt/entendido", { method: "POST" }),
+  chatgptUso: () =>
+    request<{ url: string; abierto: boolean }>("/v1/provider/chatgpt/uso", { method: "POST" }),
   testProvider: () => request<ProviderTest>("/v1/provider/test", { method: "POST" }),
   testIntegration: (key: string) =>
     request<{ ok: boolean | null; message: string; details?: Record<string, number | string> }>(

@@ -30,12 +30,14 @@ import {
   type ModeloRecomendado,
   type ProviderMode,
   type ProviderName,
+  type ProviderState,
   type ProviderTest,
   type ServidorIAEnRed,
   type SetupEstado,
   type SetupMaquina,
 } from "@/lib/api";
 import { PrimaryButton, SecondaryButton, inputLgCls } from "@/components/ui";
+import { AvisoPlanChatGPT, EntrarConChatGPT, UsandoPlanChatGPT } from "@/components/chatgpt";
 import { Avatar } from "@/components/avatar";
 import { appearanceForSlug } from "@/lib/look";
 import { createAyudante, useCatalog } from "@/lib/ayudantes-store";
@@ -551,6 +553,7 @@ const LOGO_IA: Record<string, string> = {
   codex: "/brand/openai.svg",
   claude_cli: "/brand/anthropic.svg",
   codex_cli: "/brand/openai.svg",
+  chatgpt: "/brand/openai.svg",
 };
 
 const NOMBRE_IA: Record<string, string> = {
@@ -632,6 +635,33 @@ function PasoIA({
   useEffect(() => {
     mirarMaquina();
   }, [mirarMaquina]);
+
+  // Solo para "Entrar con ChatGPT": la cuenta ya registrada y el aviso de la primera
+  // vez viven en GET /v1/provider, no en el estado del asistente.
+  const [proveedor, setProveedor] = useState<ProviderState | null>(null);
+  const mirarProveedor = useCallback(
+    () =>
+      api
+        .provider()
+        .then(setProveedor)
+        .catch(() => setProveedor(null)),
+    [],
+  );
+  useEffect(() => {
+    mirarProveedor();
+  }, [mirarProveedor, ia.conectada]);
+
+  /** El navegador ya regresó y la conexión quedó guardada: se prueba y se sigue. */
+  const chatgptConectado = useCallback(async () => {
+    setTrabajando("chatgpt");
+    try {
+      setTest(await api.testProvider());
+    } catch (e) {
+      setTest({ ok: false, code: "error", error: (e as Error).message });
+    }
+    await refrescar();
+    setTrabajando("");
+  }, [refrescar]);
 
   useEffect(() => {
     const actuales = timers.current;
@@ -810,11 +840,13 @@ function PasoIA({
           ? "el Claude Code de esta computadora"
           : ia.proveedor === "codex_cli"
             ? "el Codex de esta computadora"
-            : ia.proveedor === "claude"
-              ? "Claude"
-              : ia.proveedor === "codex"
-                ? "OpenAI"
-                : "tu IA";
+            : ia.proveedor === "chatgpt"
+              ? "tu plan de ChatGPT"
+              : ia.proveedor === "claude"
+                ? "Claude"
+                : ia.proveedor === "codex"
+                  ? "OpenAI"
+                  : "tu IA";
     return (
       /* Ya conectada no hay nada que comparar: el paso se angosta a la medida
          del mensaje en vez de estirar una tarjeta sola a lo ancho. */
@@ -839,6 +871,14 @@ function PasoIA({
           </div>
         </div>
         {test && <ResultadoIA test={test} />}
+        {ia.proveedor === "chatgpt" && (
+          <>
+            <AvisoPlanChatGPT estado={proveedor} onVisto={mirarProveedor} enLinea />
+            <div className="mt-4">
+              <UsandoPlanChatGPT email={proveedor?.chatgpt?.email} />
+            </div>
+          </>
+        )}
         <div className="mt-7">
           <PrimaryButton size="lg" onClick={onListo}>
             Continuar
@@ -960,7 +1000,7 @@ function PasoIA({
           resumen={
             tieneCodex
               ? "De OpenAI. Trabaja con tu propia cuenta."
-              : "De OpenAI. Entra con la cuenta que ya usas."
+              : "De OpenAI. Entra con tu cuenta de ChatGPT o pega tu llave."
           }
           estado={
             trabajando === "codex_cli"
@@ -1133,7 +1173,7 @@ function PasoIA({
                 }}
                 className="text-ink-2 underline-offset-2 transition-colors hover:text-ink hover:underline"
               >
-                pegar mi llave de OpenAI
+                entrar con ChatGPT o pegar mi llave de OpenAI
               </button>
               .
             </p>
@@ -1141,16 +1181,40 @@ function PasoIA({
         </div>
       )}
 
-      {(abierta === "claude" || abierta === "codex") && (
+      {abierta === "claude" && (
         <PanelProveedor
-          key={abierta}
-          proveedor={abierta}
+          key="claude"
+          proveedor="claude"
           llave={llave}
           setLlave={setLlave}
           trabajando={trabajando !== ""}
-          onConectarLlave={() => conectar(abierta, llave.trim())}
+          onConectarLlave={() => conectar("claude", llave.trim())}
           test={test}
         />
+      )}
+
+      {/* OpenAI tiene dos entradas: la cuenta de ChatGPT del dueño (sin llave) y la
+          llave de siempre. Van juntas para que elija sabiendo cuál es cuál. */}
+      {abierta === "codex" && (
+        <Panel>
+          <EntrarConChatGPT
+            chatgpt={proveedor?.chatgpt}
+            onConectada={chatgptConectado}
+            disabled={trabajando !== ""}
+          />
+          <div className="mt-5 border-t border-line pt-4">
+            <p className="mb-3 text-cuerpo font-semibold text-ink">O pega tu llave de OpenAI</p>
+            <PanelProveedor
+              key="codex"
+              proveedor="codex"
+              llave={llave}
+              setLlave={setLlave}
+              trabajando={trabajando !== ""}
+              onConectarLlave={() => conectar("codex", llave.trim())}
+              test={test}
+            />
+          </div>
+        </Panel>
       )}
 
       {abierta === "local" && (
@@ -1741,7 +1805,9 @@ function PasoCierre({ estado, onEntrar }: { estado: SetupEstado; onEntrar: () =>
         ? "Claude"
         : estado.ia.proveedor === "codex"
           ? "OpenAI"
-          : "Sin conectar. La conectas en Tu IA, en el menú";
+          : estado.ia.proveedor === "chatgpt"
+            ? "Tu plan de ChatGPT"
+            : "Sin conectar. La conectas en Tu IA, en el menú";
 
   const datos =
     facturas > 0 || clientes > 0

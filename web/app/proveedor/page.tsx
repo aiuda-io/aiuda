@@ -11,6 +11,12 @@ import {
 import { PageHeader, Skeleton, ErrorState, useApi } from "@/components/ui";
 import { SettingsField, SettingsPage, SettingsSection, settingsInputCls } from "@/components/settings";
 import { toast } from "@/components/toast";
+import {
+  AdministrarUso,
+  AvisoPlanChatGPT,
+  EntrarConChatGPT,
+  UsandoPlanChatGPT,
+} from "@/components/chatgpt";
 
 type SegOption<T extends string> = { value: T; label: string; badge?: string };
 
@@ -81,8 +87,12 @@ export default function ProviderPage() {
 
   useEffect(() => {
     if (!server) return;
+    // Sin nada conectado se propone el camino de un clic, salvo que lo conectado fuera
+    // ChatGPT y su sesión haya vencido: ahí lo que toca es volver a entrar.
     const p: ProviderName =
-      !server.connected && !escogio.current && cliPorDefecto ? cliPorDefecto : server.name;
+      !server.connected && !escogio.current && cliPorDefecto && !server.chatgpt?.vencida
+        ? cliPorDefecto
+        : server.name;
     setProvider(p);
     setSecret(server.connected && server.name === p ? server.secret : "");
     if (server.local_config) {
@@ -135,8 +145,10 @@ export default function ProviderPage() {
 
   async function disconnect() {
     try {
-      await api.disconnectProvider();
-      toast("IA desconectada.", "info");
+      const r = await api.disconnectProvider();
+      // ChatGPT: si OpenAI no confirmó la desconexión, se dice (y qué hacer).
+      toast(r.aviso ?? "IA desconectada.", r.aviso ? "error" : "info");
+      setTestResult(null);
       refetch();
     } catch (e) {
       toast(`No se pudo desconectar: ${(e as Error).message}`, "error");
@@ -207,12 +219,48 @@ export default function ProviderPage() {
                     ? [{ value: "codex_cli" as const, label: "Codex", badge: "ya instalado" }]
                     : []),
                   { value: "claude", label: "Claude con mi llave" },
+                  { value: "chatgpt", label: "Mi plan de ChatGPT" },
                   { value: "codex", label: "OpenAI con mi llave" },
                   { value: "local", label: "En esta computadora" },
                 ]}
               />
 
-              {esCli ? (
+              {provider === "chatgpt" ? (
+                connectedHere ? (
+                  <div className="space-y-3">
+                    <UsandoPlanChatGPT email={server?.chatgpt?.email} />
+                    <p className="text-cuerpo leading-relaxed text-ink-2">
+                      Lo que hagan tus ayudantes cuenta en tu plan de ChatGPT, junto con lo
+                      que tú uses en ChatGPT. aiuda guarda cifrado en esta computadora el
+                      permiso que le diste; nunca ve tu contraseña.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={probar}
+                        disabled={testing}
+                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                      >
+                        {testing ? "Probando…" : "Probar"}
+                      </button>
+                      <button
+                        onClick={disconnect}
+                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                      >
+                        Desconectar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <EntrarConChatGPT
+                    chatgpt={server?.chatgpt}
+                    onConectada={() => {
+                      toast("Tu IA quedó conectada.", "success");
+                      refetch();
+                      probar();
+                    }}
+                  />
+                )
+              ) : esCli ? (
                 <div className="space-y-3">
                   <p className="text-cuerpo leading-relaxed text-ink-2">
                     Ya tienes {marcaCli} aquí y ya entraste con tu cuenta. Un clic y tus
@@ -363,6 +411,12 @@ export default function ProviderPage() {
                   {testResult.ok
                     ? `Funciona. Respondió en ${testResult.latency_ms} ms.`
                     : testResult.error}
+                  {/* Límite del plan de ChatGPT: lo que sigue es ir a revisarlo. */}
+                  {!testResult.ok && testResult.code === "limite" && (
+                    <div className="mt-2.5">
+                      <AdministrarUso principal />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -382,10 +436,18 @@ export default function ProviderPage() {
                 entraste ahí, igual que cuando lo abres tú. aiuda lo lanza y lee su respuesta:
                 nunca ve ni guarda tu contraseña ni tu token.
               </p>
+              <p>
+                Si entras con ChatGPT, tus ayudantes gastan del plan de ChatGPT que ya pagas,
+                no de una factura aparte. Es el mismo cupo que usas tú en ChatGPT: si tus
+                ayudantes trabajan mucho, a ti te queda menos. El límite que le quieras
+                poner a aiuda se fija en la configuración de ChatGPT, en{" "}
+                <AdministrarUso />.
+              </p>
             </div>
           </SettingsSection>
         </div>
       )}
+      <AvisoPlanChatGPT estado={server ?? null} onVisto={refetch} />
     </SettingsPage>
   );
 }
