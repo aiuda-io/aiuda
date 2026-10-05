@@ -97,7 +97,8 @@ Opcionales:
   verifica la suma; pide macOS 15) y vinculas por QR, como WhatsApp Web. aiuda
   no reparte wacli: su binario incluye código GPL-3.0. Corriendo desde el repo
   también sirve el `wacli` que ya tengas en el PATH. Es una vía no oficial,
-  fuera de las condiciones de uso de Meta.
+  fuera de las condiciones de uso de Meta. aiuda solo lee y contesta los chats
+  de tus clientes; el resto de tu WhatsApp no entra.
 - **Portales sin API (CUA):** `uv sync --extra cua` y luego
   `.venv/bin/playwright install chromium`. Ver [docs/CUA.md](docs/CUA.md).
 - **SAT:** registra hasta tres RFCs, importa XML/ZIP o conecta la e.firma desde

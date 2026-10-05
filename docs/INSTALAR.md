@@ -108,7 +108,8 @@ Instalar no basta: aiuda necesita una IA y una fuente de datos.
   ([wacli](https://github.com/openclaw/wacli), software libre de terceros) y
   lo vinculas escaneando un código QR. Necesita macOS 15 o más nuevo. Es una
   vía no oficial: queda fuera de las condiciones de uso de Meta y Meta puede
-  suspender el número.
+  suspender el número. aiuda solo atiende a tus clientes: lo que te escriben
+  tu familia y tus amigos a ese número no entra a aiuda ni recibe respuesta.
 - **Teléfono (opcional):** la app de iPhone, dentro del WiFi de tu oficina. Ver
   [APARATOS.md](APARATOS.md).
 

@@ -95,6 +95,13 @@ dispara la corrida de cobranza una vez por hora de reloj (idempotente y con
 cooldowns, así que correr de más no duplica nada) y otro sondea WhatsApp entrante
 cada 20 segundos. `aiuda daily` hace lo mismo en primer plano.
 
+El sondeo solo lee los chats de los clientes del negocio y el del dueño
+(`identity.telefonos_atendidos`, cruce por los últimos 10 dígitos). El número
+vinculado suele ser el personal del dueño: lo que llega de cualquier otro número
+no se guarda, no se le pasa a la IA y no recibe respuesta ni baja. La misma
+regla se repite al guardar (`inbound.ingresar_entrante`) y al atender
+(`worker/main.py`).
+
 WhatsApp con tu número sí trae un proceso aparte, pero no lo opera nadie a mano:
 `server/aiuda_server/wacli_sync.py` es dueño del `wacli sync --follow` de cada
 negocio vinculado (mantiene la sesión conectada y llena el espejo local que el

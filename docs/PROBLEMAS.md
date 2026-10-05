@@ -70,6 +70,17 @@ de WhatsApp de esta computadora. Con aiuda cerrado los mensajes se quedan en tu
 teléfono y entran cuando lo vuelves a abrir. Si aiuda está abierto y no llegan,
 usa "Probar conexión" en Integraciones.
 
+aiuda solo recibe lo que te escriben tus clientes. Si el mensaje de un cliente
+no aparece, revisa que su ficha tenga el mismo teléfono desde el que te escribe.
+Lo que te mandan tu familia, tus amigos o cualquier número que no sea de un
+cliente no entra a aiuda, no se le pasa a la IA y no recibe respuesta: se queda
+en tu WhatsApp como siempre.
+
+**Un cliente escribió y el ayudante no le contestó.**
+El mensaje está en la conversación, para que lo atiendas tú. Pasa cuando no hay
+una IA conectada, cuando tú tomaste la conversación o cuando el cliente mandó un
+audio, una foto o un documento sin escribir nada.
+
 **"No se pudo descifrar" o 409 al guardar una credencial.**
 La llave con la que se guardó ese secreto ya no está. Si tienes respaldo de
 `~/.aiuda/key`, restáuralo; si no, vuelve a capturar la credencial en la
