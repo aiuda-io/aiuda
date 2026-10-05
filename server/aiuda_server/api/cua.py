@@ -13,14 +13,19 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
-from aiuda_server.api.deps import get_db, get_tenant
+from aiuda_server import audit
+from aiuda_server.api.deps import get_db, get_tenant, require_role
 from aiuda_core.cua.fallback import (
     CUA_PORTALES_KEY,
     CUA_PORTALES_URL_KEY,
     CUA_TEMPLATES,
+    CONSENTIMIENTO_SAT_TEXTO,
+    MSG_FALTA_CONSENTIMIENTO,
     PORTAL_PREFIX,
     RUTINAS_DETERMINISTAS,
+    aceptar_consentimiento_sat,
     borrar_sesion,
+    consentimiento_sat,
     efirmas_guardadas,
     ejecutar_recado,
     enqueue_cua_mission,
@@ -228,6 +233,8 @@ def _encolar_determinista(body: NuevoRecado, background, db, tenant: Tenant) -> 
             status_code=400,
             detail="Elige de cuál de tus empresas con e.firma quieres el documento.",
         )
+    if not consentimiento_sat(tenant, rfc):
+        raise HTTPException(status_code=409, detail=MSG_FALTA_CONSENTIMIENTO)
     if _en_curso(_corridas_deterministas(db, tenant).get((body.capacidad, rfc))):
         raise HTTPException(
             status_code=409,
@@ -319,14 +326,44 @@ def deterministas(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> d
                 "rfc": e["rfc"],
                 "nombre": e.get("nombre") or "",
                 "vigente_hasta": e.get("vigente_hasta"),
+                # Cuándo dio su permiso el dueño para este RFC (None = falta pedirlo).
+                "consentimiento_en": consentimiento_sat(tenant, e["rfc"]),
                 "rutinas": rutinas,
             }
         )
     return {
         "navegador_listo": navegador_listo,
         "navegador_detalle": "" if navegador_listo else MSG_SIN_NAVEGADOR,
+        "consentimiento_texto": CONSENTIMIENTO_SAT_TEXTO,
         "empresas": empresas,
     }
+
+
+class Consentimiento(BaseModel):
+    rfc: str
+
+
+@router.post("/v1/cua/deterministas/consentimiento", status_code=201)
+def dar_consentimiento(
+    body: Consentimiento,
+    db=Depends(get_db),
+    tenant: Tenant = Depends(get_tenant),
+    actor=Depends(require_role("admin")),
+) -> dict:
+    """El dueño acepta, una vez por RFC, que aiuda entre al portal del SAT con la
+    e.firma guardada y escriba su contraseña. Queda con fecha y en la bitácora; sin
+    esto las rutinas del SAT se niegan a correr."""
+    rfc = (body.rfc or "").strip().upper()
+    if rfc not in efirmas_guardadas(db, tenant):
+        raise HTTPException(status_code=404, detail="Esa empresa no tiene e.firma guardada.")
+    aceptado_en = aceptar_consentimiento_sat(db, tenant, rfc)
+    audit.record(
+        db, tenant_id=tenant.id, action="sat.rutinas.consentimiento",
+        entity_type="integration", entity_id=rfc, principal=actor,
+        after={"rfc": rfc, "aceptado_en": aceptado_en},
+    )
+    db.flush()
+    return {"rfc": rfc, "aceptado_en": aceptado_en}
 
 
 # ---------- Rutinas guardadas: una tarea de portal que el dueño repite ----------

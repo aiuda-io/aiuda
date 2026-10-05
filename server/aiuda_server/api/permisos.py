@@ -129,6 +129,7 @@ DUENO: frozenset[tuple[str, str]] = frozenset({
     ("POST", "/v1/conversations/{conversation_id}/registrar-cliente"),
     ("POST", "/v1/conversations/{conversation_id}/takeover"),
     ("POST", "/v1/conversations/{conversation_id}/undismiss"),
+    ("POST", "/v1/cua/deterministas/consentimiento"),
     ("POST", "/v1/cua/misiones"),
     ("POST", "/v1/cua/portales"),
     ("POST", "/v1/cua/rutinas"),

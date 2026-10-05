@@ -794,8 +794,8 @@ function Portales({
                 </p>
                 <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
                   Entra como siempre (usuario, e.firma, 2FA — lo que uses). Cuando ya estés
-                  dentro, dale «Ya entré» y guardamos tu sesión. Tu contraseña no se guarda
-                  ni la vemos.
+                  dentro, dale «Ya entré» y guardamos tu sesión. En este portal tu contraseña
+                  no se guarda ni la vemos: la escribes tú.
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <PrimaryButton onClick={confirmarEntrada}>Ya entré</PrimaryButton>

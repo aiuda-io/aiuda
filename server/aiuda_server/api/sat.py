@@ -27,6 +27,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from aiuda_server import audit
 from aiuda_server.api.deps import get_db, get_tenant, require_role
 from aiuda_core.connectors import credentials as cred
+from aiuda_core.cua.fallback import olvidar_consentimiento_sat
 from aiuda_core.connectors.sat_descarga import (
     SatCredencialInvalida,
     SatDescargaClient,
@@ -391,6 +392,8 @@ def sat_borrar_efirma(
     cfg["sat_plazos"] = plazos
     tenant.config = cfg
     flag_modified(tenant, "config")
+    # El permiso para entrar al portal era para ESTA e.firma: se va con ella.
+    olvidar_consentimiento_sat(db, tenant, rfc)
     audit.record(
         db, tenant_id=tenant.id, action="sat.efirma.borrar",
         entity_type="integration", entity_id=rfc, principal=actor,

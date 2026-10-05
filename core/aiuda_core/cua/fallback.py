@@ -421,6 +421,52 @@ def ejecutar_recado(
     return recado
 
 
+# El permiso del dueño para que aiuda escriba la contraseña de su e.firma en el portal
+# del SAT. Se pide UNA vez por RFC, antes de la primera corrida, y se guarda con fecha y
+# con el texto exacto que aceptó: tenant.config[CONSENTIMIENTO_SAT_KEY][rfc]. Sin él,
+# ninguna rutina determinista del SAT corre (se revisa al despachar y otra vez al correr).
+CONSENTIMIENTO_SAT_KEY = "sat_rutinas_consentimiento"
+CONSENTIMIENTO_SAT_TEXTO = (
+    "Para bajar estos documentos aiuda entra al portal del SAT con la e.firma que ya "
+    "guardaste y escribe su contraseña por ti. La firma se hace en esta computadora; "
+    "la llave y la contraseña no se mandan a nadie. aiuda solo consulta y descarga: no "
+    "presenta, no firma ni acepta nada."
+)
+MSG_FALTA_CONSENTIMIENTO = (
+    "Falta tu permiso para que aiuda entre al portal del SAT con tu e.firma. "
+    "Dalo una vez en Rutinas, en el bloque de ese RFC."
+)
+
+
+def consentimiento_sat(tenant: Tenant, rfc: str) -> str | None:
+    """Cuándo aceptó el dueño (ISO) para ese RFC, o None si no ha aceptado."""
+    dado = ((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {}).get(rfc.upper())
+    return dado.get("aceptado_en") if isinstance(dado, dict) else None
+
+
+def aceptar_consentimiento_sat(session: Session, tenant: Tenant, rfc: str) -> str:
+    """Guarda el permiso del dueño para ese RFC. Una vez: si ya estaba, no se mueve."""
+    ya = consentimiento_sat(tenant, rfc)
+    if ya:
+        return ya
+    ahora = datetime.now(timezone.utc).isoformat()
+    dados = dict((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {})
+    dados[rfc.upper()] = {"aceptado_en": ahora, "texto": CONSENTIMIENTO_SAT_TEXTO}
+    tenant.config = {**(tenant.config or {}), CONSENTIMIENTO_SAT_KEY: dados}
+    flag_modified(tenant, "config")
+    session.add(tenant)
+    return ahora
+
+
+def olvidar_consentimiento_sat(session: Session, tenant: Tenant, rfc: str) -> None:
+    """Al borrar la e.firma: el permiso era para ESA e.firma guardada."""
+    dados = dict((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {})
+    if dados.pop(rfc.upper(), None) is not None:
+        tenant.config = {**(tenant.config or {}), CONSENTIMIENTO_SAT_KEY: dados}
+        flag_modified(tenant, "config")
+        session.add(tenant)
+
+
 def efirmas_guardadas(session: Session, tenant: Tenant) -> list[str]:
     """Los RFC del negocio que tienen e.firma guardada (los que pueden correr las
     rutinas deterministas del SAT)."""
@@ -453,6 +499,8 @@ def _ejecutar_determinista(
         logger.info("Rutina %s no corrió: %s", recado.capacidad, motivo)
         return recado
 
+    if not rfc or not consentimiento_sat(tenant, rfc):
+        return no_pudo(MSG_FALTA_CONSENTIMIENTO)
     try:
         datos = cred.get_credential(session, tenant.id, f"{SAT_EFIRMA_PREFIX}{rfc}") if rfc else None
         cer = base64.b64decode(datos["cer"])
