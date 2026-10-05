@@ -450,30 +450,49 @@ def _ya_escribe(session) -> bool:
         return False
 
 
-def _persistir(session, tenant_id: str, bundle: dict) -> None:
-    """Deja el bundle como el más nuevo en memoria y lo escribe cifrado en su fila.
-
-    La escritura va en una transacción APARTE que se confirma en el acto: si fuera en
-    la de la corrida y a la corrida le fuera mal después (por ejemplo, porque el plan
-    llegó a su límite), el token recién rotado se revertiría junto con ella y el viejo
-    ya no sirve. La excepción es cuando quien llama ya está escribiendo: SQLite admite
-    un solo escritor, así que ahí se escribe con su misma sesión. Si la transacción
-    aparte no logra entrar, queda en memoria y se reintenta en la siguiente llamada."""
+def _escribir_aparte(bind, tenant_id: str) -> None:
+    """Escribe el bundle de memoria en su fila con una transacción propia, confirmada
+    en el acto. Si no logra entrar (otro está escribiendo), queda en memoria."""
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
 
     from aiuda_core.connectors import credentials
 
-    _ultimo[tenant_id] = bundle
-    if _ya_escribe(session):
-        credentials.refresh_secret(session, tenant_id, IA, valores(bundle))
+    bundle = _ultimo.get(tenant_id)
+    if bundle is None:
         return
     try:
-        with Session(bind=session.get_bind()) as aparte:
+        with Session(bind=bind) as aparte:
             credentials.refresh_secret(aparte, tenant_id, IA, valores(bundle))
             aparte.commit()
     except OperationalError:
         logger.warning("chatgpt: no se pudo guardar el token renovado; queda en memoria")
+
+
+def _persistir(session, tenant_id: str, bundle: dict) -> None:
+    """Deja el bundle como el más nuevo en memoria y lo escribe cifrado en su fila.
+
+    La escritura NO puede depender de que a la corrida le vaya bien: si se revirtiera
+    junto con ella (por ejemplo, porque el plan llegó a su límite justo después de
+    renovar), el token recién rotado se perdería y el viejo ya no sirve. Por eso va en
+    una transacción aparte. La excepción es cuando quien llama ya está escribiendo:
+    SQLite admite un solo escritor, así que ahí se escribe con su misma sesión y, si
+    esa transacción se revierte, se repone aparte en cuanto suelta la base."""
+    from sqlalchemy import event
+
+    from aiuda_core.connectors import credentials
+
+    _ultimo[tenant_id] = bundle
+    if not _ya_escribe(session):
+        _escribir_aparte(session.get_bind(), tenant_id)
+        return
+    credentials.refresh_secret(session, tenant_id, IA, valores(bundle))
+    event.listen(
+        session,
+        "after_rollback",
+        lambda s: _escribir_aparte(s.get_bind(), tenant_id),
+        once=True,
+    )
 
 
 def bundle_actual(session, tenant_id: str) -> dict:

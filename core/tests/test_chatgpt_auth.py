@@ -413,9 +413,14 @@ def test_el_token_renovado_sobrevive_a_que_la_corrida_que_lo_pidio_se_revierta(
     assert queda["access_token"] == nuevo and queda["refresh_token"] != bundle["refresh_token"]
 
 
-def test_si_quien_renueva_ya_estaba_escribiendo_la_memoria_rescata_el_token(falso, base_en_disco):
+def test_si_quien_renueva_ya_estaba_escribiendo_el_token_se_repone_al_revertir(
+    falso, base_en_disco
+):
+    """El caso de todos los días: la corrida ya anotó algo (su bitácora) antes de
+    llamar a la IA, renueva, y luego falla. SQLite no deja escribir aparte mientras
+    ella tiene la base, así que se repone en cuanto la suelta."""
     hacer, s, t = base_en_disco
-    _envejecer(s, t, _conectar(falso, s, t), expires_at=int(time.time()) + 60)
+    bundle = _envejecer(s, t, _conectar(falso, s, t), expires_at=int(time.time()) + 60)
 
     corrida = hacer()
     corrida.add(Tenant(name="a media corrida", owner_phone="", evolution_instance="z"))
@@ -424,13 +429,23 @@ def test_si_quien_renueva_ya_estaba_escribiendo_la_memoria_rescata_el_token(fals
     corrida.rollback()
     corrida.close()
 
-    # En disco quedó el viejo; la siguiente llamada lo repone desde memoria sin renovar.
+    chatgpt_auth._ultimo.clear()  # como si la app se cerrara justo después
+    queda = _guardado(hacer(), t)
+    assert queda["access_token"] == nuevo and queda["refresh_token"] != bundle["refresh_token"]
+
+
+def test_lo_que_solo_quedo_en_memoria_se_escribe_en_la_siguiente_llamada(falso, base_en_disco):
+    hacer, s, t = base_en_disco
+    bundle = _conectar(falso, s, t)
+    # Un token más nuevo que el de la fila, que no alcanzó a escribirse.
+    chatgpt_auth.recordar(t.id, {**bundle, "access_token": "at_nuevo", "guardado": time.time()})
+
     otra = hacer()
-    assert chatgpt_auth.token_vigente(otra, t.id) == nuevo
+    assert chatgpt_auth.token_vigente(otra, t.id) == "at_nuevo"
     otra.close()
-    assert [f["grant_type"] for f in falso.visto["token"]].count("refresh_token") == 1
     chatgpt_auth._ultimo.clear()
-    assert _guardado(hacer(), t)["access_token"] == nuevo
+    assert _guardado(hacer(), t)["access_token"] == "at_nuevo"
+    assert [f["grant_type"] for f in falso.visto["token"]] == ["authorization_code"]
 
 
 def test_dos_hilos_a_la_vez_renuevan_una_sola_vez(falso, base_en_disco):
