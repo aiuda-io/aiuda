@@ -505,9 +505,9 @@ def test_catalogo_wacli_honesto_y_cloud_oficial(client, db_session):
     _tenant(db_session, "Negocio", "inst-a")
     graph = client.get("/v1/integrations").json()
     wacli = next(s for s in graph["systems"] if s["key"] == "whatsapp")
-    # wacli: tu número en tu máquina, con la nota honesta (sin alarmismo).
+    # wacli: tu número en tu máquina, con el aviso honesto que se lee al conectar.
     assert "tu número" in wacli["rol"].lower() and wacli.get("warning")
-    assert "riesgo es bajo" in wacli["warning"]
+    assert "fuera de las condiciones de uso de Meta" in wacli["warning"]
     assert wacli["estrenada"] is True
     # La vía oficial no se ofrece hasta probarla con una cuenta real de Meta: no
     # sale en el catálogo de quien no la tiene conectada. El detalle sigue diciendo

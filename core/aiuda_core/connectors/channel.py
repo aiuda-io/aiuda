@@ -28,19 +28,14 @@ from aiuda_core.config import settings
 
 Sender = Callable[[str, str], None]  # (destinatario, texto) -> None
 
-# NOTA HONESTA, sin alarmismo: wacli habla con WhatsApp por el
-# protocolo de WhatsApp Web — tu número, en tu computadora, como una sesión más
-# de WhatsApp Web. No es la API oficial, así que técnicamente queda fuera de
-# los Términos de WhatsApp Business. En el uso local del día a día (responder a
-# tus clientes, recordatorios aprobados uno a uno) el riesgo es bajo; lo que sí
-# atrae restricciones de Meta es el volumen de mensajes no solicitados. Para
-# enviar a volumen existe la vía oficial (Cloud API, conector "whatsapp_cloud"),
-# que a cambio necesita una URL pública para recibir webhooks.
+# El aviso que el dueño lee UNA vez, al conectar (después ya no se le repite):
+# wacli habla con WhatsApp por el protocolo de WhatsApp Web, con su número y en
+# su computadora. No es la API oficial, queda fuera de las condiciones de Meta y
+# Meta puede suspender el número. Se dice así, sin suavizarlo y sin sermón.
 UNOFFICIAL_WHATSAPP_WARNING = (
-    "WhatsApp conectado con tu propio número por el protocolo de WhatsApp Web "
-    "(como una sesión más de WhatsApp Web, no la API oficial). Para el uso normal "
-    "el riesgo es bajo; enviar volumen de mensajes no solicitados sí puede hacer "
-    "que Meta restrinja el número."
+    "Esta conexión usa tu propio número por una vía no oficial, igual que una sesión "
+    "de WhatsApp Web. Queda fuera de las condiciones de uso de Meta, y Meta puede "
+    "restringir o suspender el número."
 )
 
 # Categorización por rol "canal": etiqueta + a qué dato del cliente entrega.

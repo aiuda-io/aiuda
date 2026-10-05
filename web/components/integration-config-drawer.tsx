@@ -28,6 +28,8 @@ export type ConfigNode = {
   live?: boolean;
   estrenada?: boolean;
   does?: string;
+  // Aviso honesto de una vía no oficial: se muestra una vez, al conectar.
+  warning?: string | null;
 };
 
 // Lo que se le dice al dueño cuando su número ya está vinculado, según cómo
@@ -57,7 +59,7 @@ const WA_VINCULADO: Record<string, { titulo: string; texto: string; ok: boolean 
   },
 };
 
-function WhatsAppPairing({ onChange }: { onChange: () => void }) {
+function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: string | null }) {
   const [st, setSt] = useState<WhatsappStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [instalando, setInstalando] = useState(false);
@@ -231,6 +233,12 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
           </p>
           {st.aviso && st.estado !== "sesion_cerrada" && (
             <p className="mt-2 text-cuerpo leading-relaxed text-danger">{st.aviso}</p>
+          )}
+          {/* Lo que hay que saber antes de vincular. Solo aquí: ya conectado no se repite. */}
+          {aviso && (
+            <p className="mt-3 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-left text-apoyo leading-relaxed text-ink-2">
+              <span className="font-semibold text-warn">Antes de conectar.</span> {aviso}
+            </p>
           )}
           <button
             onClick={startQr}
@@ -488,7 +496,7 @@ export function IntegrationConfigDrawer({
         )}
 
         {node.key === "whatsapp" ? (
-          <WhatsAppPairing onChange={onSaved} />
+          <WhatsAppPairing onChange={onSaved} aviso={node.warning} />
         ) : isExcel ? (
           <div className="rounded-lg border border-line bg-panel/40 px-4 py-4 text-cuerpo leading-relaxed text-ink-2">
             Excel y CSV no necesitan credenciales. Sube cualquier hoja —clientes, productos,
