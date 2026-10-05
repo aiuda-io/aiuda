@@ -263,7 +263,7 @@ function YouNode({ businessName }: { businessName: string }) {
       </span>
       <div className="leading-tight">
         <div className="text-seccion font-semibold">{name}</div>
-        <div className="text-rotulo uppercase tracking-[0.1em] text-surface/70">Tú</div>
+        <div className="text-rotulo text-surface/70">Tú</div>
       </div>
     </div>
   );

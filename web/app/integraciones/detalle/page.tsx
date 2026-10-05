@@ -254,7 +254,7 @@ function IntegrationDetail() {
               <div className="mt-3 space-y-3">
                 {fields.map((f) => (
                   <div key={f.key}>
-                    <label className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{f.label}</label>
+                    <label className="text-rotulo text-ink-3">{f.label}</label>
                     {f.type === "select" ? (
                       <select
                         className={`mt-1 ${inputCls}`}

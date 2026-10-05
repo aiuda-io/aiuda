@@ -40,7 +40,7 @@ type ObjSource = {
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{label}</span>
+      <span className="text-rotulo text-ink-3">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
   );

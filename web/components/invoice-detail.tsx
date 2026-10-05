@@ -25,7 +25,7 @@ const fmtShort = (iso?: string) => (iso ? fechaDM(iso) : "");
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{label}</p>
+      <p className="text-rotulo text-ink-3">{label}</p>
       <p className="mt-0.5 text-cuerpo text-ink">{value}</p>
     </div>
   );
@@ -197,7 +197,7 @@ export function InvoiceDetailContent({
           </div>
           <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
             <div className="col-span-2">
-              <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Folio fiscal (UUID)</p>
+              <p className="text-rotulo text-ink-3">Folio fiscal (UUID)</p>
               <p className="tnum mt-0.5 break-all text-cuerpo text-ink">{cfdi.uuid}</p>
             </div>
             <Field

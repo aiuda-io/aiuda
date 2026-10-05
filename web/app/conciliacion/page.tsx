@@ -332,7 +332,7 @@ function ListaPendientes({
             <div className="grid grid-cols-1 items-stretch sm:grid-cols-[1fr_auto_1fr]">
               {/* PAGO RECIBIDO — el dinero que entró */}
               <div className="bg-accent-soft/40 p-4">
-                <p className="flex items-center gap-1.5 text-rotulo font-semibold uppercase tracking-[0.07em] text-accent-ink">
+                <p className="flex items-center gap-1.5 text-rotulo font-semibold text-accent-ink">
                   {IconDeposit} Pago recibido
                 </p>
                 <p className="tnum mt-2 text-titulo font-semibold leading-none text-ink">
@@ -715,7 +715,7 @@ function RegistrarPagoSheet({
         </p>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Monto</span>
+            <span className="text-rotulo text-ink-3">Monto</span>
             <input
               className={`${settingsInputCls} mt-1`}
               inputMode="decimal"
@@ -725,7 +725,7 @@ function RegistrarPagoSheet({
             />
           </label>
           <label className="block">
-            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Fecha</span>
+            <span className="text-rotulo text-ink-3">Fecha</span>
             <input
               className={`${settingsInputCls} mt-1`}
               type="date"
@@ -734,7 +734,7 @@ function RegistrarPagoSheet({
             />
           </label>
           <label className="block">
-            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Referencia</span>
+            <span className="text-rotulo text-ink-3">Referencia</span>
             <input
               className={`${settingsInputCls} mt-1`}
               value={referencia}
@@ -743,7 +743,7 @@ function RegistrarPagoSheet({
             />
           </label>
           <label className="block">
-            <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">Quién depositó</span>
+            <span className="text-rotulo text-ink-3">Quién depositó</span>
             <input
               className={`${settingsInputCls} mt-1`}
               value={quien}
@@ -753,7 +753,7 @@ function RegistrarPagoSheet({
           </label>
         </div>
         <label className="block">
-          <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">
+          <span className="text-rotulo text-ink-3">
             Factura (opcional, como pista)
           </span>
           <select
