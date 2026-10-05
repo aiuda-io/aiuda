@@ -35,8 +35,40 @@ def _from_me(msg: dict) -> bool:
     return bool(_first(msg, "FromMe", "fromMe", "from_me"))
 
 
+# Lo que el cliente mandó cuando no escribió nada: una etiqueta en español. wacli
+# lo describe en inglés en `DisplayText` ("Sent image") y ese texto no es del cliente.
+_ADJUNTOS = {
+    "image": "[imagen]",
+    "video": "[video]",
+    "audio": "[audio]",
+    "document": "[documento]",
+}
+
+
 def _text(msg: dict) -> str:
-    return str(_first(msg, "Text", "DisplayText", "Body", "Message", "text") or "").strip()
+    """Lo que el cliente escribió, o la etiqueta de lo que mandó. Cadena vacía si
+    no hay nada que atender.
+
+    `DisplayText` es la descripción que wacli arma para su propia pantalla, en
+    inglés: "Sent sticker", "Reacted ... to ...", "(message)". Visto con wacli
+    0.18.2 contra una cuenta real: tomarlo como el mensaje metía reacciones y
+    stickers a la bandeja como si el cliente hubiera escrito eso, y el ayudante
+    les contestaba. Aquí una reacción o un sticker no es un mensaje; una foto, un
+    audio o un documento sin nota entra con su etiqueta (un comprobante de pago
+    suele llegar así) y con nota entra la nota."""
+    if _first(msg, "ReactionToID"):
+        return ""
+    tipo = str(_first(msg, "MediaType") or "").strip().lower()
+    if tipo:
+        nota = str(_first(msg, "MediaCaption") or "").strip()
+        if nota:
+            return nota
+        etiqueta = _ADJUNTOS.get(tipo)
+        if etiqueta is None:
+            return ""  # sticker u otro tipo sin contenido que leer
+        nombre = str(_first(msg, "Filename") or "").strip()
+        return f"{etiqueta} {nombre}" if tipo == "document" and nombre else etiqueta
+    return str(_first(msg, "Text", "Body", "Message", "text") or "").strip()
 
 
 def _ts(msg: dict) -> float | None:

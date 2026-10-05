@@ -86,3 +86,39 @@ def test_collect_inbound_ignora_grupos():
     posts, state = collect_inbound(chats, list_messages, {JID: seen})
     assert [p["message"] for p in posts] == ["nuevo"]
     assert JID in state
+
+
+# Formas reales de `messages list --json` (wacli 0.18.2): lo que no es texto trae
+# `Text` vacío o un marcador, y `DisplayText` con la descripción en inglés de wacli.
+def _real(mid, ts=300, **campos):
+    base = {"MsgID": mid, "Timestamp": ts, "FromMe": False, "Text": "", "DisplayText": "",
+            "MediaType": "", "MediaCaption": "", "Filename": "", "ReactionToID": ""}
+    return {**base, **campos}
+
+
+def _entran(mensajes):
+    posts, _ = select_new(mensajes, JID, {"last_ts": 200, "ids": []})
+    return [p["message"] for p in posts]
+
+
+def test_una_reaccion_o_un_sticker_no_entran_como_mensaje():
+    assert _entran([
+        _real("r", DisplayText="Reacted x to hola", ReactionToID="abc"),
+        _real("s", DisplayText="Sent sticker", MediaType="sticker"),
+        _real("m", DisplayText="(message)"),
+    ]) == []
+
+
+def test_un_adjunto_sin_nota_entra_con_su_etiqueta_en_espanol():
+    assert _entran([
+        _real("i", DisplayText="Sent image", MediaType="image"),
+        _real("a", Text="[Audio]", DisplayText="Sent audio", MediaType="audio"),
+        _real("d", DisplayText="Sent document", MediaType="document", Filename="pago.pdf"),
+    ]) == ["[imagen]", "[audio]", "[documento] pago.pdf"]
+
+
+def test_un_adjunto_con_nota_entra_con_la_nota():
+    assert _entran([
+        _real("i", Text="mi comprobante", DisplayText="Sent image", MediaType="image",
+              MediaCaption="mi comprobante"),
+    ]) == ["mi comprobante"]
