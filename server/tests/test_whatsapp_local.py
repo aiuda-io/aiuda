@@ -263,6 +263,30 @@ def test_los_motivos_guardados_no_crecen_sin_limite(api_real, monkeypatch):
     assert guardados == ids[1:]
 
 
+def test_un_adjunto_fallido_no_se_vuelve_reintentable_al_perder_su_motivo(api_real, monkeypatch):
+    http, cliente_id = api_real
+    monkeypatch.setattr(worker_main, "_MAX_ENVIOS_FALLIDOS", 1)
+    monkeypatch.setattr(
+        WacliClient, "send_file", lambda *a, **k: (_ for _ in ()).throw(WacliError("not connected"))
+    )
+    r = http.post(
+        f"/v1/customers/{cliente_id}/attachments",
+        files={"file": ("factura.pdf", b"%PDF-1.4", "application/pdf")},
+    ).json()
+    _falla_con(monkeypatch, WacliError("not connected"))
+    for i in range(3):
+        http.post(f"/v1/customers/{cliente_id}/messages", json={"body": f"m{i}"})
+    # El recorte no se lleva la marca del adjunto...
+    assert _mensaje(http, r["conversation_id"], r["id"])["reintentable"] is False
+    # ...y si otra escritura de la configuración la borrara, su texto lo delata.
+    with worker_main.session_scope() as s:
+        t = s.query(Tenant).one()
+        t.config = {k: v for k, v in t.config.items() if k != worker_main.ENVIOS_FALLIDOS_KEY}
+    assert _mensaje(http, r["conversation_id"], r["id"])["reintentable"] is False
+    url = f"/v1/conversations/{r['conversation_id']}/messages/{r['id']}/resend"
+    assert http.post(url).status_code == 400
+
+
 # ---------- probar conexión y "conectado" en vivo ----------
 
 def _marcado(db_session, tenant) -> None:

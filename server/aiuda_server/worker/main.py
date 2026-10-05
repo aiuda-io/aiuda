@@ -488,8 +488,11 @@ def _mark_delivery(
                 "cuando": utcnow().isoformat(),
                 **({"adjunto": True} if adjunto else {}),
             }
+            # Al recortar se conservan los adjuntos: su marca es lo que impide
+            # reenviarlos como texto (son pocos; lo que crece son los mensajes).
             for viejo in list(fallidos)[:-_MAX_ENVIOS_FALLIDOS]:
-                del fallidos[viejo]
+                if not fallidos[viejo].get("adjunto"):
+                    del fallidos[viejo]
         elif message_id not in fallidos:
             return
         else:

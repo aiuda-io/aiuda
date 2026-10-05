@@ -1333,7 +1333,9 @@ def _entrega(tenant: Tenant, m: Message) -> dict:
             if m.delivery == "failed"
             else None
         ),
-        "reintentable": not fallo.get("adjunto"),
+        # El texto "[archivo] nombre" es el de un adjunto sin nota: aunque su
+        # motivo guardado ya no esté, reenviarlo mandaría esas palabras al cliente.
+        "reintentable": not fallo.get("adjunto") and not m.body.startswith("[archivo] "),
     }
 
 
