@@ -604,44 +604,56 @@ function PasoCartera({
       </Titulo>
 
       <ul className="divide-y divide-line border-y border-line">
+        {/* En teléfono cada opción se apila: su texto a lo ancho y su botón debajo,
+            de lado a lado. Junto al botón el texto quedaba en una columna de dos
+            palabras por renglón. */}
         <li className="py-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="min-w-0 flex-1">
               <p className="text-cuerpo font-semibold text-ink">Subir un Excel</p>
               <p className="mt-0.5 text-apoyo leading-relaxed text-ink-3">
                 Tu hoja tal como la llevas, sin plantilla. Tu IA reconoce las columnas y tú las
                 revisas antes de cargar.
               </p>
+              {!conIA && (
+                <p className="mt-2 text-apoyo leading-relaxed text-ink-2">
+                  Para entender tu hoja hace falta tu IA, y todavía no está conectada.
+                </p>
+              )}
             </div>
             {conIA ? (
               abierto === "excel" ? (
-                <SecondaryButton onClick={() => setAbierto(null)}>Cerrar</SecondaryButton>
+                <SecondaryButton className={BOTON_OPCION} onClick={() => setAbierto(null)}>
+                  Cerrar
+                </SecondaryButton>
               ) : (
-                <PrimaryButton onClick={() => setAbierto("excel")}>Subir mi archivo</PrimaryButton>
+                <PrimaryButton className={BOTON_OPCION} onClick={() => setAbierto("excel")}>
+                  Subir mi archivo
+                </PrimaryButton>
               )
             ) : (
-              <SecondaryButton onClick={irAIA}>Conectar mi IA primero</SecondaryButton>
+              <SecondaryButton className={BOTON_OPCION} onClick={irAIA}>
+                Conectar mi IA primero
+              </SecondaryButton>
             )}
           </div>
-          {!conIA && (
-            <p className="mt-2 text-apoyo leading-relaxed text-ink-2">
-              Para entender tu hoja hace falta tu IA, y todavía no está conectada.
-            </p>
-          )}
           {abierto === "excel" && conIA && subir}
         </li>
 
         <li className="py-4">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/int/odoo.svg" alt="" aria-hidden="true" className="h-6 w-6 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-cuerpo font-semibold text-ink">Conectar Odoo</p>
-              <p className="mt-0.5 text-apoyo leading-relaxed text-ink-3">
-                Si llevas tu negocio ahí, aiuda lee tus clientes y tus facturas por cobrar.
-              </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/int/odoo.svg" alt="" aria-hidden="true" className="h-6 w-6 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-cuerpo font-semibold text-ink">Conectar Odoo</p>
+                <p className="mt-0.5 text-apoyo leading-relaxed text-ink-3">
+                  Si llevas tu negocio ahí, aiuda lee tus clientes y tus facturas por cobrar.
+                </p>
+              </div>
             </div>
             <SecondaryButton
+              className={BOTON_OPCION}
               aria-expanded={abierto === "odoo"}
               onClick={() => setAbierto(abierto === "odoo" ? null : "odoo")}
             >
@@ -663,6 +675,10 @@ function PasoCartera({
     </div>
   );
 }
+
+/** El botón de una opción del asistente: en teléfono va debajo de su texto y de lado
+ *  a lado; desde tableta, a la derecha y a su ancho. */
+const BOTON_OPCION = "w-full shrink-0 sm:w-auto";
 
 // --- Cierre -----------------------------------------------------------------
 
