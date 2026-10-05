@@ -431,6 +431,8 @@ def sat_estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             scope: {
                 "ultima_fecha": (st.get(scope) or {}).get("ultima_fecha"),
                 "solicitud_pendiente": bool((st.get(scope) or {}).get("solicitud")),
+                # Lo último que contestó el SAT, ya en español (o None si va al día).
+                "aviso": (st.get(scope) or {}).get("aviso"),
             }
             for scope in ("emitidas", "recibidas")
         }

@@ -259,6 +259,9 @@ export default function SatPage() {
                         empresa.sync[scope].solicitud_pendiente,
                       )}
                     </p>
+                    {empresa.sync[scope].aviso && (
+                      <p className="mt-1 text-ink-3">{empresa.sync[scope].aviso}</p>
+                    )}
                   </div>
                 ))}
               </div>

@@ -1250,6 +1250,53 @@ def _sat_build_clients(session: Session, tenant: Tenant) -> dict:
     return out
 
 
+# Lo que el dueño lee en la pantalla cuando el SAT contesta algo que no es un
+# paquete. Son estados normales del servicio, no fallas de aiuda.
+_SAT_PREPARANDO = (
+    "El SAT está preparando tus comprobantes. aiuda los recoge en la siguiente vuelta."
+)
+_SAT_AGOTADA = (
+    "El SAT ya no acepta otra solicitud para ese mismo periodo. aiuda pide mañana "
+    "con fechas nuevas."
+)
+_SAT_DUPLICADA = (
+    "El SAT ya tiene en curso una solicitud igual. aiuda vuelve a pedir mañana."
+)
+_SAT_SIN_DATOS = "El SAT no tiene comprobantes nuevos en ese periodo."
+_SAT_RECHAZADA = "El SAT no pudo preparar la solicitud. aiuda vuelve a pedir mañana."
+_SAT_FALLO = "Esta vuelta no se pudo completar. aiuda lo intenta de nuevo en la siguiente."
+
+
+def _sat_codigo(st: dict, sol: dict, codigo: str, rfc: str, scope: str,
+                report: SyncReport) -> bool:
+    """Los tres códigos del SAT que NO son error, cada uno con su estado en
+    español. Devuelve True si el código era uno de ellos (y ya quedó atendido)."""
+    if codigo == "5002":
+        # Agotada DE POR VIDA para ese periodo exacto: se registra para no
+        # volver a pedirlo jamás. La última fecha NO avanza (esos CFDI no
+        # llegaron); mañana la fecha final es otra y para el SAT ya son
+        # parámetros distintos.
+        agotadas = st.setdefault("agotadas", [])
+        periodo = f"{sol['desde']}|{sol['hasta']}"
+        if periodo not in agotadas:
+            agotadas.append(periodo)
+        st["aviso"] = _SAT_AGOTADA
+    elif codigo == "5004":
+        # No encontró información: periodo sin CFDI. Queda cubierto.
+        st["ultima_fecha"] = sol["hasta"][:10]
+        st["aviso"] = _SAT_SIN_DATOS
+        return True
+    elif codigo == "5005":
+        # Duplicada: el SAT tiene viva una solicitud con los mismos parámetros
+        # (por ejemplo una que se envió y cuya respuesta se perdió). Insistir
+        # hoy solo la repite; mañana las fechas ya son otras.
+        st["aviso"] = _SAT_DUPLICADA
+    else:
+        return False
+    report.avisos.append(f"SAT {rfc} ({scope}): {st['aviso']}")
+    return True
+
+
 def _sat_ciclo_scope(
     session: Session,
     tenant: Tenant,
@@ -1263,10 +1310,16 @@ def _sat_ciclo_scope(
 ) -> None:
     """Una vuelta del ciclo para (empresa, emitidas|recibidas). El web service es
     asíncrono: se SOLICITA un periodo, el SAT lo prepara y en una corrida
-    siguiente se VERIFICA y DESCARGA. La solicitud pendiente se PERSISTE
-    (tenant.config) y se verifica por su id: jamás se re-pide un periodo a
-    ciegas — el código 5002 agota las solicitudes DE POR VIDA para esos
-    parámetros exactos, y quemarlas por no guardar estado rompe la fuente."""
+    siguiente se VERIFICA y DESCARGA.
+
+    Dos reglas para no gastar el servicio (el SAT limita las solicitudes con los
+    mismos parámetros: 5002 las agota de por vida, 5005 rechaza la duplicada):
+
+    - La solicitud pendiente se PERSISTE (tenant.config) y se verifica por su
+      id las vueltas que haga falta: jamás se re-pide a ciegas.
+    - Se pide UNA vez al día por empresa y dirección. La corrida es horaria y
+      antes repetía el mismo periodo varias veces el mismo día; ahora la fecha
+      final de cada solicitud es distinta a la de todas las anteriores."""
     from aiuda_core.connectors.sat_descarga import extraer_xmls
 
     sol = st.get("solicitud")
@@ -1275,11 +1328,9 @@ def _sat_ciclo_scope(
         estado = int(v.get("EstadoSolicitud") or 0)
         codigo = str(v.get("CodigoEstadoSolicitud") or v.get("CodEstatus") or "")
         if estado in (1, 2):  # aceptada / en proceso: el SAT sigue preparando
-            report.avisos.append(
-                f"SAT {rfc} ({scope}): el SAT sigue preparando los CFDI; "
-                "se descargan en una corrida siguiente."
-            )
+            st["aviso"] = _SAT_PREPARANDO
             return
+        st.pop("solicitud", None)
         if estado == 3:  # terminada: descargar los paquetes e importar
             xmls: list[bytes] = []
             for paquete in v.get("IdsPaquetes") or []:
@@ -1292,40 +1343,22 @@ def _sat_ciclo_scope(
             report.pedidos_importados += res["facturas_creadas"]
             report.avisos.extend(res["avisos"])
             st["ultima_fecha"] = sol["hasta"][:10]
-            st.pop("solicitud", None)
+            st.pop("aviso", None)
             return
-        if estado == 5 and codigo == "5002":
-            # Agotada DE POR VIDA para ese periodo exacto: se registra para no
-            # volver a pedirlo jamás. La última fecha NO avanza (esos CFDI no
-            # llegaron); la siguiente corrida pide con fecha final nueva, que
-            # para el SAT son parámetros distintos.
-            agotadas = st.setdefault("agotadas", [])
-            periodo = f"{sol['desde']}|{sol['hasta']}"
-            if periodo not in agotadas:
-                agotadas.append(periodo)
-            st.pop("solicitud", None)
-            report.avisos.append(
-                f"SAT {rfc} ({scope}): el SAT agotó las solicitudes para ese "
-                "periodo exacto (código 5002). No se vuelve a pedir igual; la "
-                "próxima corrida pide con fechas nuevas."
-            )
-            return
-        if estado == 5 and codigo == "5004":
-            # No encontró información: periodo sin CFDIs. No es error.
-            st["ultima_fecha"] = sol["hasta"][:10]
-            st.pop("solicitud", None)
+        if _sat_codigo(st, sol, codigo, rfc, scope, report):
             return
         # 4 error, 5 con otro código, 6 vencida, o una respuesta rara: se suelta
-        # la solicitud y la siguiente corrida pide de nuevo (con fechas nuevas).
-        st.pop("solicitud", None)
+        # la solicitud; mañana se pide de nuevo, con fechas nuevas.
+        st["aviso"] = _SAT_RECHAZADA
         report.avisos.append(
             f"SAT {rfc} ({scope}): la solicitud terminó en estado {estado}"
-            f"{f' (código {codigo})' if codigo else ''}; se pide de nuevo en la "
-            "próxima corrida."
+            f"{f' (código {codigo})' if codigo else ''}; se pide de nuevo mañana."
         )
         return
 
-    # Sin solicitud pendiente: pedir el periodo incremental.
+    # Sin solicitud pendiente: pedir el periodo incremental, una vez al día.
+    if st.get("pedida_el") == today.isoformat():
+        return
     ultima = _parse_date(st.get("ultima_fecha") or "")
     desde = (
         ultima - timedelta(days=_SAT_TRASLAPE_DIAS)
@@ -1334,25 +1367,23 @@ def _sat_ciclo_scope(
     )
     inicio = datetime.combine(desde, datetime.min.time())
     fin = datetime.combine(today, datetime.max.time().replace(microsecond=0))
-    periodo = f"{inicio.isoformat()}|{fin.isoformat()}"
-    if periodo in (st.get("agotadas") or []):
+    sol = {"desde": inicio.isoformat(), "hasta": fin.isoformat()}
+    if f"{sol['desde']}|{sol['hasta']}" in (st.get("agotadas") or []):
         return  # ese periodo exacto ya se agotó (5002): jamás re-pedirlo
     r = client.solicitar(scope, inicio, fin)
+    # El SAT ya contestó: aceptada o no, hoy no se vuelve a pedir lo mismo.
+    st["pedida_el"] = today.isoformat()
     id_solicitud = r.get("IdSolicitud")
-    if not id_solicitud:
-        detalle = r.get("Mensaje") or r.get("CodEstatus") or "sin respuesta"
-        report.avisos.append(
-            f"SAT {rfc} ({scope}): el SAT no aceptó la solicitud: {detalle}."
-        )
+    if id_solicitud:
+        st["solicitud"] = {"id": id_solicitud, **sol}
+        st["aviso"] = _SAT_PREPARANDO
         return
-    st["solicitud"] = {
-        "id": id_solicitud,
-        "desde": inicio.isoformat(),
-        "hasta": fin.isoformat(),
-    }
+    if _sat_codigo(st, sol, str(r.get("CodEstatus") or ""), rfc, scope, report):
+        return
+    st["aviso"] = _SAT_RECHAZADA
+    detalle = r.get("Mensaje") or r.get("CodEstatus") or "sin respuesta"
     report.avisos.append(
-        f"SAT {rfc} ({scope}): solicitud enviada; el SAT prepara los CFDI y se "
-        "descargan en una corrida siguiente."
+        f"SAT {rfc} ({scope}): el SAT no aceptó la solicitud: {detalle}."
     )
 
 
@@ -1390,7 +1421,8 @@ def _sync_sat(
                         report, crear_cartera,
                     )
             except Exception as exc:  # noqa: BLE001 — se avisa y se sigue con lo demás
-                st_rfc[scope] = antes  # la solicitud pendiente se conserva
+                # La solicitud pendiente se conserva; se reintenta la siguiente vuelta.
+                st_rfc[scope] = {**antes, "aviso": _SAT_FALLO}
                 log.warning("SAT %s (%s): %s", rfc, scope, exc)
                 report.avisos.append(f"SAT {rfc} ({scope}): no se pudo: {exc}")
         estado[rfc] = st_rfc

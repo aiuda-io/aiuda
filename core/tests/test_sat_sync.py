@@ -1,7 +1,8 @@
 """El ciclo de Descarga Masiva del SAT en sync_cfdi, con estado PERSISTIDO.
 
 Lo que amarra: nunca se re-pide un periodo a ciegas (el 5002 agota las
-solicitudes de por vida para esos parámetros), el incremental arranca en la
+solicitudes de por vida para esos parámetros) ni se repite una solicitud
+idéntica (una al día por empresa y dirección), el incremental arranca en la
 última fecha menos 2 días, corre emitidas y recibidas por empresa, y una
 empresa rota no tumba a las otras. El cliente es fake (misma interfaz que
 SatDescargaClient); el SAT vivo queda para scripts/prueba-sat.sh.
@@ -9,7 +10,7 @@ SatDescargaClient); el SAT vivo queda para scripts/prueba-sat.sh.
 
 import io
 import zipfile
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy import select
 
@@ -19,6 +20,7 @@ from aiuda_core.models import CfdiBoveda, Invoice
 HANOVA = "HCO250213281"
 PERSONA = "GOBM980902FL1"
 HOY = date(2026, 7, 28)
+MANANA = HOY + timedelta(days=1)
 
 
 def cfdi_basico(uuid: str, emisor: str = HANOVA, receptor: str = "PIA210312BD3") -> str:
@@ -49,16 +51,20 @@ class FakeSat:
     """La interfaz de SatDescargaClient, con guion: qué contesta verificar y qué
     trae cada paquete."""
 
-    def __init__(self, rfc=HANOVA, verificaciones=None, paquetes=None):
+    def __init__(self, rfc=HANOVA, verificaciones=None, paquetes=None, rechazos=None):
         self.rfc = rfc
         self.solicitudes: list[tuple[str, str, str]] = []  # (scope, desde, hasta)
         self.verificaciones = list(verificaciones or [])
         self.paquetes = dict(paquetes or {})
+        self.rechazos = list(rechazos or [])  # respuestas del SAT sin IdSolicitud
+        self.descargas: list[str] = []
         self._contador = 0
 
     def solicitar(self, scope, desde, hasta):
-        self._contador += 1
         self.solicitudes.append((scope, desde.isoformat(), hasta.isoformat()))
+        if self.rechazos:
+            return self.rechazos.pop(0)
+        self._contador += 1
         return {"IdSolicitud": f"S{self._contador}", "CodEstatus": "5000"}
 
     def verificar(self, id_solicitud):
@@ -67,6 +73,7 @@ class FakeSat:
         return {"EstadoSolicitud": 2}
 
     def descargar(self, id_paquete):
+        self.descargas.append(id_paquete)
         return self.paquetes[id_paquete]
 
 
@@ -114,9 +121,52 @@ def test_terminada_descarga_importa_y_avanza_la_fecha(session, tenant):
     st = _estado(tenant, HANOVA)["emitidas"]
     assert "solicitud" not in st
     assert st["ultima_fecha"] == "2026-07-28"
-    # tercera corrida: incremental desde la última fecha MENOS 2 días
+    # Antes aquí se afirmaba que la tercera corrida DEL MISMO DÍA volvía a pedir.
+    # Ese era el defecto: la corrida es horaria y repetía la misma solicitud
+    # varias veces al día. Ahora el mismo día no pide nada...
+    pedidas = len(fake.solicitudes)
     sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert len(fake.solicitudes) == pedidas
+    # ...y al día siguiente pide el incremental: última fecha MENOS 2 días.
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})
     assert fake.solicitudes[-1][1].startswith("2026-07-26")
+    assert fake.solicitudes[-1][2].startswith("2026-07-29")
+
+
+def test_un_dia_de_corridas_horarias_no_repite_ninguna_solicitud(session, tenant):
+    """24 corridas el mismo día, con el SAT entregando a la primera: una sola
+    solicitud por dirección. Y en una semana no hay dos solicitudes iguales."""
+    fake = FakeSat()
+    fake.verificar = lambda _id: {"EstadoSolicitud": 3, "IdsPaquetes": []}
+    for dia in range(7):
+        for _hora in range(24):
+            sync_cfdi(
+                session, tenant, today=HOY + timedelta(days=dia),
+                sat_clients={HANOVA: fake},
+            )
+    assert len(fake.solicitudes) == 14  # 7 días x (emitidas, recibidas)
+    assert len(set(fake.solicitudes)) == len(fake.solicitudes)
+
+
+def test_duplicada_5005_espera_a_manana_sin_insistir(session, tenant):
+    """El SAT rechaza la solicitud porque ya tiene una igual en curso. No es un
+    error de aiuda: queda dicho en español y hoy no se insiste."""
+    fake = FakeSat(
+        rechazos=[
+            {"CodEstatus": "5005", "Mensaje": "Solicitud duplicada"},
+            {"CodEstatus": "5005", "Mensaje": "Solicitud duplicada"},
+        ]
+    )
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    st = _estado(tenant, HANOVA)["emitidas"]
+    assert "solicitud" not in st
+    assert "ya tiene en curso una solicitud igual" in st["aviso"]
+    assert not any("no se pudo" in a or "5005" in a for a in r.avisos)
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert len(fake.solicitudes) == 2  # hoy ya no se vuelve a pedir
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})
+    assert len(fake.solicitudes) == 4
+    assert fake.solicitudes[2] != fake.solicitudes[0]  # fechas nuevas
 
 
 def test_5002_queda_registrado_y_jamas_se_repide_igual(session, tenant):
@@ -129,7 +179,11 @@ def test_5002_queda_registrado_y_jamas_se_repide_igual(session, tenant):
     r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
     st = _estado(tenant, HANOVA)["emitidas"]
     assert len(st["agotadas"]) == 1
-    assert "5002" in " ".join(r.avisos)
+    # Antes el aviso era el código crudo ("código 5002"); ahora es un estado en
+    # español que también se guarda para la pantalla.
+    assert "ya no acepta otra solicitud" in st["aviso"]
+    assert "ya no acepta otra solicitud" in " ".join(r.avisos)
+    assert not any("5002" in a or "no se pudo" in a for a in r.avisos)
     # el mismo periodo exacto no se vuelve a pedir aunque no haya pendiente
     periodo_agotado = st["agotadas"][0]
     sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
@@ -137,6 +191,10 @@ def test_5002_queda_registrado_y_jamas_se_repide_igual(session, tenant):
         f"{s[1]}|{s[2]}" != periodo_agotado or s[0] != "emitidas"
         for s in fake.solicitudes[2:]
     )
+    # mañana sí pide: mismo inicio (la fecha no avanzó) pero otra fecha final
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})
+    emitidas = [s for s in fake.solicitudes if s[0] == "emitidas"]
+    assert len(emitidas) == 2 and emitidas[0][2] != emitidas[1][2]
 
 
 def test_5004_sin_cfdis_avanza_sin_ruido(session, tenant):
@@ -150,7 +208,8 @@ def test_5004_sin_cfdis_avanza_sin_ruido(session, tenant):
     r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
     st = _estado(tenant, HANOVA)
     assert st["emitidas"]["ultima_fecha"] == "2026-07-28"
-    assert not any("5004" in a for a in r.avisos)  # periodo vacío no es error
+    assert r.avisos == []  # periodo vacío no es error
+    assert "no tiene comprobantes nuevos" in st["emitidas"]["aviso"]
 
 
 def test_una_empresa_rota_no_tumba_a_la_otra(session, tenant):
@@ -213,8 +272,10 @@ def test_redescargar_el_mismo_paquete_no_duplica(session, tenant):
     fake = FakeSat(verificaciones=verifs, paquetes={"P1": _zip(xml)})
     sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
     sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
-    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # re-solicita
-    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # re-baja P1
+    # al día siguiente el traslape de 2 días vuelve a traer el mismo CFDI
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})  # re-solicita
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})  # re-baja P1
+    assert fake.descargas == ["P1", "P1"]
     assert len(session.scalars(select(CfdiBoveda)).all()) == 1
     assert len(session.scalars(select(Invoice)).all()) == 1
 

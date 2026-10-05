@@ -768,7 +768,7 @@ export type SatEmpresa = {
   plazo_dias: number;
   sync: Record<
     "emitidas" | "recibidas",
-    { ultima_fecha: string | null; solicitud_pendiente: boolean }
+    { ultima_fecha: string | null; solicitud_pendiente: boolean; aviso: string | null }
   >;
 };
 

@@ -177,6 +177,20 @@ def test_estado_trae_empresas_boveda_y_cartera_por_empresa(client, demo):
     assert body["cartera"]["todo_junto"]["total"] == 1660.0
 
 
+def test_estado_dice_en_espanol_lo_que_contesto_el_sat(client, db_session, demo):
+    client.post("/v1/sat/empresas", json={"rfc": HANOVA})
+    demo.config = {
+        **demo.config,
+        "sat_descarga": {
+            HANOVA: {"emitidas": {"aviso": "El SAT ya tiene en curso una solicitud igual."}}
+        },
+    }
+    db_session.flush()
+    sync = client.get("/v1/sat/estado").json()["empresas"][0]["sync"]
+    assert sync["emitidas"]["aviso"] == "El SAT ya tiene en curso una solicitud igual."
+    assert sync["recibidas"]["aviso"] is None
+
+
 def test_intercompania_fuera_de_los_totales(client, db_session, demo):
     """Tres empresas; una le factura a otra. La bóveda lo guarda UNA vez y los
     totales de cartera no lo cuentan: es dinero de la misma casa."""
