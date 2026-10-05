@@ -277,6 +277,47 @@ def test_agregar_empresa_reclasifica_a_intercompania(session, tenant):
     assert "intercompañía" in inv.meta["cerrada_por"]
 
 
+def test_reimportar_sana_un_cfdi_que_entro_sin_clasificar(session, tenant):
+    """Pasó con el SAT real: dos recibos de nómina entraron sin emisor ni
+    receptor por un defecto del lector (ya corregido) y quedaron 'desconocida'.
+    Volver a importarlos tiene que dejarlos como debieron quedar, con sus datos."""
+    con_empresas(tenant, HANOVA)
+    nomina = cfdi_xml(U1, tipo="N", metodo="PUE", emisor=HANOVA, receptor="XAXX010101000")
+    session.add(
+        CfdiBoveda(  # tal como lo dejó el lector viejo
+            tenant_id=tenant.id, uuid=U1, tipo="N", metodo_pago="PUE", folio="A-1",
+            direccion="desconocida", source="sat", xml=nomina,
+        )
+    )
+    session.flush()
+    res = importar_cfdis(session, tenant, [nomina], source="sat")
+    fila = session.scalar(select(CfdiBoveda))
+    assert res["duplicados"] == 1 and res["reclasificados"] == 1 and res["nuevos"] == 0
+    assert fila.direccion == "emitida"
+    assert fila.rfc_emisor == HANOVA and fila.nombre_emisor == f"Emisor {HANOVA}"
+    assert fila.rfc_receptor == "XAXX010101000"
+    assert session.scalar(select(Invoice)) is None  # nómina nunca es cartera
+
+
+def test_registrar_el_rfc_y_reimportar_arma_la_cartera(session, tenant):
+    """El aviso le pide al dueño agregar su empresa para clasificar y armar su
+    cartera. Al hacerlo y volver a subir el mismo XML, la factura a crédito
+    tiene que aparecer: antes solo cambiaba la etiqueta y la cartera seguía vacía."""
+    xml = cfdi_xml(U1, metodo="PPD", emisor=HANOVA)
+    primero = importar_cfdis(session, tenant, [xml])
+    assert primero["sin_clasificar"] == 1 and session.scalar(select(Invoice)) is None
+    con_empresas(tenant, HANOVA)
+    segundo = importar_cfdis(session, tenant, [xml])
+    assert segundo["facturas_creadas"] == 1
+    fila = session.scalar(select(CfdiBoveda))
+    inv = session.scalar(select(Invoice))
+    assert fila.direccion == "emitida" and fila.invoice_id == inv.id
+    assert inv.status == "open" and inv.amount == Decimal("11600.00")
+    # y una tercera vez ya no hace nada
+    importar_cfdis(session, tenant, [xml])
+    assert len(session.scalars(select(Invoice)).all()) == 1
+
+
 def test_cada_cfdi_queda_etiquetado_con_su_empresa(session, tenant):
     con_empresas(tenant, HANOVA, PERSONA)
     importar_cfdis(

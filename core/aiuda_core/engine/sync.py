@@ -1203,7 +1203,7 @@ def importar_cfdis(
         "cfdis": 0, "nuevos": 0, "duplicados": 0,
         "facturas_creadas": 0, "facturas_vinculadas": 0, "pue_en_boveda": 0,
         "pagos_aplicados": 0, "egresos_aplicados": 0,
-        "intercompania": 0, "recibidas": 0, "sin_clasificar": 0,
+        "intercompania": 0, "recibidas": 0, "sin_clasificar": 0, "reclasificados": 0,
         "avisos": [],
     }
     parsed: list[tuple[dict, str]] = []
@@ -1232,36 +1232,49 @@ def importar_cfdis(
                 CfdiBoveda.tenant_id == tenant.id, CfdiBoveda.uuid == d["uuid"]
             )
         )
+        emisor, receptor = d.get("emisor") or {}, d.get("receptor") or {}
         if row is not None:
             res["duplicados"] += 1
+            sanado = row.direccion == "desconocida" and direccion != "desconocida"
             _sat_reclasificar(session, row, direccion, res)
-            continue
-        emisor, receptor = d.get("emisor") or {}, d.get("receptor") or {}
-        row = CfdiBoveda(
-            tenant_id=tenant.id,
-            uuid=d["uuid"],
-            tipo=d.get("tipo") or "I",
-            metodo_pago=d.get("metodo_pago"),
-            folio=_sat_folio(d),
-            fecha=d.get("fecha"),
-            rfc_emisor=(emisor.get("rfc") or "").upper() or None,
-            nombre_emisor=emisor.get("nombre"),
-            rfc_receptor=(receptor.get("rfc") or "").upper() or None,
-            nombre_receptor=receptor.get("nombre"),
-            total=Decimal(str(d["total"])) if d.get("total") is not None else None,
-            moneda=d.get("moneda") or "MXN",
-            direccion=direccion,
-            source=source,
-            xml=texto,
-        )
-        session.add(row)
-        res["nuevos"] += 1
-        if direccion == "intercompania":
-            res["intercompania"] += 1
-        elif direccion == "recibida":
-            res["recibidas"] += 1
-        elif direccion == "desconocida":
-            res["sin_clasificar"] += 1
+            if not sanado:
+                continue
+            # Estaba sin clasificar y ahora sí se sabe de quién es (el dueño
+            # registró su RFC, o el CFDI se había leído mal: los recibos de
+            # nómina reales entraron sin emisor ni receptor antes de corregir el
+            # lector). Se completan sus datos y, abajo, tiene el mismo efecto que
+            # uno recién llegado: volver a importarlo lo deja como debió quedar.
+            row.rfc_emisor = (emisor.get("rfc") or "").upper() or None
+            row.nombre_emisor = emisor.get("nombre")
+            row.rfc_receptor = (receptor.get("rfc") or "").upper() or None
+            row.nombre_receptor = receptor.get("nombre")
+            res["reclasificados"] += 1
+        else:
+            row = CfdiBoveda(
+                tenant_id=tenant.id,
+                uuid=d["uuid"],
+                tipo=d.get("tipo") or "I",
+                metodo_pago=d.get("metodo_pago"),
+                folio=_sat_folio(d),
+                fecha=d.get("fecha"),
+                rfc_emisor=(emisor.get("rfc") or "").upper() or None,
+                nombre_emisor=emisor.get("nombre"),
+                rfc_receptor=(receptor.get("rfc") or "").upper() or None,
+                nombre_receptor=receptor.get("nombre"),
+                total=Decimal(str(d["total"])) if d.get("total") is not None else None,
+                moneda=d.get("moneda") or "MXN",
+                direccion=direccion,
+                source=source,
+                xml=texto,
+            )
+            session.add(row)
+            res["nuevos"] += 1
+            if direccion == "intercompania":
+                res["intercompania"] += 1
+            elif direccion == "recibida":
+                res["recibidas"] += 1
+            elif direccion == "desconocida":
+                res["sin_clasificar"] += 1
         if direccion == "emitida":
             tipo = d.get("tipo")
             if tipo == "I":
