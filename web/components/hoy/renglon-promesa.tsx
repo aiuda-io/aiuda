@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, errorDeIA, mxn, type PromiseItem } from "@/lib/api";
+import { api, errorDeIA, type PromiseItem } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { fechaDM } from "@/lib/format";
 import { ConfirmarPago } from "@/components/confirmar-pago";
 import { Cabeza, Fila, Marca } from "@/components/hoy/piezas";
@@ -44,7 +45,7 @@ export function RenglonPromesa({
 
   return (
     <Fila id={id} saliendo={saliendo}>
-      <Cabeza nombre={p.customer} clienteId={p.customer_id} monto={mxn(p.amount)}>
+      <Cabeza nombre={p.customer} clienteId={p.customer_id} monto={dinero(p.amount, p.currency)}>
         <span className="font-medium text-ink-2">Promesa vencida</span>
         <span className="tnum">Factura {p.folio}</span>
         <Marca color="warn">

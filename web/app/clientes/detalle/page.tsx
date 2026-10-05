@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { api, mxn, type CustomerDetail, type ChatMessage } from "@/lib/api";
+import { api, type CustomerDetail, type ChatMessage } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { fechaDM } from "@/lib/format";
 import {
   BucketPill,
@@ -337,7 +338,16 @@ function ClienteDetalle() {
                 {data.kind !== "prospecto" && (
                   <div className="shrink-0">
                     <p className="eyebrow">Te debe</p>
-                    <p className="hero-num mt-1 text-cifra text-ink">{mxn(data.open_total)}</p>
+                    <p className="hero-num mt-1 whitespace-nowrap text-cifra text-ink">
+                      {dinero(data.open_total, data.moneda)}
+                    </p>
+                    {(data.por_moneda ?? [])
+                      .filter((s) => s.moneda !== data.moneda)
+                      .map((s) => (
+                        <p key={s.moneda} className="tnum mt-1 text-seccion font-semibold text-ink">
+                          {dinero(s.open_total, s.moneda)}
+                        </p>
+                      ))}
                     <p className="mt-1 text-apoyo text-ink-3">
                       {data.open_count === 0
                         ? "Sin facturas abiertas"
@@ -403,7 +413,7 @@ function ClienteDetalle() {
                             <BucketPill bucket={inv.bucket} />
                           )}
                           <span className="tnum ml-auto shrink-0 text-cuerpo font-semibold text-ink">
-                            {mxn(inv.amount)}
+                            {dinero(inv.amount, inv.currency)}
                           </span>
                         </Link>
                       </li>
@@ -445,7 +455,7 @@ function ClienteDetalle() {
                   <ul>
                     {data.payments.map((p) => (
                       <Renglon key={p.id}>
-                        <span className="tnum text-cuerpo font-medium text-ink">{mxn(p.amount)}</span>
+                        <span className="tnum text-cuerpo font-medium text-ink">{dinero(p.amount, p.currency)}</span>
                         {p.folio && <span className="tnum truncate text-apoyo text-ink-3">{p.folio}</span>}
                         <span className="ml-auto shrink-0 text-apoyo text-ink-3">{fechaDM(p.paid_at)}</span>
                       </Renglon>

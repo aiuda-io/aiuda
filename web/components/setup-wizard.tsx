@@ -26,7 +26,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   api,
-  mxn,
   type Cartera,
   type SetupEstado,
   type WhatsappStatus,
@@ -34,6 +33,7 @@ import {
 import { PrimaryButton, SecondaryButton, inputCls, inputLgCls } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
 import { appearanceForSlug } from "@/lib/look";
+import { dinero } from "@/lib/cartera";
 import { createAyudante, useAyudantes, useCatalog } from "@/lib/ayudantes-store";
 import { fieldsFor } from "@/lib/integration-fields";
 import { ConectarIA, nombreDeLaIA } from "@/components/ajustes/conectar-ia";
@@ -561,7 +561,7 @@ function PasoCartera({
 
         {cartera && facturas > 0 ? (
           <div>
-            <p className="hero-num tnum text-cifra text-ink">{mxn(cartera.open_total)}</p>
+            <p className="hero-num tnum text-cifra text-ink">{dinero(cartera.open_total, cartera.moneda_principal)}</p>
             <p className="mt-1.5 text-cuerpo text-ink-2">
               por cobrar en {plural(cartera.open_count, "factura abierta", "facturas abiertas")}.
               Ya tenemos {partes.join(" de ")}.

@@ -81,7 +81,7 @@ export function Hoy() {
   }
 
   const { cartera } = data;
-  const hayCartera = cartera.open_count > 0 || Object.keys(cartera.by_source ?? {}).length > 0;
+  const hayCartera = (cartera.open_count_todas ?? cartera.open_count) > 0 || Object.keys(cartera.by_source ?? {}).length > 0;
   const hayCifras = hayCartera || cartera.recovered_this_month > 0;
   // Hasta saber qué hay conectado no se dice que falta algo: decirlo de más espanta.
   const sabemosQueFalta = !ia.loading && !cargandoAyudantes;

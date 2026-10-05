@@ -4,7 +4,8 @@
 
 import Link from "next/link";
 import { ChevronLeft } from "@/components/ui";
-import { RUTA, type Fallo } from "@/lib/cartera";
+import type { SaldoMoneda } from "@/lib/api";
+import { dinero, RUTA, type Fallo } from "@/lib/cartera";
 
 /** Filtro de una lista: opciones calladas, la elegida con relleno gris. No es un
  *  control de pestañas: vive DENTRO de una pestaña y solo acota lo que se ve. */
@@ -40,6 +41,23 @@ export function Filtro<K extends string>({
         );
       })}
     </div>
+  );
+}
+
+/** Lo que alguien debe, sin mezclar monedas: la principal en el renglón y, si debe en
+ *  otra, cada una debajo y más chica. Hereda tamaño y peso de quien lo envuelve. */
+export function Saldo({ por }: { por: SaldoMoneda[] | undefined }) {
+  const [principal, ...otras] = por ?? [];
+  if (!principal) return null;
+  return (
+    <>
+      <span className="tnum whitespace-nowrap">{dinero(principal.open_total, principal.moneda)}</span>
+      {otras.map((s) => (
+        <span key={s.moneda} className="tnum block whitespace-nowrap text-apoyo font-medium text-ink-2">
+          {dinero(s.open_total, s.moneda)}
+        </span>
+      ))}
+    </>
   );
 }
 

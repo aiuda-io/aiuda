@@ -161,7 +161,10 @@ export type CustomerDetail = {
   meta: Record<string, string>;
   // El cliente pidió no recibir mensajes (BAJA/STOP); null = puede recibir.
   opt_out: { at: string; via: string } | null;
+  /** SOLO de `moneda`; el desglose completo va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   open_count: number;
   conversation_id: string | null;
   human_takeover: boolean;
@@ -170,13 +173,14 @@ export type CustomerDetail = {
     id: string;
     folio: string;
     amount: number;
+    currency: string;
     status: string;
     bucket: string;
     days_overdue: number;
   }[];
   reminders: { id: string; folio: string | null; status: string; channel: string; bucket: string; created_at: string }[];
   promises: { id: string; folio: string | null; promised_date: string; fulfilled: boolean }[];
-  payments: { id: string; amount: number; paid_at: string; source: string; folio: string | null; status: string }[];
+  payments: { id: string; amount: number; currency: string; paid_at: string; source: string; folio: string | null; status: string }[];
   citas: { id: string; title: string; starts_at: string | null }[];
 };
 
@@ -260,12 +264,19 @@ export type WritebackEntry = {
   done_at: string | null;
 };
 
+/** Lo que se debe en UNA moneda. Pesos y dólares nunca se suman. */
+export type SaldoMoneda = { moneda: string; open_total: number; open_count: number };
+
 export type CustomerItem = {
   id: string;
   name: string;
   phone: string | null;
+  /** Facturas abiertas en cualquier moneda. */
   open_invoices: number;
+  /** SOLO de `moneda` (pesos si debe algo en pesos). El resto va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   tags: string[];
   kind: string;
   meta: Record<string, string>;
@@ -889,9 +900,16 @@ export type SatEstado = {
     desconocida: number;
     canceladas: number;
   };
+  /** `total` es SOLO de `moneda`; `por_moneda` trae el desglose. */
   cartera: {
-    por_empresa: { rfc: string; abiertas: number; total: number }[];
-    todo_junto: { abiertas: number; total: number };
+    por_empresa: {
+      rfc: string;
+      abiertas: number;
+      total: number;
+      moneda: string;
+      por_moneda: SaldoMoneda[];
+    }[];
+    todo_junto: { abiertas: number; total: number; moneda: string; por_moneda: SaldoMoneda[] };
   };
 };
 

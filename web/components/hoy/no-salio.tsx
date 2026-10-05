@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, mxn } from "@/lib/api";
+import { api } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { Cabeza, Fila, Marca, Seccion, TextoMensaje } from "@/components/hoy/piezas";
 import { DatosMensaje, RenglonMensaje, destinoLegible } from "@/components/hoy/renglon-mensaje";
 import {
@@ -204,7 +205,7 @@ function Detenido({
       <Cabeza
         nombre={nombreDe(m)}
         clienteId={m.customer_id}
-        monto={m.amount != null ? mxn(m.amount) : null}
+        monto={m.amount != null ? dinero(m.amount, m.currency) : null}
       >
         {marca}
         <DatosMensaje m={m} />

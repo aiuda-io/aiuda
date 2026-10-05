@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, mxn } from "@/lib/api";
+import { api } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { fechaDM, telefonoMx } from "@/lib/format";
 import { SourceBadge } from "@/components/ui";
 import { Cabeza, Fila, Marca, TextoMensaje, Tramo } from "@/components/hoy/piezas";
@@ -103,7 +104,7 @@ export function RenglonMensaje({
       <Cabeza
         nombre={nombreDe(m)}
         clienteId={m.customer_id}
-        monto={m.amount != null ? mxn(m.amount) : null}
+        monto={m.amount != null ? dinero(m.amount, m.currency) : null}
       >
         {corregir && <Marca>Lo rechazaste</Marca>}
         <DatosMensaje m={m} />

@@ -942,20 +942,16 @@ def _espera_tu_ok(db, tenant: Tenant, today) -> int:
     return por_aprobar + int(pagos or 0) + vencidas
 
 
-MONEDA_BASE = "MXN"
+from aiuda_server.api.monedas import (  # noqa: E402
+    moneda_de,
+    saldos_por_moneda,
+    total_principal,
+)
+from aiuda_server.api.monedas import moneda_principal as _moneda_principal  # noqa: E402
 
 
 def _moneda(invoice: Invoice) -> str:
-    return (invoice.currency or MONEDA_BASE).strip().upper() or MONEDA_BASE
-
-
-def _moneda_principal(conteo: dict[str, int]) -> str:
-    """La moneda en la que se dicen las cifras sueltas de la cartera. Pesos si hay
-    al menos una factura abierta en pesos (o ninguna factura); si el negocio solo
-    cobra en otra moneda, la que más facturas abiertas tenga."""
-    if not conteo or conteo.get(MONEDA_BASE):
-        return MONEDA_BASE
-    return max(sorted(conteo), key=lambda m: conteo[m])
+    return moneda_de(invoice.currency)
 
 
 @app.get("/v1/cartera")
@@ -1868,26 +1864,35 @@ def list_customers(
     customers = db.scalars(query.order_by(Customer.name)).all()
     from aiuda_core.optout import claves_dadas_de_baja, contact_key
 
-    # En una consulta, no una por cliente: esta lista ya arrastra un N+1 por el conteo
-    # de facturas y no hay por qué agregarle otro.
+    # En una consulta, no una por cliente.
     bajas = claves_dadas_de_baja(db, tenant)
+    # Lo abierto de todos, también en UNA consulta (antes era una por cliente), y
+    # separado por moneda: pesos y dólares no se suman.
+    abiertas: dict[str, list[tuple[str | None, float]]] = {}
+    for customer_id, currency, amount in db.execute(
+        select(Invoice.customer_id, Invoice.currency, Invoice.amount).where(
+            Invoice.tenant_id == tenant.id, Invoice.status == "open"
+        )
+    ):
+        abiertas.setdefault(customer_id, []).append((currency, float(amount or 0)))
 
     out = []
     for cust in customers:
-        open_rows = db.execute(
-            select(func.count(Invoice.id), func.coalesce(func.sum(Invoice.amount), 0)).where(
-                Invoice.tenant_id == tenant.id,
-                Invoice.customer_id == cust.id,
-                Invoice.status == "open",
-            )
-        ).one()
+        suyas = abiertas.get(cust.id, [])
+        principal, por_moneda = saldos_por_moneda(suyas)
         out.append(
             {
                 "id": cust.id,
                 "name": cust.name,
                 "phone": cust.phone,
-                "open_invoices": int(open_rows[0]),
-                "open_total": float(open_rows[1]),
+                # Facturas abiertas en cualquier moneda.
+                "open_invoices": len(suyas),
+                # `open_total` habla SOLO de `moneda` (pesos si debe algo en pesos;
+                # si no, la moneda en la que más facturas tiene). El resto, en
+                # `por_moneda`: [{moneda, open_total, open_count}].
+                "open_total": total_principal(principal, por_moneda),
+                "moneda": principal,
+                "por_moneda": por_moneda,
                 "tags": cust.tags or [],
                 "kind": cust.kind or "cliente",
                 # Quién pidió que no lo contacten. Sin esto, la lista no tiene
@@ -2040,7 +2045,11 @@ def customer_detail(
         .order_by(Invoice.due_date)
     ).all()
     conv = find_conversation_by_phone(db, tenant.id, cust.phone)
-    open_total = sum(float(i.amount) for i in invoices if i.status == "open")
+    # Lo que debe, por moneda: una factura en dólares no se suma a las de pesos.
+    principal, por_moneda = saldos_por_moneda(
+        (i.currency, float(i.amount)) for i in invoices if i.status == "open"
+    )
+    open_total = total_principal(principal, por_moneda)
 
     # El 360: todo lo que cuelga del cliente, no solo sus facturas. Colgado de sus facturas
     # (recordatorios, promesas, pagos conciliados) y de su nombre (citas).
@@ -2094,7 +2103,10 @@ def customer_detail(
         # El cliente pidió no recibir mensajes (BAJA/STOP): {"at", "via"} o None.
         # Bloquea los envíos automatizados; el dueño puede reactivarlo desde aquí.
         "opt_out": opted_out(db, tenant, cust.phone),
+        # `open_total` es SOLO de `moneda`; el desglose completo va en `por_moneda`.
         "open_total": open_total,
+        "moneda": principal,
+        "por_moneda": por_moneda,
         "open_count": sum(1 for i in invoices if i.status == "open"),
         "reminders": [
             {
@@ -2120,6 +2132,7 @@ def customer_detail(
             {
                 "id": p.id,
                 "amount": float(p.amount),
+                "currency": moneda_de(p.currency),
                 "paid_at": p.paid_at.isoformat(),
                 "source": p.source,
                 "folio": folio_by_id.get(p.invoice_id),
@@ -2143,6 +2156,7 @@ def customer_detail(
                 "id": i.id,
                 "folio": i.folio,
                 "amount": float(i.amount),
+                "currency": moneda_de(i.currency),
                 "status": i.status,
                 "bucket": str(classify(i.due_date, today)),
                 "days_overdue": (today - i.due_date).days,

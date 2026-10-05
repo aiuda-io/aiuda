@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { mxn } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { Marca, Seccion, TextoMensaje } from "@/components/hoy/piezas";
 import { destinoLegible } from "@/components/hoy/renglon-mensaje";
 import {
@@ -48,7 +48,7 @@ export function RenglonEnviado({
           </span>
         </div>
         {m.amount != null && (
-          <span className="tnum text-cuerpo font-medium text-ink">{mxn(m.amount)}</span>
+          <span className="tnum text-cuerpo font-medium text-ink">{dinero(m.amount, m.currency)}</span>
         )}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-apoyo text-ink-3">

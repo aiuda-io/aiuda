@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { api, mxn } from "@/lib/api";
+import { api } from "@/lib/api";
+import { dinero } from "@/lib/cartera";
 import { EmptyState, ErrorState, PageHeader, Skeleton, Tabs, useApi } from "@/components/ui";
 import { RenglonEnviado } from "@/components/hoy/enviado";
 import { Marca, TextoMensaje } from "@/components/hoy/piezas";
@@ -150,7 +151,7 @@ function Rechazado({ m }: { m: Mensaje }) {
           </span>
         </div>
         {m.amount != null && (
-          <span className="tnum text-cuerpo font-medium text-ink">{mxn(m.amount)}</span>
+          <span className="tnum text-cuerpo font-medium text-ink">{dinero(m.amount, m.currency)}</span>
         )}
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-apoyo text-ink-3">
