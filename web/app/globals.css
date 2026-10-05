@@ -1,60 +1,73 @@
 @import "tailwindcss";
 
+/* ATELIER CLARO
+ *
+ * Un sistema monocromo: grises neutros, y el azul de la marca como el ÚNICO color
+ * del armazón. Los colores de estado existen, pero apagados y solo como una marca
+ * chica (un punto) junto al texto que dice lo mismo con palabras. Lo caro aquí no
+ * es un adorno: es el aire, la cifra bien puesta y que casi nada tenga marco.
+ */
 @theme {
-  /* Neutrales entintados hacia el hue de marca (~225). Nunca #000/#fff puros. */
-  --color-bg: oklch(0.988 0.002 220);
-  --color-panel: oklch(0.972 0.004 220); /* sidebar, topbar: segunda capa neutral */
-  --color-surface: oklch(0.998 0.001 220);
-  --color-line: oklch(0.918 0.007 220);
-  --color-line-strong: oklch(0.86 0.01 222);
+  /* Neutros. El croma es residual (0.001 a 0.004, hacia el azul de marca): se leen
+     como gris puro, pero no se ven sucios junto al acento. */
+  --color-bg: oklch(0.992 0.001 250); /* el lienzo del contenido */
+  --color-panel: oklch(0.966 0.0015 250); /* segunda capa: menú, columnas, bandas */
+  --color-surface: oklch(0.999 0.0005 250); /* lo que se posa encima: tarjetas, campos, menús */
+  --color-fill: oklch(0.948 0.002 250); /* relleno de botón secundario, chip, pista */
+  --color-fill-strong: oklch(0.915 0.002 250); /* el mismo relleno al pasar el cursor */
+  --color-line: oklch(0.925 0.002 250); /* la raya fina: separa, no encierra */
+  --color-line-strong: oklch(0.845 0.003 250); /* raya con peso: pista, separador de grupo */
+  --color-field: oklch(0.655 0.004 250); /* borde de campo y de radio: 3:1 sobre blanco */
 
-  --color-ink: oklch(0.26 0.032 235);
-  --color-ink-2: oklch(0.46 0.022 232);
-  --color-ink-3: oklch(0.6 0.016 230);
+  --color-ink: oklch(0.205 0.004 255);
+  --color-ink-2: oklch(0.4 0.004 255);
+  --color-ink-3: oklch(0.52 0.004 255); /* el más claro que pasa AA sobre el lienzo */
 
-  /* Acento: acciones primarias, selección, estado. Nada más. */
-  --color-accent: oklch(0.58 0.1 228);
-  --color-accent-strong: oklch(0.5 0.1 230);
-  --color-accent-soft: oklch(0.945 0.025 222);
-  --color-accent-ink: oklch(0.42 0.085 230);
+  /* Acento: el azul de marca, más profundo para que el blanco encima pase AA.
+     Acción primaria, selección, enlace y foco. Nada más. */
+  --color-accent: oklch(0.52 0.118 236);
+  --color-accent-strong: oklch(0.45 0.112 238);
+  --color-accent-soft: oklch(0.955 0.02 232);
+  --color-accent-ink: oklch(0.44 0.112 238);
 
-  /* Marca: el azul del wordmark (#2596be) y las superficies oscuras de entrada
-     (panel de acceso, alineado al hero del landing). Solo para la marca, no UI. */
+  /* Marca: el azul del wordmark (#2596be) y las superficies oscuras de entrada.
+     Solo para la marca, no UI. */
   --color-brand: oklch(0.62 0.105 228);
   --color-navy: oklch(0.23 0.045 235);
   --color-navy-2: oklch(0.285 0.05 238);
   --color-navy-line: oklch(0.4 0.04 238);
   --color-sky: oklch(0.8 0.07 222);
 
-  /* Semánticos */
-  --color-ok: oklch(0.56 0.12 161);
-  --color-ok-soft: oklch(0.962 0.028 162);
-  --color-warn: oklch(0.68 0.145 68);
-  --color-warn-soft: oklch(0.972 0.045 85);
-  /* Ámbar profundo: separa "Vencida 16-45 d" de "Vencida 1-15 d" en barras y pills. */
-  --color-warn-strong: oklch(0.58 0.15 52);
-  --color-warn-strong-soft: oklch(0.955 0.05 70);
-  --color-danger: oklch(0.57 0.2 27);
-  --color-danger-soft: oklch(0.962 0.024 27);
+  /* Estado: apagados. Oscuros para que el texto pase AA; los -soft casi no tienen
+     croma, para que una banda de aviso no grite. */
+  --color-ok: oklch(0.47 0.085 160);
+  --color-ok-soft: oklch(0.966 0.012 160);
+  --color-warn: oklch(0.51 0.095 70);
+  --color-warn-soft: oklch(0.968 0.014 82);
+  --color-warn-strong: oklch(0.48 0.11 48);
+  --color-warn-strong-soft: oklch(0.965 0.014 55);
+  --color-danger: oklch(0.49 0.15 27);
+  --color-danger-soft: oklch(0.966 0.012 27);
 
-  /* Elevación: UNA sola escala, entintada al hue de marca (~235), muy suave y de foco
-     corto · da capas, no glow. Vive en @theme para que también alimente las utilidades
-     shadow-sm/md/lg de Tailwind: así `shadow-lg` deja de ser la sombra NEGRA por defecto
-     (que rompe el tema claro) y queda coherente con `.elev-*`. El resto de la app sigue
-     plano de hairlines; la sombra se reserva para lo que debe "flotar". */
-  --shadow-sm: 0 1px 2px oklch(0.35 0.03 235 / 0.05), 0 1px 3px oklch(0.35 0.03 235 / 0.05);
-  --shadow-md: 0 1px 2px oklch(0.35 0.03 235 / 0.05), 0 3px 10px oklch(0.35 0.03 235 / 0.07);
-  --shadow-lg: 0 10px 34px oklch(0.35 0.03 235 / 0.11);
+  /* Elevación: neutra y solo para lo que de verdad flota (menú, panel, diálogo).
+     Una raya de medio pixel hace el borde; la sombra solo da la distancia. */
+  --shadow-sm: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.08), 0 1px 2px oklch(0.2 0.004 255 / 0.05);
+  --shadow-md: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.1), 0 6px 20px -6px oklch(0.2 0.004 255 / 0.14);
+  --shadow-lg: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.1), 0 28px 64px -20px oklch(0.2 0.004 255 / 0.26);
 
-  --font-sans: "Avenir Next", "Avenir", -apple-system, "Segoe UI", system-ui, sans-serif;
+  /* Radios: cuatro, y se usan por tamaño del objeto. */
+  --radius-md: 8px; /* chip, botón chico, fila */
+  --radius-lg: 10px; /* botón, campo */
+  --radius-xl: 14px; /* tarjeta, columna, menú */
+  --radius-2xl: 18px; /* diálogo */
+
+  /* SF Pro, la letra del sistema: viene en toda Mac, no se reparte ni se descarga
+     nada. El wordmark conserva Avenir Next (también del sistema) para seguir
+     reconocible. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --font-brand: "Avenir Next", "Avenir", -apple-system, system-ui, sans-serif;
 
   /* ESCALA TIPOGRÁFICA: siete niveles con nombre, y ninguno más.
-   *
-   * Aquí está lo que separa una consola que se puede usar de una que se ve
-   * "profesional" en la pantalla del que la programó. El dueño de una taquería
-   * puede tener 50 años y presbicia, y abre esto en su monitor, no pegado a él.
-   * Si tiene que acercarse a leer, el producto ya falló: eso es un fallo de uso,
-   * no de gusto.
    *
    * Las pantallas piden el PAPEL del texto, nunca un número:
    *
@@ -67,48 +80,153 @@
    *   text-sello    etiqueta de UNA palabra (pill, badge). Nunca prosa.
    *
    * Regla dura: 12px (sello) es el suelo absoluto y solo para una palabra. Si un
-   * texto se lee en renglones, es cuerpo o apoyo. Punto.
+   * texto se lee en renglones, es cuerpo o apoyo. El dueño puede tener 50 años y
+   * presbicia, y abre esto en su monitor, no pegado a él.
+   *
+   * Arriba la escala se abre (40 y 28) y se aprieta el tracking: la jerarquía la
+   * da el tamaño, no los marcos.
    */
-  --text-cifra: 28px;
-  --text-cifra--line-height: 1.1;
-  --text-cifra--letter-spacing: -0.02em;
-  --text-titulo: 21px;
-  --text-titulo--line-height: 1.25;
-  --text-titulo--letter-spacing: -0.01em;
-  --text-seccion: 17px;
-  --text-seccion--line-height: 1.35;
+  --text-cifra: 40px;
+  --text-cifra--line-height: 1.05;
+  --text-cifra--letter-spacing: -0.032em;
+  --text-titulo: 28px;
+  --text-titulo--line-height: 1.15;
+  --text-titulo--letter-spacing: -0.024em;
+  --text-seccion: 18px;
+  --text-seccion--line-height: 1.3;
+  --text-seccion--letter-spacing: -0.014em;
   --text-cuerpo: 15px;
-  --text-cuerpo--line-height: 1.55;
+  --text-cuerpo--line-height: 1.5;
+  --text-cuerpo--letter-spacing: -0.006em;
   --text-apoyo: 14px;
-  --text-apoyo--line-height: 1.5;
+  --text-apoyo--line-height: 1.45;
   --text-rotulo: 13px;
   --text-rotulo--line-height: 1.4;
   --text-sello: 12px;
   --text-sello--line-height: 1.35;
 }
 
-/* Tokens de movimiento: pocas duraciones y curvas, usadas en TODA la app para que el
-   movimiento se sienta de una sola mano · no animaciones sueltas. Premium = coherencia
-   y contención, no cantidad. */
+/* Tokens de movimiento: tres duraciones y dos curvas para TODA la app. El
+   movimiento solo cuenta un cambio de estado; llega rápido y frena suave. */
 :root {
-  --dur-fast: 120ms; /* micro-feedback: hover, press, foco */
-  --dur-base: 200ms; /* entradas de contenido (reveal) */
-  --dur-slow: 320ms; /* expandir/colapsar, transiciones con peso */
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); /* desacelera al llegar (entradas) */
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* mover/redimensionar */
+  --dur-fast: 140ms; /* micro-feedback: hover, press, foco */
+  --dur-base: 220ms; /* entradas de contenido (reveal) */
+  --dur-slow: 360ms; /* expandir/colapsar, paneles */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* ease-out-quint: desacelera al llegar */
+  --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1); /* mover/redimensionar */
 }
 
-/* Utilidades de elevación (uso deliberado, no por defecto): la capa semántica sobre
-   los tokens --shadow-* de @theme. Misma escala que shadow-sm/md/lg de Tailwind. */
+/* En el teléfono la cifra y el título bajan un escalón: a 40px un total de seis
+   cifras no cabe en media pantalla. Es un corte, no tipografía fluida. */
+@media (max-width: 640px) {
+  :root {
+    --text-cifra: 32px;
+    --text-titulo: 25px;
+  }
+}
+
+/* Utilidades de elevación (uso deliberado, no por defecto). */
 .elev-sm { box-shadow: var(--shadow-sm); }
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
 
-/* La cifra como protagonista: tabular para que alinee y no "baile", con el tracking
-   apretado que dan las tipografías de datos premium. Para montos y KPIs hero. */
+/* La cifra como protagonista: tabular para que alinee y no "baile". El peso y el
+   tracking apretado hacen el trabajo que antes hacía una caja alrededor. */
 .hero-num {
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+/* PRIMITIVOS. Viven aquí, como clases, para que un botón sea el mismo objeto en
+   todas las pantallas (components/ui.tsx los envuelve). En @layer components: una
+   utilidad de Tailwind puesta al lado todavía gana la cascada. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-cuerpo);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.008em;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-sm { min-height: 32px; padding: 0 12px; border-radius: var(--radius-md); font-size: var(--text-apoyo); }
+  .btn-lg { min-height: 52px; padding: 0 24px; border-radius: 12px; font-size: var(--text-seccion); }
+
+  /* La acción principal: la única mancha de color de la pantalla. */
+  .btn-primary { background: var(--color-accent); color: var(--color-surface); }
+  .btn-primary:hover:not(:disabled) { background: var(--color-accent-strong); }
+  /* La secundaria: relleno gris, sin borde. Pesa, pero no compite. */
+  .btn-secondary { background: var(--color-fill); color: var(--color-ink); }
+  .btn-secondary:hover:not(:disabled) { background: var(--color-fill-strong); }
+  /* La callada: solo texto hasta que pasas encima. */
+  .btn-quiet { background: transparent; color: var(--color-ink-2); }
+  .btn-quiet:hover:not(:disabled) { background: var(--color-fill); color: var(--color-ink); }
+  .btn-danger { background: var(--color-danger); color: var(--color-surface); }
+  .btn-danger:hover:not(:disabled) { background: oklch(0.43 0.15 27); }
+
+  /* Campo: lo único con borde visible, porque es lo único donde se escribe. */
+  .field {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid var(--color-field);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: var(--text-cuerpo);
+    line-height: 1.45;
+  }
+  .field::placeholder { color: var(--color-ink-3); }
+  .field:hover { border-color: var(--color-ink-2); }
+  .field-lg { min-height: 52px; padding: 12px 16px; border-radius: 12px; font-size: var(--text-seccion); }
+
+  /* El wordmark: Avenir Next, como siempre. Es la marca, no un nivel de la escala. */
+  .wordmark {
+    font-family: var(--font-brand);
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+  }
+
+  /* Rótulo de sección: minúsculas, chico y gris. Antes eran versalitas espaciadas. */
+  .eyebrow {
+    font-size: var(--text-rotulo);
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--color-ink-3);
+  }
+
+  /* Marca de estado: un punto y la palabra. El color va solo en el punto. */
+  .mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-size: var(--text-rotulo);
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--color-ink-2);
+  }
+  .mark::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--mark, var(--color-ink-3));
+  }
 }
 
 /* Color de borde por defecto. Tailwind v4 deja `border` (sin color) en
@@ -149,7 +267,7 @@
   select:focus-visible {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px oklch(0.58 0.1 228 / 0.18);
+    box-shadow: 0 0 0 3px oklch(0.52 0.118 236 / 0.16);
   }
 
   /* Foco visible para navegar con teclado: TODO lo interactivo (ligas del menú,
@@ -190,7 +308,8 @@ body {
   /* El piso de la app, no la densidad de una terminal: lo que herede sin clase
      se lee igual que el cuerpo. Antes era 13px y era el origen del problema. */
   font-size: var(--text-cuerpo);
-  line-height: 1.55;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility; /* kerning/ligaduras: texto más nítido */
 }
@@ -223,12 +342,12 @@ body {
 }
 .skeleton {
   border-radius: 8px;
-  background-color: oklch(0.945 0.004 220);
+  background-color: oklch(0.955 0.002 250);
   background-image: linear-gradient(
     100deg,
     transparent 25%,
-    oklch(0.995 0.002 220 / 0.85) 45%,
-    oklch(0.995 0.002 220 / 0.85) 55%,
+    oklch(0.995 0.001 250 / 0.85) 45%,
+    oklch(0.995 0.001 250 / 0.85) 55%,
     transparent 75%
   );
   background-size: 200% 100%;
@@ -282,14 +401,18 @@ body {
  * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve. */
 @keyframes page-enter-fwd {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes page-enter-back {
   from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
-.page-enter-fwd { animation: page-enter-fwd 0.18s var(--ease-out) both; }
-.page-enter-back { animation: page-enter-back 0.18s var(--ease-out) both; }
+/* `backwards`, no `both`: al terminar NO queda un transform pegado al contenedor.
+   Con `both` quedaba translateY(0), que convierte al contenido en el marco de todo
+   lo `fixed` de adentro: el panel lateral y su velo se dibujaban recortados al área
+   de la página en vez de cubrir la ventana. */
+.page-enter-fwd { animation: page-enter-fwd var(--dur-base) var(--ease-out) backwards; }
+.page-enter-back { animation: page-enter-back var(--dur-base) var(--ease-out) backwards; }
 @media (prefers-reduced-motion: reduce) {
   .page-enter-fwd,
   .page-enter-back {

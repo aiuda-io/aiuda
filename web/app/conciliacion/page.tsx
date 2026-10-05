@@ -383,7 +383,7 @@ function ListaPendientes({
 
               {/* LO QUE LIQUIDA — factura sola o grupo */}
               <div className="border-t border-line p-4 sm:border-t-0">
-                <p className="flex items-center gap-1.5 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+                <p className="flex items-center gap-1.5 eyebrow">
                   {IconDoc} {sel && sel.invoiceIds.length > 1 ? "Facturas por cobrar" : "Factura por cobrar"}
                 </p>
                 {sel ? (
@@ -416,7 +416,7 @@ function ListaPendientes({
             {/* Opciones (radio): facturas solas y grupos, cada una con su evidencia */}
             {opts.length > (item.ambiguo ? 0 : 1) && (
               <div className="border-t border-line px-4 py-3">
-                <p className="text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+                <p className="eyebrow">
                   {item.ambiguo ? "Elige la que corresponde" : "¿Es otra? Cámbiala"}
                 </p>
                 <div className="mt-2 space-y-1.5">
@@ -480,7 +480,7 @@ function ListaPendientes({
               <button
                 onClick={() => sel && onConfirm(item, sel)}
                 disabled={busy !== null || !sel}
-                className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                className="btn btn-primary"
               >
                 {busy === item.id
                   ? "Conciliando…"
@@ -491,7 +491,7 @@ function ListaPendientes({
               <button
                 onClick={() => onReject(item)}
                 disabled={busy !== null}
-                className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                className="btn btn-secondary"
               >
                 Rechazar
               </button>
@@ -558,7 +558,7 @@ function ListaDichos({
               <button
                 onClick={() => onConciliar(d)}
                 disabled={busy !== null}
-                className="shrink-0 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                className="shrink-0 btn btn-primary"
               >
                 {busy === d.invoice_id ? "Conciliando…" : "Conciliar y cerrar"}
               </button>
@@ -888,7 +888,7 @@ function ToleranciaRail({
           <button
             onClick={guardar}
             disabled={saving}
-            className="w-full rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+            className="w-full btn btn-secondary"
           >
             {saving ? "Guardando…" : "Guardar tolerancia"}
           </button>

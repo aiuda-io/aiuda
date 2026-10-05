@@ -316,7 +316,7 @@ export function CommandPalette() {
 
               return (
                 <div key={group.title}>
-                  <p className="px-4 pb-1 pt-3 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="px-4 pb-1 pt-3 eyebrow">
                     {group.title}
                   </p>
                   {group.items.map((item, itemIdx) => {

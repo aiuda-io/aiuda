@@ -335,7 +335,7 @@ function ClienteDetalle() {
                   <div className="flex items-center gap-2.5">
                     <h1 className="text-seccion font-semibold tracking-tight text-ink">{data.name}</h1>
                     {data.kind === "prospecto" && (
-                      <span className="rounded bg-panel px-1.5 py-px text-rotulo font-medium uppercase tracking-[0.04em] text-ink-3">
+                      <span className="rounded bg-panel px-1.5 py-px eyebrow">
                         Prospecto
                       </span>
                     )}

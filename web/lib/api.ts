@@ -1978,7 +1978,7 @@ export const mxn = (value: number) =>
 // Antigüedad de cartera: única fuente de verdad para etiqueta, color de badge (fg/bg)
 // y color de la barra (bar). No redefinir estos tramos en las páginas.
 export const BUCKET_META: Record<string, { label: string; fg: string; bg: string; bar: string }> = {
-  por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-ok" },
+  por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-line-strong" },
   vence_pronto: { label: "Vence pronto", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },
   vencida_reciente: { label: "Vencida 1–15 d", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
   vencida: { label: "Vencida 16–45 d", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },

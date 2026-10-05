@@ -37,10 +37,10 @@ export function RailLayout({
     // laptop de 1280 le robaba 320px a la tabla y las acciones del renglón
     // ("Recordar", "Registrar pago") quedaban fuera de cuadro. Contexto útil no
     // vale esconder el botón que resuelve la fila.
-    <div className="grid gap-6 min-[1360px]:grid-cols-[minmax(0,1fr)_296px]">
+    <div className="grid gap-x-14 gap-y-8 min-[1360px]:grid-cols-[minmax(0,1fr)_264px]">
       <div className="min-w-0">{children}</div>
       <aside
-        className={`reveal hidden space-y-6 min-[1360px]:block${sticky ? " min-[1360px]:sticky min-[1360px]:top-4 min-[1360px]:self-start" : ""}`}
+        className={`reveal hidden space-y-10 min-[1360px]:block ${sticky ? "min-[1360px]:sticky min-[1360px]:top-4 min-[1360px]:self-start" : ""}`}
       >
         {rail}
       </aside>
@@ -53,14 +53,14 @@ export function RailSection({ label, children }: { label: string; children: Reac
   return (
     <section>
       <RailLabel>{label}</RailLabel>
-      <div className="mt-2">{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
 
 export function RailLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">{children}</p>
+    <p className="eyebrow">{children}</p>
   );
 }
 
@@ -77,7 +77,7 @@ export function RailStat({
   hint?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-2 border-b border-line/50 pb-2 last:border-0">
+    <div className="flex items-baseline justify-between gap-3 border-b border-line py-2.5 last:border-0">
       <span className="text-cuerpo text-ink-3">
         {label}
         {hint && <span className="block text-apoyo text-ink-3/80">{hint}</span>}
@@ -94,7 +94,7 @@ export function RailStat({
 /** Renglón de una lista del riel (ranking, próximos): contenido libre, divisor abajo. */
 export function RailRow({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-2 border-b border-line/50 py-2 last:border-0">
+    <div className="flex items-center justify-between gap-3 border-b border-line py-2.5 last:border-0">
       {children}
     </div>
   );

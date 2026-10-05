@@ -117,7 +117,7 @@ export default function ProductosPage() {
           <div className="overflow-x-auto rounded-lg border border-line bg-surface">
             <table className="w-full min-w-[620px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <tr className="border-b border-line bg-panel/60 eyebrow">
                   <th className="px-4 py-2.5">Producto</th>
                   <th className="px-4 py-2.5">SKU</th>
                   <th className="px-4 py-2.5">Fuente</th>

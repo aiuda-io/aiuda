@@ -425,7 +425,7 @@ export function SetupWizard() {
               <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             </span>
             {paso !== "cierre" && (
-              <span className="text-rotulo font-medium uppercase tracking-[0.07em] text-ink-3">
+              <span className="eyebrow">
                 Paso {numero} de {paso4}
               </span>
             )}
@@ -1515,7 +1515,7 @@ function PanelProveedor({
       <button
         onClick={onConectarLlave}
         disabled={trabajando || !llave.trim()}
-        className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+        className="btn btn-primary"
       >
         {trabajando ? "Conectando…" : "Conectar"}
       </button>

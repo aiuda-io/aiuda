@@ -433,7 +433,7 @@ function Lanzador({
               </p>
             )}
 
-            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="eyebrow">
               ¿A qué portal?
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -476,7 +476,7 @@ function Lanzador({
               <div className="mt-4">
                 <label
                   htmlFor="instruccion-tarea"
-                  className="block text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3"
+                  className="block eyebrow"
                 >
                   ¿Qué necesitas que haga ahí?
                 </label>
@@ -1013,7 +1013,7 @@ function RecetaCard({
   return (
     <li className="flex items-center gap-3 rounded-lg border border-line bg-surface px-3.5 py-3">
       <div className="min-w-0 flex-1">
-        <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+        <p className="eyebrow">
           {r.sistema}
         </p>
         <p className="mt-0.5 truncate text-cuerpo font-medium text-ink">{r.nombre}</p>
@@ -1097,7 +1097,7 @@ function Bitacora({ misiones, enCurso }: { misiones: CuaMision[]; enCurso: numbe
       {terminadas.length > 0 ? (
         <>
           {vivas.length > 0 && (
-            <p className="mb-2 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="mb-2 eyebrow">
               Historial
             </p>
           )}
@@ -1263,7 +1263,7 @@ function MisionTerminada({ m }: { m: CuaMision }) {
           <div className="border-t border-line/60 px-4 py-3 text-cuerpo">
             {instruccion && (
               <div className="mb-3">
-                <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <p className="mb-1 eyebrow">
                   Le pediste
                 </p>
                 <p className="rounded-md border border-line/70 bg-bg px-3 py-2 text-cuerpo leading-relaxed text-ink-2">
@@ -1274,7 +1274,7 @@ function MisionTerminada({ m }: { m: CuaMision }) {
             {m.status === "done" &&
               Object.keys(m.data ?? {}).some((k) => k !== "_instruccion") && (
                 <div className="mb-3">
-                  <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="mb-1 eyebrow">
                     Lo que trajo
                   </p>
                   <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md border border-line/70 bg-bg px-3 py-2 text-apoyo leading-relaxed text-ink-2">
@@ -1295,7 +1295,7 @@ function MisionTerminada({ m }: { m: CuaMision }) {
             )}
             {m.steps.length > 0 && (
               <div className="mb-3">
-                <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <p className="mb-1 eyebrow">
                   Paso a paso
                 </p>
                 <ul className="space-y-0.5">
@@ -1309,7 +1309,7 @@ function MisionTerminada({ m }: { m: CuaMision }) {
             )}
             {m.evidencia_capturas > 0 && (
               <div>
-                <p className="mb-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <p className="mb-1 eyebrow">
                   Evidencia ({m.evidencia_capturas})
                 </p>
                 {cargando ? (

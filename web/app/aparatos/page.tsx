@@ -16,9 +16,9 @@ import { SettingsPage, SettingsSection } from "@/components/settings";
 import { toast } from "@/components/toast";
 
 const BOTON_PRIMARIO =
-  "rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50";
+  "btn btn-primary";
 const BOTON_SUAVE =
-  "rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50";
+  "btn btn-secondary";
 const BOTON_SACAR =
   "rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger disabled:opacity-50";
 

@@ -172,15 +172,20 @@ export function Sidebar() {
       <Link
         href={href}
         title={!exp ? label : undefined}
-        className={`flex items-center rounded-md py-[7px] text-cuerpo transition-colors ${
-          exp ? "gap-2.5 px-2" : "justify-center px-0"
+        aria-current={active ? "page" : undefined}
+        className={`group flex h-9 items-center rounded-lg text-cuerpo ${
+          exp ? "gap-3 px-2.5" : "justify-center px-0"
         } ${
           active
-            ? "bg-accent-soft font-medium text-accent-ink"
-            : "text-ink-2 hover:bg-line/45 hover:text-ink"
+            ? "bg-surface font-semibold text-ink shadow-sm"
+            : "font-medium text-ink-2 hover:bg-fill-strong/70 hover:text-ink"
         }`}
       >
-        <span className="relative flex shrink-0 items-center">
+        <span
+          className={`relative flex shrink-0 items-center ${
+            active ? "text-accent" : "text-ink-3 group-hover:text-ink-2"
+          }`}
+        >
           {iconFor(href)}
           {!exp && badge != null && badge > 0 && (
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent ring-1 ring-panel" />
@@ -188,13 +193,7 @@ export function Sidebar() {
         </span>
         {exp && <span className="flex-1 truncate">{label}</span>}
         {exp && badge != null && badge > 0 && (
-          <span
-            className={`tnum rounded px-1.5 text-sello font-medium ${
-              active ? "bg-surface text-accent-ink" : "bg-line/70 text-ink-2"
-            }`}
-          >
-            {badge}
-          </span>
+          <span className="tnum text-apoyo font-semibold text-accent-ink">{badge}</span>
         )}
       </Link>
     );
@@ -202,24 +201,24 @@ export function Sidebar() {
 
   const renderDivider = (label: string, exp: boolean) =>
     exp ? (
-      <p className="mb-1.5 mt-1 px-2 text-rotulo font-semibold uppercase tracking-[0.08em] text-ink-3">
-        {label}
-      </p>
+      <p className="eyebrow mb-1.5 px-2.5">{label}</p>
     ) : (
-      <div className="mx-2 my-2 h-px bg-line/60" />
+      <div className="mx-2 my-2 h-px bg-line-strong/60" />
     );
 
   function renderNav(exp: boolean, withControl: boolean) {
     return (
       <>
-        <div className={`flex h-12 items-center ${exp ? "px-5" : "justify-center"}`}>
+        <div className={`flex h-14 items-center ${exp ? "px-[22px]" : "justify-center"}`}>
           <Link href="/" title="aiuda" className="flex items-baseline gap-1.5">
-            {exp && <span className="text-seccion font-semibold tracking-tight text-ink">aiuda</span>}
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+            {exp && (
+              <span className="wordmark">aiuda</span>
+            )}
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
           </Link>
         </div>
 
-        <nav className={`flex flex-1 flex-col overflow-y-auto pb-4 pt-1 ${exp ? "gap-4 px-3" : "gap-1 px-2"}`}>
+        <nav className={`flex flex-1 flex-col overflow-y-auto pb-4 pt-2 ${exp ? "gap-5 px-3" : "gap-1 px-2"}`}>
           <ul className="space-y-px">
             <li>{renderItem({ href: "/centro", label: "Centro de mando", badge: pending }, exp)}</li>
             <li>{renderItem({ href: "/", label: "Resumen" }, exp)}</li>
@@ -241,13 +240,13 @@ export function Sidebar() {
             {renderDivider("Tu equipo", exp)}
             {exp ? (
               <>
-                <div className="grid grid-cols-4 justify-items-center gap-y-2.5 px-2">
+                <div className="flex flex-wrap items-center gap-2.5 px-2.5 pt-1">
                   {ayudantes.map((a) => (
                     <Link
                       key={a.id}
                       href={`/ayudantes/detalle?id=${a.id}`}
                       title={`${a.name} · ${Object.keys(a.aiuditas).length} aiuditas`}
-                      className={`rounded-full ring-2 transition-transform hover:scale-110 ${
+                      className={`rounded-full ring-2 ring-offset-2 ring-offset-panel hover:opacity-80 ${
                         isActive(`/ayudantes/detalle?id=${a.id}`) ? "ring-accent" : "ring-transparent"
                       }`}
                     >
@@ -257,17 +256,17 @@ export function Sidebar() {
                   <Link
                     href="/ayudantes"
                     title="Crear un ayudante"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-line/60 text-cuerpo font-medium text-ink-2 transition-colors hover:bg-accent-soft hover:text-accent-ink"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-fill-strong text-cuerpo font-medium text-ink-2 hover:bg-line-strong hover:text-ink"
                   >
                     +
                   </Link>
                 </div>
                 <Link
                   href="/ayudantes"
-                  className={`mt-1.5 block px-2 text-apoyo transition-colors ${
+                  className={`mb-1 mt-2.5 block px-2.5 text-apoyo ${
                     isActive("/ayudantes")
-                      ? "font-medium text-accent-ink"
-                      : "text-ink-3 hover:text-ink-2"
+                      ? "font-semibold text-ink"
+                      : "text-ink-3 hover:text-ink"
                   }`}
                 >
                   {cargandoAyudantes
@@ -281,10 +280,10 @@ export function Sidebar() {
               <Link
                 href="/ayudantes"
                 title={`Tu equipo · ${ayudantes.length} ayudantes`}
-                className={`flex items-center justify-center rounded-md py-[6px] transition-colors ${
+                className={`flex h-9 items-center justify-center rounded-lg ${
                   isActive("/ayudantes")
-                    ? "bg-accent-soft text-accent-ink"
-                    : "text-ink-2 hover:bg-line/45 hover:text-ink"
+                    ? "bg-surface text-accent shadow-sm"
+                    : "text-ink-3 hover:bg-fill-strong/70 hover:text-ink"
                 }`}
               >
                 {ICONS.team}
@@ -306,7 +305,7 @@ export function Sidebar() {
         </nav>
 
         {withControl && (
-          <div className="relative border-t border-line p-2">
+          <div className="relative px-3 pb-1">
             {controlOpen && (
               <>
                 <button
@@ -314,15 +313,15 @@ export function Sidebar() {
                   aria-label="Cerrar"
                   onClick={() => setControlOpen(false)}
                 />
-                <div className="absolute bottom-full left-2 z-40 mb-1 w-48 rounded-lg border border-line bg-surface p-1 shadow-[0_4px_24px_rgba(13,45,62,0.12)]">
-                  <p className="px-2 py-1 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                <div className="absolute bottom-full left-3 z-40 mb-1 w-52 rounded-xl bg-surface p-1.5 shadow-md">
+                  <p className="eyebrow px-2 py-1">
                     Control del menú
                   </p>
                   {(["expanded", "collapsed", "hover"] as Mode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => pickMode(m)}
-                      className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-cuerpo text-ink-2 transition-colors hover:bg-panel"
+                      className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-cuerpo text-ink-2 hover:bg-fill hover:text-ink"
                     >
                       <span
                         className={`h-1.5 w-1.5 rounded-full ${mode === m ? "bg-accent" : "border border-line-strong"}`}
@@ -336,8 +335,8 @@ export function Sidebar() {
             <button
               onClick={() => setControlOpen((v) => !v)}
               title="Control del menú"
-              className={`flex items-center rounded-md py-2 text-apoyo text-ink-3 transition-colors hover:bg-line/45 hover:text-ink ${
-                exp ? "w-full gap-2 px-2" : "w-full justify-center"
+              className={`flex h-9 items-center rounded-lg text-apoyo text-ink-3 hover:bg-fill-strong/70 hover:text-ink ${
+                exp ? "w-full gap-3 px-2.5" : "w-full justify-center"
               }`}
             >
               {ICONS.panel}
@@ -349,10 +348,10 @@ export function Sidebar() {
         {exp && (
           <a
             href="https://hanova.mx"
-            className="flex items-center gap-1.5 border-t border-line px-5 py-3 text-rotulo text-ink-3 transition-colors hover:text-ink-2"
+            className="flex items-center gap-2 px-[22px] pb-4 pt-1 text-rotulo text-ink-3 hover:text-ink"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/hanova-icon-blue.svg" alt="" className="h-3 w-3 opacity-70" />
+            <img src="/brand/hanova-icon-blue.svg" alt="" className="h-3 w-3 opacity-60 grayscale" />
             Un proyecto de Hanova Consulting
           </a>
         )}
@@ -367,14 +366,12 @@ export function Sidebar() {
         onMouseEnter={() => mode === "hover" && setHovering(true)}
         onMouseLeave={() => setHovering(false)}
         className={`sticky top-0 z-20 hidden h-screen shrink-0 lg:block ${
-          mode === "expanded" ? "w-56" : "w-14"
+          mode === "expanded" ? "w-60" : "w-14"
         }`}
       >
         <div
-          className={`flex h-screen flex-col border-r border-line bg-panel ${expanded ? "w-56" : "w-14"} ${
-            mode === "hover" && hovering
-              ? "absolute left-0 top-0 z-40 shadow-[6px_0_24px_rgba(13,45,62,0.10)]"
-              : ""
+          className={`flex h-screen flex-col bg-panel ${expanded ? "w-60" : "w-14"} ${
+            mode === "hover" && hovering ? "absolute left-0 top-0 z-40 shadow-lg" : ""
           }`}
         >
           {renderNav(expanded, true)}
@@ -387,9 +384,9 @@ export function Sidebar() {
           <button
             aria-label="Cerrar menú"
             onClick={() => setMobileOpen(false)}
-            className="absolute inset-0 bg-ink/25"
+            className="absolute inset-0 bg-ink/20"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col border-r border-line bg-panel">
+          <aside className="absolute inset-y-0 left-0 flex w-72 flex-col bg-panel shadow-lg">
             {renderNav(true, false)}
           </aside>
         </div>

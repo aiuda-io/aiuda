@@ -14,10 +14,10 @@ export function PageHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <div>
+    <header className="mb-9 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="min-w-0">
         <h1 className="text-titulo font-semibold text-ink">{title}</h1>
-        {subtitle && <p className="mt-1.5 max-w-2xl text-cuerpo text-ink-2">{subtitle}</p>}
+        {subtitle && <p className="mt-2 max-w-xl text-cuerpo text-ink-2">{subtitle}</p>}
       </div>
       {right}
     </header>
@@ -25,15 +25,11 @@ export function PageHeader({
 }
 
 export function BucketPill({ bucket }: { bucket: string }) {
-  const meta = BUCKET_META[bucket] ?? {
-    label: bucket,
-    fg: "text-ink-2",
-    bg: "bg-line/50",
-  };
+  const meta = BUCKET_META[bucket] ?? { label: bucket, bar: "bg-ink-3" };
+  // Un punto y la palabra: el color va solo en la marca, el estado lo dice el texto.
   return (
-    <span
-      className={`inline-flex items-center whitespace-nowrap rounded px-1.5 py-0.5 text-sello font-medium ${meta.bg} ${meta.fg}`}
-    >
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-rotulo font-medium text-ink-2">
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${meta.bar}`} />
       {meta.label}
     </span>
   );
@@ -48,7 +44,7 @@ export function SinEstrenar() {
   return (
     <span
       title={SIN_ESTRENAR_NOTA}
-      className="inline-flex shrink-0 items-center whitespace-nowrap rounded bg-panel px-1.5 py-0.5 text-sello font-medium text-ink-2"
+      className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-fill px-2 py-0.5 text-sello font-medium text-ink-2"
     >
       Sin estrenar
     </span>
@@ -67,11 +63,11 @@ export function ChevronLeft({ className = "h-3 w-3" }: { className?: string }) {
  *  padding/tipografía a mano). `md` es el default e IDÉNTICO al estilo previo;
  *  `sm` es para acciones inline compactas (ej. "Editar" junto a un título). */
 const BTN_SIZE = {
-  sm: "px-2.5 py-1 text-rotulo",
-  md: "px-3.5 py-2 text-cuerpo",
+  sm: "btn-sm",
+  md: "",
   /** Superficies de pantalla completa (asistente de primer arranque): el botón
    *  es el objeto principal de la vista y la densidad de consola queda chica. */
-  lg: "px-5 py-3 text-seccion",
+  lg: "btn-lg",
 } as const;
 type BtnSize = keyof typeof BTN_SIZE;
 
@@ -83,7 +79,7 @@ export function PrimaryButton({
   return (
     <button
       {...props}
-      className={`rounded-md bg-accent font-medium text-surface transition-colors hover:bg-accent-strong active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 ${BTN_SIZE[size]} ${className ?? ""}`}
+      className={`btn btn-primary ${BTN_SIZE[size]} ${className ?? ""}`}
     />
   );
 }
@@ -96,7 +92,7 @@ export function SecondaryButton({
   return (
     <button
       {...props}
-      className={`rounded-md border border-line bg-surface font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-50 ${BTN_SIZE[size]} ${className ?? ""}`}
+      className={`btn btn-secondary ${BTN_SIZE[size]} ${className ?? ""}`}
     />
   );
 }
@@ -120,7 +116,7 @@ export function PrimaryLink({
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      className={`inline-flex rounded-md bg-accent font-medium text-surface transition-colors hover:bg-accent-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${BTN_SIZE[size]}`}
+      className={`btn btn-primary ${BTN_SIZE[size]}`}
     >
       {children}
     </Link>
@@ -143,7 +139,7 @@ export function SecondaryLink({
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      className={`inline-flex rounded-md border border-line bg-surface font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${BTN_SIZE[size]}`}
+      className={`btn btn-secondary ${BTN_SIZE[size]}`}
     >
       {children}
     </Link>
@@ -155,7 +151,7 @@ export function SecondaryLink({
  *  componer (textarea, prefijos, className extra) y `<TextInput>` para el caso común.
  *  Reemplaza las variantes inline sueltas que hoy viven repetidas por el repo. */
 export const inputCls =
-  "w-full rounded-md border border-line bg-surface px-3 py-2.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+  "field focus:border-accent focus:outline-none";
 
 export function TextInput({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${inputCls} ${className ?? ""}`} />;
@@ -215,7 +211,7 @@ export function FilePicker({
       }}
       onDragLeave={() => setEncima(false)}
       onDrop={soltar}
-      className={`flex items-center gap-3 rounded-md border border-dashed px-3 py-2.5 transition-colors ${
+      className={`flex items-center gap-3 rounded-lg border border-dashed p-2 transition-colors ${
         encima ? "border-accent bg-accent-soft" : "border-line-strong bg-surface"
       }`}
     >
@@ -243,7 +239,7 @@ export function FilePicker({
  *  Se usa como clase suelta (no compuesta sobre inputCls) para que no compitan
  *  dos padding/tamaños del mismo utility. */
 export const inputLgCls =
-  "w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-seccion text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none";
+  "field field-lg focus:border-accent focus:outline-none";
 
 /** Confirmación destructiva no-bloqueante (reemplaza el confirm() nativo, que bloquea
  *  y no es estilizable). Uso:
@@ -285,24 +281,24 @@ export function useConfirm() {
 
   const dialog = state ? (
     <div
-      className="reveal fixed inset-0 z-50 flex items-center justify-center bg-ink/25 px-4"
+      className="reveal fixed inset-0 z-50 flex items-center justify-center bg-ink/20 px-4"
       onClick={() => close(false)}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-sm rounded-xl border border-line bg-surface p-5 shadow-[0_12px_40px_rgba(13,45,62,0.18)]"
+        className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {state.title && <p className="text-seccion font-semibold text-ink">{state.title}</p>}
-        <p className="mt-1.5 text-cuerpo text-ink-2">{state.message}</p>
-        <div className="mt-4 flex justify-end gap-2">
+        <p className="mt-2 text-cuerpo text-ink-2">{state.message}</p>
+        <div className="mt-6 flex justify-end gap-2">
           <SecondaryButton onClick={() => close(false)} autoFocus>
             Cancelar
           </SecondaryButton>
           <button
             onClick={() => close(true)}
-            className="rounded-md bg-danger px-3.5 py-2 text-cuerpo font-medium text-surface transition-colors hover:opacity-90 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+            className="btn btn-danger"
           >
             {state.confirmLabel}
           </button>
@@ -423,29 +419,28 @@ export function Tabs({
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="mb-4 flex gap-1 border-b border-line">
-      {tabs.map((t) => (
-        <button
-          key={t.key}
-          onClick={() => onChange(t.key)}
-          className={`-mb-px flex items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-cuerpo font-medium transition-colors ${
-            active === t.key
-              ? "border-accent text-ink"
-              : "border-transparent text-ink-3 hover:text-ink-2"
-          }`}
-        >
-          {t.label}
-          {typeof t.count === "number" && (
-            <span
-              className={`tnum rounded px-1.5 text-sello ${
-                active === t.key ? "bg-accent-soft text-accent-ink" : "bg-line/60 text-ink-3"
-              }`}
-            >
-              {t.count}
-            </span>
-          )}
-        </button>
-      ))}
+    // Control segmentado: una pista gris y la pestaña activa posada encima. Sin
+    // raya de lado a lado ni subrayado de color.
+    <div role="tablist" className="mb-8 inline-flex max-w-full gap-0.5 overflow-x-auto rounded-[11px] bg-fill p-[3px]">
+      {tabs.map((t) => {
+        const on = active === t.key;
+        return (
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(t.key)}
+            className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-1.5 text-cuerpo font-medium ${
+              on ? "bg-surface text-ink shadow-sm" : "text-ink-2 hover:text-ink"
+            }`}
+          >
+            {t.label}
+            {typeof t.count === "number" && (
+              <span className={`tnum text-apoyo ${on ? "text-ink-3" : "text-ink-3"}`}>{t.count}</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -463,7 +458,7 @@ export function SearchInput({
     <div className="relative w-full max-w-xs">
       <svg
         viewBox="0 0 14 14"
-        className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3"
+        className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3"
         fill="none"
       >
         <circle cx="6" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.3" />
@@ -474,7 +469,7 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-md border border-line bg-surface py-2 pl-8 pr-3 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+        className="h-10 w-full rounded-lg bg-fill pl-10 pr-8 text-cuerpo text-ink placeholder:text-ink-3 hover:bg-fill-strong focus:bg-surface focus:outline-none"
       />
       {value && (
         <button
@@ -499,10 +494,10 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-xl rounded-lg border border-line-strong bg-surface px-6 py-14 text-center">
+    <div className="mx-auto max-w-xl px-6 py-20 text-center">
       <p className="text-seccion font-semibold text-ink">{title}</p>
       <p className="mx-auto mt-2 max-w-md text-cuerpo text-ink-2">{children}</p>
-      {action && <div className="mt-4">{action}</div>}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
 }
@@ -518,14 +513,14 @@ export function ErrorState({ message, retry }: { message: string; retry?: () => 
       ? message.trim()
       : `${message.trim()}.`;
   return (
-    <div className="mx-auto max-w-xl rounded-lg border border-line bg-surface px-6 py-12 text-center">
+    <div className="mx-auto max-w-xl px-6 py-20 text-center">
       <p className="text-seccion font-semibold text-ink">No pudimos conectar</p>
       <p className="mx-auto mt-2 max-w-md text-cuerpo text-ink-2">
         {detalle} Intenta de nuevo en unos segundos; si sigue igual, avísale a tu
         equipo.
       </p>
       {retry && (
-        <div className="mt-4">
+        <div className="mt-6">
           <SecondaryButton onClick={retry}>Reintentar</SecondaryButton>
         </div>
       )}

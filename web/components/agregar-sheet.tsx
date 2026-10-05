@@ -408,7 +408,7 @@ export function AgregarSheet({
         </div>
 
         {/* Los caminos de siempre, ahora secundarios. */}
-        <p className="pt-2 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <p className="pt-2 eyebrow">
           O si prefieres…
         </p>
 

@@ -32,7 +32,9 @@ function Segmented<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={ariaLabel} className="flex flex-wrap gap-1.5">
+    // Una lista de opciones, una por renglón: se lee de arriba abajo y la elegida
+    // se marca con el punto lleno, como en los ajustes de la Mac.
+    <div role="radiogroup" aria-label={ariaLabel} className="divide-y divide-line border-y border-line">
       {options.map((o) => {
         const activo = o.value === value;
         return (
@@ -41,15 +43,21 @@ function Segmented<T extends string>({
             role="radio"
             aria-checked={activo}
             onClick={() => onChange(o.value)}
-            className={`rounded-md border px-3 py-1.5 text-cuerpo font-medium transition-colors ${
-              activo
-                ? "border-accent bg-accent-soft text-accent-ink"
-                : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
+            className={`group flex min-h-[52px] w-full items-center gap-3.5 py-2 text-left text-cuerpo ${
+              activo ? "font-semibold text-ink" : "font-medium text-ink-2 hover:text-ink"
             }`}
           >
-            {o.label}
+            <span
+              aria-hidden="true"
+              className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors ${
+                activo ? "border-accent bg-accent" : "border-field group-hover:border-ink-2"
+              }`}
+            >
+              {activo && <span className="h-1.5 w-1.5 rounded-full bg-surface" />}
+            </span>
+            <span className="min-w-0 flex-1">{o.label}</span>
             {o.badge && (
-              <span className="ml-1.5 rounded bg-ok-soft px-1.5 py-px text-sello text-ok">
+              <span className="mark" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
                 {o.badge}
               </span>
             )}
@@ -163,9 +171,8 @@ export default function ProviderPage() {
   const marcaCli = provider === "claude_cli" ? "Claude Code" : "Codex";
   const statusPill = server ? (
     <span
-      className={`rounded-full px-2.5 py-1 text-sello font-medium ${
-        connectedHere ? "bg-ok-soft text-ok" : "bg-panel text-ink-2"
-      }`}
+      className="mark !text-apoyo"
+      style={{ "--mark": connectedHere ? "var(--color-ok)" : "var(--color-line-strong)" } as React.CSSProperties}
     >
       {connectedHere
         ? "Conectada"
@@ -186,19 +193,19 @@ export default function ProviderPage() {
       {/* Camino de actualización: si venías de la vía retirada, se dice qué pasó en vez
           de apagarte la IA en silencio. */}
       {server?.aviso_retirado && (
-        <div className="mt-3 rounded-lg border border-warn/40 bg-warn-soft px-4 py-3">
+        <div className="mb-10 rounded-xl bg-warn-soft px-5 py-4">
           <p className="text-cuerpo font-semibold text-ink">Tu IA quedó desconectada</p>
           <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{server.aviso_retirado}</p>
         </div>
       )}
 
       {loading && !server ? (
-        <div className="mt-2 space-y-3">
+        <div className="space-y-3">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-44 w-full" />
         </div>
       ) : (
-        <div className="mt-2">
+        <div>
           <SettingsSection
             title="De dónde sale tu IA"
             desc={
@@ -207,7 +214,7 @@ export default function ProviderPage() {
                 : "Tu llave, el programa que ya tengas instalado, o un modelo que corra aquí."
             }
           >
-            <div className="space-y-4">
+            <div className="space-y-8">
               <Segmented<ProviderName>
                 ariaLabel="De dónde sale tu IA"
                 value={provider}
@@ -228,7 +235,7 @@ export default function ProviderPage() {
 
               {provider === "chatgpt" ? (
                 connectedHere ? (
-                  <div className="space-y-3">
+                  <div className="space-y-5">
                     <UsandoPlanChatGPT email={server?.chatgpt?.email} />
                     <p className="text-cuerpo leading-relaxed text-ink-2">
                       Lo que hagan tus ayudantes cuenta en tu plan de ChatGPT, junto con lo
@@ -239,13 +246,13 @@ export default function ProviderPage() {
                       <button
                         onClick={probar}
                         disabled={testing}
-                        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                        className="btn btn-secondary"
                       >
                         {testing ? "Probando…" : "Probar"}
                       </button>
                       <button
                         onClick={disconnect}
-                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                        className="btn btn-quiet ml-auto"
                       >
                         Desconectar
                       </button>
@@ -262,7 +269,7 @@ export default function ProviderPage() {
                   />
                 )
               ) : esCli ? (
-                <div className="space-y-3">
+                <div className="space-y-5">
                   <p className="text-cuerpo leading-relaxed text-ink-2">
                     Ya tienes {marcaCli} aquí y ya entraste con tu cuenta. Un clic y tus
                     ayudantes lo usan:{" "}
@@ -275,7 +282,7 @@ export default function ProviderPage() {
                     <button
                       onClick={() => guardar(provider, "")}
                       disabled={saving}
-                      className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                      className="btn btn-primary"
                     >
                       {saving ? "Conectando…" : connectedHere ? "Volver a conectar" : `Usar ${marcaCli}`}
                     </button>
@@ -284,13 +291,13 @@ export default function ProviderPage() {
                         <button
                           onClick={probar}
                           disabled={testing}
-                          className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                          className="btn btn-secondary"
                         >
                           {testing ? "Probando…" : "Probar"}
                         </button>
                         <button
                           onClick={disconnect}
-                          className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                          className="btn btn-quiet ml-auto"
                         >
                           Desconectar
                         </button>
@@ -299,7 +306,7 @@ export default function ProviderPage() {
                   </div>
                 </div>
               ) : provider === "local" ? (
-                <div className="space-y-3">
+                <div className="space-y-5">
                   <p className="text-cuerpo leading-relaxed text-ink-2">
                     Un modelo corriendo en esta computadora (Ollama, LM Studio). Gratis y sin
                     internet:{" "}
@@ -335,14 +342,14 @@ export default function ProviderPage() {
                         )
                       }
                       disabled={saving || !localBaseUrl.trim()}
-                      className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                      className="btn btn-primary"
                     >
                       {saving ? "Conectando…" : "Conectar"}
                     </button>
                     {connectedHere && (
                       <button
                         onClick={disconnect}
-                        className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                        className="btn btn-quiet ml-auto"
                       >
                         Desconectar
                       </button>
@@ -350,7 +357,7 @@ export default function ProviderPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-5">
                   <SettingsField
                     label={provider === "claude" ? "Llave de Anthropic" : "Llave de OpenAI"}
                     hint={
@@ -371,7 +378,7 @@ export default function ProviderPage() {
                     <button
                       onClick={() => guardar(provider, secret.trim())}
                       disabled={saving || !secret.trim()}
-                      className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                      className="btn btn-primary"
                     >
                       {saving ? "Conectando…" : connectedHere ? "Guardar" : "Conectar"}
                     </button>
@@ -380,13 +387,13 @@ export default function ProviderPage() {
                         <button
                           onClick={probar}
                           disabled={testing}
-                          className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+                          className="btn btn-secondary"
                         >
                           {testing ? "Probando…" : "Probar"}
                         </button>
                         <button
                           onClick={disconnect}
-                          className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                          className="btn btn-quiet ml-auto"
                         >
                           Desconectar
                         </button>
@@ -403,10 +410,9 @@ export default function ProviderPage() {
               )}
               {testResult && (
                 <div
-                  className={`rounded-lg border px-3.5 py-3 text-cuerpo leading-relaxed ${
-                    testResult.ok
-                      ? "border-ok/40 bg-ok-soft text-ok"
-                      : "border-danger/40 bg-danger-soft text-danger"
+                  role="status"
+                  className={`rounded-xl px-5 py-4 text-cuerpo font-medium leading-relaxed ${
+                    testResult.ok ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger"
                   }`}
                 >
                   {testResult.ok
@@ -424,7 +430,7 @@ export default function ProviderPage() {
           </SettingsSection>
 
           <SettingsSection title="Qué se paga y a quién" desc="Para que no haya sorpresas.">
-            <div className="space-y-2 text-cuerpo leading-relaxed text-ink-2">
+            <div className="max-w-[62ch] space-y-4 text-cuerpo leading-relaxed text-ink-2">
               <p>
                 <strong className="font-semibold text-ink">
                   aiuda no cobra por el uso de la IA ni la revende.

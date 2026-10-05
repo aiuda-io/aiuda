@@ -116,7 +116,7 @@ export function InvoiceDetailContent({
       {activeReminder ? (
         <Link
           href={`/centro?r=${activeReminder.id}`}
-          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
+          className="btn btn-primary"
         >
           Ver recordatorio
         </Link>
@@ -124,7 +124,7 @@ export function InvoiceDetailContent({
         <button
           onClick={recordar}
           disabled={busy !== null}
-          className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+          className="btn btn-primary"
         >
           {busy === "remind" ? "Redactando…" : "Recordar"}
         </button>
@@ -132,7 +132,7 @@ export function InvoiceDetailContent({
       <button
         onClick={registrarPago}
         disabled={busy !== null}
-        className="rounded-md border border-line bg-surface px-3.5 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
+        className="btn btn-secondary"
       >
         {busy === "pay" ? "Registrando…" : "Registrar pago"}
       </button>
@@ -237,7 +237,7 @@ export function InvoiceDetailContent({
                   href={`/api/v1/invoices/${data.id}/cfdi.xml`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  className="btn btn-secondary"
                 >
                   Ver XML
                 </a>
@@ -247,7 +247,7 @@ export function InvoiceDetailContent({
                   href={`/api/v1/invoices/${data.id}/cfdi.pdf`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+                  className="btn btn-secondary"
                 >
                   Ver PDF
                 </a>
@@ -358,14 +358,14 @@ export function InvoiceDetailContent({
       {data.conversation_id && (
         <Link
           href={`/conversaciones?id=${data.conversation_id}`}
-          className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+          className="btn btn-secondary"
         >
           Ver conversación
         </Link>
       )}
       <Link
         href={`/clientes/detalle?id=${data.customer_id}`}
-        className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
+        className="btn btn-secondary"
       >
         Ver cliente
       </Link>

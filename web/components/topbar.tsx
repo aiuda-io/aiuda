@@ -38,12 +38,12 @@ export function Topbar() {
   const businessName = workspace?.business_name ?? (cargando ? "" : "aiuda");
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-panel/70 px-5">
+    <header className="flex h-14 shrink-0 items-center gap-3 px-5 sm:px-8 lg:px-10">
       {/* Menú móvil */}
       <button
         aria-label="Abrir menú"
         onClick={() => window.dispatchEvent(new Event("toggle-sidebar"))}
-        className="-ml-1 rounded-md p-1.5 text-ink-2 transition-colors hover:bg-line/50 lg:hidden"
+        className="-ml-2 flex h-10 w-10 items-center justify-center rounded-lg text-ink-2 hover:bg-fill lg:hidden"
       >
         <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
           <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -57,9 +57,9 @@ export function Topbar() {
           onClick={() => setMenuOpen((v) => !v)}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className="flex items-center gap-2 rounded-md px-2 py-1 text-cuerpo font-medium text-ink transition-colors hover:bg-line/50"
+          className="-ml-2 flex h-9 items-center gap-2.5 rounded-lg px-2 text-cuerpo font-semibold text-ink hover:bg-fill"
         >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-accent text-sello font-semibold text-surface">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-ink text-sello font-semibold text-surface">
             {businessName[0]?.toUpperCase() ?? ""}
           </span>
           {/* Truncado con tope: en 390px el header debe caber en UNA línea. */}
@@ -77,16 +77,16 @@ export function Topbar() {
             <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
             <div
               role="menu"
-              className="absolute left-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-line bg-surface py-1 shadow-lg"
+              className="absolute left-0 top-full z-50 mt-1.5 w-64 overflow-hidden rounded-xl bg-surface p-1.5 shadow-md"
             >
-              <div className="border-b border-line/60 px-3 py-2">
+              <div className="px-2.5 pb-2 pt-1.5">
                 <p className="truncate text-cuerpo font-semibold text-ink">{businessName}</p>
                 <p className="truncate text-apoyo text-ink-3">Todo corre en esta computadora</p>
               </div>
               <a
                 href="/configuracion"
                 role="menuitem"
-                className="block px-3 py-2 text-cuerpo text-ink-2 transition-colors hover:bg-line/40 hover:text-ink"
+                className="block rounded-md px-2.5 py-2 text-cuerpo text-ink-2 hover:bg-fill hover:text-ink"
               >
                 Configuración del negocio
               </a>
@@ -95,28 +95,26 @@ export function Topbar() {
         )}
       </div>
 
-      <span className="shrink-0 rounded border border-line px-1.5 py-0.5 text-rotulo font-medium uppercase tracking-wide text-ink-3">
-        local
-      </span>
+      <span className="shrink-0 text-rotulo font-medium text-ink-3">Local</span>
 
       {/* Búsqueda: campo completo en ≥sm; en móvil, solo la lupa (mismo ⌘K). */}
       <button
         onClick={openCommandPalette}
-        className="ml-auto hidden w-72 cursor-pointer items-center gap-2 rounded-md border border-line bg-surface px-2.5 py-1.5 text-left text-ink-3 transition-colors hover:border-line-strong sm:flex"
+        className="ml-auto hidden h-9 w-72 cursor-pointer items-center gap-2.5 rounded-lg bg-fill px-3 text-left text-ink-3 hover:bg-fill-strong sm:flex"
       >
         <svg viewBox="0 0 14 14" className="h-3.5 w-3.5" fill="none">
           <circle cx="6" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.3" />
           <path d="m9.5 9.5 2.7 2.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </svg>
         <span className="text-cuerpo">Buscar cliente, folio…</span>
-        <kbd className="ml-auto rounded border border-line bg-panel px-1 text-sello text-ink-3">
+        <kbd className="ml-auto font-sans text-rotulo text-ink-3">
           ⌘K
         </kbd>
       </button>
       <button
         onClick={openCommandPalette}
         aria-label="Buscar"
-        className="ml-auto shrink-0 rounded-md p-1.5 text-ink-2 transition-colors hover:bg-line/50 sm:hidden"
+        className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-fill sm:hidden"
       >
         <svg viewBox="0 0 14 14" className="h-4 w-4" fill="none">
           <circle cx="6" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.3" />
@@ -132,7 +130,7 @@ export function Topbar() {
           target="_blank" no abre nada y el enlace se sentiría muerto. */}
       <a
         href="/manual/index.html"
-        className="hidden text-cuerpo font-medium text-ink-2 transition-colors hover:text-ink sm:inline"
+        className="hidden pl-2 text-cuerpo font-medium text-ink-2 hover:text-ink sm:inline"
       >
         Manual
       </a>

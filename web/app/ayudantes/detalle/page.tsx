@@ -324,7 +324,7 @@ function LearningPanel({ ayudanteId }: { ayudanteId: string }) {
   const enviados = (sum?.approved ?? 0) + (sum?.edited ?? 0);
   return (
     <section className="mb-6">
-      <h2 className="mb-1 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+      <h2 className="mb-1 eyebrow">
         Qué aprende de ti
       </h2>
       <p className="mb-3 text-cuerpo text-ink-3">
@@ -349,7 +349,7 @@ function LearningPanel({ ayudanteId }: { ayudanteId: string }) {
           </div>
           {sum.recientes.length > 0 && (
             <div className="px-4 py-3">
-              <p className="mb-2 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+              <p className="mb-2 eyebrow">
                 Tus últimas correcciones
               </p>
               <ul className="space-y-2.5">
@@ -413,7 +413,7 @@ function PersonaEditor({
 
   return (
     <section className="mb-6">
-      <h2 className="mb-1 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+      <h2 className="mb-1 eyebrow">
         Personalidad e instrucciones
       </h2>
       <div className="rounded-lg border border-line bg-surface px-4 py-3.5">
@@ -467,7 +467,7 @@ function PersonaEditor({
 
         {verGarantias && (
           <div className="mt-3 rounded-md border border-line/70 bg-bg px-3 py-2.5">
-            <p className="mb-1.5 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+            <p className="mb-1.5 eyebrow">
               No se pueden quitar
             </p>
             <ul className="space-y-1">
@@ -486,7 +486,7 @@ function PersonaEditor({
             {/* Son dos y no uno: lo que le dice a un CLIENTE no es lo que te contesta
                 a ti. Antes esta vista enseñaba el de chat rotulado como "el final". */}
             <div className="mb-1.5 flex items-center gap-3">
-              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+              <p className="eyebrow">
                 Prompt del sistema
               </p>
               <div className="flex gap-1">
@@ -566,7 +566,7 @@ function SkillsPanel({
     // siempre a la vista, aunque tenga muchas.
     <div className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface lg:h-full">
       <div className="flex shrink-0 items-center justify-between border-b border-line px-4 py-3">
-        <h2 className="text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="eyebrow">
           Lo que sabe hacer
         </h2>
         {specs.length > 0 && <span className="tnum text-apoyo text-ink-3">{specs.length}</span>}
@@ -1146,7 +1146,7 @@ function AppearancePicker({
   return (
     <section className="mb-6 rounded-lg border border-line bg-surface px-5 py-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <h2 className="eyebrow">
           Apariencia
         </h2>
         <button

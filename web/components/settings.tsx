@@ -17,7 +17,7 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-x-10 gap-y-4 border-t border-line py-7 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+    <section className="grid gap-x-16 gap-y-5 border-t border-line py-10 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
       <div>
         <h2 className="text-seccion font-semibold text-ink">{title}</h2>
         {desc && <div className="mt-1.5 text-cuerpo text-ink-2">{desc}</div>}
@@ -38,7 +38,7 @@ export function SettingsField({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <label className="block text-cuerpo font-semibold text-ink">{label}</label>
       {hint && <p className="text-apoyo text-ink-3">{hint}</p>}
       {children}
@@ -48,7 +48,7 @@ export function SettingsField({
 
 /** Contenedor de una página de ajustes: ancho cómodo, centrado, con aire. */
 export function SettingsPage({ children }: { children: ReactNode }) {
-  return <div className="mx-auto max-w-5xl">{children}</div>;
+  return <div className="max-w-5xl">{children}</div>;
 }
 
 /** El input canónico ahora vive en components/ui (`inputCls` / `<TextInput>`). Este

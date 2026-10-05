@@ -21,8 +21,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <ShadowBanner />
           <Topbar />
           <CommandPalette />
-          <main className="min-w-0 flex-1 px-8 py-7">
-            <RastroBack className="mb-4" />
+          <main className="min-w-0 flex-1 px-5 pb-10 pt-6 sm:px-8 lg:px-10 lg:pb-12 lg:pt-8">
+            <RastroBack className="mb-5" />
             <PageTransition>{children}</PageTransition>
           </main>
         </div>

@@ -168,7 +168,7 @@ function IntegrationDetail() {
           {/* ¿Cómo aiuda? */}
           {detail.does && (
             <section className="rounded-lg border border-line bg-panel/40 px-4 py-3">
-              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+              <p className="eyebrow">
                 ¿Cómo <span className="italic normal-case">aiuda</span>?
               </p>
               <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{detail.does}</p>
@@ -181,7 +181,7 @@ function IntegrationDetail() {
           {/* Qué obtener: capacidades como tarjetas con su aiudante y toggle */}
           {detail.capabilities.length > 0 && (
             <section>
-              <h2 className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+              <h2 className="eyebrow">
                 Qué obtener de {detail.name}
               </h2>
               <p className="mt-1 text-apoyo text-ink-3">
@@ -214,7 +214,7 @@ function IntegrationDetail() {
                           />
                         </button>
                       ) : (
-                        <span className="shrink-0 rounded bg-panel px-1.5 py-px text-rotulo font-medium uppercase tracking-[0.04em] text-ink-3">
+                        <span className="shrink-0 rounded bg-panel px-1.5 py-px eyebrow">
                           Por conectar
                         </span>
                       )}
@@ -284,7 +284,7 @@ function IntegrationDetail() {
                 <button
                   onClick={save}
                   disabled={saving}
-                  className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+                  className="btn btn-primary"
                 >
                   {saving ? "Guardando…" : configured ? "Guardar cambios" : "Conectar"}
                 </button>
