@@ -115,17 +115,22 @@ class WacliClient:
         # Placeholders: {bin}, {phone}, {message}
         self.send_template = send_template or settings.wacli_send_template
         # Ruta absoluta (el PATH de la app de escritorio no trae Homebrew). Sin
-        # ninguno instalado queda el nombre pelón y el envío falla con el aviso de
-        # instalar, no con un error crudo.
-        self.bin = wacli_bin.resolver() or settings.wacli_bin
+        # ninguno instalado queda vacío y `_run` responde con el aviso de instalar
+        # SIN ejecutar nada: antes caía al nombre pelón "wacli", y el sistema
+        # ejecutaba el primero que encontrara en el PATH aunque aiuda hubiera
+        # decidido que no había ninguno que usar.
+        explicito = (settings.wacli_bin or "").strip()
+        self.bin = wacli_bin.resolver() or (explicito if explicito != "wacli" else "")
         self.timeout = timeout
         # Store propio del workspace o None = store default del host.
         self.store_dir = store_dir
 
     def _store_args(self) -> list[str]:
-        return ["--store", self.store_dir] if self.store_dir else []
+        return wacli_bin.args_store(self.store_dir)
 
     def _run(self, command: list[str]) -> subprocess.CompletedProcess:
+        if not self.bin:
+            raise WacliError(wacli_bin.SIN_INSTALAR)
         try:
             return subprocess.run(command, capture_output=True, text=True, timeout=self.timeout)
         except FileNotFoundError as exc:

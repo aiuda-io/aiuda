@@ -75,6 +75,61 @@ def _del_sistema() -> str | None:
     return None
 
 
+def _base_del_dueno() -> bool:
+    """¿aiuda está corriendo sobre la base del dueño (~/.aiuda/aiuda.db)?
+
+    Es la única situación en la que wacli puede caer a SU store por defecto
+    (~/.wacli), que es donde vive la sesión de WhatsApp de verdad."""
+    url = (settings.database_url or "").strip()
+    if not url:
+        return True  # sin AIUDA_DATABASE_URL: la base default, la del dueño
+    try:
+        from sqlalchemy.engine import make_url
+
+        ruta = make_url(url).database
+    except Exception:
+        return False
+    if not ruta or ruta == ":memory:":
+        return False
+    # Sin default_data_dir(): esa función CREA ~/.aiuda y aquí solo se compara.
+    propia = Path.home() / ".aiuda" / "aiuda.db"
+    return Path(ruta).expanduser().resolve() == propia.resolve()
+
+
+def store_del_host() -> str | None:
+    """El store al que va wacli cuando el negocio no tiene uno propio
+    (`WACLI_STORE_ROOT` vacío). None = el de wacli, ``~/.wacli``.
+
+    Solo es None sobre la base del dueño. Con CUALQUIER otra base (una desechable
+    de pruebas, de capturas, de un script) el store vive junto a esa base, nunca
+    en ``~/.wacli``. Antes bastaba levantar aiuda con ``AIUDA_DATABASE_URL``
+    apuntando a una base temporal y el HOME de verdad para que, al abrir el panel
+    de WhatsApp, aiuda encontrara la sesión real del dueño, se la adjudicara al
+    negocio de prueba y dejara un ``wacli sync`` corriendo sobre su WhatsApp, con
+    el candado tomado. Una base prestada no hereda el WhatsApp de nadie."""
+    if _base_del_dueno():
+        return None
+    try:
+        from sqlalchemy.engine import make_url
+
+        ruta = make_url((settings.database_url or "").strip()).database
+    except Exception:
+        ruta = None
+    if ruta and ruta != ":memory:":
+        return str(Path(ruta).expanduser().resolve().parent / "wacli")
+    import tempfile
+
+    return str(Path(tempfile.gettempdir()) / f"aiuda-wacli-{os.getuid()}")
+
+
+def args_store(store_dir: str | None) -> list[str]:
+    """Los argumentos ``--store`` de TODA llamada a wacli (envíos, lecturas, sync,
+    emparejar, cerrar sesión). Un solo lugar a propósito: es la última puerta que
+    impide que una base que no es la del dueño toque ``~/.wacli``."""
+    store = store_dir or store_del_host()
+    return ["--store", store] if store else []
+
+
 def resolver() -> str | None:
     """Ruta absoluta del wacli a usar, o None si no hay ninguno.
 

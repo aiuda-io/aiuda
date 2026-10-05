@@ -100,7 +100,9 @@ def _fijar(canal: _Canal, estado: str) -> None:
 
 
 def _args_store(store_dir: str | None) -> list[str]:
-    return ["--store", store_dir] if store_dir else []
+    # La regla vive en un solo lugar: con una base que no es la del dueño, wacli
+    # nunca cae a ~/.wacli (ver wacli_bin.store_del_host).
+    return wacli_bin.args_store(store_dir)
 
 
 def sesion(binario: str, store_dir: str | None) -> dict | None:

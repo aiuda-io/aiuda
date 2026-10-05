@@ -27,8 +27,14 @@ nota() { printf '        %s\n' "$1"; }
 titulo() { printf '\n== %s\n' "$1"; }
 
 CASA=""
+SERVIDOR=""
 limpiar() {
-  pkill -f "aiuda start" 2>/dev/null
+  # Solo el servidor que levantó ESTA prueba. Antes era `pkill -f "aiuda start"`,
+  # que apagaba cualquier aiuda de la computadora, el del dueño incluido.
+  if [ -n "$SERVIDOR" ]; then
+    pkill -P "$SERVIDOR" 2>/dev/null
+    kill "$SERVIDOR" 2>/dev/null
+  fi
   sleep 1   # que suelte la base antes de borrar
   [ -n "$CASA" ] && rm -rf "$CASA" 2>/dev/null
   # El servidor anota su sesión en ~/.aiuda aunque la base esté en otro lado.
@@ -48,6 +54,10 @@ titulo "Tu entorno de verdad, con una base desechable"
 # prestada contestan "no has iniciado sesión" y esta prueba mediría el
 # aislamiento en vez de la IA. Se aísla lo que de verdad importa: la BASE.
 export AIUDA_DATABASE_URL="sqlite:///$CASA/prueba.db"
+# El WhatsApp tampoco es el de verdad: con el HOME real, wacli caería a ~/.wacli.
+# aiuda ya lo impide con una base que no es la del dueño; aquí se dice además a
+# las claras, para que no dependa de esa regla.
+export WACLI_STORE_ROOT="$CASA/wacli"
 
 # Se comprueba el aislamiento ANTES de escribir nada. Ya pasó una vez que esta
 # variable se ignoraba en silencio y se acabó escribiendo en la base del dueño.
@@ -62,6 +72,7 @@ uv run python scripts/seed.py >/dev/null 2>&1 \
   && paso "cartera de prueba sembrada" || { falla "no se pudo sembrar"; exit 1; }
 
 uv run aiuda start --no-browser --quiet --port $PORT >"$CASA/log" 2>&1 &
+SERVIDOR=$!
 for _ in $(seq 1 40); do curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; sleep 1; done
 TOK=$(python3 -c "import json,pathlib;print(json.load(open(pathlib.Path.home()/'.aiuda/sesion.json'))['token'])" 2>/dev/null)
 [ -n "$TOK" ] && paso "servidor arriba" || { falla "el servidor no levantó"; exit 1; }
