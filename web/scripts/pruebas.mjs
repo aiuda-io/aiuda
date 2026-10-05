@@ -114,6 +114,37 @@ prueba("la hora de una cita es de reloj: no se corre", () => {
   assert.equal(f.deReloj("2026-10-06T10:00:00").getHours(), 10);
 });
 
+prueba("una cita se escribe con reloj de 24 horas y sin p.m.", () => {
+  // Antes: "lun 5 de oct, 04:00 p.m.". Lunes 5 de octubre de 2026, a las cuatro de la tarde.
+  assert.equal(f.fechaCita("2026-10-05T16:00:00"), "lun 5 oct, 16:00");
+  assert.equal(f.fechaCita("2026-10-06T09:05:00Z"), "mar 6 oct, 09:05");
+  assert.equal(f.fechaCita(null), "Sin fecha");
+});
+
+prueba("una llave de Otros datos se le enseña al dueño con nombre, no cruda", () => {
+  // Conocidas, vengan como vengan escritas.
+  assert.equal(f.etiquetaDato("municipio"), "Municipio");
+  assert.equal(f.etiquetaDato("dias_credito"), "Días de crédito");
+  assert.equal(f.etiquetaDato("Código Postal"), "Código postal");
+  assert.equal(f.etiquetaDato("rfc"), "RFC");
+  // La escribió una persona en su Excel: se respeta.
+  assert.equal(f.etiquetaDato("Lista VIP"), "Lista VIP");
+  assert.equal(f.etiquetaDato("Sucursal"), "Sucursal");
+  assert.equal(f.etiquetaDato("NSS"), "NSS");
+  // De máquina y desconocida: en palabras, con mayúscula inicial, sin inventar.
+  assert.equal(f.etiquetaDato("fecha_ultima_compra"), "Fecha ultima compra");
+  assert.equal(f.etiquetaDato("tipoCliente"), "Tipo cliente");
+  assert.equal(f.etiquetaDato(""), "Dato");
+});
+
+prueba("un teléfono se agrupa para leerse; lo que no se entiende queda como llegó", () => {
+  assert.equal(f.telefonoMx("5215598765432"), "55 9876 5432");
+  assert.equal(f.telefonoMx("4771234567", { pais: true }), "+52 477 123 4567");
+  // Estados Unidos y Canadá: 1 + diez dígitos.
+  assert.equal(f.telefonoMx("16195550142"), "+1 619 555 0142");
+  assert.equal(f.telefonoMx("12345"), "12345");
+});
+
 prueba("lo que no es fecha no truena", () => {
   assert.equal(f.instante(null), null);
   assert.equal(f.instante(""), null);

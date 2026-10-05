@@ -77,6 +77,16 @@ export function fechaHora(iso: string | null | undefined): string {
   return d ? `${diaMes(d)}, ${hora(d)}` : "·";
 }
 
+/** lun 5 oct, 16:00: cuándo es una cita. Es hora de reloj (la que tecleó el dueño),
+ *  así que se lee con `deReloj`, no con `instante`. Reloj de 24 horas, como el resto
+ *  de la consola: sin "p.m." y sin cero a la izquierda en el día. */
+export function fechaCita(iso: string | null | undefined): string {
+  const d = deReloj(iso);
+  if (!d) return "Sin fecha";
+  const dia = d.toLocaleDateString(MX, { weekday: "short" }).replace(".", "");
+  return `${dia} ${diaMes(d)}, ${hora(d)}`;
+}
+
 /** junio 2026: mes y año (periodos como "Plan y uso"). Sin arg = mes actual. */
 export function periodo(iso?: string | null): string {
   const d = iso === undefined ? new Date() : parse(iso);
@@ -86,6 +96,63 @@ export function periodo(iso?: string | null): string {
 /** 14,851: número con separador de miles. */
 export function num(value: number): string {
   return Number(value).toLocaleString(MX);
+}
+
+// "Otros datos" de un cliente: lo que no cupo en nombre, teléfono y correo. La llave
+// viene de donde vino el dato (una columna de su Excel, un campo de su sistema), y
+// muchas veces es de máquina: "municipio", "dias_credito", "codigo_postal".
+const DATO_ES: Record<string, string> = {
+  municipio: "Municipio", localidad: "Localidad", ciudad: "Ciudad", colonia: "Colonia",
+  estado: "Estado", entidad: "Estado", entidad_federativa: "Estado", pais: "País", country: "País",
+  calle: "Calle", direccion: "Dirección", domicilio: "Domicilio", address: "Dirección",
+  numero_exterior: "Número exterior", num_exterior: "Número exterior", num_ext: "Número exterior",
+  numero_interior: "Número interior", num_interior: "Número interior", num_int: "Número interior",
+  cp: "Código postal", c_p: "Código postal", codigo_postal: "Código postal", zip: "Código postal",
+  referencia: "Referencia", zona: "Zona", ruta: "Ruta", latitud: "Latitud", longitud: "Longitud",
+  rfc: "RFC", curp: "CURP", razon_social: "Razón social", nombre_comercial: "Nombre comercial",
+  regimen: "Régimen fiscal", regimen_fiscal: "Régimen fiscal", uso_cfdi: "Uso de CFDI",
+  giro: "Giro", actividad: "Actividad", sector: "Sector", categoria: "Categoría", tipo: "Tipo",
+  tamano: "Tamaño", empleados: "Empleados", personal_ocupado: "Personal ocupado",
+  contacto: "Contacto", contact: "Contacto", puesto: "Puesto", vendedor: "Vendedor",
+  telefono2: "Otro teléfono", telefono_2: "Otro teléfono", telefono_fijo: "Teléfono fijo",
+  tel: "Teléfono", telefono: "Teléfono", celular: "Celular", whatsapp: "WhatsApp",
+  correo2: "Otro correo", correo_2: "Otro correo", email2: "Otro correo", email_2: "Otro correo",
+  sitio_web: "Sitio web", pagina_web: "Sitio web", web: "Sitio web", website: "Sitio web",
+  facebook: "Facebook", instagram: "Instagram",
+  dias_credito: "Días de crédito", credito_dias: "Días de crédito", plazo: "Días de crédito",
+  plazo_dias: "Días de crédito", limite_credito: "Límite de crédito",
+  forma_pago: "Forma de pago", metodo_pago: "Método de pago",
+  condiciones_pago: "Condiciones de pago", lista_precios: "Lista de precios",
+  descuento: "Descuento", moneda: "Moneda", banco: "Banco", cuenta: "Cuenta", clabe: "CLABE",
+  notas: "Notas", nota: "Nota", notes: "Notas", comentarios: "Comentarios",
+  observaciones: "Observaciones", origen: "Origen", fuente: "Origen",
+  fecha_alta: "Fecha de alta", cumpleanos: "Cumpleaños", id_externo: "Folio en tu sistema",
+};
+
+/** El nombre con el que se le enseña al dueño una llave de "Otros datos".
+ *
+ *   - Si es una llave conocida ("municipio", "dias_credito"), su nombre en español.
+ *   - Si la escribió una persona (trae espacios, mayúsculas o acentos: "Días de
+ *     crédito", "Lista VIP"), se respeta tal cual: es su encabezado.
+ *   - Si es de máquina y no la conocemos ("fecha_ultima_compra", "tipoCliente"),
+ *     se separa en palabras y se le pone mayúscula inicial. No se inventa un acento
+ *     ni un significado. */
+export function etiquetaDato(llave: string): string {
+  const cruda = String(llave ?? "").trim();
+  if (!cruda) return "Dato";
+  const norma = cruda
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .toLowerCase()
+    .replace(/[\s.\-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  if (DATO_ES[norma]) return DATO_ES[norma];
+  // La escribió una persona: no es de máquina.
+  if (/\s/.test(cruda) || /[\u0080-\uffff]/.test(cruda) || /^[A-Z][a-z]/.test(cruda)) return cruda;
+  if (/^[A-Z0-9]{2,6}$/.test(cruda)) return cruda; // siglas: "RFC", "CP"
+  const palabras = norma.split("_").filter(Boolean).join(" ");
+  return palabras ? palabras.charAt(0).toUpperCase() + palabras.slice(1) : cruda;
 }
 
 // Metros con LADA de 2 dígitos: se agrupan "XX XXXX XXXX"; el resto (LADA de 3)
@@ -102,7 +169,10 @@ export function telefonoMx(raw: string | null | undefined, opts?: { pais?: boole
   let d = crudo.replace(/\D/g, "");
   if (d.length === 13 && d.startsWith("521")) d = d.slice(3); // móvil con "1": 521 + 10
   else if (d.length === 12 && d.startsWith("52")) d = d.slice(2); // 52 + 10
-  if (d.length !== 10) return crudo; // no es MX de 10 dígitos: crudo, sin mentir
+  // Estados Unidos y Canadá (1 + diez dígitos): un cliente de fuera se lee igual de
+  // claro, y con su "+1" para que nadie lo confunda con un número de México.
+  if (d.length === 11 && d.startsWith("1")) return `+1 ${d.slice(1, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
+  if (d.length !== 10) return crudo; // ni MX de 10 dígitos ni +1: crudo, sin mentir
   const grupos = LADA_2.has(d.slice(0, 2))
     ? `${d.slice(0, 2)} ${d.slice(2, 6)} ${d.slice(6)}` // 81 1277 2622
     : `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`; // 999 123 4567
