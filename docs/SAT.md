@@ -62,11 +62,18 @@ contestó el SAT, en español:
 | El SAT ya no acepta otra solicitud para ese mismo periodo | Límite del SAT; aiuda pide mañana con fechas nuevas |
 | El SAT ya tiene en curso una solicitud igual | aiuda espera y vuelve a pedir mañana |
 | El SAT no pudo preparar la solicitud | Falla del lado del SAT; aiuda vuelve a pedir mañana |
-| Esta vuelta no se pudo completar | El SAT no contestó a tiempo u otro tropiezo; se reintenta en la siguiente vuelta |
+| El SAT no contestó | La solicitud pudo haber llegado, así que hoy no se repite; aiuda vuelve a pedir mañana |
+| Esta vuelta no se pudo completar | Un tropiezo al recoger o guardar; se reintenta en la siguiente vuelta |
+| No se pudieron leer los comprobantes que entregó el SAT | Tras varios intentos aiuda suelta ese paquete y lo pide de nuevo mañana |
 
 Cada paquete que baja se guarda cifrado antes de importarlo. Si algo falla al
 importar, aiuda reintenta desde esa copia en vez de volver a descargarlo, y la
-borra cuando termina bien.
+borra cuando termina bien. Si después de tres intentos no se puede leer, la
+borra y pide el periodo otra vez al día siguiente. Un comprobante suelto que no
+se pueda guardar se omite con un aviso y los demás del paquete entran.
+
+Si borras la e.firma de una empresa, también se borra lo que estuviera a medias
+con el SAT: la solicitud pendiente y los paquetes bajados sin importar.
 
 ## Facturas canceladas
 
@@ -81,6 +88,10 @@ cancelada:
 
 El CFDI se queda en la bóveda, marcado como cancelado.
 
+Si cancelaste una factura y la **volviste a timbrar con el mismo folio**, aiuda
+se queda con el comprobante vigente y la sigue cobrando: no sale de la cartera,
+o regresa a ella si ya había salido.
+
 Lo que conviene saber:
 
 - **Puede tardar hasta un día** en reflejarse, porque la lista se pide una vez
@@ -92,6 +103,9 @@ Lo que conviene saber:
 - **Pagos y notas de crédito cancelados.** Si cancelas un complemento de pago o
   una nota de crédito que aiuda ya había aplicado, queda marcado como cancelado
   en la bóveda pero la factura no se reabre sola.
+- **Facturas que vienen de otro sistema.** Si la factura llegó de Odoo o de un
+  Excel y su comprobante no trae el folio fiscal, aiuda no puede probar que sea
+  la cancelada: no la cierra sola, te avisa para que la revises.
 - **Recibidos.** El SAT ya no entrega el XML de un CFDI recibido que está
   cancelado, así que aiuda pide únicamente los vigentes. Si un proveedor cancela
   después un CFDI que ya tenías, queda marcado como cancelado en la bóveda.
@@ -104,8 +118,10 @@ Con una e.firma vigente, el 4 y 5 de octubre de 2026:
 - emitidos: facturas a crédito (PPD), de contado (PUE) y recibos de nómina;
 - recibidos: facturas y un complemento de pago;
 - un periodo sin comprobantes;
-- la lista de cancelados de emitidos y de recibidos, y el cierre de una factura
-  cancelada.
+- la lista de cancelados de emitidos y de recibidos, leída del SAT real. Con
+  ella se cerró una factura cancelada que se había cargado a mano para la
+  prueba: su XML nunca se descargó, porque ya estaba cancelada antes de la
+  primera descarga.
 
 En esas pruebas cada paquete estuvo listo en menos de dos minutos; el SAT puede
 tardar más.
@@ -114,6 +130,11 @@ Todavía **sin probar en vivo** (están programados y probados con datos de
 prueba):
 
 - complementos de pago y notas de crédito **emitidos** por ti;
+- la cadena completa de una cancelación: una factura que aiuda descargó, que
+  después se cancela y cuyos recordatorios se retiran;
+- una factura cancelada y vuelta a timbrar con el mismo folio;
+- un CFDI **recibido** que después se cancela;
+- el SAT sin contestar, o entregando un paquete que no se puede leer;
 - un periodo tan grande que el SAT lo parta en varios paquetes;
 - los límites del SAT por solicitud repetida;
 - más de un RFC conectado al mismo tiempo.
