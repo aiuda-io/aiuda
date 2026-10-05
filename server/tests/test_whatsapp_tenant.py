@@ -423,6 +423,7 @@ def test_qr_en_modo_multi_no_hay_conflicto(client, db_session, monkeypatch):
     monkeypatch.setattr(settings, "workspace_id", b.id)
     # Con store propio no hay dueño único que defender; el QR sigue su curso normal
     # (aquí wacli no está en el PATH del test: 502 honesto, NO el 409 de conflicto).
+    monkeypatch.setattr(wa_api.wacli_bin, "resolver", lambda: "/opt/wacli")
     monkeypatch.setattr(wa_api, "_is_authenticated", lambda tenant: False)
     monkeypatch.setattr(wa_api, "_capture_qr", lambda tenant, deadline_s=15.0: None)
     r = client.post("/v1/integrations/whatsapp/qr")

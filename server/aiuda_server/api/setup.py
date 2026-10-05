@@ -11,7 +11,6 @@ Nada aquí decide por el usuario: propone el camino más corto y él elige.
 from __future__ import annotations
 
 import json
-import shutil
 import urllib.error
 import urllib.request
 
@@ -20,6 +19,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from aiuda_core.config import settings
+from aiuda_core.connectors import wacli_bin
 from aiuda_core.engine.maquina import (
     descargar_modelo,
     detectar_maquina,
@@ -123,7 +123,7 @@ def estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
         },
         "ayudantes": {"total": int(ayudantes or 0), "listo": ayudantes_listo},
         # Extras que aiuda detecta pero no exige.
-        "extras": {"wacli": shutil.which(settings.wacli_bin) is not None},
+        "extras": {"wacli": wacli_bin.resolver() is not None},
         "terminado": terminado,
     }
 

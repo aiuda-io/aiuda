@@ -26,6 +26,7 @@ from sqlalchemy import select as sa_select
 
 from aiuda_server.api.deps import get_db, get_tenant
 from aiuda_core.config import settings
+from aiuda_core.connectors import wacli_bin
 from aiuda_core.connectors.channel import wacli_store_dir, whatsapp_config
 from aiuda_core.connectors.waba import parse_webhook as parse_waba_webhook
 from aiuda_core.models import Conversation, IntegrationCredential, Message, Tenant
@@ -53,9 +54,12 @@ def _stop_auth(tenant_id: str) -> None:
 
 
 def _is_authenticated(tenant: Tenant) -> bool:
+    binario = wacli_bin.resolver()
+    if binario is None:
+        return False
     try:
         out = subprocess.run(
-            [settings.wacli_bin, "auth", "status", *_store_args(tenant), "--json"],
+            [binario, "auth", "status", *_store_args(tenant), "--json"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -69,9 +73,12 @@ def _is_authenticated(tenant: Tenant) -> bool:
 def _capture_qr(tenant: Tenant, deadline_s: float = 15.0) -> str | None:
     """Inicia `wacli auth` (con el store del tenant) y devuelve el contenido del QR."""
     _stop_auth(tenant.id)
+    binario = wacli_bin.resolver()
+    if binario is None:
+        return None
     try:
         proc = subprocess.Popen(
-            [settings.wacli_bin, "auth", "--qr-format", "text", "--events", *_store_args(tenant)],
+            [binario, "auth", "--qr-format", "text", "--events", *_store_args(tenant)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             text=True,
@@ -141,6 +148,8 @@ def whatsapp_qr(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
                 "o el canal oficial de WhatsApp Business."
             ),
         )
+    if wacli_bin.resolver() is None:
+        raise HTTPException(status_code=409, detail=wacli_bin.SIN_INSTALAR)
     if _is_authenticated(tenant):
         _mark(tenant, db, "wacli")
         return {"connected": True, "qr": None}
@@ -149,7 +158,7 @@ def whatsapp_qr(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     if not code:
         raise HTTPException(
             status_code=502,
-            detail="No se pudo generar el QR. Revisa que wacli esté instalado en el servidor.",
+            detail="No se pudo generar el código QR. Intenta de nuevo en un momento.",
         )
     qr = segno.make(code, error="m")
     return {"connected": False, "qr": qr.svg_data_uri(scale=6, border=2)}
@@ -165,7 +174,29 @@ def whatsapp_status(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             _mark(tenant, db, "wacli")
         else:
             connected = False
-    return {"connected": connected}
+    return {"connected": connected, **_instalacion()}
+
+
+def _instalacion() -> dict:
+    """Lo que la consola necesita para ofrecer Instalar: si ya hay un wacli, cuál
+    versión, y si esta computadora no puede instalarlo, por qué."""
+    binario = wacli_bin.resolver()
+    return {
+        "instalado": binario is not None,
+        "version": wacli_bin.version(binario) if binario else None,
+        "no_se_puede": None if binario else wacli_bin.puede_instalarse(),
+    }
+
+
+@router.post("/v1/integrations/whatsapp/instalar")
+def whatsapp_instalar():
+    """Instala el conector de WhatsApp con un clic: lo baja del release oficial,
+    verifica su suma y lo deja en la carpeta de datos. Nada que teclear."""
+    try:
+        wacli_bin.instalar()
+    except wacli_bin.WacliInstallError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return _instalacion()
 
 
 @router.delete("/v1/integrations/whatsapp/session")
@@ -173,7 +204,7 @@ def whatsapp_logout(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     _stop_auth(tenant.id)
     try:
         subprocess.run(
-            [settings.wacli_bin, "auth", "logout", *_store_args(tenant)],
+            [wacli_bin.resolver() or settings.wacli_bin, "auth", "logout", *_store_args(tenant)],
             capture_output=True,
             timeout=10,
         )

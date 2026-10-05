@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { api, type SourceCap } from "@/lib/api";
+import { api, type SourceCap, type WhatsappInstalacion } from "@/lib/api";
 import { oficioDe } from "@/lib/oficios";
 import { Drawer } from "@/components/drawer";
 import { SIN_ESTRENAR_NOTA, SinEstrenar } from "@/components/ui";
@@ -34,13 +34,18 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
   const [qr, setQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [paired, setPaired] = useState<boolean | null>(null);
+  const [instalacion, setInstalacion] = useState<WhatsappInstalacion | null>(null);
+  const [instalando, setInstalando] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Estado real de wacli (no la heurística del grafo).
     api
       .whatsappStatus()
-      .then((s) => setPaired(s.connected))
+      .then((s) => {
+        setInstalacion(s);
+        setPaired(s.connected);
+      })
       .catch(() => setPaired(false));
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -78,6 +83,18 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
     }
   }
 
+  async function instalar() {
+    setInstalando(true);
+    try {
+      setInstalacion(await api.whatsappInstalar());
+      toast("Conector de WhatsApp instalado.", "success");
+    } catch (e) {
+      toast((e as Error).message, "error");
+    } finally {
+      setInstalando(false);
+    }
+  }
+
   async function logout() {
     await api.whatsappLogout().catch(() => {});
     setPaired(false);
@@ -103,6 +120,35 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
         >
           Desvincular
         </button>
+      </div>
+    );
+  }
+
+  if (instalacion && !instalacion.instalado) {
+    return (
+      <div className="rounded-lg border border-line bg-surface px-4 py-5 text-center">
+        {instalacion.no_se_puede ? (
+          <p className="text-cuerpo leading-relaxed text-ink-2">{instalacion.no_se_puede}</p>
+        ) : (
+          <>
+            <p className="text-cuerpo leading-relaxed text-ink-2">
+              Para conectar tu WhatsApp, esta computadora necesita un conector. Se instala solo, en
+              menos de un minuto.
+            </p>
+            <button
+              onClick={instalar}
+              disabled={instalando}
+              className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
+            >
+              {instalando ? "Instalando…" : "Instalar"}
+            </button>
+            <p className="mt-3 text-apoyo leading-relaxed text-ink-3">
+              El conector es wacli (github.com/openclaw/wacli), software libre de terceros con
+              licencia MIT y componentes GPL-3.0. Se descarga de su página oficial y se verifica
+              antes de guardarse.
+            </p>
+          </>
+        )}
       </div>
     );
   }

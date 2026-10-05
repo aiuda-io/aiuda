@@ -31,3 +31,18 @@ os.environ.setdefault(
 # 30 segundos dispararían una corrida de cobranza de verdad (con sus envíos)
 # desde adentro de la suite.
 os.environ.setdefault("AIUDA_SCHEDULER_ENABLED", "false")
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _sin_wacli_del_dueno(monkeypatch, tmp_path_factory):
+    """Ninguna prueba encuentra el wacli de esta computadora ni el que instala
+    aiuda: en la máquina de quien desarrolla hay uno con su sesión de WhatsApp
+    de verdad. Las pruebas que necesitan un binario ponen el suyo."""
+    from aiuda_core.connectors import wacli_bin
+
+    vacio = tmp_path_factory.getbasetemp() / "sin-wacli" / "wacli"
+    monkeypatch.setattr(wacli_bin, "_del_sistema", lambda: None)
+    monkeypatch.setattr(wacli_bin, "ruta_instalada", lambda: vacio)

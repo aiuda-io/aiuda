@@ -145,6 +145,7 @@ DUENO: frozenset[tuple[str, str]] = frozenset({
     ("POST", "/v1/import/analyze"),
     ("POST", "/v1/import/commit"),
     ("POST", "/v1/integrations/whatsapp-cloud/activate"),
+    ("POST", "/v1/integrations/whatsapp/instalar"),
     ("POST", "/v1/integrations/whatsapp/qr"),
     ("POST", "/v1/integrations/{key}/test"),
     ("POST", "/v1/invoices"),

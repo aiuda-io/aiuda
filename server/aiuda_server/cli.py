@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import os
 import secrets
-import shutil
 import sys
 import threading
 import webbrowser
@@ -273,8 +272,14 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         _check("CUA (Playwright/Chromium)", False, f"opcional — {exc}")
 
     # WhatsApp local
-    wacli = shutil.which(settings.wacli_bin)
-    _check("wacli (WhatsApp local)", wacli is not None, wacli or "no está en el PATH (opcional)")
+    from aiuda_core.connectors import wacli_bin
+
+    wacli = wacli_bin.resolver()
+    _check(
+        "wacli (WhatsApp local)",
+        wacli is not None,
+        wacli or "sin instalar (opcional; se instala desde Integraciones > WhatsApp)",
+    )
     return 0
 
 

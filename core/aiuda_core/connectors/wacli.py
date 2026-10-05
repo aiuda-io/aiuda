@@ -16,6 +16,7 @@ import shlex
 import subprocess
 
 from aiuda_core.config import settings
+from aiuda_core.connectors import wacli_bin
 from aiuda_core.phones import normalize_mx
 
 
@@ -32,13 +33,22 @@ class WacliClient:
     ):
         # Placeholders: {bin}, {phone}, {message}
         self.send_template = send_template or settings.wacli_send_template
-        self.bin = settings.wacli_bin
+        # Ruta absoluta (el PATH de la app de escritorio no trae Homebrew). Sin
+        # ninguno instalado queda el nombre pelón y el envío falla con el aviso de
+        # instalar, no con un error crudo.
+        self.bin = wacli_bin.resolver() or settings.wacli_bin
         self.timeout = timeout
         # Store propio del workspace o None = store default del host.
         self.store_dir = store_dir
 
     def _store_args(self) -> list[str]:
         return ["--store", self.store_dir] if self.store_dir else []
+
+    def _run(self, command: list[str]) -> subprocess.CompletedProcess:
+        try:
+            return subprocess.run(command, capture_output=True, text=True, timeout=self.timeout)
+        except FileNotFoundError as exc:
+            raise WacliError(wacli_bin.SIN_INSTALAR) from exc
 
     def _jid(self, phone: str) -> str:
         """JID de usuario explícito (<dígitos>@s.whatsapp.net), no el número pelón:
@@ -56,9 +66,7 @@ class WacliClient:
             part.replace("{bin}", self.bin).replace("{phone}", recipient).replace("{message}", text)
             for part in shlex.split(self.send_template)
         ] + self._store_args()
-        result = subprocess.run(
-            command, capture_output=True, text=True, timeout=self.timeout
-        )
+        result = self._run(command)
         if result.returncode != 0:
             raise WacliError(result.stderr.strip() or f"wacli salió con {result.returncode}")
 
@@ -71,7 +79,7 @@ class WacliClient:
             command += ["--caption", caption]
         if filename:
             command += ["--filename", filename]
-        result = subprocess.run(command, capture_output=True, text=True, timeout=self.timeout)
+        result = self._run(command)
         if result.returncode != 0:
             raise WacliError(result.stderr.strip() or f"wacli salió con {result.returncode}")
 
@@ -82,12 +90,7 @@ class WacliClient:
         data={fts, messages:[...]}. Cada método normaliza. Las lecturas no compiten
         con el sync por el lock; van directo.
         """
-        result = subprocess.run(
-            [self.bin, *args, *self._store_args(), "--json"],
-            capture_output=True,
-            text=True,
-            timeout=self.timeout,
-        )
+        result = self._run([self.bin, *args, *self._store_args(), "--json"])
         if result.returncode != 0:
             raise WacliError(result.stderr.strip() or f"wacli salió con {result.returncode}")
         return json.loads(result.stdout or "{}").get("data")

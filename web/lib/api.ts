@@ -1168,6 +1168,15 @@ export type LearningSummary = {
   recientes: { original: string; final: string; createdAt: string | null }[];
 };
 
+/** El conector de WhatsApp en esta computadora: si ya está y, si no se puede instalar, por qué. */
+export type WhatsappInstalacion = {
+  instalado: boolean;
+  version: string | null;
+  no_se_puede: string | null;
+};
+
+export type WhatsappStatus = WhatsappInstalacion & { connected: boolean };
+
 export const api = {
   integrations: () => request<IntegrationsGraph>("/v1/integrations"),
   satEstado: () => request<SatEstado>("/v1/sat/estado"),
@@ -1296,7 +1305,9 @@ export const api = {
       { method: "POST" },
     ),
   whatsappQr: () => request<{ connected: boolean; qr: string | null }>("/v1/integrations/whatsapp/qr", { method: "POST" }),
-  whatsappStatus: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/status"),
+  whatsappStatus: () => request<WhatsappStatus>("/v1/integrations/whatsapp/status"),
+  whatsappInstalar: () =>
+    request<WhatsappInstalacion>("/v1/integrations/whatsapp/instalar", { method: "POST" }),
   whatsappLogout: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/session", { method: "DELETE" }),
   workspace: () => request<WorkspaceInfo>("/v1/workspace"),
   // Activación: progreso derivado del estado real (no flags persistidos). Lo
