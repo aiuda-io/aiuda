@@ -8,13 +8,11 @@ import { PageHeader } from "@/components/ui";
 import { SettingsPage, SettingsSection } from "@/components/settings";
 import { ExcelUpload } from "@/components/excel-upload";
 import { BancoUpload } from "@/components/banco-upload";
-import { RegresoACartera } from "@/components/cartera-partes";
 import { RUTA } from "@/lib/cartera";
 
 export default function ImportarPage() {
   return (
     <SettingsPage>
-      <RegresoACartera />
       <PageHeader
         title="Importar"
         subtitle="Sube tus archivos tal como los llevas. Nada se carga sin que lo revises primero."

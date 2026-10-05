@@ -3,7 +3,6 @@
 // Piezas chicas que comparten las pestañas de Cartera, SAT e Importar.
 
 import Link from "next/link";
-import { ChevronLeft } from "@/components/ui";
 import type { SaldoMoneda } from "@/lib/api";
 import { dinero, RUTA, type Fallo } from "@/lib/cartera";
 
@@ -82,18 +81,5 @@ export function FalloAccion({ fallo }: { fallo: Fallo }) {
         )}
       </span>
     </p>
-  );
-}
-
-/** El regreso de las pantallas que no están en el menú (SAT, Importar). */
-export function RegresoACartera() {
-  return (
-    <Link
-      href={RUTA.cartera}
-      className="mb-5 inline-flex items-center gap-1.5 text-cuerpo font-medium text-accent-ink hover:underline"
-    >
-      <ChevronLeft />
-      Cartera
-    </Link>
   );
 }

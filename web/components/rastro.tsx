@@ -10,7 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SECTION_LABELS, isSection } from "@/lib/sections";
+import { SECTION_LABELS, isSection, puertaDe } from "@/lib/sections";
 
 // El Rastro recuerda el camino real que recorriste para llegar a donde estás.
 // No son migas de jerarquía: son tus pasos, cada uno clickeable. Así nunca
@@ -33,12 +33,20 @@ const RastroContext = createContext<RastroValue | null>(null);
 //  - Sección de primer nivel (destino del menú): reinicia a [Resumen, sección].
 //  - Detalle: continúa el camino. Si ya estabas en esa página, recorta hasta
 //    ahí (regresaste); si no, la agrega al final.
+//  - Llegada directa a un detalle (un enlace pegado, una recarga): no hay camino
+//    recorrido, así que se regresa a la puerta bajo la que vive esa pantalla
+//    ("Volver a Cartera" desde el SAT), no a Hoy. Es la única salida que se pinta:
+//    las páginas ya no traen su propio "‹ Cartera" encima del Rastro.
 function reconcile(prev: string[], p: string): string[] {
   if (p === "/") return ["/"];
   if (isSection(p)) return ["/", p];
   const idx = prev.indexOf(p);
   if (idx >= 0) return prev.slice(0, idx + 1);
-  return [...(prev.length ? prev : ["/"]), p];
+  if (prev.length === 0) {
+    const puerta = puertaDe(p);
+    return puerta && puerta !== "/" && puerta !== p ? ["/", puerta, p] : ["/", p];
+  }
+  return [...prev, p];
 }
 
 function sameTrail(a: string[], b: string[]): boolean {
