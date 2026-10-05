@@ -20,6 +20,7 @@ Necesita el Odoo de pruebas arriba:
 
 Uso:
 
+    export JOURNEY_ODOO_PASS=...                    # la del Odoo de pruebas
     uv run python scripts/journey.py                # con tu IA (gasta)
     uv run python scripts/journey.py --sin-ia       # sin llamar al modelo
     uv run python scripts/journey.py --tope 3       # cuántos borradores redactar
@@ -40,7 +41,9 @@ ODOO = {
     "url": os.environ.get("JOURNEY_ODOO_URL", "http://localhost:8069"),
     "db": os.environ.get("JOURNEY_ODOO_DB", "hanova_facturas"),
     "username": os.environ.get("JOURNEY_ODOO_USER", "admin"),
-    "api_key": os.environ.get("JOURNEY_ODOO_PASS", "dF7qjSPGey05OCui"),
+    # Sin valor por defecto, a propósito: la réplica local usa la misma contraseña
+    # que el Odoo de verdad, y aquí estuvo escrita en claro. Va por el entorno.
+    "api_key": os.environ.get("JOURNEY_ODOO_PASS", ""),
 }
 
 _paso = 0
@@ -71,6 +74,11 @@ def main() -> int:
     ap.add_argument("--tope", type=int, default=3, help="borradores por corrida")
     ap.add_argument("--db", default="", help="ruta de la base (por defecto, temporal)")
     args = ap.parse_args()
+
+    if not ODOO["api_key"]:
+        print("Falta la contraseña del Odoo de pruebas. Pásala por el entorno:")
+        print("    JOURNEY_ODOO_PASS=... uv run python scripts/journey.py")
+        return 2
 
     destino = args.db or str(Path(tempfile.mkdtemp(prefix="aiuda-journey-")) / "journey.db")
     os.environ["AIUDA_DATABASE_URL"] = f"sqlite:///{destino}"
