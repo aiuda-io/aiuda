@@ -165,6 +165,9 @@ export type Cfdi = {
 
 export type InvoiceDetail = InvoiceItem & {
   customer_id: string;
+  /** A dónde se escribirá el pago si se registra: la fuente de la factura y si está
+   *  conectada ahora. null = el pago no regresa a ningún sistema. */
+  pago_regresa_a: { fuente: string; conectada: boolean } | null;
   conversation_id: string | null;
   cfdi: Cfdi | Record<string, never>;
   // Por qué se cerró sin pago, p. ej. "cancelada en el SAT"

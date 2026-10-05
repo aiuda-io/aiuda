@@ -18,6 +18,7 @@ import { AnimatedNumber } from "@/components/motion";
 import { RailLayout, RailRow, RailSection } from "@/components/rail";
 import { InvoiceDrawer } from "@/components/invoice-drawer";
 import { AgregarSheet } from "@/components/agregar-sheet";
+import { ConfirmarPago } from "@/components/confirmar-pago";
 import { ExportButton } from "@/components/export-button";
 
 type SortKey = "folio" | "customer" | "amount" | "days_overdue";
@@ -46,6 +47,8 @@ export default function FacturasPage() {
   const [bucket, setBucket] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [agregar, setAgregar] = useState(false);
+  // Factura cuyo pago se está por confirmar (abre la confirmación; nada se paga con un clic).
+  const [pagar, setPagar] = useState<string | null>(null);
 
   const syncNow = async () => {
     setSyncing(true);
@@ -121,22 +124,18 @@ export default function FacturasPage() {
 
   if (error) return <ErrorState message={error} retry={refetch} />;
 
-  const act = async (inv: InvoiceItem, action: "pay" | "remind") => {
-    setBusy((b) => ({ ...b, [inv.id]: action }));
+  // La única acción directa de la fila es pedir el recordatorio (queda como borrador
+  // por aprobar). Dar una factura por pagada pasa siempre por ConfirmarPago.
+  const recordar = async (inv: InvoiceItem) => {
+    setBusy((b) => ({ ...b, [inv.id]: "remind" }));
     setFallo((f) => {
       const next = { ...f };
       delete next[inv.id];
       return next;
     });
     try {
-      if (action === "pay") {
-        await api.pay(inv.id);
-        setDone((d) => ({ ...d, [inv.id]: "Pago confirmado, ya está en Pagadas" }));
-        setTimeout(refetch, 1100);
-      } else {
-        await api.remind(inv.id);
-        setDone((d) => ({ ...d, [inv.id]: "Borrador listo en Aprobaciones" }));
-      }
+      await api.remind(inv.id);
+      setDone((d) => ({ ...d, [inv.id]: "Borrador listo en Aprobaciones" }));
     } catch (e) {
       setFallo((f) => ({
         ...f,
@@ -369,11 +368,11 @@ export default function FacturasPage() {
                                   disabled={!!busy[inv.id]}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    act(inv, "pay");
+                                    setPagar(inv.id);
                                   }}
                                   className="rounded border border-ok/40 bg-ok-soft px-2 py-1 text-sello font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
                                 >
-                                  {busy[inv.id] ? "…" : "Confirmar pago"}
+                                  Confirmar pago
                                 </button>
                               ) : (
                                 <span className="flex flex-col items-end gap-1.5">
@@ -383,13 +382,7 @@ export default function FacturasPage() {
                                     label={busy[inv.id] === "remind" ? "Redactando…" : "Recordar"}
                                     title="Tu ayudante redacta un recordatorio y lo deja en Aprobaciones"
                                     disabled={!!busy[inv.id]}
-                                    onClick={() => act(inv, "remind")}
-                                  />
-                                  <RowAction
-                                    label={busy[inv.id] === "pay" ? "…" : "Registrar pago"}
-                                    title="Confirmas tú el pago: queda como verificado manualmente"
-                                    disabled={!!busy[inv.id]}
-                                    onClick={() => act(inv, "pay")}
+                                    onClick={() => recordar(inv)}
                                   />
                                 </span>
                                 </span>
@@ -447,11 +440,11 @@ export default function FacturasPage() {
                               disabled={!!busy[inv.id]}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                act(inv, "pay");
+                                setPagar(inv.id);
                               }}
                               className="w-full rounded-md border border-ok/40 bg-ok-soft py-2 text-cuerpo font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
                             >
-                              {busy[inv.id] ? "…" : "Confirmar pago"}
+                              Confirmar pago
                             </button>
                           ) : (
                             <>
@@ -465,21 +458,11 @@ export default function FacturasPage() {
                                 disabled={!!busy[inv.id]}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  act(inv, "remind");
+                                  recordar(inv);
                                 }}
                                 className="flex-1 rounded-md border border-line bg-surface py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
                               >
                                 {busy[inv.id] === "remind" ? "Redactando…" : "Recordar"}
-                              </button>
-                              <button
-                                disabled={!!busy[inv.id]}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  act(inv, "pay");
-                                }}
-                                className="flex-1 rounded-md border border-line bg-surface py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
-                              >
-                                {busy[inv.id] === "pay" ? "…" : "Registrar pago"}
                               </button>
                             </div>
                             </>
@@ -495,6 +478,15 @@ export default function FacturasPage() {
         </RailLayout>
 
       <InvoiceDrawer invoiceId={openId} onClose={() => setOpenId(null)} onChanged={refetch} />
+      <ConfirmarPago
+        invoiceId={pagar}
+        onClose={() => setPagar(null)}
+        onDone={(f) => {
+          setPagar(null);
+          setDone((d) => ({ ...d, [f.id]: "Pago confirmado, ya está en Pagadas" }));
+          setTimeout(refetch, 1100);
+        }}
+      />
     </div>
   );
 }

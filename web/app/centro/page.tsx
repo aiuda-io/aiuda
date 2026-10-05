@@ -31,6 +31,7 @@ import { oficioDe } from "@/lib/oficios";
 import { toast } from "@/components/toast";
 import { Drawer } from "@/components/drawer";
 import { Modal } from "@/components/modal";
+import { ConfirmarPago } from "@/components/confirmar-pago";
 import { usePageTrail } from "@/components/rastro";
 
 type Tone = "warn" | "ok" | "ink";
@@ -453,6 +454,8 @@ function Mesa({
 }) {
   // Borrador en edición, atado al item (no se fuga al cambiar de trabajo).
   const [draft, setDraft] = useState<{ id: string; text: string } | null>(null);
+  // Factura de una promesa cuyo pago se está por registrar: abre la confirmación.
+  const [pagoDe, setPagoDe] = useState<string | null>(null);
   if (item.type === "recordatorio" || item.type === "cotizacion") {
     const r = item.reminder!;
     const connected = r.channels.filter((c) => c.connected);
@@ -761,10 +764,8 @@ function Mesa({
       </div>
       {!readOnly && (
         <Actions
-          primary={busy ? "Guardando…" : "Registrar pago"}
-          onPrimary={() =>
-            run(() => api.pay(p.invoice_id), "Pago registrado, la factura pasa a Pagadas")
-          }
+          primary="Registrar pago"
+          onPrimary={() => setPagoDe(p.invoice_id)}
           secondary={{
             label: "Recordar de nuevo",
             onClick: () =>
@@ -773,6 +774,16 @@ function Mesa({
           busy={busy}
         />
       )}
+      {/* Misma confirmación que en Facturas: cliente, folio, monto y a dónde más se escribe. */}
+      <ConfirmarPago
+        invoiceId={pagoDe}
+        onClose={() => setPagoDe(null)}
+        onDone={() => {
+          setPagoDe(null);
+          // El pago ya quedó en el server: `run` solo avisa, cierra la Mesa y refresca.
+          run(() => Promise.resolve(), "Pago registrado, la factura pasa a Pagadas");
+        }}
+      />
     </>
   );
 }

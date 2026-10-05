@@ -2488,6 +2488,8 @@ def invoice_detail(
 ):
     """Detalle de una factura: sus datos, presencia multi-sistema y la
     actividad del equipo (recordatorios redactados, promesas registradas)."""
+    from aiuda_core.engine.writeback import payment_writeback_preview
+
     today = datetime.now(MX_TZ).date()
     row = db.execute(
         select(Invoice, Customer)
@@ -2529,6 +2531,12 @@ def invoice_detail(
         "verified": inv.verified,
         "payment_reported": inv.payment_reported,
         "paid_source": inv.paid_source,
+        # A dónde se escribirá el pago si el dueño lo registra ({fuente, conectada}),
+        # o None si no regresa a ningún sistema. La confirmación de pago lo enseña
+        # ANTES del clic: registrar un pago de Odoo también escribe en Odoo.
+        "pago_regresa_a": payment_writeback_preview(db, tenant.id, inv)
+        if inv.status == "open"
+        else None,
         # Por qué se cerró sin pago (ej. "cancelada en el SAT"); None si no aplica.
         "motivo_cierre": (inv.meta or {}).get("cerrada_por"),
         # Comprobante fiscal: datos parseados + si hay archivos para ver/descargar.

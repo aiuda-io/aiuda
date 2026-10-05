@@ -46,9 +46,38 @@ BACKOFF_MINUTES = (1, 5, 15, 60)
 WRITABLE_TARGETS = {"odoo", "shopify"}
 
 
+# La credencial mínima con la que el worker arma el ejecutor de cada destino. Es
+# el MISMO criterio de `_process_writebacks` (server/aiuda_server/worker/main.py):
+# si cambia allá, cambia aquí.
+_CREDENCIAL_MINIMA = {"odoo": "url", "shopify": "access_token"}
+
+
+def payment_writeback_target(invoice: Invoice) -> str | None:
+    """A qué sistema regresa el pago de esta factura al confirmarlo, o None si no
+    regresa a ninguno (vino de Excel, nació en aiuda...). Es la única regla: la usa
+    la cola al pagar y la consola para avisarlo ANTES de que el dueño confirme."""
+    return invoice.source if invoice.source in WRITABLE_TARGETS else None
+
+
+def payment_writeback_preview(session: Session, tenant_id: str, invoice: Invoice) -> dict | None:
+    """Lo que la consola le dice al dueño antes de registrar un pago: a qué fuente
+    se va a escribir y si esa fuente está conectada AHORA. Sin conexión el pago se
+    encola igual y espera (ver `process_outbox`), así que eso también se dice."""
+    target = payment_writeback_target(invoice)
+    if target is None:
+        return None
+    from aiuda_core.connectors.credentials import get_credential
+
+    try:
+        creds = get_credential(session, tenant_id, target)
+    except Exception:
+        creds = None  # una credencial que no descifra no está conectada
+    return {"fuente": target, "conectada": bool(creds and creds.get(_CREDENCIAL_MINIMA[target]))}
+
+
 def queue_payment_writeback(session: Session, tenant: Tenant, invoice: Invoice) -> OutboxEntry | None:
     """Encola la inyección de un pago confirmado hacia el sistema de origen."""
-    if invoice.source not in WRITABLE_TARGETS:
+    if payment_writeback_target(invoice) is None:
         return None
     customer = session.get(Customer, invoice.customer_id)
     entry = OutboxEntry(
