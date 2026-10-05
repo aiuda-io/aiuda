@@ -925,14 +925,38 @@ def _espera_tu_ok(db, tenant: Tenant, today) -> int:
     return int(por_aprobar or 0) + int(pagos or 0) + vencidas
 
 
+MONEDA_BASE = "MXN"
+
+
+def _moneda(invoice: Invoice) -> str:
+    return (invoice.currency or MONEDA_BASE).strip().upper() or MONEDA_BASE
+
+
+def _moneda_principal(conteo: dict[str, int]) -> str:
+    """La moneda en la que se dicen las cifras sueltas de la cartera. Pesos si hay
+    al menos una factura abierta en pesos (o ninguna factura); si el negocio solo
+    cobra en otra moneda, la que más facturas abiertas tenga."""
+    if not conteo or conteo.get(MONEDA_BASE):
+        return MONEDA_BASE
+    return max(sorted(conteo), key=lambda m: conteo[m])
+
+
 @app.get("/v1/cartera")
 def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Resumen para el dashboard: aging + métrica estrella ($ recuperado del mes)."""
+    """Resumen de la cartera: antigüedad + métrica estrella ($ recuperado del mes).
+
+    Pesos y dólares NO se suman. Antes `open_total`, `recovered_this_month` y
+    `aging` metían todas las monedas en una sola cifra pintada como pesos: una
+    factura de 10,000 USD contaba como 10,000 MXN. Ahora esos tres campos (y
+    `open_count`) hablan solo de la moneda principal, y `por_moneda` trae el
+    desglose completo, una entrada por moneda, la principal primero."""
     today = datetime.now(MX_TZ).date()
     open_invoices = db.scalars(
         select(Invoice).where(Invoice.tenant_id == tenant.id, Invoice.status == "open")
     ).all()
-    summary = aging_summary(open_invoices, today)
+    abiertas: dict[str, list[Invoice]] = {}
+    for inv in open_invoices:
+        abiertas.setdefault(_moneda(inv), []).append(inv)
 
     # $ recuperado este mes = facturas pagadas este mes que recibieron ≥1 recordatorio enviado
     paid_this_month = db.execute(
@@ -942,7 +966,7 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             Invoice.paid_at.isnot(None),
         )
     ).scalars()
-    recovered = 0.0
+    recuperado: dict[str, float] = {}
     for inv in paid_this_month:
         if inv.paid_at.year != today.year or inv.paid_at.month != today.month:
             continue
@@ -954,7 +978,27 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             )
         )
         if sent is not None:
-            recovered += float(inv.amount)
+            recuperado[_moneda(inv)] = recuperado.get(_moneda(inv), 0.0) + float(inv.amount)
+
+    principal = _moneda_principal({m: len(lista) for m, lista in abiertas.items()})
+    monedas = [principal] + sorted((set(abiertas) | set(recuperado)) - {principal})
+    por_moneda = []
+    for moneda in monedas:
+        lista = abiertas.get(moneda, [])
+        por_moneda.append(
+            {
+                "moneda": moneda,
+                "open_total": sum(float(i.amount) for i in lista),
+                "open_count": len(lista),
+                "overdue_total": sum(float(i.amount) for i in lista if i.due_date < today),
+                "recovered_this_month": recuperado.get(moneda, 0.0),
+                "aging": [
+                    {"bucket": str(b), "count": line.count, "total": line.total}
+                    for b, line in aging_summary(lista, today).items()
+                ],
+            }
+        )
+    base = por_moneda[0]
 
     pending_count = db.scalars(
         select(Reminder).where(
@@ -975,19 +1019,23 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     return {
         "business_name": tenant.name,
         "today": today.isoformat(),
-        "recovered_this_month": recovered,
-        "open_total": sum(float(i.amount) for i in open_invoices),
-        "open_count": len(open_invoices),
+        # Los cuatro que siguen son SOLO de la moneda principal (ver docstring).
+        "recovered_this_month": base["recovered_this_month"],
+        "open_total": base["open_total"],
+        "open_count": base["open_count"],
+        "aging": base["aging"],
+        "moneda_principal": principal,
+        # Desglose por moneda: [{moneda, open_total, open_count, overdue_total,
+        # recovered_this_month, aging}], la principal primero y luego alfabético.
+        "por_moneda": por_moneda,
+        # Facturas abiertas en CUALQUIER moneda (para saber si hay cartera).
+        "open_count_todas": len(open_invoices),
         "pending_approvals": len(pending_count),
         # El número del globo del menú y de la columna "Espera tu OK" (ver arriba).
         "espera_tu_ok": _espera_tu_ok(db, tenant, today),
         "active_promises": len(promises),
         "payment_reports": reported,
         "by_source": by_source,
-        "aging": [
-            {"bucket": str(b), "count": line.count, "total": line.total}
-            for b, line in summary.items()
-        ],
     }
 
 
@@ -1673,6 +1721,7 @@ def list_promises(
             "customer": cust.name,
             "customer_id": cust.id,
             "amount": float(inv.amount),
+            "currency": inv.currency,
             "promised_date": p.promised_date.isoformat(),
             "note": p.note,
             "days_left": (p.promised_date - today).days,
