@@ -1177,6 +1177,8 @@ export type LearningSummary = {
 export type WhatsappInstalacion = {
   instalado: boolean;
   version: string | null;
+  /** La versión que instala este aiuda (para saber si "Actualizar" cambia algo). */
+  version_fijada: string;
   no_se_puede: string | null;
 };
 

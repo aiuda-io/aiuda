@@ -152,6 +152,9 @@ def _instalacion() -> dict:
     return {
         "instalado": binario is not None,
         "version": wacli_bin.version(binario) if binario else None,
+        # La que instala este aiuda. Si ya es la instalada, "Actualizar" no
+        # serviría de nada y la consola no lo ofrece.
+        "version_fijada": wacli_bin.WACLI_VERSION,
         "no_se_puede": None if binario else wacli_bin.puede_instalarse(),
     }
 
@@ -164,6 +167,7 @@ def whatsapp_instalar():
         wacli_bin.instalar()
     except wacli_bin.WacliInstallError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    wacli_sync.tras_instalar()
     return _instalacion()
 
 

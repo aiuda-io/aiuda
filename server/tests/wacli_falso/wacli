@@ -10,6 +10,7 @@ La prueba lo maneja con archivos dentro del store:
   escanear        el `auth` en curso se da por emparejado
   cerrar_sesion   el `sync` en curso emite logged_out y sale con 0
   morir           el `sync` en curso sale con 3 sin avisar
+  desactualizado  el `sync` en curso sale diciendo que WhatsApp pide otra versión
   fallar_envio    su contenido es el error del siguiente `send` (se queda puesto)
 Lo que "sale" queda en enviados.jsonl; cada arranque de sync en arranques.log.
 """
@@ -220,6 +221,8 @@ if cmd == "sync":
             evento("logged_out", {"reason": "device_removed", "reason_code": 401})
             evento("stopping", {"reason": "logged_out"})
             sys.exit(0)
+        if consumir("desactualizado"):
+            salir_error("WhatsApp client outdated; update wacli and try again")
         if consumir("morir"):
             print("reconnect failed: websocket: close 1006", file=sys.stderr, flush=True)
             sys.exit(3)

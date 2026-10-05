@@ -172,10 +172,16 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
 
   if (!st.instalado || st.estado === "desactualizado") {
     const actualizar = st.instalado;
+    // Honesto: si ya está la versión que este aiuda sabe instalar, reinstalarla
+    // no arregla nada. Hace falta un aiuda más nuevo.
+    const sinNadaQueInstalar = actualizar && st.version === st.version_fijada;
     return (
       <div className="rounded-lg border border-line bg-surface px-4 py-5 text-center">
-        {st.no_se_puede ? (
-          <p className="text-cuerpo leading-relaxed text-ink-2">{st.no_se_puede}</p>
+        {st.no_se_puede || sinNadaQueInstalar ? (
+          <p className="text-cuerpo leading-relaxed text-ink-2">
+            {st.no_se_puede ??
+              "WhatsApp pidió una versión del conector más nueva que la que trae este aiuda. Actualiza aiuda para volver a conectar."}
+          </p>
         ) : (
           <>
             <p className="text-cuerpo leading-relaxed text-ink-2">

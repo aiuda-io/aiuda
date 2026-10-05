@@ -552,6 +552,15 @@ def _foto(canal: _Canal, **cambios) -> dict:
     return foto
 
 
+def tras_instalar() -> None:
+    """Hay conector nuevo: lo que estaba detenido por falta de conector o por
+    viejo se vuelve a evaluar en la siguiente consulta de estado."""
+    with _lock:
+        for canal in _canales.values():
+            if canal.proc is None and canal.estado in (SIN_INSTALAR, DESACTUALIZADO):
+                _fijar(canal, SIN_VINCULAR)
+
+
 def detener_todo() -> None:
     """Al apagar aiuda: ningún wacli se queda vivo a espaldas del dueño. Se llama
     desde las tres salidas del proceso; llamarlo de más no hace daño."""

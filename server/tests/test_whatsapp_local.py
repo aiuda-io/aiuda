@@ -80,7 +80,9 @@ def test_instalar_deja_el_conector_listo(client, tenant, monkeypatch):
     monkeypatch.setattr(wacli_bin, "instalar", instalar)
     r = client.post("/v1/integrations/whatsapp/instalar")
     assert r.status_code == 200
-    assert r.json() == {"instalado": True, "version": "0.20.0", "no_se_puede": None}
+    assert r.json() == {
+        "instalado": True, "version": "0.20.0", "version_fijada": "0.20.0", "no_se_puede": None
+    }
 
 
 def test_instalar_que_falla_responde_en_espanol(client, tenant, monkeypatch):
@@ -459,6 +461,16 @@ def test_si_el_sync_muere_se_relanza(falso):
     assert _esperar(lambda: len(_arranques(falso)) == 2 and _estado(falso) == "conectado")
 
 
+def test_si_whatsapp_pide_un_conector_mas_nuevo_no_se_relanza(falso):
+    _vinculado(falso)
+    wacli_sync.arrancar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    (falso / "desactualizado").write_text("")
+    assert _esperar(lambda: _estado(falso) == "desactualizado")
+    time.sleep(0.6)  # más que la espera de relanzado
+    assert len(_arranques(falso)) == 1
+
+
 def test_si_whatsapp_cierra_la_sesion_no_se_relanza(falso):
     _vinculado(falso)
     wacli_sync.arrancar("inst-a", str(falso))
@@ -560,6 +572,17 @@ def test_api_qr_con_el_whatsapp_ocupado_por_otro_programa(client, tenant, falso)
     finally:
         ajeno.terminate()
         ajeno.wait(timeout=5)
+
+
+def test_api_actualizar_el_conector_vuelve_a_conectar(client, tenant, falso, monkeypatch):
+    _vinculado(falso)
+    assert _esperar(lambda: _status(client)["estado"] == "conectado")
+    (falso / "desactualizado").write_text("")
+    assert _esperar(lambda: _status(client)["estado"] == "desactualizado")
+    assert _status(client)["connected"] is False
+    monkeypatch.setattr(wacli_bin, "instalar", lambda: WACLI_FALSO)  # "ya se actualizó"
+    assert client.post("/v1/integrations/whatsapp/instalar").status_code == 200
+    assert _esperar(lambda: _status(client)["estado"] == "conectado")
 
 
 def test_api_sesion_vinculada_desde_fuera_se_reconoce_y_arranca(client, tenant, falso):
