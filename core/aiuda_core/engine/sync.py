@@ -1378,12 +1378,19 @@ def _sync_sat(
             report.avisos.append(f"SAT {rfc}: no se pudo usar la e.firma: {client}")
             continue
         for scope in ("emitidas", "recibidas"):
+            antes = dict(st_rfc[scope])
             try:
-                _sat_ciclo_scope(
-                    session, tenant, rfc, client, scope, st_rfc[scope], today,
-                    report, crear_cartera,
-                )
+                # Savepoint por vuelta: si la base rechaza un CFDI a media
+                # importación, se deshace SOLO esa vuelta. Sin esto la sesión
+                # quedaba envenenada y se caían la otra dirección, las demás
+                # empresas y los lectores que corren después.
+                with session.begin_nested():
+                    _sat_ciclo_scope(
+                        session, tenant, rfc, client, scope, st_rfc[scope], today,
+                        report, crear_cartera,
+                    )
             except Exception as exc:  # noqa: BLE001 — se avisa y se sigue con lo demás
+                st_rfc[scope] = antes  # la solicitud pendiente se conserva
                 log.warning("SAT %s (%s): %s", rfc, scope, exc)
                 report.avisos.append(f"SAT {rfc} ({scope}): no se pudo: {exc}")
         estado[rfc] = st_rfc

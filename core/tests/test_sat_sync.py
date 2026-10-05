@@ -166,6 +166,41 @@ def test_una_empresa_rota_no_tumba_a_la_otra(session, tenant):
     assert any(PERSONA in a and "no se pudo" in a for a in r.avisos)
 
 
+def test_un_cfdi_que_la_base_rechaza_no_envenena_la_corrida(session, tenant, monkeypatch):
+    """Pasó con el SAT real: la importación tronó a media vuelta (IntegrityError)
+    y la sesión quedó inservible. La vuelta se deshace sola, la solicitud
+    pendiente se conserva y la otra dirección sigue."""
+    from aiuda_core.engine import sync as sync_mod
+    from aiuda_core.models import Customer
+
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    session.add(Customer(tenant_id=tenant.id, name="Ya estaba", phone="5215500000000"))
+    session.flush()
+    xml = cfdi_basico(uuid="CCCC0009-0000-4000-8000-000000000009", emisor=HANOVA)
+    fake = FakeSat(
+        verificaciones=[
+            {"EstadoSolicitud": 3, "IdsPaquetes": ["P1"], "NumeroCFDIs": 1},
+            {"EstadoSolicitud": 2},
+        ],
+        paquetes={"P1": _zip(xml)},
+    )
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # solicita
+
+    def importar_que_choca(session, tenant, xmls, **kw):
+        session.add(Customer(tenant_id=tenant.id, name="Choca", phone="5215500000000"))
+        session.flush()  # viola la unicidad (tenant, phone)
+
+    monkeypatch.setattr(sync_mod, "importar_cfdis", importar_que_choca)
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+
+    assert any("emitidas" in a and "no se pudo" in a for a in r.avisos)
+    st = _estado(tenant, HANOVA)
+    assert st["emitidas"]["solicitud"]["id"] == "S1"  # se reintenta, no se pierde
+    assert st["recibidas"]["solicitud"]["id"] == "S2"  # la otra dirección siguió
+    # La sesión sigue sirviendo: lo de antes de la vuelta está intacto.
+    assert [c.name for c in session.scalars(select(Customer)).all()].count("Choca") == 0
+
+
 def test_redescargar_el_mismo_paquete_no_duplica(session, tenant):
     tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
     xml = cfdi_basico(uuid="CCCC0002-0000-4000-8000-000000000002", emisor=HANOVA)
