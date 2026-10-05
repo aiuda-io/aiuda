@@ -137,8 +137,14 @@ def poll_wacli_once(client_factory=None) -> int:
             # El estado se guarda DESPUÉS de persistir los mensajes: si algo truena
             # a media ingesta, el siguiente sondeo reintenta (el dedupe absorbe).
             _save_state(state_path, new_state)
+            # Cada mensaje por separado: ya están guardados y marcados como vistos,
+            # así que el que truene (la IA sin conectar, el proveedor caído) no debe
+            # llevarse a los que siguen. Entre ellos puede venir una BAJA.
             for message_id in nuevos:
-                process_incoming_message_blocking(tenant_id, message_id)
+                try:
+                    process_incoming_message_blocking(tenant_id, message_id)
+                except Exception:  # noqa: BLE001 — queda en la bandeja para atenderlo a mano
+                    log.exception("no se pudo atender el mensaje entrante %s", message_id)
             total += len(nuevos)
         except Exception:  # noqa: BLE001 — un negocio con wacli caído no tumba el sondeo
             log.exception("sondeo wacli falló para %s", instance)

@@ -216,6 +216,44 @@ def test_inbound_baja_marca_optout_y_confirma_sin_llm(db_session, monkeypatch):
     assert len(out) == 1 and "recordatorios" in out[0].body
 
 
+def test_un_entrante_que_truena_no_se_lleva_a_los_que_siguen(db_session, monkeypatch, tmp_path):
+    """Visto con una cuenta real y sin IA conectada: el primer mensaje del sondeo
+    tronaba y los demás del mismo lote, ya guardados y marcados como vistos, nunca
+    se atendían. Si entre ellos venía una BAJA, se perdía."""
+    from aiuda_server import inbound, wacli_sync
+
+    _tenant(db_session, "Negocio", "inst-a")
+    jid = "5215587654321@s.whatsapp.net"
+    estado = tmp_path / "wacli_inbound.json"
+    estado.write_text(json.dumps({jid: {"last_ts": 100, "ids": []}}))
+    monkeypatch.setattr(inbound, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(inbound, "_state_path", lambda _instance: estado)
+    monkeypatch.setattr(wacli_sync, "asegurar", lambda *_a: None)
+
+    class _Wacli:
+        def list_chats(self):
+            return [{"jid": jid, "kind": "dm"}]
+
+        def list_messages(self, _jid):
+            return [
+                {"MsgID": "m1", "Text": "hola", "Timestamp": 200, "FromMe": False},
+                {"MsgID": "m2", "Text": "BAJA", "Timestamp": 201, "FromMe": False},
+            ]
+
+    atendidos: list[str] = []
+
+    def _atender(_tenant_id, message_id):
+        cuerpo = db_session.get(Message, message_id).body
+        if cuerpo == "hola":
+            raise TypeError("sin proveedor de IA")
+        atendidos.append(cuerpo)
+
+    monkeypatch.setattr(worker_main, "process_incoming_message_blocking", _atender)
+
+    assert inbound.poll_wacli_once(client_factory=lambda _instance: _Wacli()) == 2
+    assert atendidos == ["BAJA"]
+
+
 def test_recordatorio_a_cliente_dado_de_baja_falla_con_motivo(db_session, monkeypatch):
     from datetime import date
 
