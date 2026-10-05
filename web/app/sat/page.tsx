@@ -418,19 +418,20 @@ export default function SatPage() {
                   {boveda.cfdis.map((cfdi) => (
                     <tr key={cfdi.uuid} className="border-b border-line last:border-b-0">
                       <td className="whitespace-nowrap px-3 py-2.5 text-ink-3">{fecha(cfdi.fecha)}</td>
-                      <td className="px-3 py-2.5 font-medium text-ink">{cfdi.folio || cfdi.uuid.slice(0, 8)}</td>
-                      <td className="max-w-40 truncate px-3 py-2.5 text-ink-2">{cfdi.nombre_emisor || cfdi.rfc_emisor}</td>
-                      <td className="max-w-40 truncate px-3 py-2.5 text-ink-2">{cfdi.nombre_receptor || cfdi.rfc_receptor}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-right text-ink">{mxn(cfdi.total ?? 0)}</td>
-                      <td className="px-3 py-2.5 text-ink-3">
-                        <span className="capitalize">{cfdi.direccion}</span>
+                      <td className="px-3 py-2.5 font-medium text-ink">
+                        {cfdi.folio || cfdi.uuid.slice(0, 8)}
+                        {/* Junto al folio: la columna Clase puede quedar fuera de la vista. */}
                         {cfdi.cancelado && (
-                          <span className="block text-danger">
+                          <span className="block font-normal text-danger">
                             Cancelado en el SAT
                             {cfdi.cancelado_el ? ` el ${fecha(cfdi.cancelado_el)}` : ""}
                           </span>
                         )}
                       </td>
+                      <td className="max-w-40 truncate px-3 py-2.5 text-ink-2">{cfdi.nombre_emisor || cfdi.rfc_emisor}</td>
+                      <td className="max-w-40 truncate px-3 py-2.5 text-ink-2">{cfdi.nombre_receptor || cfdi.rfc_receptor}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right text-ink">{mxn(cfdi.total ?? 0)}</td>
+                      <td className="px-3 py-2.5 capitalize text-ink-3">{cfdi.direccion}</td>
                     </tr>
                   ))}
                   {boveda.cfdis.length === 0 && (
