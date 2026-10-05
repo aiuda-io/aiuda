@@ -31,7 +31,7 @@ class FacturapiClient:
     def __init__(self, api_key: str | None = None, transport: httpx.BaseTransport | None = None):
         key = api_key or settings.facturapi_api_key
         if not key:
-            raise RuntimeError("FACTURAPI_API_KEY no configurado — ver .env.example")
+            raise RuntimeError("FACTURAPI_API_KEY no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=BASE_URL, auth=(key, ""), timeout=30, transport=transport
         )

@@ -36,7 +36,7 @@ class StripeClient:
         key = api_key or settings.stripe_api_key
         if not key:
             raise RuntimeError(
-                "STRIPE_API_KEY no configurado — ver .env.example"
+                "STRIPE_API_KEY no configurado. Captura ese dato al conectar."
             )
         self._http = httpx.Client(
             base_url="https://api.stripe.com",

@@ -180,7 +180,7 @@ def cmd_start(args: argparse.Namespace) -> int:
             signal.signal(señal, _apagar)
         except (ValueError, OSError):  # sin hilo principal o sin esa señal
             pass
-    print(f"aiuda {_version()} — todo corre en esta computadora", flush=True)
+    print(f"aiuda {_version()}: todo corre en esta computadora", flush=True)
     print(f"  consola: {url}", flush=True)
     print("  datos:   ~/.aiuda/  ·  detener: Ctrl+C", flush=True)
     if not args.no_browser:
@@ -298,7 +298,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
             detalle = f"{detalle} Para instalarlo: {COMANDO_INSTALAR}"
         _check("CUA (Playwright/Chromium)", listo, detalle)
     except Exception as exc:  # noqa: BLE001
-        _check("CUA (Playwright/Chromium)", False, f"opcional — {exc}")
+        _check("CUA (Playwright/Chromium)", False, f"opcional: {exc}")
 
     # WhatsApp local
     from aiuda_core.connectors import wacli_bin

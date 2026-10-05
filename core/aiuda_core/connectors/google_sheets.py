@@ -127,7 +127,7 @@ class GoogleSheetsClient:
         self.api_key = api_key or settings.google_sheets_api_key
         if not self.api_key:
             raise RuntimeError(
-                "GOOGLE_SHEETS_API_KEY no configurada — captura la API key de Google."
+                "Falta la llave de Google Sheets. Captúrala al conectar."
             )
         self._http = httpx.Client(base_url=SHEETS_API, timeout=30, transport=transport)
 

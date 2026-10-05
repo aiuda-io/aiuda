@@ -56,11 +56,11 @@ class ShopifyClient:
         token = access_token or settings.shopify_access_token
         if not domain:
             raise RuntimeError(
-                "SHOPIFY_STORE_DOMAIN no configurado — ver .env.example"
+                "SHOPIFY_STORE_DOMAIN no configurado. Captura ese dato al conectar."
             )
         if not token:
             raise RuntimeError(
-                "SHOPIFY_ACCESS_TOKEN no configurado — ver .env.example"
+                "SHOPIFY_ACCESS_TOKEN no configurado. Captura ese dato al conectar."
             )
         self.base_url = f"https://{domain.rstrip('/')}"
         self._http = httpx.Client(
