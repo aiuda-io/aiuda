@@ -121,7 +121,11 @@ export default function RutinasPage() {
 
   // Mientras haya un encargo en cola o corriendo, refresca la bitácora sola (headless,
   // en segundo plano). No re-pide capacidades ni rutinas: no cambian por su cuenta.
-  const activos = (misiones ?? []).some((m) => m.status === "queued" || m.status === "running");
+  // También mientras el bloque del SAT diga "en curso": las dos lecturas no llegan en el
+  // mismo instante, y si la corrida termina entre una y otra el bloque se quedaría pegado.
+  const activos =
+    (misiones ?? []).some((m) => m.status === "queued" || m.status === "running") ||
+    (sat?.empresas ?? []).some((e) => e.rutinas.some((r) => r.en_curso));
   useEffect(() => {
     if (!activos) return;
     const t = setInterval(() => {
@@ -358,6 +362,11 @@ function SelloSinIA() {
 
 function RutinasSat({ sat, onCambio }: { sat: CuaDeterministas; onCambio: () => void }) {
   const [ocupado, setOcupado] = useState("");
+  // Hoy en hora local, como AAAA-MM-DD, para comparar con la vigencia de la e.firma.
+  const ahora = new Date();
+  const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(
+    ahora.getDate(),
+  ).padStart(2, "0")}`;
 
   const aceptar = async (rfc: string) => {
     setOcupado(`permiso:${rfc}`);
@@ -417,16 +426,36 @@ function RutinasSat({ sat, onCambio }: { sat: CuaDeterministas; onCambio: () => 
             y regresa aquí.
           </p>
         ) : (
-          sat.empresas.map((e) => (
+          sat.empresas.map((e) => {
+            // La vigencia viene como día (AAAA-MM-DD): vencida desde el día siguiente.
+            const vencida = !!e.vigente_hasta && e.vigente_hasta.slice(0, 10) < hoy;
+            return (
             <article key={e.rfc} className="rounded-lg border border-line bg-bg">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 pt-3.5">
                 <p className="text-seccion font-semibold text-ink">{e.rfc}</p>
                 <p className="text-apoyo text-ink-3">
-                  {e.nombre ? `${e.nombre} · ` : ""}e.firma vigente hasta {fecha(e.vigente_hasta)}
+                  {e.nombre ? `${e.nombre} · ` : ""}
+                  {vencida ? (
+                    <span className="font-medium text-danger">
+                      e.firma vencida el {fecha(e.vigente_hasta)}
+                    </span>
+                  ) : (
+                    <>e.firma vigente hasta {fecha(e.vigente_hasta)}</>
+                  )}
                 </p>
               </div>
 
-              {!e.consentimiento_en && (
+              {vencida && (
+                <p className="mx-4 mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3.5 py-2.5 text-cuerpo leading-relaxed text-danger">
+                  Con una e.firma vencida el SAT no deja entrar. Renuévala en el SAT y{" "}
+                  <a href="/sat" className="font-medium underline underline-offset-2">
+                    carga la nueva en SAT · Bóveda fiscal
+                  </a>
+                  .
+                </p>
+              )}
+
+              {!vencida && !e.consentimiento_en && (
                 <div className="mx-4 mt-3 rounded-lg border border-accent/45 bg-accent-soft/40 px-4 py-3.5">
                   <p className="text-cuerpo font-semibold text-ink">
                     Antes de la primera vez, tu permiso
@@ -454,11 +483,13 @@ function RutinasSat({ sat, onCambio }: { sat: CuaDeterministas; onCambio: () => 
                     key={r.capacidad}
                     r={r}
                     despachando={ocupado === `${r.capacidad}:${e.rfc}`}
-                    bloqueada={!e.consentimiento_en || !sat.navegador_listo}
+                    bloqueada={!e.consentimiento_en || !sat.navegador_listo || vencida}
                     motivo={
                       !sat.navegador_listo
                         ? "Falta el navegador en esta instalación."
-                        : !e.consentimiento_en
+                        : vencida
+                          ? "Esta e.firma ya venció."
+                          : !e.consentimiento_en
                           ? "Primero da tu permiso."
                           : ""
                     }
@@ -467,7 +498,8 @@ function RutinasSat({ sat, onCambio }: { sat: CuaDeterministas; onCambio: () => 
                 ))}
               </ul>
             </article>
-          ))
+            );
+          })
         )}
 
         {sat.empresas.length > 0 && (
