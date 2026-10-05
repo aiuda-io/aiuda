@@ -7,6 +7,7 @@ tarea abre su propia sesión). La corrida horaria la dispara el scheduler local
 """
 
 import logging
+import re
 import threading
 import time
 import uuid
@@ -184,6 +185,8 @@ from aiuda_server.api.cobro import router as cobro_router  # noqa: E402
 from aiuda_server.api.cua import router as cua_router  # noqa: E402
 from aiuda_server.api.custom_connectors import router as custom_router  # noqa: E402
 from aiuda_server.api.deps import (  # noqa: E402  (re-export para tests)
+    ErrorConCodigo,
+    tope_de_ia,
     Principal,
     get_db,
     get_principal,
@@ -447,17 +450,6 @@ _PAGINA_SIN_ACCESO = """<!doctype html>
 Cierra aiuda por completo y vuelve a abrirlo: entrarás directo.</p>
 <p>Si ya la tenías abierta en otra ventana, ahí sigue funcionando.</p>
 </main></body></html>"""
-
-
-class ErrorConCodigo(HTTPException):
-    """Un error que la consola necesita RECONOCER, no solo mostrar: además del
-    mensaje para el dueño (``detail``, en español y sin texto de excepción) lleva un
-    ``code`` estable. Con él la pantalla sabe, por ejemplo, que lo que falta es
-    conectar la IA y pone la liga a Tu IA en vez de pintar el mensaje y ya."""
-
-    def __init__(self, status_code: int, detail: str, code: str):
-        super().__init__(status_code=status_code, detail=detail)
-        self.code = code
 
 
 @app.exception_handler(ErrorConCodigo)
@@ -1202,11 +1194,39 @@ def _exigir_ia_para_importar(db, tenant: Tenant) -> None:
     from aiuda_core.engine.provider import resolve_credential
 
     if resolve_credential(session=db, tenant_id=tenant.id) is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Conecta tu IA en Tu IA para que pueda entender tu archivo. "
+        raise ErrorConCodigo(
+            409,
+            "Conecta tu IA en Tu IA para que pueda entender tu archivo. "
             "Tu archivo está bien; todavía no se importó nada.",
+            code="ia_no_conectada",
         )
+
+
+_FILA_RE = re.compile(r"^Fila (\d+): ")
+
+
+def _errores_de_importacion(errores: list[str]) -> list[str]:
+    """Lo que el importador reporta, listo para el dueño. Las filas que no se
+    pudieron leer traen pegado el texto de la excepción ("could not convert string
+    to float..."): se juntan en UN renglón que dice cuáles filas revisar. Los avisos
+    que ya vienen redactados para él (clientes sin teléfono, etc.) pasan tal cual."""
+    filas: list[str] = []
+    avisos: list[str] = []
+    for error in errores:
+        m = _FILA_RE.match(error)
+        if m:
+            filas.append(m.group(1))
+        else:
+            avisos.append(error)
+    if filas:
+        cuales = ", ".join(filas[:8]) + (" y otras" if len(filas) > 8 else "")
+        una = len(filas) == 1
+        avisos.insert(
+            0,
+            f"{'La fila' if una else 'Las filas'} {cuales} no se {'pudo' if una else 'pudieron'} "
+            "leer y no se cargaron. Revisa que la fecha y el monto estén bien escritos.",
+        )
+    return avisos[:5]
 
 
 @app.post("/v1/import")
@@ -1227,8 +1247,8 @@ async def smart_import_endpoint(
     runner = tenant_runner(db, tenant)
     try:
         report = smart_import(db, tenant.id, content, file.filename or "archivo.csv", runner=runner)
-    except BudgetExceeded as exc:
-        raise HTTPException(status_code=402, detail=str(exc))
+    except BudgetExceeded:
+        raise tope_de_ia("leer tu archivo")
     except Exception:
         _exigir_ia_para_importar(db, tenant)
         log.exception("importar: no se pudo leer %s", file.filename)
@@ -1240,7 +1260,7 @@ async def smart_import_endpoint(
         "mapping": report.mapping,
         "created": report.created,
         "skipped": report.skipped,
-        "errors": report.errors[:5],
+        "errors": _errores_de_importacion(report.errors),
     }
 
 
@@ -1263,8 +1283,8 @@ async def import_analyze(
     runner = tenant_runner(db, tenant)
     try:
         result = analyze(content, file.filename or "archivo.csv", runner=runner, entity=entity or None)
-    except BudgetExceeded as exc:
-        raise HTTPException(status_code=402, detail=str(exc))
+    except BudgetExceeded:
+        raise tope_de_ia("leer tu archivo")
     except Exception:
         _exigir_ia_para_importar(db, tenant)
         log.exception("importar: no se pudo analizar %s", file.filename)
@@ -1305,7 +1325,7 @@ async def import_commit(
         "entity_label": report.entity_label,
         "created": report.created,
         "skipped": report.skipped,
-        "errors": report.errors[:5],
+        "errors": _errores_de_importacion(report.errors),
     }
 
 
@@ -1664,8 +1684,8 @@ def draft_reminder_now(
     engine.runner.budget_check = budget_check(db, tenant)
     try:
         reminder = engine.draft_reminder(invoice, customer, today)
-    except BudgetExceeded as exc:
-        raise HTTPException(status_code=402, detail=str(exc))
+    except BudgetExceeded:
+        raise tope_de_ia("redactar el recordatorio")
     except Exception:
         # Al dueño nunca le llega el texto de la excepción (venía en inglés, del SDK
         # del proveedor): el detalle se queda en el log y él recibe qué hacer.
