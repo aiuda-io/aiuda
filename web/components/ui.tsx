@@ -383,7 +383,7 @@ export function SourceBadge({
             title={
               external
                 ? `Abrir en ${SOURCE_LABEL[sys] ?? sys}`
-                : `Vive en ${SOURCE_LABEL[sys] ?? sys}${ok ? " — verificada" : " — sin verificar"}`
+                : `Vive en ${SOURCE_LABEL[sys] ?? sys}${ok ? ", verificada" : ", sin verificar"}`
             }
             className="inline-flex items-center gap-1 transition-opacity hover:opacity-70"
           >

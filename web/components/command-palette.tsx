@@ -43,7 +43,7 @@ const PAGES: { label: string; href: string }[] = [
   { label: "Integraciones", href: "/integraciones" },
   { label: "Organigrama de integraciones", href: "/integraciones?vista=organigrama" },
   { label: "SAT · Bóveda fiscal", href: "/sat" },
-  { label: "Proveedor de IA", href: "/proveedor" },
+  { label: "Tu IA", href: "/proveedor" },
   { label: "Configuración", href: "/configuracion" },
 ];
 

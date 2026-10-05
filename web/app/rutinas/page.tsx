@@ -695,7 +695,7 @@ function Lanzador({
                   href="/proveedor"
                   className="font-medium text-accent-ink underline-offset-2 hover:underline"
                 >
-                  Ir a Proveedor de IA
+                  Ir a Tu IA
                 </a>
                 .
               </>
@@ -1076,7 +1076,7 @@ function Portales({
                   Se abrió una ventana con «{sesion.sistema}»
                 </p>
                 <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
-                  Entra como siempre (usuario, e.firma, 2FA — lo que uses). Cuando ya estés
+                  Entra como siempre (usuario, e.firma, 2FA, lo que uses). Cuando ya estés
                   dentro, dale «Ya entré» y guardamos tu sesión. En este portal tu contraseña
                   no se guarda ni la vemos: la escribes tú.
                 </p>
@@ -1108,12 +1108,11 @@ function Portales({
           </div>
         )}
 
-        {/* Aviso honesto cuando esta máquina no puede abrir la ventana (la nube). */}
+        {/* Aviso honesto cuando esta instalación no puede abrir la ventana del navegador. */}
         {gate && (
           <p className="rounded-lg border border-warn/40 bg-warn-soft px-3.5 py-2.5 text-cuerpo leading-relaxed text-ink-2">
-            <span className="font-semibold text-warn">Para conectar accesos, aiuda debe correr en tu máquina.</span>{" "}
-            {estado?.handoff_detalle} La ventana del navegador se abre donde corre aiuda;
-            desde la nube no hay pantalla donde entres tú.
+            <span className="font-semibold text-warn">Todavía no se pueden conectar accesos.</span>{" "}
+            {estado?.handoff_detalle}
           </p>
         )}
 

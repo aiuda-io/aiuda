@@ -1105,7 +1105,7 @@ function PasoIA({
                     </div>
                     {s.protegido ? (
                       <span className="text-apoyo text-ink-3">
-                        Conéctala desde Proveedor de IA con su clave
+                        Conéctala desde Tu IA con su clave
                       </span>
                     ) : (
                       <SecondaryButton

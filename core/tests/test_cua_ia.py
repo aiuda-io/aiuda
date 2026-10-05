@@ -294,5 +294,5 @@ def test_llave_rechazada_se_dice_en_espanol(session, con_portal, navegador, monk
     recado = fallback.enqueue_cua_mission(session, con_portal, "portal:x")
     fallback.ejecutar_recado(session, recado)
     assert recado.status == "failed"
-    assert "no aceptó tu llave" in recado.error and "Proveedor de IA" in recado.error
+    assert "no aceptó tu llave" in recado.error and "Tu IA" in recado.error
     assert "Error code" not in recado.error

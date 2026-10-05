@@ -39,7 +39,7 @@ _COMPUTER_TOOL_TYPE = "computer_20250124"
 # Anthropic. Las demás vías de aiuda intercambian texto: no reciben la captura.
 MSG_SIN_IA = (
     "Para operar portales hace falta una llave de Anthropic (Claude). Conéctala en "
-    "Proveedor de IA. Sin ella el asistente no puede ver la pantalla del portal."
+    "Tu IA. Sin ella el asistente no puede ver la pantalla del portal."
 )
 
 
@@ -52,7 +52,7 @@ def _error_para_el_dueno(exc: Exception) -> str:
 
     if isinstance(exc, anthropic.AuthenticationError):
         return (
-            "Anthropic no aceptó tu llave (401). Revisa en Proveedor de IA que sea "
+            "Anthropic no aceptó tu llave (401). Revisa en Tu IA que sea "
             "válida y esté vigente."
         )
     if isinstance(exc, anthropic.PermissionDeniedError):

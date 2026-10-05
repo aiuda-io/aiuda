@@ -393,7 +393,7 @@ def chat(
     if credential is None:
         return {
             "reply": f"Soy {a.name}. Para que pueda responderte, conecta tu proveedor de IA "
-            "en Proveedor de IA. Mientras, tu config queda guardada."
+            "en Tu IA. Mientras, tu config queda guardada."
         }
 
     active = a.aiuditas or {}

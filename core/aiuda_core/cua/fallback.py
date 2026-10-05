@@ -263,7 +263,7 @@ _PORQUE_NO = {
 }
 _QUE_HACER = (
     "Para las rutinas de portales hace falta una llave de Anthropic (Claude); "
-    "conéctala en Proveedor de IA. El resto de aiuda sigue funcionando igual."
+    "conéctala en Tu IA. El resto de aiuda sigue funcionando igual."
 )
 
 

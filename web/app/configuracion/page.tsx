@@ -114,7 +114,7 @@ function ContextoNegocio() {
   return (
     <SettingsField
       label="Contexto del negocio"
-      hint="Lo que tus ayudantes deben saber: giro, políticas de pago, datos bancarios para depósito. Entra al system prompt de todos, bajo las reglas de fábrica."
+      hint="Lo que tus ayudantes deben saber: giro, políticas de pago, datos bancarios para depósito. Todos tus ayudantes lo toman en cuenta, por debajo de las reglas de fábrica."
     >
       <textarea
         className={settingsInputCls}

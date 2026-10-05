@@ -505,8 +505,8 @@ export function IntegrationConfigDrawer({
           <WhatsAppPairing onChange={onSaved} aviso={node.warning} />
         ) : isExcel ? (
           <div className="rounded-lg border border-line bg-panel/40 px-4 py-4 text-cuerpo leading-relaxed text-ink-2">
-            Excel y CSV no necesitan credenciales. Sube cualquier hoja —clientes, productos,
-            facturas, citas o prospectos— y la IA detecta qué es y la carga sola.
+            Excel y CSV no necesitan credenciales. Sube cualquier hoja (clientes, productos,
+            facturas, citas o prospectos) y la IA detecta qué es y la carga sola.
             <div className="mt-3">
               <Link
                 href="/importar"
