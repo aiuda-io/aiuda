@@ -308,8 +308,8 @@ def correr(
             "sin_corrida": sin_corrida,
             "propuestas": 0,
             "detalle": (
-                f"{a.name} no tiene aiuditas que corran solas todavía. Las de consulta "
-                "responden en su chat; cotizar vive en Ventas y conciliar en Conciliación."
+                f"{a.name} no tiene tareas que trabajen solas. Pregúntale lo que necesites "
+                "en Platicar."
             ),
         }
 
@@ -318,7 +318,7 @@ def correr(
     if resolve_credential(session=db, tenant_id=tenant.id) is None:
         raise HTTPException(
             status_code=409,
-            detail="Conecta tu proveedor de IA para correr a este ayudante.",
+            detail="Falta conectar tu IA. Hazlo en Ajustes, en Tu IA.",
         )
 
     from datetime import datetime
@@ -336,7 +336,7 @@ def correr(
         except Exception as exc:
             import logging
             logging.getLogger("aiuda.api").exception("correr falló")
-            raise HTTPException(status_code=502, detail="No pude correr al ayudante ahora.") from exc
+            raise HTTPException(status_code=502, detail="No se pudo poner a trabajar al ayudante. Intenta de nuevo.") from exc
         run.contar(propuestos=len(drafted))
         for r in drafted:
             run.liga("reminder", r.id, rol="propuso")
@@ -351,9 +351,13 @@ def correr(
         "propuestas": len(drafted),
         "pendientes": sum(1 for r in drafted if r.status == "pending_approval"),
         "detalle": (
-            "Sin facturas accionables ahora: nada que proponer."
+            "Revisó tu cartera y no encontró a quién escribirle ahora."
             if not drafted
-            else f"{len(drafted)} propuesta{'s' if len(drafted) != 1 else ''} en el Centro, esperando tu aprobación."
+            else (
+                "1 recordatorio queda en Hoy para que lo apruebes."
+                if len(drafted) == 1
+                else f"{len(drafted)} recordatorios quedan en Hoy para que los apruebes."
+            )
         ),
     }
 
@@ -392,8 +396,8 @@ def chat(
     credential = resolve_credential(session=db, tenant_id=tenant.id)
     if credential is None:
         return {
-            "reply": f"Soy {a.name}. Para que pueda responderte, conecta tu proveedor de IA "
-            "en Tu IA. Mientras, tu config queda guardada."
+            "reply": f"Soy {a.name}. Para contestarte falta conectar tu IA en Ajustes. "
+            "Lo que ya ajustaste quedó guardado."
         }
 
     active = a.aiuditas or {}
