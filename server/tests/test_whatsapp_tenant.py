@@ -66,6 +66,13 @@ def _tenant(db, name, instance, *, connected=True) -> Tenant:
     return t
 
 
+def _cliente(db, tenant, phone) -> Customer:
+    c = Customer(tenant_id=tenant.id, name="Cliente", phone=phone)
+    db.add(c)
+    db.flush()
+    return c
+
+
 def _scope_of(session):
     @contextmanager
     def scope():
@@ -79,6 +86,8 @@ def _scope_of(session):
 def test_inbound_con_instancia_cae_al_tenant_correcto(client, db_session):
     a = _tenant(db_session, "Negocio A", "inst-a")
     b = _tenant(db_session, "Negocio B", "inst-b")
+    _cliente(db_session, a, "5511110001")
+    _cliente(db_session, b, "5522220002")
     r1 = client.post(
         f"/v1/webhooks/wacli?token={WEBHOOK_TOKEN}",
         json={"phone": "5215511110001", "message": "hola A", "id": "W-A1", "instance": "inst-a"},
@@ -119,6 +128,7 @@ def test_inbound_sin_instancia_con_dos_conectados_es_ambiguo(client, db_session)
 def test_inbound_sin_instancia_con_uno_conectado_va_a_ese(client, db_session):
     _tenant(db_session, "Sin canal", "inst-x", connected=False)
     b = _tenant(db_session, "Conectado", "inst-b")
+    _cliente(db_session, b, "5511110001")
     r = client.post(
         f"/v1/webhooks/wacli?token={WEBHOOK_TOKEN}",
         json={"phone": "5215511110001", "message": "hola"},
@@ -134,8 +144,6 @@ def test_dos_tenants_envian_por_sus_stores_sin_cruzarse(db_session, monkeypatch)
     """Flujo REAL worker → channel → wacli (subprocess fake): el argv de cada envío
     lleva el --store de SU tenant. Ninguno sale por la sesión del otro."""
     monkeypatch.setattr(settings, "wacli_store_root", "/stores")
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     a = _tenant(db_session, "Negocio A", "inst-a")
     b = _tenant(db_session, "Negocio B", "inst-b")
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
@@ -162,8 +170,6 @@ def test_dos_tenants_envian_por_sus_stores_sin_cruzarse(db_session, monkeypatch)
 def test_tenant_sin_canal_no_sale_por_el_numero_de_otro(db_session, monkeypatch):
     """El corazón del fix cross-tenant: un negocio SIN WhatsApp conectado no envía
     nada, aunque otro negocio del mismo servidor sí tenga canal."""
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     _tenant(db_session, "Conectado", "inst-a")
     sin_canal = _tenant(db_session, "Sin canal", "inst-b", connected=False)
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
@@ -186,9 +192,8 @@ def test_tenant_sin_canal_no_sale_por_el_numero_de_otro(db_session, monkeypatch)
 # ---------- opt-out end-to-end ----------
 
 def test_inbound_baja_marca_optout_y_confirma_sin_llm(db_session, monkeypatch):
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     t = _tenant(db_session, "Negocio", "inst-a")
+    _cliente(db_session, t, "55 8765 4321")
     conv = Conversation(tenant_id=t.id, remote_phone="5215587654321")
     db_session.add(conv)
     db_session.flush()
@@ -222,14 +227,196 @@ def test_inbound_baja_marca_optout_y_confirma_sin_llm(db_session, monkeypatch):
     assert len(out) == 1 and "recordatorios" in out[0].body
 
 
+def test_un_entrante_que_truena_no_se_lleva_a_los_que_siguen(db_session, monkeypatch, tmp_path):
+    """Visto con una cuenta real y sin IA conectada: el primer mensaje del sondeo
+    tronaba y los demás del mismo lote, ya guardados y marcados como vistos, nunca
+    se atendían. Si entre ellos venía una BAJA, se perdía."""
+    from aiuda_server import inbound, wacli_sync
+
+    _cliente(db_session, _tenant(db_session, "Negocio", "inst-a"), "5587654321")
+    jid = "5215587654321@s.whatsapp.net"
+    estado = tmp_path / "wacli_inbound.json"
+    estado.write_text(json.dumps({jid: {"last_ts": 100, "ids": []}}))
+    monkeypatch.setattr(inbound, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(inbound, "_state_path", lambda _instance: estado)
+    monkeypatch.setattr(wacli_sync, "asegurar", lambda *_a: None)
+
+    class _Wacli:
+        def list_chats(self):
+            return [{"jid": jid, "kind": "dm"}]
+
+        def list_messages(self, _jid):
+            return [
+                {"MsgID": "m1", "Text": "hola", "Timestamp": 200, "FromMe": False},
+                {"MsgID": "m2", "Text": "BAJA", "Timestamp": 201, "FromMe": False},
+            ]
+
+    atendidos: list[str] = []
+
+    def _atender(_tenant_id, message_id):
+        cuerpo = db_session.get(Message, message_id).body
+        if cuerpo == "hola":
+            raise TypeError("sin proveedor de IA")
+        atendidos.append(cuerpo)
+
+    monkeypatch.setattr(worker_main, "process_incoming_message_blocking", _atender)
+
+    assert inbound.poll_wacli_once(client_factory=lambda _instance: _Wacli()) == 2
+    assert atendidos == ["BAJA"]
+
+
+def test_el_sondeo_no_lee_ni_guarda_los_chats_de_quien_no_es_cliente(
+    db_session, monkeypatch, tmp_path
+):
+    """El número vinculado es el personal del dueño. Probado con su cuenta: en 24 h
+    entraron 95 mensajes de 11 conversaciones y ninguna era de un cliente."""
+    from aiuda_server import inbound, wacli_sync
+
+    t = _tenant(db_session, "Negocio", "inst-a")
+    _cliente(db_session, t, "+52 55 8765 4321")
+    cliente = "5215587654321@s.whatsapp.net"
+    amigos = [f"52155111100{n:02d}@s.whatsapp.net" for n in range(20)]
+    estado = tmp_path / "wacli_inbound.json"
+    estado.write_text(
+        json.dumps({jid: {"last_ts": 100, "ids": []} for jid in (cliente, *amigos)})
+    )
+    monkeypatch.setattr(inbound, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(inbound, "_state_path", lambda _instance: estado)
+    monkeypatch.setattr(wacli_sync, "asegurar", lambda *_a: None)
+    leidos: list[str] = []
+
+    class _Wacli:
+        def list_chats(self):
+            return [{"jid": jid, "kind": "dm"} for jid in (*amigos, cliente)]
+
+        def list_messages(self, jid):
+            leidos.append(jid)
+            return [{"MsgID": f"m-{jid}", "Text": "alto", "Timestamp": 200, "FromMe": False}]
+
+    atendidos: list[str] = []
+    monkeypatch.setattr(
+        worker_main, "process_incoming_message_blocking",
+        lambda _tenant_id, message_id: atendidos.append(message_id),
+    )
+
+    assert inbound.poll_wacli_once(client_factory=lambda _instance: _Wacli()) == 1
+    assert leidos == [cliente]  # un solo proceso de wacli, no veintiuno
+    convs = db_session.scalars(select(Conversation)).all()
+    assert [c.remote_phone for c in convs] == ["5215587654321"]
+    assert len(db_session.scalars(select(Message)).all()) == len(atendidos) == 1
+    assert set(json.loads(estado.read_text())) == {cliente}
+
+
+def test_un_alto_de_quien_no_es_cliente_no_es_baja_ni_recibe_respuesta(db_session, monkeypatch):
+    """Aunque el mensaje ya esté guardado (llegó por otra vía, o de antes): sin
+    cliente detrás no hay baja, ni confirmación, ni IA."""
+    from aiuda_core.optout import claves_dadas_de_baja
+
+    t = _tenant(db_session, "Negocio", "inst-a")
+    _cliente(db_session, t, "5587654321")
+    conv = Conversation(tenant_id=t.id, remote_phone="5215511112222")  # un amigo
+    db_session.add(conv)
+    db_session.flush()
+    msgs = [
+        Message(tenant_id=t.id, conversation_id=conv.id, direction="in", body=cuerpo)
+        for cuerpo in ("alto", "oye, ¿vienes el sábado?")
+    ]
+    db_session.add_all(msgs)
+    db_session.flush()
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
+    enviados: list = []
+    monkeypatch.setattr(wacli_mod.subprocess, "run", lambda cmd, **kw: enviados.append(cmd))
+
+    def _sin_ia(*_a, **_k):
+        raise AssertionError("no se arma el motor para quien no es cliente")
+
+    monkeypatch.setattr(worker_main, "_build_engine", _sin_ia)
+    for m in msgs:
+        worker_main.process_incoming_message_blocking(t.id, m.id)
+
+    assert enviados == []
+    assert claves_dadas_de_baja(db_session, t) == set()
+    assert db_session.scalars(select(Message).where(Message.direction == "out")).all() == []
+
+
+def _entrante_de_cliente(db_session, texto="hola, ¿cuánto debo?"):
+    t = _tenant(db_session, "Negocio", "inst-a")
+    _cliente(db_session, t, "5587654321")
+    conv = Conversation(tenant_id=t.id, remote_phone="5215587654321")
+    db_session.add(conv)
+    db_session.flush()
+    msg = Message(tenant_id=t.id, conversation_id=conv.id, direction="in", body=texto)
+    db_session.add(msg)
+    db_session.flush()
+    return t, msg
+
+
+def test_sin_ia_conectada_el_entrante_se_queda_en_la_bandeja_sin_tronar(
+    db_session, monkeypatch, caplog
+):
+    """Visto con una cuenta real: sin IA, cada mensaje entrante dejaba en el log un
+    traceback del cliente de Anthropic (TypeError por falta de llave)."""
+    t, msg = _entrante_de_cliente(db_session)
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+    enviados: list = []
+    monkeypatch.setattr(wacli_mod.subprocess, "run", lambda cmd, **kw: enviados.append(cmd))
+
+    with caplog.at_level("WARNING"):
+        worker_main.process_incoming_message_blocking(t.id, msg.id)
+
+    assert enviados == [] and caplog.records == []
+    guardados = db_session.scalars(select(Message).where(Message.tenant_id == t.id)).all()
+    assert [(m.direction, m.body) for m in guardados] == [("in", "hola, ¿cuánto debo?")]
+
+
+def test_con_ia_conectada_el_cliente_si_recibe_respuesta(db_session, monkeypatch):
+    from types import SimpleNamespace
+
+    t, msg = _entrante_de_cliente(db_session)
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(settings, "anthropic_api_key", "sk-de-prueba")
+    enviados: list = []
+    monkeypatch.setattr(
+        worker_main, "_build_engine",
+        lambda s, tenant, run=None: SimpleNamespace(
+            handle_incoming=lambda *a, **k: "Debes $1,200 de la factura F-1.",
+            send_whatsapp=lambda phone, texto: enviados.append((phone, texto)),
+        ),
+    )
+    worker_main.process_incoming_message_blocking(t.id, msg.id)
+    assert enviados == [("5215587654321", "Debes $1,200 de la factura F-1.")]
+
+
+@pytest.mark.parametrize("cuerpo", ["[audio]", "[imagen]", "[documento] pago.pdf", "[Pendiente]"])
+def test_un_adjunto_sin_nota_se_queda_en_la_bandeja_y_la_ia_no_le_contesta(
+    db_session, monkeypatch, cuerpo
+):
+    from types import SimpleNamespace
+
+    t, msg = _entrante_de_cliente(db_session, cuerpo)
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(settings, "anthropic_api_key", "sk-de-prueba")
+    llamadas: list = []
+    monkeypatch.setattr(
+        worker_main, "_build_engine",
+        lambda s, tenant, run=None: SimpleNamespace(
+            handle_incoming=lambda *a, **k: llamadas.append("ia") or "¿En qué te ayudo?",
+            send_whatsapp=lambda phone, texto: llamadas.append("envío"),
+        ),
+    )
+    worker_main.process_incoming_message_blocking(t.id, msg.id)
+    assert llamadas == []
+    guardados = db_session.scalars(select(Message).where(Message.tenant_id == t.id)).all()
+    assert [(m.direction, m.body) for m in guardados] == [("in", cuerpo)]
+
+
 def test_recordatorio_a_cliente_dado_de_baja_falla_con_motivo(db_session, monkeypatch):
     from datetime import date
 
     from aiuda_core.models import Invoice, Reminder
     from aiuda_core.optout import mark_opt_out
 
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     t = _tenant(db_session, "Negocio", "inst-a")
     c = Customer(tenant_id=t.id, name="Cliente", phone="5215587654321")
     db_session.add(c)
@@ -423,8 +610,11 @@ def test_qr_en_modo_multi_no_hay_conflicto(client, db_session, monkeypatch):
     monkeypatch.setattr(settings, "workspace_id", b.id)
     # Con store propio no hay dueño único que defender; el QR sigue su curso normal
     # (aquí wacli no está en el PATH del test: 502 honesto, NO el 409 de conflicto).
-    monkeypatch.setattr(wa_api, "_is_authenticated", lambda tenant: False)
-    monkeypatch.setattr(wa_api, "_capture_qr", lambda tenant, deadline_s=15.0: None)
+    monkeypatch.setattr(wa_api.wacli_bin, "resolver", lambda: "/opt/wacli")
+    monkeypatch.setattr(wa_api.wacli_sync, "estado", lambda i, s: {
+        "estado": "sin_vincular", "desde": "", "qr": None, "telefono": None, "error": "",
+    })
+    monkeypatch.setattr(wa_api.wacli_sync, "vincular", lambda i, s: None)
     r = client.post("/v1/integrations/whatsapp/qr")
     assert r.status_code == 502
 
@@ -510,9 +700,9 @@ def test_catalogo_wacli_honesto_y_cloud_oficial(client, db_session):
     _tenant(db_session, "Negocio", "inst-a")
     graph = client.get("/v1/integrations").json()
     wacli = next(s for s in graph["systems"] if s["key"] == "whatsapp")
-    # wacli: tu número en tu máquina, con la nota honesta (sin alarmismo).
+    # wacli: tu número en tu máquina, con el aviso honesto que se lee al conectar.
     assert "tu número" in wacli["rol"].lower() and wacli.get("warning")
-    assert "riesgo es bajo" in wacli["warning"]
+    assert "fuera de las condiciones de uso de Meta" in wacli["warning"]
     assert wacli["estrenada"] is True
     # La vía oficial no se ofrece hasta probarla con una cuenta real de Meta: no
     # sale en el catálogo de quien no la tiene conectada. El detalle sigue diciendo

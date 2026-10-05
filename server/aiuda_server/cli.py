@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import os
 import secrets
-import shutil
 import sys
 import threading
 import webbrowser
@@ -108,9 +107,22 @@ def _apagar_con_el_padre() -> None:
         # borra aquí, a mano: este es el camino de todos los días, el de cerrar
         # la ventana, y sin esto sesion.json se quedaba tirado siempre.
         _borrar_sesion()
+        _detener_whatsapp()
         os._exit(0)
 
     threading.Thread(target=_vigilar, name="aiuda-vigilante", daemon=True).start()
+
+
+def _detener_whatsapp() -> None:
+    """Ningún wacli se queda vivo cuando aiuda se apaga. El cierre normal de
+    uvicorn ya lo hace; esto cubre las salidas que se lo saltan (os._exit al
+    morir la app de escritorio, y la señal)."""
+    try:
+        from aiuda_server import wacli_sync
+
+        wacli_sync.detener_todo()
+    except Exception:  # noqa: BLE001 — apagar no puede fallar por WhatsApp
+        pass
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -142,27 +154,32 @@ def cmd_start(args: argparse.Namespace) -> int:
         return 0
 
     url = f"http://127.0.0.1:{args.port}/" + (f"?token={token}" if token else "")
+    import signal
+
     if token:
         import atexit
-        import signal
 
         _anotar_sesion(token, args.port)
         atexit.register(_borrar_sesion)
 
-        # atexit no corre cuando al proceso lo terminan por señal, y así es como
-        # se apaga casi siempre: la app cierra su sidecar, o el sistema apaga la
-        # sesión. Sin esto, sesion.json se queda tirado apuntando a un puerto
-        # muerto. No rompe nada (sesion_viva siempre pregunta a /health antes de
-        # creerle), pero deja basura y confunde a quien la lea.
-        def _apagar(_sig, _frame):
+    # atexit no corre cuando al proceso lo terminan por señal, y así es como
+    # se apaga casi siempre: la app cierra su sidecar, o el sistema apaga la
+    # sesión. Sin esto, sesion.json se queda tirado apuntando a un puerto
+    # muerto. No rompe nada (sesion_viva siempre pregunta a /health antes de
+    # creerle), pero deja basura y confunde a quien la lea. El wacli se detiene
+    # con o sin token: cerrar la terminal de `aiuda start --no-token` (SIGHUP)
+    # no debe dejar un sync de WhatsApp vivo.
+    def _apagar(_sig, _frame):
+        if token:
             _borrar_sesion()
-            raise SystemExit(0)
+        _detener_whatsapp()
+        raise SystemExit(0)
 
-        for señal in (signal.SIGTERM, signal.SIGHUP):
-            try:
-                signal.signal(señal, _apagar)
-            except (ValueError, OSError):  # sin hilo principal o sin esa señal
-                pass
+    for señal in (signal.SIGTERM, signal.SIGHUP):
+        try:
+            signal.signal(señal, _apagar)
+        except (ValueError, OSError):  # sin hilo principal o sin esa señal
+            pass
     print(f"aiuda {_version()} — todo corre en esta computadora", flush=True)
     print(f"  consola: {url}", flush=True)
     print("  datos:   ~/.aiuda/  ·  detener: Ctrl+C", flush=True)
@@ -280,8 +297,14 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         _check("CUA (Playwright/Chromium)", False, f"opcional — {exc}")
 
     # WhatsApp local
-    wacli = shutil.which(settings.wacli_bin)
-    _check("wacli (WhatsApp local)", wacli is not None, wacli or "no está en el PATH (opcional)")
+    from aiuda_core.connectors import wacli_bin
+
+    wacli = wacli_bin.resolver()
+    _check(
+        "wacli (WhatsApp local)",
+        wacli is not None,
+        wacli or "sin instalar (opcional; se instala desde Integraciones > WhatsApp)",
+    )
     return 0
 
 

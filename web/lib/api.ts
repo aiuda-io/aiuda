@@ -100,8 +100,11 @@ export type ChatMessage = {
   author: string;
   body: string;
   created_at: string | null;
-  // Entrega del saliente: sent | failed | pending | null (entrante/sin rastreo).
+  // Entrega del saliente: sent | failed | pending | sending (adjunto) | held | null.
   delivery?: string | null;
+  // Si falló: por qué, en español. Un adjunto fallido no se puede reintentar.
+  motivo_fallo?: string | null;
+  reintentable?: boolean;
   // Presentes solo en la respuesta de envío (no al listar el hilo).
   delivered?: boolean;
   delivery_error?: string | null;
@@ -407,6 +410,8 @@ export type ConversationDetail = {
     author: string;
     body: string;
     delivery?: string | null;
+    motivo_fallo?: string | null;
+    reintentable?: boolean;
     created_at: string;
   }[];
 };
@@ -1193,6 +1198,37 @@ export type LearningSummary = {
   recientes: { original: string; final: string; createdAt: string | null }[];
 };
 
+/** El conector de WhatsApp en esta computadora: si ya está y, si no se puede instalar, por qué. */
+export type WhatsappInstalacion = {
+  instalado: boolean;
+  version: string | null;
+  /** La versión que instala este aiuda (para saber si "Actualizar" cambia algo). */
+  version_fijada: string;
+  no_se_puede: string | null;
+};
+
+/** El WhatsApp del negocio EN VIVO. `connected` = el número está vinculado;
+ *  `estado` dice cómo está la sesión ahora mismo. */
+export type WhatsappStatus = WhatsappInstalacion & {
+  connected: boolean;
+  estado:
+    | "sin_instalar"
+    | "sin_vincular"
+    | "vinculando"
+    | "conectando"
+    | "conectado"
+    | "sin_conexion"
+    | "sesion_cerrada"
+    | "desactualizado"
+    | "externo";
+  desde: string;
+  telefono: string | null;
+  /** El QR vigente mientras se empareja (wacli lo rota). */
+  qr: string | null;
+  /** Lo último que falló, en español (el QR caducó, no hay internet). */
+  aviso: string | null;
+};
+
 export const api = {
   integrations: () => request<IntegrationsGraph>("/v1/integrations"),
   satEstado: () => request<SatEstado>("/v1/sat/estado"),
@@ -1337,7 +1373,11 @@ export const api = {
       { method: "POST" },
     ),
   whatsappQr: () => request<{ connected: boolean; qr: string | null }>("/v1/integrations/whatsapp/qr", { method: "POST" }),
-  whatsappStatus: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/status"),
+  whatsappQrCancelar: () =>
+    request<{ connected: boolean }>("/v1/integrations/whatsapp/qr", { method: "DELETE" }),
+  whatsappStatus: () => request<WhatsappStatus>("/v1/integrations/whatsapp/status"),
+  whatsappInstalar: () =>
+    request<WhatsappInstalacion>("/v1/integrations/whatsapp/instalar", { method: "POST" }),
   whatsappLogout: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/session", { method: "DELETE" }),
   workspace: () => request<WorkspaceInfo>("/v1/workspace"),
   // Activación: progreso derivado del estado real (no flags persistidos). Lo

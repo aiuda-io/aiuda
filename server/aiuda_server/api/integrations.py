@@ -23,7 +23,6 @@ from aiuda_core.connectors.channel import UNOFFICIAL_WHATSAPP_WARNING
 from aiuda_core.models import (
     Ayudante,
     CfdiBoveda,
-    Conversation,
     Customer,
     IntegrationCredential,
     Invoice,
@@ -376,6 +375,22 @@ def _caps_detail(needs: list[str], connected: set[str]) -> tuple[list[str], list
     return needs, gaps
 
 
+def whatsapp_en_vivo(tenant: Tenant) -> bool:
+    """¿El WhatsApp del negocio está vinculado AHORA? Con wacli se le pregunta al
+    supervisor (o a wacli mismo si no hay proceso); la vía oficial no tiene sesión
+    que mirar: cuenta su configuración y su propio semáforo de Probar conexión."""
+    canal = ((tenant.config or {}).get("integrations") or {}).get("whatsapp")
+    if not isinstance(canal, dict):
+        return False
+    if canal.get("via") == "whatsapp_cloud":
+        return True
+    from aiuda_core.connectors.channel import wacli_store_dir
+    from aiuda_server import wacli_sync
+
+    instance = canal.get("instance") or tenant.evolution_instance
+    return wacli_sync.estado(instance, wacli_store_dir(instance))["estado"] in wacli_sync.VINCULADOS
+
+
 def _active_systems(db, tenant: Tenant) -> set[str]:
     """Sistemas que ya tienen datos reales fluyendo (source + presence)."""
     active: set[str] = set()
@@ -392,16 +407,12 @@ def _active_systems(db, tenant: Tenant) -> set[str]:
         for k in (c.presence or {}):
             active.add(k)
 
-    # WhatsApp cuenta como conectado si HAY conversaciones (llegaron mensajes de
-    # verdad) o si el dueño configuró el canal. NO por `evolution_instance`: ese
-    # identificador se genera al crear el workspace, así que una instalación
-    # recién hecha decía "1 fuente conectada" sin que nadie hubiera conectado
-    # nada. Una fuente está conectada cuando puede leer o escribir algo, punto.
-    has_convos = db.scalar(
-        select(Conversation.id).where(Conversation.tenant_id == tenant.id).limit(1)
-    )
-    canal_wa = ((tenant.config or {}).get("integrations") or {}).get("whatsapp")
-    if has_convos or canal_wa:
+    # WhatsApp cuenta como conectado por su sesión EN VIVO, no por una marca
+    # guardada: el dueño pudo quitar el dispositivo desde su teléfono y la marca
+    # seguiría diciendo "conectado". Tampoco por tener conversaciones (son
+    # historia, no una sesión) ni por `evolution_instance` (se genera al crear el
+    # workspace).
+    if whatsapp_en_vivo(tenant):
         active.add("whatsapp")
 
     # csv cuenta como excel
@@ -439,6 +450,10 @@ def _is_connected(db, system: str, tenant: Tenant, active: set[str]) -> bool:
     cfg = tenant.config or {}
     if system in active:
         return True
+    if system == "whatsapp":
+        # Solo por su sesión en vivo (ver whatsapp_en_vivo): la marca guardada en
+        # config.integrations.whatsapp dice por cuál vía sale, no que esté conectado.
+        return False
     # Señal nueva: credencial cifrada por tenant. Los fallbacks de abajo se
     # conservan para no regresionar self-host (settings.* globales) ni el legado.
     if cred.has_credential(db, tenant.id, system):
@@ -1312,6 +1327,65 @@ def _test_stripe(creds: dict) -> dict:
         return {"ok": False, "message": f"No se pudo conectar: {exc}"}
 
 
+def _test_whatsapp(tenant: Tenant) -> dict:
+    """Probar conexión de WhatsApp (tu número): no hay credenciales que validar,
+    se mira la sesión en vivo. Si está vinculada y el sync apenas va entrando, se
+    le dan unos segundos antes de dar el veredicto."""
+    import time
+
+    from aiuda_core.connectors import wacli_bin
+    from aiuda_core.connectors.channel import wacli_store_dir
+    from aiuda_core.connectors.wacli import explicar_fallo_wacli
+    from aiuda_server import wacli_sync
+
+    from sqlalchemy.orm import object_session
+
+    from aiuda_server.api.whatsapp import _duena_del_store_default
+
+    # Sin store propio, el WhatsApp de esta computadora es de UN negocio: desde
+    # otro no se prueba (ni se le arranca un sync encima) la sesión ajena.
+    if _duena_del_store_default(object_session(tenant), tenant) is not None:
+        return {"ok": False, "message": explicar_fallo_wacli("not authenticated")}
+    instance = tenant.evolution_instance
+    store = wacli_store_dir(instance)
+    foto = wacli_sync.estado(instance, store)
+    if foto["estado"] == wacli_sync.CONECTANDO:
+        wacli_sync.arrancar(instance, store)
+        fin = time.monotonic() + 10
+        while time.monotonic() < fin and foto["estado"] == wacli_sync.CONECTANDO:
+            time.sleep(0.5)
+            foto = wacli_sync.estado(instance, store)
+    estado = foto["estado"]
+    if estado == wacli_sync.CONECTADO:
+        detalles = {"Número": f"+{foto['telefono']}"} if foto["telefono"] else {}
+        return {"ok": True, "message": "Conectado a WhatsApp.", "details": detalles}
+    if estado == wacli_sync.EXTERNO:
+        # Vinculado, pero la sesión la tiene otro programa: no se puede comprobar
+        # desde aquí y decir "conectado" sería adivinar.
+        return {
+            "ok": None,
+            "message": (
+                "Tu número está vinculado, pero otro programa de esta computadora tiene "
+                "abierta la sesión de WhatsApp y aiuda no puede comprobarla. Cierra ese "
+                "programa y vuelve a probar."
+            ),
+        }
+    mensajes = {
+        wacli_sync.SIN_INSTALAR: wacli_bin.puede_instalarse() or wacli_bin.SIN_INSTALAR,
+        wacli_sync.SIN_VINCULAR: explicar_fallo_wacli("not authenticated"),
+        wacli_sync.VINCULANDO: "Falta escanear el código QR con tu teléfono.",
+        wacli_sync.SESION_CERRADA: explicar_fallo_wacli("logged_out"),
+        wacli_sync.DESACTUALIZADO: explicar_fallo_wacli("client outdated"),
+    }
+    return {
+        "ok": False,
+        "message": mensajes.get(estado) or explicar_fallo_wacli(foto["error"] or "not connected"),
+    }
+
+
+# Pruebas que miran al negocio y no a unas credenciales guardadas.
+_TESTERS_SIN_CREDENCIALES = {"whatsapp": _test_whatsapp}
+
 # Pruebas reales por fuente. Las que no están aquí responden honesto: por habilitar.
 _TESTERS = {
     "odoo": _test_odoo,
@@ -1348,6 +1422,8 @@ def test_integration(
     honesto: 'por habilitarse'."""
     if key not in CATALOG_KEYS:
         raise HTTPException(status_code=404, detail="Integración desconocida.")
+    if key in _TESTERS_SIN_CREDENCIALES:
+        return _TESTERS_SIN_CREDENCIALES[key](tenant)
     tester = _TESTERS.get(key)
     if tester is None:
         return {

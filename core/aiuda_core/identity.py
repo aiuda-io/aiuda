@@ -31,6 +31,19 @@ def resolve_customer_by_phone(session: Session, tenant_id: str, phone) -> Custom
     return next((c for c in candidates if match_key(c.phone) == key), None)
 
 
+def telefonos_atendidos(session: Session, tenant) -> set[str]:
+    """Los teléfonos (por match_key) a los que aiuda les hace caso en WhatsApp: los
+    clientes del negocio y el dueño. El número vinculado suele ser el personal del
+    dueño, así que ahí escriben también su familia y sus amigos: lo que llega de
+    cualquier otro número no se guarda, no se le pasa a la IA y no recibe respuesta."""
+    telefonos = session.scalars(
+        select(Customer.phone).where(Customer.tenant_id == tenant.id, Customer.phone.isnot(None))
+    ).all()
+    claves = {match_key(t) for t in (*telefonos, tenant.owner_phone)}
+    claves.discard("")
+    return claves
+
+
 def resolve_customer_by_email(session: Session, tenant_id: str, email) -> Customer | None:
     """El cliente cuyo correo cruza con `email` (sin distinguir mayúsculas/espacios).
     None si ninguno. Es el cruce de identidad del canal de correo: el remitente de un

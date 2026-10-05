@@ -35,6 +35,15 @@ def digits_from_jid(jid) -> str:
     return re.sub(r"\D", "", head)
 
 
+def phone_from_jid(jid) -> str:
+    """El teléfono de un JID de persona ('…@s.whatsapp.net'). Cadena vacía si el JID no
+    es un teléfono: grupos, canales, estados y los '@lid', el identificador opaco con
+    que WhatsApp oculta el número. wacli (0.18.2) no trae con qué resolver un '@lid' a
+    su teléfono, así que quien llega así es un desconocido."""
+    texto = str(jid or "")
+    return digits_from_jid(texto) if texto.endswith("@s.whatsapp.net") else ""
+
+
 def match_key(value) -> str:
     """Clave estable para cruzar teléfonos pese al '1' móvil mexicano (52 vs 521) y a
     los formatos sueltos: los últimos 10 dígitos (el número local). Cadena vacía si no

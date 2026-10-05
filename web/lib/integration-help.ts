@@ -11,8 +11,9 @@ export type IntegrationHelp = {
 export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
   whatsapp: {
     intro:
-      "Tu número de siempre, conectado como una sesión más de WhatsApp Web (no es la API oficial). Para el uso normal el riesgo es bajo.",
+      "Tu número de siempre, conectado como una sesión más de WhatsApp Web. No es la API oficial de Meta.",
     steps: [
+      "Si es la primera vez, pícale Instalar: el conector se baja y se instala solo.",
       "En este panel pícale Mostrar código QR.",
       "Abre WhatsApp en tu teléfono.",
       "Ve a Ajustes > Dispositivos vinculados > Vincular un dispositivo.",

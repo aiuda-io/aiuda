@@ -92,8 +92,13 @@ Opcionales:
 - **IA local:** instala [Ollama](https://ollama.com) y baja un modelo con tool
   calling (`ollama pull llama3.1`). aiuda lo detecta solo y ningún dato sale de
   tu máquina. Ver [docs/IA.md](docs/IA.md).
-- **WhatsApp con tu número:** instala [wacli](https://github.com/steipete/wacli)
-  y vincula por QR desde la consola, como WhatsApp Web.
+- **WhatsApp con tu número:** se conecta desde la consola. Un clic instala
+  [wacli](https://github.com/openclaw/wacli) (lo baja de su release oficial y
+  verifica la suma; pide macOS 15) y vinculas por QR, como WhatsApp Web. aiuda
+  no reparte wacli: su binario incluye código GPL-3.0. Corriendo desde el repo
+  también sirve el `wacli` que ya tengas en el PATH. Es una vía no oficial,
+  fuera de las condiciones de uso de Meta. aiuda solo lee y contesta los chats
+  de tus clientes; el resto de tu WhatsApp no entra.
 - **Portales sin API (CUA):** `uv sync --extra cua` y luego
   `.venv/bin/playwright install chromium`. Ver [docs/CUA.md](docs/CUA.md).
 - **SAT:** registra hasta tres RFCs, importa XML/ZIP o conecta la e.firma desde

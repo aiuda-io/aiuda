@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from aiuda_core.config import settings
-from aiuda_core.models import Base, Invoice, Message, Reminder, Tenant, Customer
+from aiuda_core.models import Base, Conversation, Customer, Invoice, Message, Reminder, Tenant
 from aiuda_server.api.main import app, get_db
 
 
@@ -83,7 +83,21 @@ def test_webhook_rechaza_token_invalido(client, tenant):
     assert response.status_code == 401
 
 
+def _cliente(db_session, tenant, phone="5587654321"):
+    db_session.add(Customer(tenant_id=tenant.id, name="Cliente", phone=phone))
+    db_session.flush()
+
+
+def test_webhook_de_un_numero_que_no_es_cliente_no_guarda_nada(client, db_session, tenant):
+    response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
+    assert response.json()["status"] == "ignored"
+    assert db_session.scalars(select(Message)).all() == []
+    assert db_session.scalars(select(Conversation)).all() == []
+    assert app.state.test_jobs == []
+
+
 def test_webhook_persiste_y_procesa_inline(client, db_session, tenant):
+    _cliente(db_session, tenant)
     response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"
@@ -94,9 +108,10 @@ def test_webhook_persiste_y_procesa_inline(client, db_session, tenant):
 
 
 def test_webhook_es_idempotente(client, db_session, tenant):
+    _cliente(db_session, tenant)
     client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
     response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
-    assert response.json()["status"] == "duplicate"
+    assert response.json()["status"] == "ignored"
     messages = db_session.scalars(select(Message).where(Message.tenant_id == tenant.id)).all()
     assert len(messages) == 1
 

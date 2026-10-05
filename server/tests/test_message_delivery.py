@@ -109,9 +109,12 @@ def test_adjunto_se_guarda_y_agenda_envio(client, db_session, monkeypatch):
     assert res.status_code == 200 and res.json()["queued"] is True
     assert res.json()["body"] == "Tu factura"
     assert db_session.scalar(select(Message).where(Message.tenant_id == t.id)) is not None
-    # (tenant, phone, tmp_path, caption, filename)
-    tid, phone, tmp_path, caption, filename = calls[0]
+    # (tenant, phone, tmp_path, caption, filename, message_id)
+    tid, phone, tmp_path, caption, filename, message_id = calls[0]
     assert (tid, phone, caption, filename) == (t.id, "5215599998888", "Tu factura", "factura.pdf")
+    # El adjunto ya tiene rastro de entrega: 'sending' hasta que la tarea dé veredicto.
+    assert message_id == res.json()["id"]
+    assert db_session.get(Message, message_id).delivery == "sending"
     # El endpoint dejó el temporal escrito (la tarea real lo borraría al enviar).
     assert os.path.exists(tmp_path)
     os.remove(tmp_path)
@@ -225,70 +228,6 @@ def test_worker_resiliente_a_error_de_envio(monkeypatch):
     monkeypatch.setattr(worker_main, "get_whatsapp_sender", boom)
     # No debe propagar: _safe_send atrapa y registra.
     worker_main.send_human_message_blocking("tid", "5215599998888", "Hola")
-
-
-def test_worker_pausa_sync_alrededor_del_envio(monkeypatch):
-    """Configurados los comandos, el envío para el sync ANTES y lo reinicia DESPUÉS
-    (así suelta el lock del store y el envío no espera ~30s)."""
-    t = Tenant(name="T", owner_phone="1", evolution_instance="inst",
-               config={"integrations": {"whatsapp": {"via": "wacli"}}})
-    monkeypatch.setattr(worker_main, "session_scope", _fake_scope(t))
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "echo stop")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "echo start")
-    monkeypatch.setattr(settings, "wacli_sync_settle_secs", 0.0)
-    events: list = []
-    monkeypatch.setattr(
-        worker_main.subprocess, "run",
-        lambda args, **kw: events.append(("cmd", args[-1])),
-    )
-    monkeypatch.setattr(
-        worker_main, "get_whatsapp_sender",
-        lambda wa, window=None: (lambda phone, text: events.append(("send", phone))),
-    )
-    worker_main.send_human_message_blocking("tid", "5215599998888", "Hola")
-    assert events == [("cmd", "stop"), ("send", "5215599998888"), ("cmd", "start")]
-
-
-def test_worker_reinicia_sync_aunque_falle_el_envio(monkeypatch):
-    """El sync se reanuda pase lo que pase: si el envío truena, igual reiniciamos."""
-    t = Tenant(name="T", owner_phone="1", evolution_instance="inst",
-               config={"integrations": {"whatsapp": {"via": "wacli"}}})
-    monkeypatch.setattr(worker_main, "session_scope", _fake_scope(t))
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "echo stop")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "echo start")
-    monkeypatch.setattr(settings, "wacli_sync_settle_secs", 0.0)
-    events: list = []
-    monkeypatch.setattr(
-        worker_main.subprocess, "run",
-        lambda args, **kw: events.append(args[-1]),
-    )
-
-    def boom(wa, window=None):
-        def _s(phone, text):
-            raise RuntimeError("envío falló")
-        return _s
-
-    monkeypatch.setattr(worker_main, "get_whatsapp_sender", boom)
-    worker_main.send_human_message_blocking("tid", "5215599998888", "Hola")
-    assert events == ["stop", "start"]  # se reinició aunque el envío falló
-
-
-def test_worker_sin_sync_cmds_no_toca_el_sync(monkeypatch):
-    """Por default (sin comandos) no se llama a subprocess: el envío cae al --lock-wait."""
-    t = Tenant(name="T", owner_phone="1", evolution_instance="inst",
-               config={"integrations": {"whatsapp": {"via": "wacli"}}})
-    monkeypatch.setattr(worker_main, "session_scope", _fake_scope(t))
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
-    cmds: list = []
-    monkeypatch.setattr(worker_main.subprocess, "run", lambda *a, **k: cmds.append(a))
-    sent: list = []
-    monkeypatch.setattr(
-        worker_main, "get_whatsapp_sender",
-        lambda wa, window=None: (lambda phone, text: sent.append(phone)),
-    )
-    worker_main.send_human_message_blocking("tid", "5215599998888", "Hola")
-    assert sent == ["5215599998888"] and cmds == []
 
 
 def test_worker_archivo_borra_temporal(monkeypatch, tmp_path):
@@ -468,8 +407,6 @@ def test_send_reminder_falla_marca_failed_sin_propagar(monkeypatch):
     session.flush()
 
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
 
     def boom_sender(channel, wa, window=None):
         def _s(phone, text):
@@ -488,8 +425,10 @@ def test_send_reminder_falla_marca_failed_sin_propagar(monkeypatch):
 
     worker_main.send_reminder_blocking(t.id, r.id)  # no debe lanzar
     assert r.status == "failed"
-    # El motivo queda VISIBLE para la UI (qué pasó y por dónde), no un failed mudo.
-    assert "wacli caído" in r.meta["motivo_fallo"]
+    # El motivo queda VISIBLE para la UI, no un failed mudo; y en español llano: el
+    # texto crudo del canal se queda en el log, no en la pantalla del dueño.
+    assert r.meta["motivo_fallo"].startswith("WhatsApp no pudo enviar el mensaje.")
+    assert "wacli caído" not in r.meta["motivo_fallo"]
     assert r.sent_at is None
 
 
@@ -738,8 +677,6 @@ def test_doble_disparo_no_manda_el_cobro_dos_veces(monkeypatch):
     session = _real_session()
     t, r = _reminder_listo(session)
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant, run=None: _EngineDirecto())
 
     sent: list = []
@@ -771,8 +708,6 @@ def test_marca_en_vuelo_no_reenvia_a_ciegas(monkeypatch):
     session = _real_session()
     t, r = _reminder_listo(session, meta={"envio_en_curso": "2026-07-27T09:00:00+00:00"})
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant, run=None: _EngineDirecto())
     sent: list = []
     monkeypatch.setattr(
@@ -792,8 +727,6 @@ def test_envio_normal_pone_y_limpia_la_marca_en_vuelo(monkeypatch):
     session = _real_session()
     t, r = _reminder_listo(session)
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     monkeypatch.setattr(worker_main, "_build_engine", lambda s, tenant, run=None: _EngineDirecto())
     en_vuelo: list = []
 

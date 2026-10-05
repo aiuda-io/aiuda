@@ -76,13 +76,22 @@ def test_workspace_activo(client, demo_tenant, demo_login):
     assert me["role"] == "dueño"
 
 
-def test_integrations_marca_conectados(client, demo_tenant, demo_login):
+def test_integrations_marca_conectados(client, demo_tenant, demo_login, monkeypatch):
+    from aiuda_server import wacli_sync
+
     demo_login(client)
+    # Con el canal configurado pero SIN sesión viva de WhatsApp, no está conectado:
+    # manda la sesión, no la marca guardada.
+    sistemas = client.get("/v1/integrations").json()["systems"]
+    assert next(s for s in sistemas if s["key"] == "whatsapp")["connected"] is False
+    monkeypatch.setattr(
+        wacli_sync, "estado", lambda instance, store: {"estado": wacli_sync.CONECTADO}
+    )
     res = client.get("/v1/integrations")
     assert res.status_code == 200
     body = res.json()
     by_key = {s["key"]: s for s in body["systems"]}
-    # whatsapp conectado porque el dueño configuró el canal; shopify por la factura
+    # whatsapp conectado porque su sesión está viva; shopify por la factura
     assert by_key["whatsapp"]["connected"] is True
     assert by_key["shopify"]["connected"] is True
     assert by_key["shopify"]["records"] >= 1

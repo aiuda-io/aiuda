@@ -1,6 +1,6 @@
 """Lógica pura del daemon de entrada de wacli: qué mensajes son nuevos y en qué contrato."""
 
-from aiuda_core.connectors.wacli_inbound import collect_inbound, select_new
+from aiuda_core.connectors.wacli_inbound import collect_inbound, es_solo_etiqueta, select_new
 
 JID = "5215587654321@s.whatsapp.net"
 
@@ -83,6 +83,100 @@ def test_collect_inbound_ignora_grupos():
         assert jid == JID  # el grupo no se consulta
         return [_msg("nuevo", 200, mid="m1")]
 
-    posts, state = collect_inbound(chats, list_messages, {JID: seen})
+    posts, state = collect_inbound(chats, list_messages, {JID: seen}, {"5587654321"})
     assert [p["message"] for p in posts] == ["nuevo"]
     assert JID in state
+
+
+def test_collect_inbound_solo_lee_los_chats_de_clientes_y_del_dueno():
+    """Visto con un número personal de verdad: 53 chats directos y ninguno de un
+    cliente. Cada uno se leía (un proceso de wacli por chat, cada 20 s) y lo que
+    escribían la familia y los amigos entraba como si fueran clientes."""
+    cliente = "5215587654321@s.whatsapp.net"  # guardado como 52 + 10, sin el 1
+    dueno = "5215500000000@s.whatsapp.net"
+    amigo = "5215511112222@s.whatsapp.net"
+    oculto = "190000000000001@lid"  # sin teléfono que cruzar: desconocido
+    chats = [{"jid": j, "kind": "dm"} for j in (cliente, dueno, amigo, oculto)]
+    leidos: list[str] = []
+
+    def list_messages(jid):
+        leidos.append(jid)
+        return [_msg("alto", 200, mid=f"m-{jid}")]
+
+    visto = {"last_ts": 100, "ids": []}
+    posts, state = collect_inbound(
+        chats, list_messages, {j: dict(visto) for j in (cliente, dueno, amigo, oculto)},
+        {"5587654321", "5500000000"},
+    )
+    assert leidos == [cliente, dueno]
+    assert [p["phone"] for p in posts] == ["5215587654321", "5215500000000"]
+    # Lo que ya no se atiende sale del marcador: si ese número se vuelve cliente,
+    # su chat se siembra de cero en vez de reenviar lo que escribió antes.
+    assert set(state) == {cliente, dueno}
+
+
+def test_collect_inbound_conserva_el_marcador_del_cliente_que_no_salio_en_la_lista():
+    otro = "5215533334444@s.whatsapp.net"
+    _, state = collect_inbound(
+        [{"jid": JID, "kind": "dm"}], lambda _jid: [],
+        {JID: {"last_ts": 100, "ids": []}, otro: {"last_ts": 50, "ids": ["z"]}},
+        {"5587654321", "5533334444"},
+    )
+    assert state[otro] == {"last_ts": 50, "ids": ["z"]}
+
+
+# Formas reales de `messages list --json` (wacli 0.18.2): lo que no es texto trae
+# `Text` vacío o un marcador, y `DisplayText` con la descripción en inglés de wacli.
+def _real(mid, ts=300, **campos):
+    base = {"MsgID": mid, "Timestamp": ts, "FromMe": False, "Text": "", "DisplayText": "",
+            "MediaType": "", "MediaCaption": "", "Filename": "", "ReactionToID": ""}
+    return {**base, **campos}
+
+
+def _entran(mensajes):
+    posts, _ = select_new(mensajes, JID, {"last_ts": 200, "ids": []})
+    return [p["message"] for p in posts]
+
+
+def test_una_reaccion_o_un_sticker_no_entran_como_mensaje():
+    assert _entran([
+        _real("r", DisplayText="Reacted x to hola", ReactionToID="abc"),
+        _real("s", DisplayText="Sent sticker", MediaType="sticker"),
+        _real("m", DisplayText="(message)"),
+    ]) == []
+
+
+def test_un_adjunto_sin_nota_entra_con_su_etiqueta_en_espanol():
+    assert _entran([
+        _real("i", DisplayText="Sent image", MediaType="image"),
+        _real("a", Text="[Audio]", DisplayText="Sent audio", MediaType="audio"),
+        _real("d", DisplayText="Sent document", MediaType="document", Filename="pago.pdf"),
+    ]) == ["[imagen]", "[audio]", "[documento] pago.pdf"]
+
+
+def test_un_adjunto_con_nota_entra_con_la_nota():
+    assert _entran([
+        _real("i", Text="mi comprobante", DisplayText="Sent image", MediaType="image",
+              MediaCaption="mi comprobante"),
+    ]) == ["mi comprobante"]
+
+
+def test_los_marcadores_de_wacli_no_entran_como_texto_del_cliente():
+    """Formas vistas en el store de una cuenta real (wacli 0.18.2)."""
+    assert _entran([
+        _real("al", Text="[Album]", DisplayText="[Album]"),
+        _real("al2", Text="[Album: 3 images]", DisplayText="[Album: 3 images]"),
+        _real("al3", Text="[Album: 2 images, 1 videos]", DisplayText="[Album: 2 images, 1 videos]"),
+        _real("au", Text="[Audio]", MediaCaption="[Audio]", MediaType="audio"),
+        _real("au2", Text="[Audio]", DisplayText="[Audio]"),
+        _real("f", DisplayText="Sent image", MediaType="image"),
+    ]) == ["[audio]", "[audio]", "[imagen]"]
+
+
+def test_solo_etiqueta_distingue_lo_que_el_cliente_no_escribio():
+    for cuerpo in ("[audio]", "[imagen]", "[video]", "[documento]", "[documento] pago.pdf",
+                   "[Pendiente]", " [Audio] "):
+        assert es_solo_etiqueta(cuerpo), cuerpo
+    for cuerpo in ("ya pagué", "[urgente] necesito mi factura", "te mando el [comprobante]",
+                   "", None, "[]"):
+        assert not es_solo_etiqueta(cuerpo), cuerpo

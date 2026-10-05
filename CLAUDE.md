@@ -51,10 +51,15 @@ Principios que mandan sobre cualquier feature:
   para que aceptara el token, y eso no se reparte en Apache-2.0. Si el flujo nuevo
   llegara a exigir lo mismo, se quita igual. El metering y el tope se enganchan en
   `server/aiuda_server/metering.py`.
-- **WhatsApp:** wacli (tu número, protocolo WhatsApp Web) con sondeo entrante
-  in-process (`server/aiuda_server/inbound.py`); correo IMAP/SMTP; la Cloud API
-  oficial requiere una URL pública que la instalación local no trae, y está oculta
-  del catálogo hasta estrenarla.
+- **WhatsApp:** wacli (tu número, protocolo WhatsApp Web). La consola lo instala
+  con un clic (`connectors/wacli_bin.py`) y el server es dueño del
+  `wacli sync --follow` (`server/aiuda_server/wacli_sync.py`): lo arranca, lo
+  relanza y lo apaga; los envíos se le delegan, no lo detienen. El sondeo entrante
+  es in-process (`server/aiuda_server/inbound.py`) y **solo se atiende a clientes
+  del negocio y al dueño**: el número suele ser el personal, así que lo de
+  cualquier otro número no se lee, no se guarda y no recibe respuesta. Correo
+  IMAP/SMTP; la Cloud API oficial requiere una URL pública que la instalación
+  local no trae, y está oculta del catálogo hasta estrenarla.
 - **Integraciones:** el catálogo (`server/aiuda_server/api/integrations.py`) declara
   `estrenada` por integración; `False` = nadie la ha usado con una cuenta real y la
   consola le pone el sello "Sin estrenar". `oculta` = no se ofrece hasta probarse.

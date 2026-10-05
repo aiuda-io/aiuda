@@ -13,6 +13,7 @@ app de escritorio (Tauri)          o          aiuda start (terminal)
               │  los aparatos emparejados; apagada por default
               ├─ consola: export estático de Next servido por el mismo proceso
               ├─ scheduler (hilos): corrida horaria + WhatsApp entrante (wacli)
+              ├─ wacli: `sync --follow` como proceso hijo, supervisado
               ├─ SQLite ~/.aiuda/aiuda.db (WAL)
               ├─ llave Fernet en ~/.aiuda/key (0600), una sola fuente
               ├─ IA BYO: llave (Claude / OpenAI), el Claude Code o Codex ya
@@ -95,6 +96,23 @@ No hay Redis, ni cola, ni proceso aparte. Dos hilos dentro del mismo proceso: un
 dispara la corrida de cobranza una vez por hora de reloj (idempotente y con
 cooldowns, así que correr de más no duplica nada) y otro sondea WhatsApp entrante
 cada 20 segundos. `aiuda daily` hace lo mismo en primer plano.
+
+El sondeo solo lee los chats de los clientes del negocio y el del dueño
+(`identity.telefonos_atendidos`, cruce por los últimos 10 dígitos). El número
+vinculado suele ser el personal del dueño: lo que llega de cualquier otro número
+no se guarda, no se le pasa a la IA y no recibe respuesta ni baja. La misma
+regla se repite al guardar (`inbound.ingresar_entrante`) y al atender
+(`worker/main.py`).
+
+WhatsApp con tu número sí trae un proceso aparte, pero no lo opera nadie a mano:
+`server/aiuda_server/wacli_sync.py` es dueño del `wacli sync --follow` de cada
+negocio vinculado (mantiene la sesión conectada y llena el espejo local que el
+sondeo lee) y del `wacli auth` del emparejamiento. Lo arranca al abrir, lo
+relanza si muere y lo termina al apagar. Para enviar no lo detiene: con un sync
+vivo, `wacli send` le pasa el mensaje a ese proceso y sale en 2 o 3 segundos
+sin soltar la conexión. El binario lo resuelve
+`core/aiuda_core/connectors/wacli_bin.py`, siempre por ruta absoluta: el que
+instaló la consola en `~/.aiuda/bin`, o el del sistema.
 
 La corrida no depende de que el hilo despierte en el minuto exacto: cada 30
 segundos compara la hora actual contra la última corrida (guardada en

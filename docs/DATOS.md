@@ -14,6 +14,8 @@ queda nada en ningún lado.
 | `sesion.json` | La llave de la ventana abierta ahorita. Se borra sola al cerrar aiuda |
 | `red-local.crt`, `red-local.key` | La identidad de esta computadora frente a tus aparatos. Aparecen si prendes la red del negocio ([APARATOS.md](APARATOS.md)) |
 | `wacli_inbound*.json` | Hasta qué mensaje de WhatsApp se leyó (marcador del sondeo) |
+| `bin/wacli` | El conector de WhatsApp, si lo instalaste desde la consola |
+| `wacli.*.pid` | Qué proceso de WhatsApp tiene abierto aiuda ahorita. Se borra solo al cerrar |
 | `dev/` | Logs y PIDs si usas `scripts/dev.sh` (desarrollo) |
 
 Dentro de `aiuda.db` está tu cartera (facturas, clientes, productos), las
@@ -32,7 +34,7 @@ De los aparatos emparejados **no** se guarda su llave, solo su huella: quien se
 lleve la base no se lleva la entrada de ningún teléfono.
 
 Fuera de `~/.aiuda`: si usas WhatsApp con tu número, wacli guarda su propia
-sesión en su carpeta, no en la nuestra. Y la app de escritorio deja sus logs en
+sesión y la copia de tus chats en su carpeta (`~/.wacli`), no en la nuestra. Y la app de escritorio deja sus logs en
 la bitácora del sistema.
 
 ## Tu estado de cuenta bancario (PDF)
