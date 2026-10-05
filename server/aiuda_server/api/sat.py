@@ -30,6 +30,7 @@ from aiuda_core.connectors import credentials as cred
 from aiuda_core.connectors.sat_descarga import (
     SatCredencialInvalida,
     SatDescargaClient,
+    SatSinRespuesta,
     validar_efirma,
 )
 from aiuda_core.engine.sync import (
@@ -345,6 +346,13 @@ def sat_probar_efirma(
             base64.b64decode(datos["key"]),
             datos["password"],
         ).probar()
+    except SatSinRespuesta as exc:
+        # El SAT no contestó: no evaluó nada, así que la e.firma no queda marcada
+        # como rechazada.
+        raise HTTPException(
+            status_code=503,
+            detail="El SAT no contestó. Intenta de nuevo en unos minutos.",
+        ) from exc
     except Exception as exc:  # noqa: BLE001
         row.status = "error"
         row.last_test_at = datetime.now(timezone.utc)
