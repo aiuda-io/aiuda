@@ -3,8 +3,8 @@ import "./globals.css";
 import { Shell } from "@/components/shell";
 
 export const metadata: Metadata = {
-  title: "aiuda · Consola",
-  description: "Ayudantes de IA para PyMEs mexicanas",
+  title: "aiuda",
+  description: "Tus ayudantes proponen, tú apruebas. Todo corre en esta computadora.",
 };
 
 export default function RootLayout({
