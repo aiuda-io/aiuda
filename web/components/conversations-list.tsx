@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { type ConversationItem, type ConversationStatus } from "@/lib/api";
 import { EmptyState, ErrorState, PrimaryLink, SearchInput, Skeleton, Tabs } from "@/components/ui";
-import { haceTiempo } from "@/lib/format";
+import { esDeHoy, haceTiempo } from "@/lib/format";
 
 type TabKey = "identificados" | "por_identificar" | "descartados";
 
@@ -25,9 +25,7 @@ const TAB_LABEL: Record<TabKey, string> = {
 
 /** ¿El último mensaje es del cliente y llegó hoy (hora de esta computadora)? */
 export function contestoHoy(c: ConversationItem): boolean {
-  if (c.last_direction !== "in" || !c.last_at) return false;
-  const d = new Date(c.last_at);
-  return !Number.isNaN(d.getTime()) && d.toDateString() === new Date().toDateString();
+  return c.last_direction === "in" && esDeHoy(c.last_at);
 }
 
 export function tituloDe(c: ConversationItem): string {

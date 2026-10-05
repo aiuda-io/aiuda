@@ -8,7 +8,8 @@ import { EmptyState, ErrorState, PageHeader, Skeleton, Tabs, useApi } from "@/co
 import { RenglonEnviado } from "@/components/hoy/enviado";
 import { Marca, TextoMensaje } from "@/components/hoy/piezas";
 import { TrabajoAyudantes } from "@/components/hoy/trabajo-ayudantes";
-import { claseDe, diaYHora, nombreDe, type Mensaje } from "@/components/hoy/tipos";
+import { claseDe, nombreDe, type Mensaje } from "@/components/hoy/tipos";
+import { fechaHora } from "@/lib/format";
 
 /** Actividad: el historial detrás de Hoy. No está en el menú; se llega con "Ver todo
  *  lo enviado". Tres vistas: lo que salió, lo que se rechazó y lo que hicieron los
@@ -154,7 +155,7 @@ function Rechazado({ m }: { m: Mensaje }) {
       </div>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-apoyo text-ink-3">
         <Marca>{m.retirado ? "Retirado" : "Lo rechazaste"}</Marca>
-        {m.updated_at && <span>{diaYHora(m.updated_at)}</span>}
+        {m.updated_at && <span>{fechaHora(m.updated_at)}</span>}
         <button
           type="button"
           onClick={() => setVer((v) => !v)}

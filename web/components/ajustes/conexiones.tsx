@@ -1,5 +1,7 @@
 "use client";
 
+import { fechaHora, instante } from "@/lib/format";
+
 /**
  * Ajustes > Conexiones: UNA lista.
  *
@@ -129,10 +131,10 @@ function Fila({
 /** Semáforo honesto de una conexión a la medida: la última lectura y el último Probar. */
 function EstadoPropia({ c }: { c: CustomConnector }) {
   // Manda la señal MÁS RECIENTE: si acabas de probarla y funciona, el error de una
-  // lectura vieja ya no dice "Revisar" (y al revés). Los ISO comparan bien como texto.
-  const testEsMasReciente = Boolean(
-    c.last_test_at && (!c.last_sync_at || c.last_test_at > c.last_sync_at),
-  );
+  // lectura vieja ya no dice "Revisar" (y al revés).
+  const probada = instante(c.last_test_at)?.getTime() ?? 0;
+  const leida = instante(c.last_sync_at)?.getTime() ?? 0;
+  const testEsMasReciente = probada > 0 && probada > leida;
   const falla = testEsMasReciente ? c.last_test_ok === false : Boolean(c.last_error);
   if (falla) {
     return (
@@ -156,7 +158,7 @@ function EstadoPropia({ c }: { c: CustomConnector }) {
     return (
       <span
         className="mark"
-        title={`Última lectura: ${c.last_sync_at}`}
+        title={`Última lectura: ${fechaHora(c.last_sync_at)}`}
         style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}
       >
         Leyó {registros(c.last_count ?? 0)}

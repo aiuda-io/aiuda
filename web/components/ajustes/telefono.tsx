@@ -23,14 +23,16 @@ import {
 } from "@/components/ui";
 import { SettingsSection } from "@/components/settings";
 import { toast } from "@/components/toast";
+import { fechaDM, instante } from "@/lib/format";
 
 function cuando(iso: string | null): string {
-  if (!iso) return "nunca";
-  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (dias === 0) return "hoy";
+  const d = instante(iso);
+  if (!d) return "nunca";
+  const dias = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (dias <= 0) return "hoy";
   if (dias === 1) return "ayer";
   if (dias < 30) return `hace ${dias} días`;
-  return new Date(iso).toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+  return fechaDM(iso);
 }
 
 function loQuePuede(d: Dispositivo): string {

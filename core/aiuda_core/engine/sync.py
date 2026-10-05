@@ -17,7 +17,7 @@ import logging
 import re
 import zipfile
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import func, select
@@ -2339,7 +2339,7 @@ def sync_custom(
         rows: list[dict] = []
         if err is None:
             rows, err = custom_api.fetch_rows(**custom_api.kwargs_from_source(src, secret))
-        src["last_sync_at"] = datetime.now().isoformat(timespec="seconds")
+        src["last_sync_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
         src["last_error"] = err or ""
         src["last_count"] = len(rows)
         changed = True

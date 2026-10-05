@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useApi } from "@/components/ui";
 import { toast } from "@/components/toast";
+import { esDeHoy, instante } from "@/lib/format";
 import {
-  esDeHoy,
-  instante,
   idMensaje,
   idPago,
   idPromesa,
@@ -93,7 +92,10 @@ export function useHoy(abrir: string | null) {
       // Un rechazado de una factura que ya se cerró no tiene nada que corregir.
       (m) =>
         m.id === abrir ||
-        (m.factura_abierta !== false && reciente(m.updated_at, DIAS_RECHAZADO_A_LA_VISTA)),
+        // Ni uno que aiuda retiró (la factura se pagó o se canceló): no fue un error.
+        (!m.retirado &&
+          m.factura_abierta !== false &&
+          reciente(m.updated_at, DIAS_RECHAZADO_A_LA_VISTA)),
     );
     return [...data.fallidos, ...data.aprobados, ...yaNoHaceFalta, ...rechazados];
   }, [data, abrir]);

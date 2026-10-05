@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, type RunDetalle, type RunItem } from "@/lib/api";
 import { ErrorState, Skeleton, useApi } from "@/components/ui";
-import { fechaHora } from "@/lib/format";
+import { hoyOFecha } from "@/lib/format";
 
 const MARCA: Record<RunItem["status"], string | undefined> = {
   done: "var(--color-ok)",
@@ -15,13 +15,7 @@ const MARCA: Record<RunItem["status"], string | undefined> = {
   cortado: "var(--color-warn)",
 };
 
-function cuando(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const hora = d.toLocaleTimeString("es-MX", { hour: "numeric", minute: "2-digit" });
-  if (d.toDateString() === new Date().toDateString()) return `Hoy, ${hora}`;
-  return fechaHora(iso);
-}
+const cuando = hoyOFecha;
 
 export function Bitacora({ ayudanteId, name }: { ayudanteId: string; name: string }) {
   const { data, loading, error, refetch } = useApi<RunItem[]>(() => api.runs(ayudanteId), [ayudanteId]);
