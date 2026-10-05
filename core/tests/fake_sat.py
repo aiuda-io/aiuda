@@ -80,7 +80,7 @@ _FIEL = """<!doctype html><meta charset="utf-8"><title>Acceso con e.firma (porta
 <input id="filePrivateKey" type="file" style="display:none">
 <p>Contraseña de clave privada: <input id="privateKeyPassword" type="password"></p>
 <p>RFC: <input id="rfc" readonly></p>
-%(captcha)s
+%(captcha)s%(aviso)s
 <div id="divError" style="display:none;color:#a00"></div>
 <button id="submit" type="button">Enviar</button>
 <script>
@@ -102,7 +102,7 @@ document.getElementById('submit').onclick = () => {
 
 _OPINION = """<!doctype html><meta charset="utf-8"><title>Opinión (portal de prueba)</title>
 <h1>Portal de prueba local: opinión de cumplimiento</h1>
-<p id="estado">Consultando…</p>
+<p id="estado">Consultando…</p>%s
 <script>
 fetch('%s', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'})
   .then(r => r.json())
@@ -118,7 +118,7 @@ _ACEPTAR = """<!doctype html><meta charset="utf-8"><title>Aviso (portal de prueb
 _CONSTANCIA = """<!doctype html><meta charset="utf-8"><title>Reimpresión (portal de prueba)</title>
 <h1>Portal de prueba local: reimpresión de acuses</h1>
 <button type="button">Limpiar</button> <button type="button">Buscar</button>
-<button id="j_idt42" type="button">Generar Constancia</button>
+<button id="j_idt42" type="button">Generar Constancia</button>%s
 <script>
 document.getElementById('j_idt42').onclick = async () => {
   await fetch(location.pathname, {method: 'POST', body: 'generar=1'});
@@ -127,6 +127,11 @@ document.getElementById('j_idt42').onclick = async () => {
 </script>"""
 
 _CAPTCHA = '<p>Captcha: <input id="userCaptcha"></p>'
+# Un aviso con botón de aceptar que convive con la pantalla normal (no la reemplaza).
+_BOTON_ACEPTAR = (
+    '<p>Aviso de privacidad <button type="button" '
+    "onclick=\"fetch('/_acepto', {method: 'POST'})\">Aceptar</button></p>"
+)
 
 
 class FakeSat:
@@ -138,6 +143,8 @@ class FakeSat:
             "entrada_500": 0,  # cuántas veces la entrada contesta el error 500
             "captcha": False,
             "login": "ok",  # ok | revocada | no_vigente
+            "aviso_login": "",  # alert | confirm: diálogo al abrir el formulario de e.firma
+            "boton_aceptar": False,  # un «Aceptar» visible junto a la pantalla normal
             "rfc_formulario": RFC,
             "tras_login": "ok",  # ok | aceptar (pide aceptar términos) | dialogo
             "opinion": "ok",  # ok | sin_exito | otro_rfc | no_pdf
@@ -164,7 +171,7 @@ class FakeSat:
 
         base = {
             "espera_login_s": 4, "pausa_reintento_s": 0.2,
-            "espera_acceso_s": 6, "espera_documento_s": 4,
+            "espera_acceso_s": 6, "espera_documento_s": 4, "gracia_aviso_s": 0.6,
         }
         return PortalSat(
             url_32d=f"{self.base}/opinion",
@@ -223,9 +230,10 @@ class FakeSat:
                         return self._enviar(
                             "<!doctype html><script>confirm('¿Acepta el aviso?')</script>"
                         )
+                    extra = _BOTON_ACEPTAR if modo["boton_aceptar"] else ""
                     if destino == "opinion":
-                        return self._enviar(_OPINION % RUTA_32D)
-                    return self._enviar(_CONSTANCIA % RUTA_PDF_CONSTANCIA)
+                        return self._enviar(_OPINION % (extra, RUTA_32D))
+                    return self._enviar(_CONSTANCIA % (extra, RUTA_PDF_CONSTANCIA))
                 if url.path == "/nidp/login":
                     captcha = _CAPTCHA if modo["captcha"] else ""
                     if "id" not in query:
@@ -234,8 +242,13 @@ class FakeSat:
                     error = {
                         "revocada": ERROR_REVOCADA, "no_vigente": ERROR_NO_VIGENTE,
                     }.get(modo["login"], "")
+                    aviso = {
+                        "alert": "<script>alert('Aviso: mantenimiento el sábado')</script>",
+                        "confirm": "<script>confirm('¿Acepta los nuevos términos?')</script>",
+                    }.get(modo["aviso_login"], "")
                     return self._enviar(_FIEL % {
                         "captcha": captcha,
+                        "aviso": aviso,
                         "rfc": json.dumps(modo["rfc_formulario"]),
                         "error": json.dumps(error),
                         "password": json.dumps(PASSWORD),

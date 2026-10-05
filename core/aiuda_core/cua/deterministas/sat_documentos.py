@@ -71,6 +71,9 @@ class PortalSat:
     pausa_reintento_s: float = 15  # antes del único reintento de la entrada
     espera_acceso_s: float = 60  # cuánto se espera a que el SAT acepte la e.firma
     espera_documento_s: float = 90  # cuánto se espera el documento ya adentro
+    # 32-D: la página pide sola el documento. Un botón de "Aceptar" (un aviso de cookies,
+    # por ejemplo) solo detiene la corrida si pasado este rato el documento no llegó.
+    gracia_aviso_s: float = 5
 
 
 PORTAL = PortalSat()
@@ -179,8 +182,13 @@ class _Corrida:
         page.on("dialog", self._al_dialogo)
 
     def _al_dialogo(self, dialogo) -> None:
-        # Un alert/confirm del portal: se anota y se CIERRA sin aceptar.
-        self.dialogo = (dialogo.message or "")[:200]
+        # Todo diálogo del portal se CIERRA sin aceptar. Uno que pregunta (confirmar,
+        # escribir algo) detiene la corrida; uno que solo informa se anota y se sigue.
+        mensaje = self.limpio(dialogo.message or "")[:200]
+        if dialogo.type == "alert":
+            self.pasos.append(f"El portal del SAT mostró un aviso: «{mensaje}». Lo cerré.")
+        else:
+            self.dialogo = mensaje
         try:
             dialogo.dismiss()
         except Exception:
@@ -201,19 +209,26 @@ class _Corrida:
         except Exception:
             pass
 
-    def revisar_avisos(self) -> None:
-        """Detiene la corrida si el portal pide aceptar, firmar o confirmar algo."""
+    def revisar_dialogo(self) -> None:
+        """Detiene la corrida si el portal abrió un diálogo que pide confirmar algo."""
         if self.dialogo is not None:
+            self.foto()
             raise Alto(
                 "El portal del SAT abrió un aviso que pide confirmar algo "
                 f"(«{self.dialogo}»). aiuda no acepta nada por ti: entra tú al portal "
                 "para revisarlo."
             )
+
+    def revisar_avisos(self) -> None:
+        """Detiene la corrida, con captura, si el portal pide aceptar, firmar o
+        confirmar algo."""
+        self.revisar_dialogo()
         try:
             boton = self.page.evaluate(_JS_PIDE_ACEPTAR)
         except Exception:
             return  # la página está navegando: se revisa en la siguiente vuelta
         if boton:
+            self.foto()
             raise Alto(
                 f"El portal del SAT pide aceptar o firmar algo (botón «{boton}»). "
                 "aiuda no acepta ni firma nada por ti: entra tú al portal para revisarlo."
@@ -278,6 +293,8 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
     pg.set_input_files("#filePrivateKey", archivo(f"{rfc}.key", key))
     c.paso("Cargué el certificado y la llave de la e.firma en el formulario del SAT.")
     c.foto()  # ANTES de teclear la contraseña: no sale en ninguna captura
+    # Si la pantalla de acceso ya preguntó algo, no se teclea la contraseña ni se entra.
+    c.revisar_dialogo()
     try:
         pg.fill("#privateKeyPassword", c._password)
     except Exception:
@@ -304,7 +321,8 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
                 c.foto()
                 raise Alto(_motivo_rechazo(texto))
         if c.dialogo is not None:
-            c.revisar_avisos()
+            _vaciar_contrasena(pg)
+            c.revisar_dialogo()
         pg.wait_for_timeout(500)
     _vaciar_contrasena(pg)
     c.foto()
@@ -334,9 +352,15 @@ def _opinion_32d(c: _Corrida, cer: bytes, key: bytes, rfc: str) -> tuple[bytes, 
     c.paso("Abrí la consulta de la opinión de cumplimiento en el portal del SAT.")
     _entrar(c, portal.url_32d, portal.login_32d, cer, key, rfc)
 
-    limite = time.monotonic() + portal.espera_documento_s
+    # La página pide sola el documento: aquí aiuda no da ningún clic. Un diálogo que
+    # pregunta detiene de inmediato; un botón de aceptar, solo si el documento no llega.
+    inicio = time.monotonic()
+    limite = inicio + portal.espera_documento_s
     while "r" not in visto and time.monotonic() < limite:
-        c.revisar_avisos()
+        if time.monotonic() - inicio >= portal.gracia_aviso_s:
+            c.revisar_avisos()
+        else:
+            c.revisar_dialogo()
         pg.wait_for_timeout(500)
     if "r" not in visto:
         c.foto()
@@ -377,12 +401,13 @@ def _constancia(c: _Corrida, cer: bytes, key: bytes, rfc: str) -> tuple[bytes, d
     boton = pg.get_by_role("button", name="Generar Constancia")
     limite = time.monotonic() + portal.espera_documento_s
     while time.monotonic() < limite:
+        # Antes de dar el único clic: con un aviso sin atender en pantalla no se toca nada.
+        c.revisar_avisos()
         try:
             if boton.count() and boton.first.is_visible():
                 break
         except Exception:
             pass  # navegando todavía
-        c.revisar_avisos()
         pg.wait_for_timeout(500)
     else:
         c.foto()
@@ -391,6 +416,7 @@ def _constancia(c: _Corrida, cer: bytes, key: bytes, rfc: str) -> tuple[bytes, d
             "el portal haya cambiado o esté fallando; inténtalo más tarde."
         )
     c.foto()
+    c.revisar_avisos()  # por si el aviso apareció junto con el botón
     # El botón hace una llamada (prepara la constancia) y después abre una ventana con
     # el PDF. Se anula la ventana y se pide el mismo PDF desde la página.
     pg.evaluate("window.open = () => null")

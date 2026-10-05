@@ -187,13 +187,48 @@ def test_si_el_portal_pide_aceptar_algo_no_lo_acepta(sat, documento):
     assert not r.ok and "pide aceptar o firmar" in r.error and "Aceptar términos" in r.error
     assert "/_acepto" not in sat.rutas()
     assert sat.rutas("POST") == []
-    assert r.capturas
+    # Dos capturas de antes del acceso y la del aviso que detuvo la corrida.
+    assert len(r.capturas) >= 3
 
 
 def test_un_aviso_de_confirmar_se_cierra_sin_aceptar(sat):
     sat.modo["tras_login"] = "dialogo"
     r = bajar(sat, CONSTANCIA)
     assert not r.ok and "pide confirmar algo" in r.error
+    assert len(r.capturas) >= 3
+
+
+def test_la_constancia_no_se_pide_con_un_aviso_de_aceptar_en_pantalla(sat):
+    """El aviso convive con «Generar Constancia»: no se da ningún clic."""
+    sat.modo["boton_aceptar"] = True
+    r = bajar(sat, CONSTANCIA)
+    assert not r.ok and "botón «Aceptar»" in r.error
+    assert sat.rutas("POST") == []
+    assert not any("Generar Constancia" in p for p in r.pasos)
+
+
+def test_la_opinion_que_si_llega_no_se_tira_por_un_boton_de_aceptar(sat):
+    """En la 32-D aiuda no da clics: si el documento llegó, un «Aceptar» suelto en la
+    página (un aviso de cookies) no quema la consulta."""
+    sat.modo["boton_aceptar"] = True
+    r = bajar(sat, OPINION_32D)
+    assert r.ok, r.error
+    assert sat.rutas("POST") == [RUTA_32D]
+
+
+def test_un_aviso_que_solo_informa_no_detiene(sat):
+    sat.modo["aviso_login"] = "alert"
+    r = bajar(sat, OPINION_32D)
+    assert r.ok, r.error
+    assert any("mantenimiento el sábado" in p for p in r.pasos)
+
+
+def test_si_el_acceso_pregunta_algo_no_se_teclea_la_contrasena(sat):
+    sat.modo["aviso_login"] = "confirm"
+    r = bajar(sat, OPINION_32D)
+    assert not r.ok and "pide confirmar algo" in r.error
+    assert not any("Escribí la contraseña" in p for p in r.pasos)
+    assert RUTA_32D not in sat.rutas()  # nunca entró: no hubo folio
 
 
 def test_el_sat_no_entrega_la_opinion(sat):
