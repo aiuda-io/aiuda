@@ -350,7 +350,7 @@ def mensaje_error(status: int, codigo: str = "") -> tuple[str, str]:
     if codigo == "subscription_sharing_usage_limit_exceeded" or status == 429:
         return "limite", (
             "Llegaste al límite de uso de tu plan de ChatGPT o al que le pusiste a aiuda. "
-            "Revísalo en Administrar uso."
+            "Revísalo en Tu IA, en Administrar uso."
         )
     if codigo == "subscription_sharing_user_not_eligible":
         return "no_elegible", (
