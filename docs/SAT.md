@@ -5,7 +5,7 @@ ingresos a crédito. Admite hasta tres RFCs del mismo negocio.
 
 ## Empezar sin e.firma
 
-1. Abre **Integraciones > SAT · Bóveda fiscal**.
+1. Abre **Ajustes > Conexiones > SAT · Bóveda fiscal**.
 2. Registra cada RFC y el plazo de pago que normalmente usas.
 3. Sube un XML o el ZIP que descargaste del SAT.
 

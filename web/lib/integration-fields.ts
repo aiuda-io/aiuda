@@ -50,7 +50,7 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
         { value: "google", label: "Gmail (Google)" },
         { value: "microsoft", label: "Outlook (Microsoft)" },
       ],
-      hint: "Gmail y Outlook rellenan los servidores solos; con IMAP genérico los pones tú. Entrar con OAuth (botón de Google/Microsoft) está por cablear: hoy la vía completa es la contraseña de aplicación.",
+      hint: "Gmail y Outlook rellenan los servidores solos; con IMAP genérico los pones tú. Hoy se entra con una contraseña de aplicación; el botón de entrar con Google o Microsoft todavía no existe.",
     },
     { key: "email", label: "Correo", placeholder: "cobranza@minegocio.com" },
     { key: "imap_host", label: "Servidor IMAP (entrada)", placeholder: "imap.gmail.com" },
