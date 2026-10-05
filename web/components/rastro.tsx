@@ -23,6 +23,10 @@ type RastroValue = {
   direction: "forward" | "back";
 };
 
+/** La etiqueta de una página que trae su PROPIA salida (la de "esta pantalla no
+ *  existe"): en ella el "Volver a…" del marco no se pinta. */
+const SIN_REGRESO = "\u0000sin-regreso";
+
 const RastroContext = createContext<RastroValue | null>(null);
 
 // Reconcilia el rastro cuando cambia la ruta:
@@ -78,6 +82,12 @@ export function RastroProvider({ children }: { children: React.ReactNode }) {
   return <RastroContext.Provider value={value}>{children}</RastroContext.Provider>;
 }
 
+/** Para una página que ya ofrece su única salida: quita el "Volver a…" del marco
+ *  mientras está en pantalla. Dos salidas, una encima de la otra, es una de más. */
+export function useSinRegreso() {
+  usePageTrail(SIN_REGRESO);
+}
+
 // Una página de detalle declara su etiqueta humana: usePageTrail("Factura M-107").
 // No-op si no hay provider (ej. /entrar).
 export function usePageTrail(label: string | undefined | null) {
@@ -102,6 +112,7 @@ export function useRastroBack(): { href: string; label: string } | null {
   if (!ctx || ctx.trail.length < 2) return null;
   if (pathname === "/" || isSection(pathname)) return null;
   if (SELF_NAV_SUBTREES.some((p) => pathname.startsWith(p))) return null;
+  if (ctx.labelFor(pathname) === SIN_REGRESO) return null;
   const href = ctx.trail[ctx.trail.length - 2];
   return { href, label: ctx.labelFor(href) };
 }
