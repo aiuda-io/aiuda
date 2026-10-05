@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, apiUrl, BUCKET_META, mxn, TONE_LABEL, type InvoiceDetail, type Cfdi } from "@/lib/api";
+import { api, apiUrl, BUCKET_META, errorDeIA, mxn, TONE_LABEL, type InvoiceDetail, type Cfdi } from "@/lib/api";
 import { fecha, fechaDM } from "@/lib/format";
 import { toast } from "@/components/toast";
 import { SOURCE_LABEL, SOURCE_LOGO } from "@/components/ui";
 import { RailLayout } from "@/components/rail";
 import { WritebackStatus } from "@/components/writeback-status";
 import { InyectarButton } from "@/components/inyectar-button";
+import { ConfirmarPago } from "@/components/confirmar-pago";
 import { oficioDe } from "@/lib/oficios";
 const STATUS_LABEL: Record<string, string> = {
   draft: "Borrador",
@@ -47,7 +48,13 @@ export function InvoiceDetailContent({
   const cfdi: Cfdi | null = data.cfdi && (data.cfdi as Cfdi).uuid ? (data.cfdi as Cfdi) : null;
   // ¿El total del CFDI cuadra con lo que aiuda tiene de saldo? (la verdad fiscal)
   const cfdiCuadra = cfdi?.total != null ? Math.abs(cfdi.total - data.amount) < 0.01 : null;
-  const [busy, setBusy] = useState<"pay" | "remind" | null>(null);
+  const [busy, setBusy] = useState<"remind" | null>(null);
+  // Registrar el pago abre la confirmación (cliente, folio, monto y a dónde más se
+  // escribe); ya no se paga con un clic.
+  const [confirmarPago, setConfirmarPago] = useState(false);
+  // El error de "Recordar" se queda junto al botón (no en un aviso que se va solo):
+  // si lo que falta es la IA, trae la liga a Tu IA.
+  const [falloRecordar, setFalloRecordar] = useState<{ mensaje: string; ia: boolean } | null>(null);
   // Tras encolar una inyección, recargar el "Regreso a la fuente" (su refreshKey
   // no cambia solo: el estado de la factura sigue igual, lo nuevo es el outbox).
   const [inyKey, setInyKey] = useState(0);
@@ -63,25 +70,13 @@ export function InvoiceDetailContent({
 
   async function recordar() {
     setBusy("remind");
+    setFalloRecordar(null);
     try {
       await api.remind(data.id);
       toast("Borrador listo en Aprobaciones.", "success");
       onChanged?.();
     } catch (e) {
-      toast((e as Error).message, "error");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function registrarPago() {
-    setBusy("pay");
-    try {
-      await api.pay(data.id);
-      toast("Pago confirmado. La factura pasa a Pagadas.", "success");
-      onChanged?.();
-    } catch (e) {
-      toast((e as Error).message, "error");
+      setFalloRecordar({ mensaje: (e as Error).message, ia: errorDeIA(e) });
     } finally {
       setBusy(null);
     }
@@ -122,6 +117,7 @@ export function InvoiceDetailContent({
   ) : data.status !== "paid" && (
     /* Acciones del registro: las mismas que en la lista, donde vive el registro.
        Si ya hay un recordatorio, en vez de bloquear, lleva a verlo. */
+    <div className="space-y-2.5">
     <div className="flex flex-wrap gap-2">
       {activeReminder ? (
         <Link
@@ -140,12 +136,21 @@ export function InvoiceDetailContent({
         </button>
       )}
       <button
-        onClick={registrarPago}
+        onClick={() => setConfirmarPago(true)}
         disabled={busy !== null}
         className="rounded-md border border-line bg-surface px-3.5 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-50"
       >
-        {busy === "pay" ? "Registrando…" : "Registrar pago"}
+        {data.payment_reported ? "Confirmar pago" : "Registrar pago"}
       </button>
+      <ConfirmarPago
+        invoiceId={confirmarPago ? data.id : null}
+        onClose={() => setConfirmarPago(false)}
+        onDone={() => {
+          setConfirmarPago(false);
+          toast("Pago confirmado. La factura pasa a Pagadas.", "success");
+          onChanged?.();
+        }}
+      />
       {/* Empujar la factura al maestro elegido; solo si hay destinos y no vive ya allá. */}
       <InyectarButton
         entidad="factura"
@@ -153,6 +158,20 @@ export function InvoiceDetailContent({
         presence={data.presence}
         onQueued={inyeccionEncolada}
       />
+    </div>
+      {falloRecordar && (
+        <p role="alert" className="text-cuerpo leading-snug text-danger">
+          {falloRecordar.mensaje}
+          {falloRecordar.ia && (
+            <>
+              {" "}
+              <Link href="/proveedor" className="font-medium text-accent-ink underline hover:text-accent-strong">
+                Ir a Tu IA
+              </Link>
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 

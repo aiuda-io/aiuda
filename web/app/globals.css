@@ -279,7 +279,13 @@ body {
 
 /* Navegar se siente fluido: el contenido llega con peso (sobrio, ~180ms), en
  * la dirección del viaje (adelante = te metiste; atrás = regresaste). El
- * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve. */
+ * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve.
+ * Relleno `backwards` y no `both`: al terminar, la animación suelta el elemento.
+ * Con `both` el transform se quedaba puesto para siempre (aunque fuera la
+ * identidad) y eso encierra a todo `position: fixed` de la página: velos y
+ * selectores dejaban de cubrir la ventana completa. Escribir `transform: none`
+ * en el último cuadro NO basta: interpolado contra translateY sigue siendo una
+ * matriz, medido en el navegador. */
 @keyframes page-enter-fwd {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
@@ -288,8 +294,8 @@ body {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.page-enter-fwd { animation: page-enter-fwd 0.18s var(--ease-out) both; }
-.page-enter-back { animation: page-enter-back 0.18s var(--ease-out) both; }
+.page-enter-fwd { animation: page-enter-fwd 0.18s var(--ease-out) backwards; }
+.page-enter-back { animation: page-enter-back 0.18s var(--ease-out) backwards; }
 @media (prefers-reduced-motion: reduce) {
   .page-enter-fwd,
   .page-enter-back {

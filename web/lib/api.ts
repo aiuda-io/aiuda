@@ -17,6 +17,10 @@ export type Cartera = {
   open_total: number;
   open_count: number;
   pending_approvals: number;
+  /** Lo que hoy necesita la decisión del dueño: por aprobar + pagos por conciliar +
+   *  promesas vencidas. Se define UNA vez, en el server (`_espera_tu_ok`); lo usan el
+   *  globo del menú y la columna "Espera tu OK" del Centro. */
+  espera_tu_ok: number;
   active_promises: number;
   payment_reports: number;
   by_source: Record<string, number>;
@@ -98,6 +102,11 @@ export type PromiseItem = {
   note: string | null;
   days_left: number;
   fulfilled_at: string | null;
+  /** La fecha prometida ya pasó, no se cumplió y la factura sigue abierta: cuenta
+   *  en "Espera tu OK". La regla vive en el server (`_promesa_vencida`). */
+  vencida: boolean;
+  /** false = la factura ya se pagó o se canceló: la promesa ya no pide nada. */
+  factura_abierta: boolean;
 };
 
 export type ChatMessage = {
@@ -165,6 +174,9 @@ export type Cfdi = {
 
 export type InvoiceDetail = InvoiceItem & {
   customer_id: string;
+  /** A dónde se escribirá el pago si se registra: la fuente de la factura y si está
+   *  conectada ahora. null = el pago no regresa a ningún sistema. */
+  pago_regresa_a: { fuente: string; conectada: boolean } | null;
   conversation_id: string | null;
   cfdi: Cfdi | Record<string, never>;
   // Por qué se cerró sin pago, p. ej. "cancelada en el SAT"
@@ -532,6 +544,26 @@ export type Invitacion = {
   tope_aprobacion: number | null;
 };
 
+/** Error de la API. `message` es el texto para el dueño (ya viene en español del
+ *  server); `code`, cuando viene, deja que la pantalla RECONOZCA el caso en vez de
+ *  solo pintarlo: p. ej. que lo que falta es conectar la IA. */
+export class ApiError extends Error {
+  code?: string;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** ¿El error se arregla en Tu IA? (no hay IA conectada, o la que hay no respondió).
+ *  Quien lo pinta pone la liga a /proveedor junto al mensaje. */
+export function errorDeIA(e: unknown): boolean {
+  return e instanceof ApiError && (e.code === "ia_no_conectada" || e.code === "ia_fallo");
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -544,7 +576,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail ?? `Error ${res.status}`);
+    throw new ApiError(
+      typeof detail?.detail === "string" ? detail.detail : `Error ${res.status}`,
+      res.status,
+      typeof detail?.code === "string" ? detail.code : undefined,
+    );
+  }
+  // Toda escritura puede mover lo que espera al dueño (aprobar, rechazar, pagar, pedir
+  // un recordatorio...): se avisa para que el globo del menú se vuelva a contar.
+  if (init?.method && init.method !== "GET" && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("aiuda-escritura"));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

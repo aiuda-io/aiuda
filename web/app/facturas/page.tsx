@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { api, BUCKET_META, mxn, type InvoiceItem } from "@/lib/api";
+import { api, BUCKET_META, errorDeIA, mxn, type InvoiceItem } from "@/lib/api";
 import { fechaDM } from "@/lib/format";
 import {
   BucketPill,
@@ -18,6 +18,7 @@ import { AnimatedNumber } from "@/components/motion";
 import { RailLayout, RailRow, RailSection } from "@/components/rail";
 import { InvoiceDrawer } from "@/components/invoice-drawer";
 import { AgregarSheet } from "@/components/agregar-sheet";
+import { ConfirmarPago } from "@/components/confirmar-pago";
 import { ExportButton } from "@/components/export-button";
 
 type SortKey = "folio" | "customer" | "amount" | "days_overdue";
@@ -37,12 +38,17 @@ export default function FacturasPage() {
   );
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [done, setDone] = useState<Record<string, string>>({});
+  // Lo que salió mal va aparte de lo que salió bien: antes compartían estado y color, y
+  // un error se leía en verde, como si el recordatorio hubiera quedado listo.
+  const [fallo, setFallo] = useState<Record<string, { mensaje: string; ia: boolean }>>({});
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [bucket, setBucket] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [agregar, setAgregar] = useState(false);
+  // Factura cuyo pago se está por confirmar (abre la confirmación; nada se paga con un clic).
+  const [pagar, setPagar] = useState<string | null>(null);
 
   const syncNow = async () => {
     setSyncing(true);
@@ -118,19 +124,23 @@ export default function FacturasPage() {
 
   if (error) return <ErrorState message={error} retry={refetch} />;
 
-  const act = async (inv: InvoiceItem, action: "pay" | "remind") => {
-    setBusy((b) => ({ ...b, [inv.id]: action }));
+  // La única acción directa de la fila es pedir el recordatorio (queda como borrador
+  // por aprobar). Dar una factura por pagada pasa siempre por ConfirmarPago.
+  const recordar = async (inv: InvoiceItem) => {
+    setBusy((b) => ({ ...b, [inv.id]: "remind" }));
+    setFallo((f) => {
+      const next = { ...f };
+      delete next[inv.id];
+      return next;
+    });
     try {
-      if (action === "pay") {
-        await api.pay(inv.id);
-        setDone((d) => ({ ...d, [inv.id]: "Pago confirmado, ya está en Pagadas" }));
-        setTimeout(refetch, 1100);
-      } else {
-        await api.remind(inv.id);
-        setDone((d) => ({ ...d, [inv.id]: "Borrador listo en Aprobaciones" }));
-      }
+      await api.remind(inv.id);
+      setDone((d) => ({ ...d, [inv.id]: "Borrador listo en Aprobaciones" }));
     } catch (e) {
-      setDone((d) => ({ ...d, [inv.id]: (e as Error).message }));
+      setFallo((f) => ({
+        ...f,
+        [inv.id]: { mensaje: (e as Error).message, ia: errorDeIA(e) },
+      }));
     } finally {
       setBusy((b) => {
         const next = { ...b };
@@ -358,26 +368,23 @@ export default function FacturasPage() {
                                   disabled={!!busy[inv.id]}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    act(inv, "pay");
+                                    setPagar(inv.id);
                                   }}
                                   className="rounded border border-ok/40 bg-ok-soft px-2 py-1 text-sello font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
                                 >
-                                  {busy[inv.id] ? "…" : "Confirmar pago"}
+                                  Confirmar pago
                                 </button>
                               ) : (
+                                <span className="flex flex-col items-end gap-1.5">
+                                  {fallo[inv.id] && <FalloFila fallo={fallo[inv.id]} />}
                                 <span className="flex justify-end gap-1.5">
                                   <RowAction
                                     label={busy[inv.id] === "remind" ? "Redactando…" : "Recordar"}
                                     title="Tu ayudante redacta un recordatorio y lo deja en Aprobaciones"
                                     disabled={!!busy[inv.id]}
-                                    onClick={() => act(inv, "remind")}
+                                    onClick={() => recordar(inv)}
                                   />
-                                  <RowAction
-                                    label={busy[inv.id] === "pay" ? "…" : "Registrar pago"}
-                                    title="Confirmas tú el pago: queda como verificado manualmente"
-                                    disabled={!!busy[inv.id]}
-                                    onClick={() => act(inv, "pay")}
-                                  />
+                                </span>
                                 </span>
                               )}
                             </td>
@@ -433,35 +440,32 @@ export default function FacturasPage() {
                               disabled={!!busy[inv.id]}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                act(inv, "pay");
+                                setPagar(inv.id);
                               }}
                               className="w-full rounded-md border border-ok/40 bg-ok-soft py-2 text-cuerpo font-medium text-ok transition-colors hover:border-ok disabled:opacity-60"
                             >
-                              {busy[inv.id] ? "…" : "Confirmar pago"}
+                              Confirmar pago
                             </button>
                           ) : (
+                            <>
+                            {fallo[inv.id] && (
+                              <div className="mb-2">
+                                <FalloFila fallo={fallo[inv.id]} />
+                              </div>
+                            )}
                             <div className="flex gap-2">
                               <button
                                 disabled={!!busy[inv.id]}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  act(inv, "remind");
+                                  recordar(inv);
                                 }}
                                 className="flex-1 rounded-md border border-line bg-surface py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
                               >
                                 {busy[inv.id] === "remind" ? "Redactando…" : "Recordar"}
                               </button>
-                              <button
-                                disabled={!!busy[inv.id]}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  act(inv, "pay");
-                                }}
-                                className="flex-1 rounded-md border border-line bg-surface py-2 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-60"
-                              >
-                                {busy[inv.id] === "pay" ? "…" : "Registrar pago"}
-                              </button>
                             </div>
+                            </>
                           )}
                         </div>
                       )}
@@ -474,6 +478,15 @@ export default function FacturasPage() {
         </RailLayout>
 
       <InvoiceDrawer invoiceId={openId} onClose={() => setOpenId(null)} onChanged={refetch} />
+      <ConfirmarPago
+        invoiceId={pagar}
+        onClose={() => setPagar(null)}
+        onDone={(f) => {
+          setPagar(null);
+          setDone((d) => ({ ...d, [f.id]: "Pago confirmado, ya está en Pagadas" }));
+          setTimeout(refetch, 1100);
+        }}
+      />
     </div>
   );
 }
@@ -609,6 +622,27 @@ function FacturasRail({
         )}
       </RailSection>
     </>
+  );
+}
+
+// El error de una fila: en rojo, en español y, si se arregla en Tu IA, con la liga.
+function FalloFila({ fallo }: { fallo: { mensaje: string; ia: boolean } }) {
+  return (
+    <p
+      role="alert"
+      onClick={(e) => e.stopPropagation()}
+      className="max-w-[16rem] text-apoyo leading-snug text-danger md:text-right"
+    >
+      {fallo.mensaje}
+      {fallo.ia && (
+        <>
+          {" "}
+          <Link href="/proveedor" className="font-medium text-accent-ink underline hover:text-accent-strong">
+            Ir a Tu IA
+          </Link>
+        </>
+      )}
+    </p>
   );
 }
 

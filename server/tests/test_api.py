@@ -467,6 +467,130 @@ def test_recordar_ahora_pendiente_no_encola(client, db_session, tenant, monkeypa
     assert not any(j[0] == "send_reminder" for j in app.state.test_jobs)
 
 
+def _draft_que_truena(monkeypatch):
+    """draft_reminder falla como falla el SDK del proveedor: con su texto en inglés."""
+    from aiuda_core.engine.engine import CleoEngine
+
+    def boom(self, invoice, customer, today, broken_promise=None):
+        raise RuntimeError("Could not resolve authentication method. Expected api_key")
+
+    monkeypatch.setattr(CleoEngine, "draft_reminder", boom)
+
+
+def test_recordar_sin_ia_dice_que_falta_la_ia_y_no_el_error_crudo(
+    client, db_session, tenant, monkeypatch
+):
+    # Sin IA conectada el dueño veía el texto de la excepción, en inglés. Ahora recibe
+    # qué hacer, en español, y un código para que la consola ponga la liga a Tu IA.
+    invoice = _open_invoice(db_session, tenant)
+    _draft_que_truena(monkeypatch)
+
+    res = client.post(f"/v1/invoices/{invoice.id}/remind", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 409
+    cuerpo = res.json()
+    assert cuerpo["code"] == "ia_no_conectada"
+    assert "Conecta tu IA" in cuerpo["detail"]
+    assert "Could not" not in res.text and "api_key" not in res.text
+
+
+def test_recordar_con_ia_que_falla_no_filtra_la_excepcion(
+    client, db_session, tenant, monkeypatch
+):
+    # Hay IA conectada pero la redacción falló: mensaje limpio y código propio; el
+    # detalle técnico se queda en el log del servidor.
+    import aiuda_core.engine.provider as provider
+
+    invoice = _open_invoice(db_session, tenant)
+    _draft_que_truena(monkeypatch)
+    monkeypatch.setattr(provider, "resolve_credential", lambda *a, **k: object())
+
+    res = client.post(f"/v1/invoices/{invoice.id}/remind", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 502
+    cuerpo = res.json()
+    assert cuerpo["code"] == "ia_fallo"
+    assert "Tu IA" in cuerpo["detail"]
+    assert "Could not" not in res.text and "api_key" not in res.text
+
+
+def test_espera_tu_ok_es_un_solo_numero(client, db_session, tenant):
+    """El globo del menú y la columna del Centro cuentan lo mismo: por aprobar +
+    pagos por conciliar + promesas VENCIDAS de facturas abiertas. Antes el globo
+    contaba solo recordatorios y la columna sumaba todas las promesas activas."""
+    from datetime import datetime, timedelta, timezone
+
+    from aiuda_core.models import Payment, PaymentPromise
+
+    from zoneinfo import ZoneInfo
+
+    headers = {"X-API-Key": "k-demo"}
+    # El "hoy" del server es el de México: la prueba usa el mismo para no depender
+    # de la zona horaria de la máquina.
+    hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
+    abierta = _open_invoice(db_session, tenant)
+
+    def _otra(folio, status):
+        inv = Invoice(
+            tenant_id=tenant.id,
+            customer_id=abierta.customer_id,
+            folio=folio,
+            amount=100,
+            issued_date=abierta.issued_date,
+            due_date=abierta.due_date,
+            status=status,
+        )
+        db_session.add(inv)
+        db_session.flush()
+        return inv
+
+    otra = _otra("F-2", "open")
+    pagada = _otra("F-3", "paid")
+    db_session.add(
+        Reminder(
+            tenant_id=tenant.id,
+            invoice_id=abierta.id,
+            bucket="vencida",
+            tone="firme",
+            message="Recordatorio",
+            status="pending_approval",
+        )
+    )
+    db_session.add(
+        Payment(
+            tenant_id=tenant.id,
+            amount=100,
+            currency="MXN",
+            source="banco",
+            status="pendiente",
+            paid_at=datetime.now(timezone.utc),
+        )
+    )
+    for factura, dias in ((abierta, -3), (otra, 0), (otra, 5), (pagada, -9)):
+        db_session.add(
+            PaymentPromise(
+                tenant_id=tenant.id,
+                invoice_id=factura.id,
+                promised_date=hoy + timedelta(days=dias),
+            )
+        )
+    db_session.flush()
+
+    cartera = client.get("/v1/cartera", headers=headers).json()
+    # 1 por aprobar + 1 pago por conciliar + 1 promesa vencida. Ni la de hoy, ni la
+    # futura, ni la de la factura ya pagada.
+    assert cartera["espera_tu_ok"] == 3
+    assert cartera["pending_approvals"] == 1  # el campo viejo no cambia de sentido
+
+    promesas = client.get("/v1/promises", headers=headers).json()
+    assert len(promesas) == 4
+    assert sum(1 for p in promesas if p["vencida"]) == 1
+    assert sum(1 for p in promesas if not p["factura_abierta"]) == 1
+    # La columna arma su lista con las mismas tres fuentes: cuadra con el globo.
+    por_aprobar = client.get("/v1/reminders?status=pending_approval", headers=headers).json()
+    conciliar = client.get("/v1/reconciliation", headers=headers).json()["pending"]
+    columna = len(por_aprobar) + len(conciliar) + sum(1 for p in promesas if p["vencida"])
+    assert columna == cartera["espera_tu_ok"]
+
+
 def test_reminders_y_promises_traen_customer_id(client, db_session, tenant):
     """Centro de mando usa customer_id para el panel de contexto (api.customerDetail)."""
     from datetime import date

@@ -449,6 +449,22 @@ Cierra aiuda por completo y vuelve a abrirlo: entrarás directo.</p>
 </main></body></html>"""
 
 
+class ErrorConCodigo(HTTPException):
+    """Un error que la consola necesita RECONOCER, no solo mostrar: además del
+    mensaje para el dueño (``detail``, en español y sin texto de excepción) lleva un
+    ``code`` estable. Con él la pantalla sabe, por ejemplo, que lo que falta es
+    conectar la IA y pone la liga a Tu IA en vez de pintar el mensaje y ya."""
+
+    def __init__(self, status_code: int, detail: str, code: str):
+        super().__init__(status_code=status_code, detail=detail)
+        self.code = code
+
+
+@app.exception_handler(ErrorConCodigo)
+async def error_con_codigo(request: Request, exc: ErrorConCodigo):
+    return JSONResponse({"detail": exc.detail, "code": exc.code}, status_code=exc.status_code)
+
+
 @app.exception_handler(Exception)
 async def unhandled_error(request: Request, exc: Exception):
     """Errores no controlados: se registran completos en el servidor, pero al
@@ -865,6 +881,50 @@ def learning_summary_endpoint(
     return learning_summary(db, tenant, agent=agent, ayudante_id=ayudante_id)
 
 
+# ---------- "Espera tu OK": UN número, definido aquí ----------
+#
+# Lo que hoy necesita la decisión del dueño. Es la suma de tres cosas y nada más:
+#
+#   1. recordatorios y mensajes redactados que esperan su aprobación
+#      (Reminder.status == "pending_approval");
+#   2. pagos detectados que esperan que confirme a qué factura van
+#      (Payment.status == "pendiente", la bandeja de conciliación);
+#   3. promesas de pago VENCIDAS: la fecha prometida ya pasó, no se cumplió y la
+#      factura sigue abierta. Una promesa que todavía no vence no le pide nada al
+#      dueño: está en curso. Una de una factura ya cerrada, tampoco.
+#
+# El globo del menú y la columna "Espera tu OK" del Centro de mando salen de aquí:
+# el globo usa `espera_tu_ok` de /v1/cartera y la columna arma su lista con las
+# mismas tres fuentes, tomando de /v1/promises solo las que traen `vencida`. Si la
+# definición cambia, cambia en estas dos funciones y en ningún otro lado.
+
+
+def _promesa_vencida(promesa: PaymentPromise, factura: Invoice, today) -> bool:
+    return (
+        not promesa.fulfilled and factura.status == "open" and promesa.promised_date < today
+    )
+
+
+def _espera_tu_ok(db, tenant: Tenant, today) -> int:
+    por_aprobar = db.scalar(
+        select(func.count())
+        .select_from(Reminder)
+        .where(Reminder.tenant_id == tenant.id, Reminder.status == "pending_approval")
+    )
+    pagos = db.scalar(
+        select(func.count())
+        .select_from(Payment)
+        .where(Payment.tenant_id == tenant.id, Payment.status == "pendiente")
+    )
+    promesas = db.execute(
+        select(PaymentPromise, Invoice)
+        .join(Invoice, PaymentPromise.invoice_id == Invoice.id)
+        .where(PaymentPromise.tenant_id == tenant.id, PaymentPromise.fulfilled.is_(False))
+    ).all()
+    vencidas = sum(1 for p, inv in promesas if _promesa_vencida(p, inv, today))
+    return int(por_aprobar or 0) + int(pagos or 0) + vencidas
+
+
 @app.get("/v1/cartera")
 def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     """Resumen para el dashboard: aging + métrica estrella ($ recuperado del mes)."""
@@ -919,6 +979,8 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         "open_total": sum(float(i.amount) for i in open_invoices),
         "open_count": len(open_invoices),
         "pending_approvals": len(pending_count),
+        # El número del globo del menú y de la columna "Espera tu OK" (ver arriba).
+        "espera_tu_ok": _espera_tu_ok(db, tenant, today),
         "active_promises": len(promises),
         "payment_reports": reported,
         "by_source": by_source,
@@ -1492,6 +1554,20 @@ def register_payment(
     return {"id": invoice.id, "status": invoice.status, "paid_source": invoice.paid_source}
 
 
+def _exigir_ia_para_redactar(db, tenant: Tenant) -> None:
+    """Redactar lo hace la IA del dueño. Si falló y no hay IA conectada, eso es lo que
+    hay que decirle (mismo criterio que ``_exigir_ia_para_importar``), con un código
+    para que la consola ponga la liga a Tu IA."""
+    from aiuda_core.engine.provider import resolve_credential
+
+    if resolve_credential(session=db, tenant_id=tenant.id) is None:
+        raise ErrorConCodigo(
+            409,
+            "Conecta tu IA en Tu IA para que tu ayudante pueda redactar el recordatorio.",
+            code="ia_no_conectada",
+        )
+
+
 @app.post("/v1/invoices/{invoice_id}/remind")
 def draft_reminder_now(
     invoice_id: str,
@@ -1533,8 +1609,17 @@ def draft_reminder_now(
         reminder = engine.draft_reminder(invoice, customer, today)
     except BudgetExceeded as exc:
         raise HTTPException(status_code=402, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"No pude redactar: {exc}")
+    except Exception:
+        # Al dueño nunca le llega el texto de la excepción (venía en inglés, del SDK
+        # del proveedor): el detalle se queda en el log y él recibe qué hacer.
+        _exigir_ia_para_redactar(db, tenant)
+        log.exception("recordar: no se pudo redactar para la factura %s", invoice.id)
+        raise ErrorConCodigo(
+            502,
+            "No se pudo redactar el recordatorio. Inténtalo de nuevo; si sigue "
+            "fallando, revisa tu conexión en Tu IA.",
+            code="ia_fallo",
+        )
     # Si el auto-envío del tenant lo dejó ya aprobado, hay que encolar el envío: si no,
     # la corrida diaria lo ve "activo" y lo salta, y queda approved para siempre sin salir.
     if reminder.status == "approved":
@@ -1592,6 +1677,10 @@ def list_promises(
             "note": p.note,
             "days_left": (p.promised_date - today).days,
             "fulfilled_at": p.fulfilled_at.isoformat() if p.fulfilled_at else None,
+            # Cuenta en "Espera tu OK" (misma regla que el globo del menú).
+            "vencida": _promesa_vencida(p, inv, today),
+            # Una promesa de una factura ya cerrada no le pide nada al dueño.
+            "factura_abierta": inv.status == "open",
         }
         for p, inv, cust in db.execute(query).all()
     ]
@@ -2449,6 +2538,8 @@ def invoice_detail(
 ):
     """Detalle de una factura: sus datos, presencia multi-sistema y la
     actividad del equipo (recordatorios redactados, promesas registradas)."""
+    from aiuda_core.engine.writeback import payment_writeback_preview
+
     today = datetime.now(MX_TZ).date()
     row = db.execute(
         select(Invoice, Customer)
@@ -2490,6 +2581,12 @@ def invoice_detail(
         "verified": inv.verified,
         "payment_reported": inv.payment_reported,
         "paid_source": inv.paid_source,
+        # A dónde se escribirá el pago si el dueño lo registra ({fuente, conectada}),
+        # o None si no regresa a ningún sistema. La confirmación de pago lo enseña
+        # ANTES del clic: registrar un pago de Odoo también escribe en Odoo.
+        "pago_regresa_a": payment_writeback_preview(db, tenant.id, inv)
+        if inv.status == "open"
+        else None,
         # Por qué se cerró sin pago (ej. "cancelada en el SAT"); None si no aplica.
         "motivo_cierre": (inv.meta or {}).get("cerrada_por"),
         # Comprobante fiscal: datos parseados + si hay archivos para ver/descargar.

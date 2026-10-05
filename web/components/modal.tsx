@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { lockScroll } from "@/lib/scroll-lock";
 
 // Pop-up centrado para un momento FOCALIZADO: confirmar una acción, un alta corta. Es el
 // complemento del Drawer lateral (que es para HOJEAR/editar un detalle): el Modal bloquea
@@ -65,24 +67,27 @@ export function Modal({
     };
 
     window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
+    const soltarScroll = lockScroll();
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      soltarScroll();
       opener?.focus?.();
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
   const max = size === "lg" ? "max-w-lg" : size === "sm" ? "max-w-sm" : "max-w-md";
 
-  return (
+  // Portal a <body>, igual que el Drawer: fuera del ancestro con `transform`, el velo
+  // cubre toda la ventana, menú lateral y barra de arriba incluidos.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      data-capa-modal
     >
       <div className="modal-scrim absolute inset-0 bg-ink/30" onClick={onClose} />
       <div
@@ -117,6 +122,7 @@ export function Modal({
         .modal-scrim { animation: modalScrimIn .16s ease-out both; }
         @media (prefers-reduced-motion: reduce) { .modal-in, .modal-scrim { animation: none; } }
       `}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }
