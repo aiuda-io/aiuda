@@ -32,6 +32,7 @@ from aiuda_core.connectors.channel import (
 from aiuda_core.db import session_scope
 from aiuda_core.engine.engine import CleoEngine, OutsideSendWindow, ShadowHold
 from aiuda_core.engine.llm import BudgetExceeded
+from aiuda_core.engine.provider import resolve_credential
 from aiuda_core.optout import OPT_OUT_CONFIRMATION, OptedOut, is_opt_out, mark_opt_out
 from aiuda_core.identity import telefonos_atendidos
 from aiuda_core.phones import match_key
@@ -218,6 +219,12 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
                     body=OPT_OUT_CONFIRMATION,
                 )
             )
+            return
+
+        # Sin IA conectada no hay respuesta automática: el mensaje ya quedó en la
+        # bandeja para atenderlo a mano. (Los comandos del dueño y la baja de arriba
+        # no usan IA y sí corren.)
+        if resolve_credential(session=session, tenant_id=tenant.id) is None:
             return
 
         # Historial reciente del hilo: sin él, el agente contestaría cada

@@ -339,6 +339,55 @@ def test_un_alto_de_quien_no_es_cliente_no_es_baja_ni_recibe_respuesta(db_sessio
     assert db_session.scalars(select(Message).where(Message.direction == "out")).all() == []
 
 
+def _entrante_de_cliente(db_session, texto="hola, ¿cuánto debo?"):
+    t = _tenant(db_session, "Negocio", "inst-a")
+    _cliente(db_session, t, "5587654321")
+    conv = Conversation(tenant_id=t.id, remote_phone="5215587654321")
+    db_session.add(conv)
+    db_session.flush()
+    msg = Message(tenant_id=t.id, conversation_id=conv.id, direction="in", body=texto)
+    db_session.add(msg)
+    db_session.flush()
+    return t, msg
+
+
+def test_sin_ia_conectada_el_entrante_se_queda_en_la_bandeja_sin_tronar(
+    db_session, monkeypatch, caplog
+):
+    """Visto con una cuenta real: sin IA, cada mensaje entrante dejaba en el log un
+    traceback del cliente de Anthropic (TypeError por falta de llave)."""
+    t, msg = _entrante_de_cliente(db_session)
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(settings, "anthropic_api_key", "")
+    enviados: list = []
+    monkeypatch.setattr(wacli_mod.subprocess, "run", lambda cmd, **kw: enviados.append(cmd))
+
+    with caplog.at_level("WARNING"):
+        worker_main.process_incoming_message_blocking(t.id, msg.id)
+
+    assert enviados == [] and caplog.records == []
+    guardados = db_session.scalars(select(Message).where(Message.tenant_id == t.id)).all()
+    assert [(m.direction, m.body) for m in guardados] == [("in", "hola, ¿cuánto debo?")]
+
+
+def test_con_ia_conectada_el_cliente_si_recibe_respuesta(db_session, monkeypatch):
+    from types import SimpleNamespace
+
+    t, msg = _entrante_de_cliente(db_session)
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(settings, "anthropic_api_key", "sk-de-prueba")
+    enviados: list = []
+    monkeypatch.setattr(
+        worker_main, "_build_engine",
+        lambda s, tenant, run=None: SimpleNamespace(
+            handle_incoming=lambda *a, **k: "Debes $1,200 de la factura F-1.",
+            send_whatsapp=lambda phone, texto: enviados.append((phone, texto)),
+        ),
+    )
+    worker_main.process_incoming_message_blocking(t.id, msg.id)
+    assert enviados == [("5215587654321", "Debes $1,200 de la factura F-1.")]
+
+
 def test_recordatorio_a_cliente_dado_de_baja_falla_con_motivo(db_session, monkeypatch):
     from datetime import date
 
