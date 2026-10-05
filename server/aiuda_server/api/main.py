@@ -192,6 +192,7 @@ from aiuda_server.api.deps import (  # noqa: E402  (re-export para tests)
     solo_el_dueno,
 )
 from aiuda_server.api.dispositivos import router as dispositivos_router  # noqa: E402
+from aiuda_server.api.documentos import router as documentos_router  # noqa: E402
 from aiuda_server.api.export import router as export_router  # noqa: E402
 from aiuda_server.api.integrations import router as integrations_router  # noqa: E402
 from aiuda_server.api.provider import router as provider_router  # noqa: E402
@@ -210,6 +211,7 @@ app.include_router(banco_router)
 app.include_router(cobro_router)
 app.include_router(cua_router)
 app.include_router(dispositivos_router)
+app.include_router(documentos_router)
 app.include_router(custom_router)
 app.include_router(export_router)
 app.include_router(integrations_router)

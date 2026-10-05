@@ -148,8 +148,11 @@ Pre-1.0, en desarrollo activo. Lo que hay hoy, sin adornos:
   pero **falta notarizarlo**, que es lo único que separa el `.dmg` de poder
   repartirse. aiuda se reparte solo para Mac.
 - **CUA (portales sin API):** verificado contra portales de prueba locales, con
-  una corrida real de punta a punta contra uno de ellos. No viaja en el binario
-  de la app.
+  una corrida real de punta a punta contra uno de ellos. Incluye dos rutinas sin
+  IA que bajan del SAT la opinión de cumplimiento y la constancia de situación
+  fiscal con la e.firma guardada: su guion se probó como prototipo contra el
+  portal real, y dentro de aiuda solo contra un portal de prueba local. No viaja
+  en el binario de la app.
 - **Teléfono:** la app de iPhone existe, en un repo aparte. Se empareja con un
   QR dentro de la red de la oficina y sirve para ver el negocio y aprobar. Todavía
   no está en la App Store: hoy se instala desde su código, con Xcode. Ver

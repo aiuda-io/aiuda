@@ -8,6 +8,9 @@ faltante: sin el extra instalado, sin una IA que sirva para esto o sin la URL de
 el recado queda `failed` con la razón exacta y nunca inventa datos. La
 URL del portal la aporta el tenant (`tenant.config["cua_portales"]`, por capacidad),
 porque la banca o el juzgado de cada negocio son suyos. Ver docs/CUA.md.
+
+Aparte están las rutinas DETERMINISTAS (`RUTINAS_DETERMINISTAS`): un guion fijo, sin IA,
+que corre por el mismo recado. No pasan por el CuaRunner ni piden credencial de IA.
 """
 
 from __future__ import annotations
@@ -16,8 +19,9 @@ import asyncio
 import base64
 import json
 import logging
+import threading
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -41,6 +45,29 @@ CUA_TEMPLATES: dict[str, str] = {
     "cfdi": "sat_cfdi_recibidos",
     "confirmacion_pago": "banca_movimientos",
     "expedientes": "tribunal_acuerdos",
+}
+
+# capacidad -> rutina DETERMINISTA: un guion fijo de Playwright, sin IA en el camino.
+# Corren con cualquier vía de IA conectada y sin ninguna. Las dos entran al SAT con la
+# e.firma que el dueño ya guardó para la Descarga Masiva (`sat_efirma:<RFC>`), así que
+# el recado lleva el RFC en `data["_rfc"]`. `documento` es el de
+# `cua/deterministas/sat_documentos.py` y el `tipo` con que se guarda el Documento.
+# `estrenada`: False mientras nadie la haya corrido contra el portal real del SAT POR
+# EL CAMINO DEL PRODUCTO (servidor, e.firma guardada, permiso, recado). Hoy solo se han
+# corrido así contra el portal de prueba local; la consola les pone "Sin estrenar".
+RUTINAS_DETERMINISTAS: dict[str, dict] = {
+    "sat_opinion_32d": {
+        "sistema": "SAT · Opinión de cumplimiento",
+        "nombre": "Opinión de cumplimiento (32-D)",
+        "documento": "opinion_32d",
+        "estrenada": False,
+    },
+    "sat_constancia": {
+        "sistema": "SAT · Constancia de situación fiscal",
+        "nombre": "Constancia de situación fiscal",
+        "documento": "constancia",
+        "estrenada": False,
+    },
 }
 
 # Llave en tenant.config con la URL del portal de cada capacidad (sin migración):
@@ -300,20 +327,30 @@ def _evidencia_b64(paths: list[str]) -> list[str]:
 
 
 def enqueue_cua_mission(
-    session: Session, tenant: Tenant, capacidad: str, instruccion: str | None = None
+    session: Session,
+    tenant: Tenant,
+    capacidad: str,
+    instruccion: str | None = None,
+    rfc: str | None = None,
 ) -> CuaMission:
     """Encola un trabajo (queued) y lo devuelve al instante, para que aparezca en el log
     antes de correr. `ejecutar_recado` lo corre después (en segundo plano). La instrucción
     del dueño (si la hay) se guarda en `data['_instruccion']`: sin migración, y desde ahí
-    se inyecta al objetivo del agente y se preserva para mostrarla en el log."""
-    portal = portal_efectivo(tenant, capacidad)
-    sistema = portal["sistema"] if portal else ""
+    se inyecta al objetivo del agente y se preserva para mostrarla en el log. Una rutina
+    determinista no lleva instrucción: lleva el RFC en `data['_rfc']`."""
+    if capacidad in RUTINAS_DETERMINISTAS:
+        sistema = RUTINAS_DETERMINISTAS[capacidad]["sistema"]
+        data = {"_rfc": (rfc or "").upper()}
+    else:
+        portal = portal_efectivo(tenant, capacidad)
+        sistema = portal["sistema"] if portal else ""
+        data = {"_instruccion": instruccion} if instruccion else {}
     recado = CuaMission(
         tenant_id=tenant.id,
         capacidad=capacidad,
         sistema=sistema,
         status="queued",
-        data={"_instruccion": instruccion} if instruccion else {},
+        data=data,
     )
     session.add(recado)
     session.flush()
@@ -333,6 +370,9 @@ def ejecutar_recado(
     `ia`: fábrica del runner de IA con tope y registro de uso (`tenant_runner` en la
     capa HTTP/worker). `runner`: un CuaRunner ya armado (tests y el guion sin IA)."""
     tenant = session.get(Tenant, recado.tenant_id)
+    if recado.capacidad in RUTINAS_DETERMINISTAS:
+        # Guion fijo: ni CuaRunner ni credencial de IA.
+        return _ejecutar_determinista(session, tenant, recado, now)
     mission = mission_para_recado(tenant, recado)
     if mission is None:
         # La capacidad no existe (portal a la medida borrado, o built-in inválida).
@@ -383,6 +423,197 @@ def ejecutar_recado(
         recado.steps = [s for s in result.steps_log if s][:40]
         recado.error = result.error or "La misión no extrajo datos."
         logger.info("CUA (%s) no ejecutó: %s", recado.capacidad, recado.error)
+    session.flush()
+    return recado
+
+
+# El permiso del dueño para que aiuda escriba la contraseña de su e.firma en el portal
+# del SAT. Se pide UNA vez por RFC, antes de la primera corrida, y se guarda con fecha y
+# con el texto exacto que aceptó: tenant.config[CONSENTIMIENTO_SAT_KEY][rfc]. Sin él,
+# ninguna rutina determinista del SAT corre (se revisa al despachar y otra vez al correr).
+CONSENTIMIENTO_SAT_KEY = "sat_rutinas_consentimiento"
+CONSENTIMIENTO_SAT_TEXTO = (
+    "Para bajar estos documentos aiuda entra al portal del SAT con la e.firma que ya "
+    "guardaste y escribe su contraseña por ti. La firma se hace en esta computadora; "
+    "la llave y la contraseña no se mandan a nadie. aiuda solo consulta y descarga: no "
+    "presenta, no firma ni acepta nada."
+)
+MSG_FALTA_CONSENTIMIENTO = (
+    "Falta tu permiso para que aiuda entre al portal del SAT con tu e.firma. "
+    "Dalo una vez en Rutinas, en el bloque de ese RFC."
+)
+
+
+def consentimiento_sat(tenant: Tenant, rfc: str) -> str | None:
+    """Cuándo aceptó el dueño (ISO) para ese RFC, o None si no ha aceptado."""
+    dado = ((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {}).get(rfc.upper())
+    return dado.get("aceptado_en") if isinstance(dado, dict) else None
+
+
+def aceptar_consentimiento_sat(session: Session, tenant: Tenant, rfc: str) -> str:
+    """Guarda el permiso del dueño para ese RFC. Una vez: si ya estaba, no se mueve."""
+    ya = consentimiento_sat(tenant, rfc)
+    if ya:
+        return ya
+    ahora = datetime.now(timezone.utc).isoformat()
+    dados = dict((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {})
+    dados[rfc.upper()] = {"aceptado_en": ahora, "texto": CONSENTIMIENTO_SAT_TEXTO}
+    tenant.config = {**(tenant.config or {}), CONSENTIMIENTO_SAT_KEY: dados}
+    flag_modified(tenant, "config")
+    session.add(tenant)
+    return ahora
+
+
+def olvidar_consentimiento_sat(session: Session, tenant: Tenant, rfc: str) -> None:
+    """Al borrar la e.firma: el permiso era para ESA e.firma guardada."""
+    dados = dict((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {})
+    if dados.pop(rfc.upper(), None) is not None:
+        tenant.config = {**(tenant.config or {}), CONSENTIMIENTO_SAT_KEY: dados}
+        flag_modified(tenant, "config")
+        session.add(tenant)
+
+
+def efirmas_guardadas(session: Session, tenant: Tenant) -> list[str]:
+    """Los RFC del negocio que tienen e.firma guardada (los que pueden correr las
+    rutinas deterministas del SAT)."""
+    from aiuda_core.engine.sync import sat_empresas
+
+    return [e["rfc"] for e in sat_empresas(session, tenant) if e.get("efirma")]
+
+
+# Revisar si una rutina del SAT ya corre y apartarla es UN solo paso: dos peticiones a la
+# vez (dos pestañas, la Mac y el teléfono) no deben entrar las dos al portal con la misma
+# e.firma. aiuda es un solo proceso, así que basta un candado de proceso.
+CANDADO_SAT = threading.Lock()
+# El guion, sumando todas sus esperas, no pasa de unos diez minutos. Una corrida que
+# lleva más que esto "en curso" se quedó colgada (se cerró aiuda a media corrida) y no
+# debe bloquear la siguiente.
+CORRIDA_COLGADA = timedelta(minutes=15)
+MSG_YA_CORRIENDO = "Esa rutina ya está corriendo para ese RFC. Espera a que termine."
+
+
+def corrida_viva(m: CuaMission | None) -> bool:
+    """En cola o corriendo, y no colgada. La edad se mide desde que empezó a correr."""
+    if m is None or m.status not in ("queued", "running"):
+        return False
+    desde = m.started_at or m.created_at
+    if desde.tzinfo is None:
+        desde = desde.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - desde < CORRIDA_COLGADA
+
+
+def corrida_sat_en_curso(
+    session: Session,
+    tenant: Tenant,
+    capacidad: str,
+    rfc: str,
+    *,
+    excepto: str | None = None,
+    estados: tuple[str, ...] = ("queued", "running"),
+) -> bool:
+    """¿Hay otra corrida viva de esa rutina para ese RFC? Llamar con `CANDADO_SAT`."""
+    filas = session.scalars(
+        select(CuaMission).where(
+            CuaMission.tenant_id == tenant.id,
+            CuaMission.capacidad == capacidad,
+            CuaMission.status.in_(estados),
+        )
+    ).all()
+    return any(
+        m.id != excepto
+        and str((m.data or {}).get("_rfc") or "").upper() == rfc.upper()
+        and corrida_viva(m)
+        for m in filas
+    )
+
+
+def _ejecutar_determinista(
+    session: Session, tenant: Tenant, recado: CuaMission, now: datetime | None
+) -> CuaMission:
+    """Corre una rutina determinista del SAT: abre la e.firma guardada EN MEMORIA, baja
+    el documento con el guion fijo y lo guarda como `Documento`. La contraseña vive solo
+    en esta función y en el guion; nunca llega al recado."""
+    from aiuda_core.connectors import credentials as cred
+    from aiuda_core.connectors.sat_descarga import SatCredencialInvalida, validar_efirma
+    from aiuda_core.cua.computer import estado_navegador
+    from aiuda_core.cua.deterministas import sat_documentos
+    from aiuda_core.engine.sync import SAT_EFIRMA_PREFIX
+    from aiuda_core.models import Documento
+
+    spec = RUTINAS_DETERMINISTAS[recado.capacidad]
+    rfc = str((recado.data or {}).get("_rfc") or "").upper()
+
+    def no_pudo(motivo: str) -> CuaMission:
+        recado.status = "failed"
+        recado.error = motivo
+        recado.finished_at = now or datetime.now(timezone.utc)
+        session.flush()
+        logger.info("Rutina %s no corrió: %s", recado.capacidad, motivo)
+        return recado
+
+    if not rfc or not consentimiento_sat(tenant, rfc):
+        return no_pudo(MSG_FALTA_CONSENTIMIENTO)
+    try:
+        datos = cred.get_credential(session, tenant.id, f"{SAT_EFIRMA_PREFIX}{rfc}") if rfc else None
+        cer = base64.b64decode(datos["cer"])
+        key = base64.b64decode(datos["key"])
+        password = datos["password"]
+    except Exception:
+        return no_pudo(
+            f"No hay una e.firma guardada que se pueda abrir para {rfc or 'ese RFC'}. "
+            "Cárgala en SAT · Bóveda fiscal."
+        )
+    # Antes de tocar el SAT: que la e.firma siga vigente y que haya navegador.
+    try:
+        validar_efirma(cer, key, password)
+    except (SatCredencialInvalida, RuntimeError) as exc:
+        return no_pudo(str(exc))
+    if not estado_navegador()[0]:
+        return no_pudo(sat_documentos.MSG_SIN_NAVEGADOR)
+
+    # Última revisión antes de abrir el navegador, en el mismo paso que marcarla como
+    # corriendo: nunca dos navegadores en el SAT con la misma e.firma y el mismo documento.
+    with CANDADO_SAT:
+        if corrida_sat_en_curso(
+            session, tenant, recado.capacidad, rfc, excepto=recado.id, estados=("running",)
+        ):
+            return no_pudo(MSG_YA_CORRIENDO)
+        recado.status = "running"
+        recado.started_at = now or datetime.now(timezone.utc)
+        # Se confirma ya: la corrida tarda cerca de un minuto y no debe tener la base
+        # tomada ni esconderle a la consola que está adentro del portal.
+        session.commit()
+
+    try:
+        resultado = sat_documentos.bajar_documento(cer, key, password, rfc, spec["documento"])
+    except Exception as exc:  # el guion no debe lanzar; si lo hace, el recado no se queda colgado
+        logger.warning("Rutina %s falló fuera del guion: %s", recado.capacidad, type(exc).__name__)
+        return no_pudo("La rutina se detuvo por un error interno y no bajó nada.")
+    recado.finished_at = now or datetime.now(timezone.utc)
+    recado.steps = resultado.pasos[:40]
+    recado.evidence = [
+        base64.b64encode(png).decode("ascii") for png in resultado.capturas[-_MAX_EVIDENCIA:]
+    ]
+    if not resultado.ok or not resultado.pdf:
+        return no_pudo(resultado.error or "El SAT no entregó el documento.")
+
+    meta = {k: v for k, v in resultado.meta.items() if v}
+    documento = Documento(
+        tenant_id=tenant.id,
+        rfc=rfc,
+        tipo=spec["documento"],
+        folio=meta.get("folio"),
+        sentido=meta.get("sentido"),
+        fecha=recado.finished_at,
+        pdf=resultado.pdf,
+        mission_id=recado.id,
+    )
+    session.add(documento)
+    session.flush()
+    recado.status = "done"
+    recado.data = {"_rfc": rfc, "documento_id": documento.id, "tipo": documento.tipo, **meta}
+    sentido = f": {documento.sentido}" if documento.sentido else ""
+    recado.resumen = f"{spec['nombre']} de {rfc}{sentido}. PDF guardado."
     session.flush()
     return recado
 

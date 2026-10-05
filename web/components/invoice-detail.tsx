@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, BUCKET_META, mxn, TONE_LABEL, type InvoiceDetail, type Cfdi } from "@/lib/api";
+import { api, apiUrl, BUCKET_META, mxn, TONE_LABEL, type InvoiceDetail, type Cfdi } from "@/lib/api";
 import { fecha, fechaDM } from "@/lib/format";
 import { toast } from "@/components/toast";
 import { SOURCE_LABEL, SOURCE_LOGO } from "@/components/ui";
@@ -246,7 +246,7 @@ export function InvoiceDetailContent({
             <div className="mt-3 flex gap-2">
               {data.has_xml && (
                 <a
-                  href={`/api/v1/invoices/${data.id}/cfdi.xml`}
+                  href={apiUrl(`/v1/invoices/${data.id}/cfdi.xml`)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
@@ -256,7 +256,7 @@ export function InvoiceDetailContent({
               )}
               {data.has_pdf && (
                 <a
-                  href={`/api/v1/invoices/${data.id}/cfdi.pdf`}
+                  href={apiUrl(`/v1/invoices/${data.id}/cfdi.pdf`)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-line-strong hover:text-ink"

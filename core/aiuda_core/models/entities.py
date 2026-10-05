@@ -475,3 +475,24 @@ class CuaMission(Base, TenantMixin, TimestampMixin):
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Documento(Base, TenantMixin, TimestampMixin):
+    """Un documento oficial del negocio bajado de un portal: hoy la Opinión de
+    cumplimiento (32-D) y la Constancia de situación fiscal del SAT. Cada bajada es
+    una fila nueva (el documento vale por su fecha); el PDF vive aquí, en la
+    computadora del dueño, y se liga a la corrida que lo trajo."""
+
+    __tablename__ = "documentos"
+    __table_args__ = (Index("ix_documentos_tenant_rfc_tipo", "tenant_id", "rfc", "tipo"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    rfc: Mapped[str] = mapped_column(String(13))
+    tipo: Mapped[str] = mapped_column(String(32))  # opinion_32d | constancia
+    folio: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Solo la opinión lo trae: Positivo, Negativo, etc., como lo dice el SAT.
+    sentido: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True))  # cuándo se bajó
+    pdf: Mapped[bytes] = mapped_column(LargeBinary)
+    # Referencia suave (sin FK, como el resto del esquema) a la corrida que lo trajo.
+    mission_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

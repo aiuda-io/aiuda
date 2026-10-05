@@ -1,8 +1,8 @@
 "use client";
 
 import { type FormEvent, useRef, useState } from "react";
-import { api, mxn, type SatImportResult } from "@/lib/api";
-import { fecha } from "@/lib/format";
+import { api, apiUrl, mxn, type SatImportResult } from "@/lib/api";
+import { fecha, fechaHora } from "@/lib/format";
 import {
   ErrorState,
   FilePicker,
@@ -32,6 +32,7 @@ function estadoSync(ultima: string | null, pendiente: boolean) {
 
 export default function SatPage() {
   const estadoApi = useApi(api.satEstado);
+  const documentosApi = useApi(api.cuaDeterministas);
   const [rfcFiltro, setRfcFiltro] = useState("");
   const [direccion, setDireccion] = useState("");
   const bovedaApi = useApi(
@@ -45,7 +46,7 @@ export default function SatPage() {
   const { confirm, dialog } = useConfirm();
 
   async function refrescar() {
-    await Promise.all([estadoApi.refetch(), bovedaApi.refetch()]);
+    await Promise.all([estadoApi.refetch(), bovedaApi.refetch(), documentosApi.refetch()]);
   }
 
   async function guardarEmpresa(event: FormEvent<HTMLFormElement>) {
@@ -295,6 +296,70 @@ export default function SatPage() {
             </form>
           )}
         </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Documentos"
+        desc="Lo último que aiuda bajó del portal del SAT con tu e.firma: opinión de cumplimiento y constancia de situación fiscal."
+      >
+        {documentosApi.error && (
+          <ErrorState message={documentosApi.error} retry={documentosApi.refetch} />
+        )}
+        {documentosApi.loading && !documentosApi.data && <Skeleton className="h-20 rounded-lg" />}
+        {documentosApi.data &&
+          (documentosApi.data.empresas.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-line-strong bg-surface px-4 py-3.5 text-apoyo leading-relaxed text-ink-3">
+              Cuando conectes una e.firma aquí abajo, aiuda podrá bajar estos dos documentos
+              por ti desde Rutinas.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {documentosApi.data.empresas.map((empresa) => (
+                <article
+                  key={empresa.rfc}
+                  className="rounded-lg border border-line bg-surface px-4 py-3"
+                >
+                  <p className="text-cuerpo font-semibold text-ink">{empresa.rfc}</p>
+                  <ul className="mt-2 divide-y divide-line/70">
+                    {empresa.rutinas.map((rutina) => {
+                      const doc = rutina.ultimo_documento;
+                      return (
+                        <li
+                          key={rutina.capacidad}
+                          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-apoyo"
+                        >
+                          <span className="font-medium text-ink">{rutina.nombre}</span>
+                          {doc ? (
+                            <span className="flex flex-wrap items-center gap-x-3 text-ink-3">
+                              {doc.sentido && <span className="text-ink-2">{doc.sentido}</span>}
+                              <span className="tabular-nums">{fechaHora(doc.fecha)}</span>
+                              <a
+                                href={apiUrl(`/v1/documentos/${doc.id}.pdf`)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-accent-ink hover:underline"
+                              >
+                                Ver PDF
+                              </a>
+                            </span>
+                          ) : (
+                            <span className="text-ink-3">Aún no lo has bajado</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </article>
+              ))}
+              <p className="text-apoyo text-ink-3">
+                Para bajarlos o actualizarlos ve a{" "}
+                <a href="/rutinas" className="font-medium text-accent-ink hover:underline">
+                  Rutinas
+                </a>
+                .
+              </p>
+            </div>
+          ))}
       </SettingsSection>
 
       <SettingsSection

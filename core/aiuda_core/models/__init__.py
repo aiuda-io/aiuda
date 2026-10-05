@@ -7,6 +7,7 @@ from aiuda_core.models.entities import (
     CfdiBoveda,
     Conversation,
     CuaMission,
+    Documento,
     OptOut,
     OutboxEntry,
     Customer,
@@ -55,6 +56,8 @@ __all__ = [
     "AgentFeedback",
     "Ayudante",
     "CuaMission",
+    # Documentos oficiales bajados de un portal (opinión 32-D, constancia)
+    "Documento",
     # La bóveda fiscal: cada CFDI del SAT, una vez (dedupe por UUID)
     "CfdiBoveda",
     # Paquetes del SAT bajados y aún sin importar (para no gastar descargas)
