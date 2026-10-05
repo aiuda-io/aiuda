@@ -1031,6 +1031,15 @@ def _sat_aplicar_egreso(session: Session, tenant: Tenant, d: dict, res: dict) ->
         return  # una nota resta una vez, contra la primera factura resoluble
 
 
+def _sat_poner_comprobante(inv: Invoice, d: dict, xml_texto: str) -> None:
+    """Cambia el comprobante de una factura por el que hoy está vigente (el
+    anterior se canceló y se volvió a timbrar con el mismo folio)."""
+    inv.cfdi = _sat_cfdi_dict(d, "sat")
+    inv.cfdi_xml = xml_texto
+    if d.get("total") is not None:
+        inv.amount = Decimal(str(d["total"]))
+
+
 def _sat_crear_cartera(
     session: Session, tenant: Tenant, d: dict, xml_texto: str, today: date, res: dict,
     crear: bool = True,
@@ -1045,6 +1054,32 @@ def _sat_crear_cartera(
         select(Invoice).where(Invoice.tenant_id == tenant.id, Invoice.folio == folio)
     )
     if exists is not None:
+        previo = exists.cfdi or {}
+        if (
+            previo.get("status") == "cancelado"
+            and (previo.get("uuid") or "").upper() != (d.get("uuid") or "").upper()
+        ):
+            # El comprobante que tenía esa factura se canceló y este es otro, con
+            # el mismo folio: la factura se volvió a timbrar. El vigente manda.
+            _sat_poner_comprobante(exists, d, xml_texto)
+            if (
+                exists.status == "cancelled"
+                and (exists.meta or {}).get("cerrada_por") == CANCELADA_EN_SAT
+                and d.get("metodo_pago") == "PPD"
+            ):
+                emitida = _sat_fecha(d) or today
+                plazo = sat_plazo_dias(tenant, (d.get("emisor") or {}).get("rfc") or "")
+                exists.status = "open"
+                exists.issued_date = emitida
+                exists.due_date = emitida + timedelta(days=plazo)
+                exists.meta = {
+                    k: v for k, v in (exists.meta or {}).items()
+                    if k not in ("cerrada_por", "cancelada_sat_el")
+                }
+                res["avisos"].append(
+                    f"La factura {folio} se canceló y se volvió a emitir: regresó a "
+                    "tu cartera con el comprobante nuevo."
+                )
         if not exists.cfdi:
             exists.cfdi = _sat_cfdi_dict(d, "sat")
         if not exists.cfdi_xml:
@@ -1157,6 +1192,26 @@ def _sat_cerrar_cancelada(
         # Ya estaba pagada o cerrada: solo queda anotado en el comprobante.
         if (inv.cfdi or {}).get("status") != "cancelado":
             inv.cfdi = {**inv.cfdi, "status": "cancelado", "cancelado_el": cuando}
+        return 0, 0
+    # ¿Se volvió a timbrar con el mismo folio? Entonces hay otro ingreso a
+    # crédito, vigente, ligado a esta misma factura: se cobra ese.
+    otros = session.scalars(
+        select(CfdiBoveda).where(
+            CfdiBoveda.tenant_id == tenant.id,
+            CfdiBoveda.invoice_id == inv.id,
+            CfdiBoveda.uuid != row.uuid,
+            CfdiBoveda.tipo == "I",
+            CfdiBoveda.metodo_pago == "PPD",
+            CfdiBoveda.direccion == "emitida",
+        ).order_by(CfdiBoveda.fecha.desc())
+    ).all()
+    vigente = next((o for o in otros if not (o.meta or {}).get("cancelado")), None)
+    if vigente is not None:
+        _sat_poner_comprobante(inv, parse_cfdi(vigente.xml), vigente.xml)
+        avisos.append(
+            f"La factura {inv.folio} se canceló y se volvió a emitir: aiuda la "
+            "sigue cobrando con el comprobante nuevo."
+        )
         return 0, 0
     inv.cfdi = {**inv.cfdi, "status": "cancelado", "cancelado_el": cuando}
     inv.status = "cancelled"

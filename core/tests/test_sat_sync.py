@@ -728,6 +728,49 @@ def test_la_factura_ligada_despues_tambien_se_cierra(session, tenant):
     assert inv.status == "cancelled" and inv.meta["cerrada_por"] == "cancelada en el SAT"
 
 
+VIEJO = "CCCC0030-0000-4000-8000-000000000030"
+NUEVO = "DDDD0030-0000-4000-8000-000000000030"  # mismo folio S-0030, otro timbre
+
+
+def test_refacturada_con_el_mismo_folio_se_sigue_cobrando(session, tenant):
+    """Se cancela una factura y se vuelve a timbrar con el mismo folio. El
+    comprobante nuevo llega antes que la lista de cancelados: la factura NO debe
+    salir de la cartera, porque el vigente sí se cobra."""
+    from aiuda_core.engine.sync import importar_cfdis
+
+    inv = _con_factura_abierta(session, tenant, VIEJO)
+    importar_cfdis(session, tenant, [cfdi_basico(uuid=NUEVO, emisor=HANOVA)], today=HOY)
+    res = _cancelar(session, tenant, VIEJO)
+    assert res["facturas_cerradas"] == 0
+    assert any("S-0030" in a and "comprobante nuevo" in a for a in res["avisos"])
+    assert inv.status == "open" and inv.cfdi["uuid"] == NUEVO
+    assert NUEVO in inv.cfdi_xml
+    assert len(session.scalars(select(Invoice)).all()) == 1
+    # al día siguiente el SAT repite la lista: nada cambia
+    assert _cancelar(session, tenant, VIEJO)["avisos"] == []
+    assert inv.status == "open"
+
+
+def test_refacturada_despues_de_cancelar_regresa_a_la_cartera(session, tenant):
+    """El otro orden: primero se aplica la cancelación (la factura sale de la
+    cartera) y después llega el comprobante nuevo con el mismo folio."""
+    from aiuda_core.engine.sync import importar_cfdis
+
+    inv = _con_factura_abierta(session, tenant, VIEJO)
+    assert _cancelar(session, tenant, VIEJO)["facturas_cerradas"] == 1
+    assert inv.status == "cancelled"
+    res = importar_cfdis(
+        session, tenant, [cfdi_basico(uuid=NUEVO, emisor=HANOVA)], today=HOY
+    )
+    assert inv.status == "open" and inv.cfdi["uuid"] == NUEVO
+    assert inv.cfdi["status"] == "vigente"
+    assert "cerrada_por" not in inv.meta and "cancelada_sat_el" not in inv.meta
+    assert any("S-0030" in a and "regresó a tu cartera" in a for a in res["avisos"])
+    assert len(session.scalars(select(Invoice)).all()) == 1
+    _cancelar(session, tenant, VIEJO)  # la lista de mañana no la vuelve a cerrar
+    assert inv.status == "open"
+
+
 def test_cancelado_de_una_factura_de_otra_fuente_se_avisa(session, tenant):
     """La factura vino de Odoo y su comprobante no trae UUID: no se puede probar
     que sea el cancelado, así que no se cierra sola. Pero antes tampoco se decía
