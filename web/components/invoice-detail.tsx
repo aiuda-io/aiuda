@@ -71,6 +71,16 @@ function EstadoGrande({ data }: { data: InvoiceDetail }) {
   );
 }
 
+/** Quién dio la factura por pagada. Solo se dice de una factura PAGADA: `verified`
+ *  habla de la factura (existe en su sistema), no del pago, y con él toda factura
+ *  abierta de Odoo o del SAT decía "Confirmado con tu banco" sin haberse cobrado. */
+function comoSePago(origen: string | null): string {
+  if (!origen || origen === "manual") return "Confirmado por ti";
+  if (origen === "banco" || origen === "belvo") return "Confirmado con tu banco";
+  if (origen === "sat") return "Confirmado en el SAT";
+  return `Confirmado en ${SOURCE_LABEL[origen] ?? origen}`;
+}
+
 export function InvoiceDetailContent({
   data,
   onChanged,
@@ -202,7 +212,7 @@ export function InvoiceDetailContent({
       </Campo>
       <Campo label="Emitida">{fecha(data.issued_date)}</Campo>
       <Campo label="Vence">{fecha(data.due_date)}</Campo>
-      {data.verified === "verificada" && <Campo label="Pago">Confirmado con tu banco</Campo>}
+      {data.status === "paid" && <Campo label="Pago">{comoSePago(data.paid_source)}</Campo>}
     </dl>
   );
 
