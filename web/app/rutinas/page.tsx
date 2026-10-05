@@ -83,12 +83,12 @@ export default function PortalesPage() {
       {error ? (
         <ErrorState message={error} retry={cargar} />
       ) : !cargado || !sat ? (
-        <div className="max-w-3xl space-y-4">
+        <div className="space-y-4">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
       ) : (
-        <div className="reveal max-w-3xl space-y-12">
+        <div className="reveal space-y-12">
           {!disponible && (
             <div className="rounded-xl bg-panel px-5 py-4">
               <p className="text-seccion font-semibold text-ink">No disponible en esta instalación</p>

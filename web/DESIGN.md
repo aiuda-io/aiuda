@@ -189,7 +189,9 @@ color va solo en la marca de 6px, nunca de fondo.
   manual. 64px, sin raya.
 - **Ancho del contenido**: uno solo, `ANCHO_CONTENIDO` en `components/shell.tsx`. 1120px
   útiles más margen (20 en teléfono, 32 en tableta, 40 en escritorio), centrado. Ninguna
-  página define su propio ancho máximo de página.
+  página define su propio ancho máximo de página, Ajustes incluido. Lo que sí se acota es
+  el texto corrido y los formularios: la columna de controles de `SettingsSection` se
+  queda en medida de lectura, salvo que lleve una lista o una tabla (`ancho`).
 - **Modo de prueba** (`components/shadow-banner.tsx`): una franja ámbar de lado a lado,
   fija arriba, "Modo de prueba: nada sale a tus clientes", con "Apagar".
 - **Destinos y nombres**: `lib/sections.ts` es la fuente única. De ahí salen el menú, el

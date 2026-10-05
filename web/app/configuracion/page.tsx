@@ -39,7 +39,7 @@ function Ajustes() {
   const abrir = seccion === "conexiones" ? params.get("abrir") : null;
 
   return (
-    <div className="max-w-5xl">
+    <div className="min-w-0">
       <PageHeader title="Ajustes" />
 
       <Tabs

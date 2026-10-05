@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { EmptyState, ErrorState, PageHeader, PrimaryButton, SecondaryButton, Skeleton, TextInput } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, PrimaryButton, QuietButton, Skeleton, TextInput } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
 import { Drawer } from "@/components/drawer";
 import { toast } from "@/components/toast";
@@ -142,9 +142,9 @@ function Nuevo({
           <PrimaryButton type="submit" disabled={!nombre.trim() || creando}>
             {creando ? "Creando…" : "Crear ayudante"}
           </PrimaryButton>
-          <SecondaryButton type="button" onClick={onClose}>
+          <QuietButton type="button" onClick={onClose}>
             Cancelar
-          </SecondaryButton>
+          </QuietButton>
         </div>
       </form>
     </Drawer>
@@ -169,7 +169,7 @@ export default function AyudantesPage() {
       {error ? (
         <ErrorState message={error} retry={retry} />
       ) : loading ? (
-        <div className="max-w-3xl space-y-2">
+        <div className="space-y-2">
           <Skeleton className="h-[76px] w-full" />
           <Skeleton className="h-[76px] w-full" />
         </div>
@@ -182,7 +182,7 @@ export default function AyudantesPage() {
           qué hacer.
         </EmptyState>
       ) : (
-        <ul className="max-w-3xl">
+        <ul>
           {ayudantes.map((a) => (
             <Renglon key={a.id} a={a} catalog={catalog} />
           ))}
@@ -192,12 +192,12 @@ export default function AyudantesPage() {
       {/* Portales salió del menú y entra desde aquí: es trabajo que aiuda hace por el
           dueño en un sitio web, igual que el de un ayudante. */}
       {!error && !loading && (
-        <section className="mt-14 max-w-3xl">
+        <section className="mt-14">
           <h2 className="eyebrow">También trabaja por ti</h2>
           <Link href="/rutinas" className="-mx-3 mt-1 flex items-center gap-4 rounded-lg px-3 py-4 hover:bg-panel">
             <div className="min-w-0 flex-1">
               <p className="text-seccion font-semibold text-ink">Portales</p>
-              <p className="text-cuerpo text-ink-2">
+              <p className="max-w-xl text-cuerpo text-ink-2">
                 aiuda entra al portal del SAT y te baja tu opinión de cumplimiento y tu constancia de
                 situación fiscal.
               </p>

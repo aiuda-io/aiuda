@@ -344,7 +344,7 @@ export function AjustesConexiones({
   if (error) return <ErrorState message={error} retry={refetch} />;
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <p className="mb-8 max-w-2xl text-cuerpo leading-relaxed text-ink-2">
         De dónde lee aiuda y por dónde escribe. Tus sistemas siguen mandando: aiuda trabaja encima
         de ellos.
@@ -432,7 +432,7 @@ export function AjustesConexiones({
               aquí. aiuda lo lee cada hora, igual que a los demás.
             </p>
           </div>
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <div className="barra shrink-0">
             <SecondaryButton onClick={() => setCrear(true)}>Crear una conexión</SecondaryButton>
             <QuietButton
               type="button"

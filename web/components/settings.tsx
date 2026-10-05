@@ -10,10 +10,15 @@ import { inputCls } from "@/components/ui";
 export function SettingsSection({
   title,
   desc,
+  ancho,
   children,
 }: {
   title: string;
   desc?: ReactNode;
+  /** El contenido es una lista o una tabla y usa todo el ancho de la columna. Sin
+   *  esto la columna se queda en medida de lectura, que es lo que piden un
+   *  formulario y un texto corrido. */
+  ancho?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -22,7 +27,7 @@ export function SettingsSection({
         <h2 className="text-seccion font-semibold text-ink">{title}</h2>
         {desc && <div className="mt-1.5 text-cuerpo text-ink-2">{desc}</div>}
       </div>
-      <div className="min-w-0 max-w-2xl">{children}</div>
+      <div className={`min-w-0 ${ancho ? "" : "max-w-2xl"}`}>{children}</div>
     </section>
   );
 }
@@ -46,9 +51,11 @@ export function SettingsField({
   );
 }
 
-/** Contenedor de una página de ajustes: ancho cómodo, centrado, con aire. */
+/** Contenedor de una página de ajustes. No define ancho: hereda el de la consola
+ *  (`ANCHO_CONTENIDO` en components/shell.tsx), como cualquier otra pantalla. Lo
+ *  que se acota es el texto corrido y los campos, en `SettingsSection`. */
 export function SettingsPage({ children }: { children: ReactNode }) {
-  return <div className="max-w-5xl">{children}</div>;
+  return <div className="min-w-0">{children}</div>;
 }
 
 /** El input canónico ahora vive en components/ui (`inputCls` / `<TextInput>`). Este

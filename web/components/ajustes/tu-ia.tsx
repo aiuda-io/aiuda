@@ -14,9 +14,7 @@ export function AjustesIA() {
         corres gratis en esta computadora: aiuda no cobra por el uso ni revende nada.
       </p>
 
-      <div className="max-w-3xl">
-        <ConectarIA />
-      </div>
+      <ConectarIA />
 
       <div className="mt-12">
         <SettingsSection title="Qué se paga y a quién" desc="Para que no haya sorpresas.">
