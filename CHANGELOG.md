@@ -34,7 +34,10 @@ código hoy.
   aiuda se registra con su propio nombre. Sin estrenar: probada contra un
   servidor de pruebas, todavía no con una cuenta real.
 - Sello "Sin estrenar" en cada integración que nadie ha usado todavía con una
-  cuenta real. Hoy están estrenadas Odoo, Excel/CSV y WhatsApp con tu número.
+  cuenta real. Hoy están estrenadas Odoo, Excel/CSV, WhatsApp con tu número y el SAT con
+  e.firma.
+- SAT: aiuda revisa una vez al día qué facturas tuyas se cancelaron en el SAT,
+  las saca de la cartera y retira sus recordatorios pendientes.
 - Aviso en el Centro de mando cuando la IA se pausa por el tope de gasto del mes.
 - App de iPhone (repo aparte): se empareja por QR en la red de la oficina. Aún no
   está en la App Store.
@@ -67,5 +70,6 @@ código hoy.
 
 ### Pendiente antes de 0.1.0
 
-- Verificar autenticación y descarga completa contra el SAT vivo.
+- SAT: probar en vivo complementos de pago y notas de crédito emitidos, y un
+  periodo de más de un paquete.
 - Firmar con Developer ID y notarizar el instalador de macOS.

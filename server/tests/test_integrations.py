@@ -376,12 +376,15 @@ def test_cada_integracion_declara_si_ya_se_estreno():
     from aiuda_server.api.integrations import CATALOG
 
     assert all(isinstance(i.get("estrenada"), bool) for i in CATALOG)
-    assert {i["key"] for i in CATALOG if i["estrenada"]} == {"whatsapp", "excel", "odoo"}
+    assert {i["key"] for i in CATALOG if i["estrenada"]} == {"whatsapp", "excel", "odoo", "sat"}
     assert {i["key"] for i in CATALOG if i.get("oculta")} == OCULTAS
     visibles = [i for i in CATALOG if not i.get("oculta")]
     assert len(CATALOG) == 19
     assert len(visibles) == 15
-    assert sum(1 for i in visibles if not i["estrenada"]) == 12
+    assert sum(1 for i in visibles if not i["estrenada"]) == 11
+    # El SAT se estrenó con una e.firma real (docs/SAT.md dice qué se probó y qué no).
+    sat = next(i for i in CATALOG if i["key"] == "sat")
+    assert "falta verificarla" not in sat["does"]
     # El aviso ya no vive suelto en la descripción: lo lleva el campo.
     assert not any("PENDIENTE" in i["does"] for i in CATALOG)
 

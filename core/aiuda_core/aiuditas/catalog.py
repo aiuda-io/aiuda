@@ -371,7 +371,7 @@ AIUDITAS: tuple[Aiudita, ...] = (
             "Lee los depósitos detectados y a qué factura corresponden según la propuesta, antes de dar un pago por aplicado.",
             lectura=True, capacidad="confirmacion_pago", live=True),
     Aiudita("conciliacion.descargar_cfdi", "conciliacion", "descargar_cfdi", "Descargar CFDI",
-            "Baja los CFDI del SAT con e.firma o CIEC, solo lectura.", lectura=True, capacidad="cfdi"),
+            "Baja los CFDI del SAT con tu e.firma, solo lectura.", lectura=True, capacidad="cfdi"),
     Aiudita("conciliacion.conciliar", "conciliacion", "conciliar", "Conciliar",
             "Cruza facturas contra depósitos y te propone las coincidencias; tú confirmas cada match.", lectura=False, live=True),
     Aiudita("conciliacion.detectar_irregulares", "conciliacion", "detectar_irregulares", "Detectar irregulares",
