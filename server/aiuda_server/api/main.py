@@ -663,6 +663,13 @@ def list_reminders(
             "retirado": (r.meta or {}).get("retirado"),
             # Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…").
             "pendiente": (r.meta or {}).get("pendiente_canal"),
+            # Cuenta en "Por aprobar" (misma regla que el número del menú): espera
+            # aprobación y su factura, si tiene, sigue abierta.
+            "pide_decision": _recordatorio_pide_decision(r, inv),
+            # None = no va ligado a una factura (cotización, respuesta de correo).
+            "factura_abierta": (inv.status == "open") if inv else None,
+            # Cuándo cambió de estado por última vez (rechazado, fallido, aprobado).
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
         }
         for r, inv, cust in rows
     ]
@@ -881,22 +888,31 @@ def learning_summary_endpoint(
     return learning_summary(db, tenant, agent=agent, ayudante_id=ayudante_id)
 
 
-# ---------- "Espera tu OK": UN número, definido aquí ----------
+# ---------- "Por aprobar": UN número, definido aquí ----------
 #
-# Lo que hoy necesita la decisión del dueño. Es la suma de tres cosas y nada más:
+# Lo que HOY necesita la decisión del dueño. Es la suma de tres cosas y nada más:
 #
-#   1. recordatorios y mensajes redactados que esperan su aprobación
-#      (Reminder.status == "pending_approval");
+#   1. mensajes redactados que esperan su aprobación (recordatorios de cobro,
+#      cotizaciones, respuestas de correo: Reminder.status == "pending_approval"),
+#      salvo los de una factura que ya no está abierta: si ya se pagó o se
+#      canceló, no hay nada que decidir y aprobarlo sería cobrarle a quien no debe;
 #   2. pagos detectados que esperan que confirme a qué factura van
-#      (Payment.status == "pendiente", la bandeja de conciliación);
+#      (Payment.status == "pendiente");
 #   3. promesas de pago VENCIDAS: la fecha prometida ya pasó, no se cumplió y la
 #      factura sigue abierta. Una promesa que todavía no vence no le pide nada al
-#      dueño: está en curso. Una de una factura ya cerrada, tampoco.
+#      dueño. Una de una factura ya cerrada, tampoco.
 #
-# El globo del menú y la columna "Espera tu OK" del Centro de mando salen de aquí:
-# el globo usa `espera_tu_ok` de /v1/cartera y la columna arma su lista con las
-# mismas tres fuentes, tomando de /v1/promises solo las que traen `vencida`. Si la
-# definición cambia, cambia en estas dos funciones y en ningún otro lado.
+# El globo del menú y el encabezado "Por aprobar (N)" de Hoy salen de aquí: los dos
+# leen `espera_tu_ok` de /v1/cartera, y Hoy arma su lista con las mismas tres
+# fuentes, tomando de /v1/reminders solo los que traen `pide_decision` y de
+# /v1/promises solo las que traen `vencida`. Si la definición cambia, cambia en
+# estas tres funciones y en ningún otro lado.
+
+
+def _recordatorio_pide_decision(recordatorio: Reminder, factura: Invoice | None) -> bool:
+    return recordatorio.status == "pending_approval" and (
+        factura is None or factura.status == "open"
+    )
 
 
 def _promesa_vencida(promesa: PaymentPromise, factura: Invoice, today) -> bool:
@@ -906,11 +922,12 @@ def _promesa_vencida(promesa: PaymentPromise, factura: Invoice, today) -> bool:
 
 
 def _espera_tu_ok(db, tenant: Tenant, today) -> int:
-    por_aprobar = db.scalar(
-        select(func.count())
-        .select_from(Reminder)
+    pendientes = db.execute(
+        select(Reminder, Invoice)
+        .outerjoin(Invoice, Reminder.invoice_id == Invoice.id)
         .where(Reminder.tenant_id == tenant.id, Reminder.status == "pending_approval")
-    )
+    ).all()
+    por_aprobar = sum(1 for r, inv in pendientes if _recordatorio_pide_decision(r, inv))
     pagos = db.scalar(
         select(func.count())
         .select_from(Payment)
@@ -922,7 +939,7 @@ def _espera_tu_ok(db, tenant: Tenant, today) -> int:
         .where(PaymentPromise.tenant_id == tenant.id, PaymentPromise.fulfilled.is_(False))
     ).all()
     vencidas = sum(1 for p, inv in promesas if _promesa_vencida(p, inv, today))
-    return int(por_aprobar or 0) + int(pagos or 0) + vencidas
+    return por_aprobar + int(pagos or 0) + vencidas
 
 
 @app.get("/v1/cartera")
@@ -979,7 +996,7 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         "open_total": sum(float(i.amount) for i in open_invoices),
         "open_count": len(open_invoices),
         "pending_approvals": len(pending_count),
-        # El número del globo del menú y de la columna "Espera tu OK" (ver arriba).
+        # El número del globo del menú y de "Por aprobar" en Hoy (ver arriba).
         "espera_tu_ok": _espera_tu_ok(db, tenant, today),
         "active_promises": len(promises),
         "payment_reports": reported,
@@ -1677,7 +1694,7 @@ def list_promises(
             "note": p.note,
             "days_left": (p.promised_date - today).days,
             "fulfilled_at": p.fulfilled_at.isoformat() if p.fulfilled_at else None,
-            # Cuenta en "Espera tu OK" (misma regla que el globo del menú).
+            # Cuenta en "Por aprobar" (misma regla que el globo del menú).
             "vencida": _promesa_vencida(p, inv, today),
             # Una promesa de una factura ya cerrada no le pide nada al dueño.
             "factura_abierta": inv.status == "open",
