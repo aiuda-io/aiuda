@@ -42,11 +42,13 @@ from aiuda_core.models import (
     IntegrationCredential,
     Invoice,
     Payment,
+    PaymentPromise,
     Product,
     PurchaseOrder,
     Reminder,
     SatPaquete,
     Tenant,
+    utcnow,
 )
 from aiuda_core.phones import normalize_mx
 
@@ -510,6 +512,7 @@ def _cerrar_facturas_odoo_desaparecidas(
             inv.paid_source = "odoo"
             inv.paid_at = paid_at
             inv.payment_reported = False  # el dicho, si lo había, quedó confirmado por la fuente
+            cerrar_pendientes_por_pago(session, inv)
         elif estado.get("state") == "cancel":
             inv.status = "cancelled"
         # cualquier otro estado (posted con saldo, borrador, etc.): se deja como está
@@ -993,6 +996,7 @@ def _sat_aplicar_pago(session: Session, tenant: Tenant, d: dict, res: dict) -> N
             fecha = _sat_fecha(d)
             inv.paid_at = datetime.combine(fecha, datetime.min.time()) if fecha else None
             inv.payment_reported = False
+            cerrar_pendientes_por_pago(session, inv)
         else:
             inv.amount = Decimal(str(saldo))
         res["pagos_aplicados"] += 1
@@ -1171,6 +1175,36 @@ def retirar_recordatorios(session: Session, invoice: Invoice, motivo: str) -> in
         r.status = "rejected"
         r.meta = {**(r.meta or {}), "retirado": motivo}
     return len(vivos)
+
+
+YA_SE_PAGO = "La factura ya se pagó."
+
+
+def cerrar_pendientes_por_pago(
+    session: Session, invoice: Invoice, cuando: datetime | None = None
+) -> tuple[int, int]:
+    """Lo que deja de pedirle algo al dueño cuando una factura queda PAGADA, por
+    la puerta que sea (él la registró, se concilió con un depósito, o la fuente la
+    reportó pagada). Dos cosas, que antes no pasaban y dejaban la bandeja mintiendo:
+
+    1. sus promesas abiertas quedan cumplidas: el cliente pagó, que es lo que prometió;
+    2. los recordatorios que aún no salían se retiran (mismo camino que una factura
+       cancelada): cobrarle a quien ya pagó es el peor mensaje que aiuda puede mandar.
+
+    Devuelve (promesas cumplidas, recordatorios retirados). Un abono parcial NO pasa
+    por aquí: la factura sigue abierta."""
+    momento = cuando or utcnow()
+    promesas = session.scalars(
+        select(PaymentPromise).where(
+            PaymentPromise.tenant_id == invoice.tenant_id,
+            PaymentPromise.invoice_id == invoice.id,
+            PaymentPromise.fulfilled.is_(False),
+        )
+    ).all()
+    for promesa in promesas:
+        promesa.fulfilled = True
+        promesa.fulfilled_at = momento
+    return len(promesas), retirar_recordatorios(session, invoice, YA_SE_PAGO)
 
 
 def _sat_cerrar_cancelada(

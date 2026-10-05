@@ -1596,10 +1596,19 @@ def register_payment(
     invoice.paid_source = "manual"  # confirmado por el negocio; "banco" cuando esté Belvo
     invoice.payment_reported = False
     # Write-back: el pago se inyecta de regreso al sistema de origen
+    from aiuda_core.engine.sync import cerrar_pendientes_por_pago
     from aiuda_core.engine.writeback import queue_payment_writeback
 
     queue_payment_writeback(db, tenant, invoice)
-    return {"id": invoice.id, "status": invoice.status, "paid_source": invoice.paid_source}
+    # Pagada: sus promesas abiertas quedan cumplidas y lo que aún no salía se retira.
+    promesas, retirados = cerrar_pendientes_por_pago(db, invoice, invoice.paid_at)
+    return {
+        "id": invoice.id,
+        "status": invoice.status,
+        "paid_source": invoice.paid_source,
+        "promesas_cumplidas": promesas,
+        "recordatorios_retirados": retirados,
+    }
 
 
 def _exigir_ia_para_redactar(db, tenant: Tenant) -> None:

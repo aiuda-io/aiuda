@@ -276,6 +276,7 @@ def confirm_reconciliation(
     now = datetime.now(MX_TZ)
     restante = monto
     aplicaciones = []
+    from aiuda_core.engine.sync import cerrar_pendientes_por_pago
     from aiuda_core.engine.writeback import queue_payment_writeback
 
     for inv in invoices:
@@ -305,6 +306,9 @@ def confirm_reconciliation(
             # Write-back solo del cierre: el abono parcial aún no tiene ejecutor
             # (writeback registra el pago completo en la fuente).
             queue_payment_writeback(db, tenant, inv)
+            # La factura quedó pagada: sus promesas se cumplen y lo que aún no
+            # salía deja de estar pendiente.
+            cerrar_pendientes_por_pago(db, inv)
         audit.record(
             db,
             tenant_id=tenant.id,
