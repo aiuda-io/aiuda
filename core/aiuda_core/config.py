@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # (no hay un equivalente barato de haiku).
     model_codex: str = "gpt-5.5"
     model_codex_triage: str = "gpt-5.5"
+    # Entrar con ChatGPT: el emisor de OAuth y la base de la API pública. Los
+    # defaults son los oficiales y no se tocan en una instalación; existen para
+    # que las pruebas apunten a un servidor falso en vez de a una cuenta real.
+    chatgpt_issuer: str = Field("https://auth.openai.com", validation_alias=propia("chatgpt_issuer"))
+    openai_base: str = Field("https://api.openai.com/v1", validation_alias=propia("openai_base"))
 
     # Canal de WhatsApp por default cuando el tenant no declara su vía: "wacli".
     whatsapp_provider: str = "wacli"

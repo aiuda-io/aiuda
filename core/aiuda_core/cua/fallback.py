@@ -222,6 +222,10 @@ _PORQUE_NO = {
         "Tu IA conectada es el Codex instalado en esta computadora, que con aiuda "
         "solo intercambia texto y no puede ver la pantalla del portal"
     ),
+    "chatgpt": (
+        "Tu IA conectada es tu plan de ChatGPT, que con aiuda solo intercambia texto "
+        "y no puede ver la pantalla del portal"
+    ),
     "local": (
         "Tu IA conectada es un modelo local, que no puede ver la pantalla del portal "
         "ni moverse en ella"

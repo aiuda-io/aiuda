@@ -45,6 +45,11 @@ MODEL_PRICES: dict[str, tuple[float, float]] = {
     # no aiuda. Los tokens se cuentan; el costo extra es 0.
     "claude-cli": (0.0, 0.0),
     "codex-cli": (0.0, 0.0),
+    # "Entrar con ChatGPT": sale del plan de ChatGPT del dueño, no de una factura
+    # por token. Se registra con esta etiqueta y no con el modelo de fondo, para que
+    # el día que ese modelo tenga precio con llave no se le cobre en el papel a quien
+    # lo usa por su plan.
+    "chatgpt-plan": (0.0, 0.0),
 }
 
 

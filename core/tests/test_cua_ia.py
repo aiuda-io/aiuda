@@ -174,6 +174,7 @@ def test_sin_fabrica_de_ia_tambien_corre(session, con_portal, navegador, monkeyp
         ("claude_cli", "cli", "Claude Code instalado"),
         ("codex_cli", "cli", "Codex instalado"),
         ("local", "api_key", "modelo local"),
+        ("chatgpt", "oauth", "plan de ChatGPT"),
     ],
 )
 def test_una_ia_que_no_ve_la_pantalla_corta_honesto(
