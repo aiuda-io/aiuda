@@ -532,6 +532,26 @@ export type Invitacion = {
   tope_aprobacion: number | null;
 };
 
+/** Error de la API. `message` es el texto para el dueño (ya viene en español del
+ *  server); `code`, cuando viene, deja que la pantalla RECONOZCA el caso en vez de
+ *  solo pintarlo: p. ej. que lo que falta es conectar la IA. */
+export class ApiError extends Error {
+  code?: string;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** ¿El error se arregla en Tu IA? (no hay IA conectada, o la que hay no respondió).
+ *  Quien lo pinta pone la liga a /proveedor junto al mensaje. */
+export function errorDeIA(e: unknown): boolean {
+  return e instanceof ApiError && (e.code === "ia_no_conectada" || e.code === "ia_fallo");
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -544,7 +564,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail ?? `Error ${res.status}`);
+    throw new ApiError(
+      typeof detail?.detail === "string" ? detail.detail : `Error ${res.status}`,
+      res.status,
+      typeof detail?.code === "string" ? detail.code : undefined,
+    );
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

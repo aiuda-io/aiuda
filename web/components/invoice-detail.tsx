@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { api, apiUrl, BUCKET_META, mxn, TONE_LABEL, type InvoiceDetail, type Cfdi } from "@/lib/api";
+import { api, apiUrl, BUCKET_META, errorDeIA, mxn, TONE_LABEL, type InvoiceDetail, type Cfdi } from "@/lib/api";
 import { fecha, fechaDM } from "@/lib/format";
 import { toast } from "@/components/toast";
 import { SOURCE_LABEL, SOURCE_LOGO } from "@/components/ui";
@@ -48,6 +48,9 @@ export function InvoiceDetailContent({
   // ¿El total del CFDI cuadra con lo que aiuda tiene de saldo? (la verdad fiscal)
   const cfdiCuadra = cfdi?.total != null ? Math.abs(cfdi.total - data.amount) < 0.01 : null;
   const [busy, setBusy] = useState<"pay" | "remind" | null>(null);
+  // El error de "Recordar" se queda junto al botón (no en un aviso que se va solo):
+  // si lo que falta es la IA, trae la liga a Tu IA.
+  const [falloRecordar, setFalloRecordar] = useState<{ mensaje: string; ia: boolean } | null>(null);
   // Tras encolar una inyección, recargar el "Regreso a la fuente" (su refreshKey
   // no cambia solo: el estado de la factura sigue igual, lo nuevo es el outbox).
   const [inyKey, setInyKey] = useState(0);
@@ -63,12 +66,13 @@ export function InvoiceDetailContent({
 
   async function recordar() {
     setBusy("remind");
+    setFalloRecordar(null);
     try {
       await api.remind(data.id);
       toast("Borrador listo en Aprobaciones.", "success");
       onChanged?.();
     } catch (e) {
-      toast((e as Error).message, "error");
+      setFalloRecordar({ mensaje: (e as Error).message, ia: errorDeIA(e) });
     } finally {
       setBusy(null);
     }
@@ -122,6 +126,7 @@ export function InvoiceDetailContent({
   ) : data.status !== "paid" && (
     /* Acciones del registro: las mismas que en la lista, donde vive el registro.
        Si ya hay un recordatorio, en vez de bloquear, lleva a verlo. */
+    <div className="space-y-2.5">
     <div className="flex flex-wrap gap-2">
       {activeReminder ? (
         <Link
@@ -153,6 +158,20 @@ export function InvoiceDetailContent({
         presence={data.presence}
         onQueued={inyeccionEncolada}
       />
+    </div>
+      {falloRecordar && (
+        <p role="alert" className="text-cuerpo leading-snug text-danger">
+          {falloRecordar.mensaje}
+          {falloRecordar.ia && (
+            <>
+              {" "}
+              <Link href="/proveedor" className="font-medium text-accent-ink underline hover:text-accent-strong">
+                Ir a Tu IA
+              </Link>
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 

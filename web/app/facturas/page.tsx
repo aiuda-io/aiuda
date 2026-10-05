@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { api, BUCKET_META, mxn, type InvoiceItem } from "@/lib/api";
+import { api, BUCKET_META, errorDeIA, mxn, type InvoiceItem } from "@/lib/api";
 import { fechaDM } from "@/lib/format";
 import {
   BucketPill,
@@ -37,6 +37,9 @@ export default function FacturasPage() {
   );
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [done, setDone] = useState<Record<string, string>>({});
+  // Lo que salió mal va aparte de lo que salió bien: antes compartían estado y color, y
+  // un error se leía en verde, como si el recordatorio hubiera quedado listo.
+  const [fallo, setFallo] = useState<Record<string, { mensaje: string; ia: boolean }>>({});
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -120,6 +123,11 @@ export default function FacturasPage() {
 
   const act = async (inv: InvoiceItem, action: "pay" | "remind") => {
     setBusy((b) => ({ ...b, [inv.id]: action }));
+    setFallo((f) => {
+      const next = { ...f };
+      delete next[inv.id];
+      return next;
+    });
     try {
       if (action === "pay") {
         await api.pay(inv.id);
@@ -130,7 +138,10 @@ export default function FacturasPage() {
         setDone((d) => ({ ...d, [inv.id]: "Borrador listo en Aprobaciones" }));
       }
     } catch (e) {
-      setDone((d) => ({ ...d, [inv.id]: (e as Error).message }));
+      setFallo((f) => ({
+        ...f,
+        [inv.id]: { mensaje: (e as Error).message, ia: errorDeIA(e) },
+      }));
     } finally {
       setBusy((b) => {
         const next = { ...b };
@@ -365,6 +376,8 @@ export default function FacturasPage() {
                                   {busy[inv.id] ? "…" : "Confirmar pago"}
                                 </button>
                               ) : (
+                                <span className="flex flex-col items-end gap-1.5">
+                                  {fallo[inv.id] && <FalloFila fallo={fallo[inv.id]} />}
                                 <span className="flex justify-end gap-1.5">
                                   <RowAction
                                     label={busy[inv.id] === "remind" ? "Redactando…" : "Recordar"}
@@ -378,6 +391,7 @@ export default function FacturasPage() {
                                     disabled={!!busy[inv.id]}
                                     onClick={() => act(inv, "pay")}
                                   />
+                                </span>
                                 </span>
                               )}
                             </td>
@@ -440,6 +454,12 @@ export default function FacturasPage() {
                               {busy[inv.id] ? "…" : "Confirmar pago"}
                             </button>
                           ) : (
+                            <>
+                            {fallo[inv.id] && (
+                              <div className="mb-2">
+                                <FalloFila fallo={fallo[inv.id]} />
+                              </div>
+                            )}
                             <div className="flex gap-2">
                               <button
                                 disabled={!!busy[inv.id]}
@@ -462,6 +482,7 @@ export default function FacturasPage() {
                                 {busy[inv.id] === "pay" ? "…" : "Registrar pago"}
                               </button>
                             </div>
+                            </>
                           )}
                         </div>
                       )}
@@ -609,6 +630,27 @@ function FacturasRail({
         )}
       </RailSection>
     </>
+  );
+}
+
+// El error de una fila: en rojo, en español y, si se arregla en Tu IA, con la liga.
+function FalloFila({ fallo }: { fallo: { mensaje: string; ia: boolean } }) {
+  return (
+    <p
+      role="alert"
+      onClick={(e) => e.stopPropagation()}
+      className="max-w-[16rem] text-apoyo leading-snug text-danger md:text-right"
+    >
+      {fallo.mensaje}
+      {fallo.ia && (
+        <>
+          {" "}
+          <Link href="/proveedor" className="font-medium text-accent-ink underline hover:text-accent-strong">
+            Ir a Tu IA
+          </Link>
+        </>
+      )}
+    </p>
   );
 }
 

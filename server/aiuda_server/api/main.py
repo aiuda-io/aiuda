@@ -449,6 +449,22 @@ Cierra aiuda por completo y vuelve a abrirlo: entrarás directo.</p>
 </main></body></html>"""
 
 
+class ErrorConCodigo(HTTPException):
+    """Un error que la consola necesita RECONOCER, no solo mostrar: además del
+    mensaje para el dueño (``detail``, en español y sin texto de excepción) lleva un
+    ``code`` estable. Con él la pantalla sabe, por ejemplo, que lo que falta es
+    conectar la IA y pone la liga a Tu IA en vez de pintar el mensaje y ya."""
+
+    def __init__(self, status_code: int, detail: str, code: str):
+        super().__init__(status_code=status_code, detail=detail)
+        self.code = code
+
+
+@app.exception_handler(ErrorConCodigo)
+async def error_con_codigo(request: Request, exc: ErrorConCodigo):
+    return JSONResponse({"detail": exc.detail, "code": exc.code}, status_code=exc.status_code)
+
+
 @app.exception_handler(Exception)
 async def unhandled_error(request: Request, exc: Exception):
     """Errores no controlados: se registran completos en el servidor, pero al
@@ -1492,6 +1508,20 @@ def register_payment(
     return {"id": invoice.id, "status": invoice.status, "paid_source": invoice.paid_source}
 
 
+def _exigir_ia_para_redactar(db, tenant: Tenant) -> None:
+    """Redactar lo hace la IA del dueño. Si falló y no hay IA conectada, eso es lo que
+    hay que decirle (mismo criterio que ``_exigir_ia_para_importar``), con un código
+    para que la consola ponga la liga a Tu IA."""
+    from aiuda_core.engine.provider import resolve_credential
+
+    if resolve_credential(session=db, tenant_id=tenant.id) is None:
+        raise ErrorConCodigo(
+            409,
+            "Conecta tu IA en Tu IA para que tu ayudante pueda redactar el recordatorio.",
+            code="ia_no_conectada",
+        )
+
+
 @app.post("/v1/invoices/{invoice_id}/remind")
 def draft_reminder_now(
     invoice_id: str,
@@ -1533,8 +1563,17 @@ def draft_reminder_now(
         reminder = engine.draft_reminder(invoice, customer, today)
     except BudgetExceeded as exc:
         raise HTTPException(status_code=402, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"No pude redactar: {exc}")
+    except Exception:
+        # Al dueño nunca le llega el texto de la excepción (venía en inglés, del SDK
+        # del proveedor): el detalle se queda en el log y él recibe qué hacer.
+        _exigir_ia_para_redactar(db, tenant)
+        log.exception("recordar: no se pudo redactar para la factura %s", invoice.id)
+        raise ErrorConCodigo(
+            502,
+            "No se pudo redactar el recordatorio. Inténtalo de nuevo; si sigue "
+            "fallando, revisa tu conexión en Tu IA.",
+            code="ia_fallo",
+        )
     # Si el auto-envío del tenant lo dejó ya aprobado, hay que encolar el envío: si no,
     # la corrida diaria lo ve "activo" y lo salta, y queda approved para siempre sin salir.
     if reminder.status == "approved":

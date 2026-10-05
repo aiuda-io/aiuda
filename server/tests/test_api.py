@@ -467,6 +467,51 @@ def test_recordar_ahora_pendiente_no_encola(client, db_session, tenant, monkeypa
     assert not any(j[0] == "send_reminder" for j in app.state.test_jobs)
 
 
+def _draft_que_truena(monkeypatch):
+    """draft_reminder falla como falla el SDK del proveedor: con su texto en inglés."""
+    from aiuda_core.engine.engine import CleoEngine
+
+    def boom(self, invoice, customer, today, broken_promise=None):
+        raise RuntimeError("Could not resolve authentication method. Expected api_key")
+
+    monkeypatch.setattr(CleoEngine, "draft_reminder", boom)
+
+
+def test_recordar_sin_ia_dice_que_falta_la_ia_y_no_el_error_crudo(
+    client, db_session, tenant, monkeypatch
+):
+    # Sin IA conectada el dueño veía el texto de la excepción, en inglés. Ahora recibe
+    # qué hacer, en español, y un código para que la consola ponga la liga a Tu IA.
+    invoice = _open_invoice(db_session, tenant)
+    _draft_que_truena(monkeypatch)
+
+    res = client.post(f"/v1/invoices/{invoice.id}/remind", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 409
+    cuerpo = res.json()
+    assert cuerpo["code"] == "ia_no_conectada"
+    assert "Conecta tu IA" in cuerpo["detail"]
+    assert "Could not" not in res.text and "api_key" not in res.text
+
+
+def test_recordar_con_ia_que_falla_no_filtra_la_excepcion(
+    client, db_session, tenant, monkeypatch
+):
+    # Hay IA conectada pero la redacción falló: mensaje limpio y código propio; el
+    # detalle técnico se queda en el log del servidor.
+    import aiuda_core.engine.provider as provider
+
+    invoice = _open_invoice(db_session, tenant)
+    _draft_que_truena(monkeypatch)
+    monkeypatch.setattr(provider, "resolve_credential", lambda *a, **k: object())
+
+    res = client.post(f"/v1/invoices/{invoice.id}/remind", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 502
+    cuerpo = res.json()
+    assert cuerpo["code"] == "ia_fallo"
+    assert "Tu IA" in cuerpo["detail"]
+    assert "Could not" not in res.text and "api_key" not in res.text
+
+
 def test_reminders_y_promises_traen_customer_id(client, db_session, tenant):
     """Centro de mando usa customer_id para el panel de contexto (api.customerDetail)."""
     from datetime import date
