@@ -17,6 +17,10 @@ export type Cartera = {
   open_total: number;
   open_count: number;
   pending_approvals: number;
+  /** Lo que hoy necesita la decisión del dueño: por aprobar + pagos por conciliar +
+   *  promesas vencidas. Se define UNA vez, en el server (`_espera_tu_ok`); lo usan el
+   *  globo del menú y la columna "Espera tu OK" del Centro. */
+  espera_tu_ok: number;
   active_promises: number;
   payment_reports: number;
   by_source: Record<string, number>;
@@ -98,6 +102,11 @@ export type PromiseItem = {
   note: string | null;
   days_left: number;
   fulfilled_at: string | null;
+  /** La fecha prometida ya pasó, no se cumplió y la factura sigue abierta: cuenta
+   *  en "Espera tu OK". La regla vive en el server (`_promesa_vencida`). */
+  vencida: boolean;
+  /** false = la factura ya se pagó o se canceló: la promesa ya no pide nada. */
+  factura_abierta: boolean;
 };
 
 export type ChatMessage = {
@@ -572,6 +581,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       res.status,
       typeof detail?.code === "string" ? detail.code : undefined,
     );
+  }
+  // Toda escritura puede mover lo que espera al dueño (aprobar, rechazar, pagar, pedir
+  // un recordatorio...): se avisa para que el globo del menú se vuelva a contar.
+  if (init?.method && init.method !== "GET" && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("aiuda-escritura"));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

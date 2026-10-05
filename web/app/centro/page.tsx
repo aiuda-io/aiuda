@@ -249,12 +249,16 @@ function CentroDeMando() {
   const [channelSel, setChannelSel] = useState<Record<string, string>>({});
   const [invoiceSel, setInvoiceSel] = useState<Record<string, string>>({});
 
+  // "Espera tu OK" = lo que hoy necesita tu decisión: por aprobar + pagos por
+  // conciliar + promesas VENCIDAS. Es el mismo número del globo del menú; la regla
+  // vive en el server (`_espera_tu_ok` y `_promesa_vencida` en api/main.py), aquí
+  // solo se arma la lista con ella. No se redefine en la consola.
   const pending = useMemo<WorkItem[]>(() => {
     if (!data) return [];
     return [
       ...data.pendientes.map(fromReminder),
       ...data.recon.map(fromReconcile),
-      ...data.promesas.map(fromPromise),
+      ...data.promesas.filter((p) => p.vencida).map(fromPromise),
     ];
   }, [data]);
 
@@ -281,7 +285,12 @@ function CentroDeMando() {
         tone: "ink" as const,
       },
     }));
-    return [...fallidos, ...retenidos];
+    // Las promesas que todavía no vencen no te piden nada: están en curso, esperando
+    // al cliente. Las de una factura ya cerrada salen del tablero (siguen en Promesas).
+    const promesasEnCurso = data.promesas
+      .filter((p) => !p.vencida && p.factura_abierta)
+      .map(fromPromise);
+    return [...fallidos, ...retenidos, ...promesasEnCurso];
   }, [data, sombra]);
   const rejected = useMemo<WorkItem[]>(
     () => (data ? data.rechazados.map(fromReminder) : []),
@@ -296,9 +305,11 @@ function CentroDeMando() {
   const selected = selectedId ? (allItems.find((w) => w.id === selectedId) ?? null) : null;
   // Accionable (editar/aprobar/corregir) = por aprobar o rechazado. Solo-lectura
   // (reintentar/enviar/registro) = en curso o hecho.
-  const readOnly = selected
-    ? unsent.some((w) => w.id === selected.id) || sent.some((w) => w.id === selected.id)
-    : false;
+  // Una promesa en curso sigue siendo accionable: el cliente puede pagar antes.
+  const readOnly =
+    selected && selected.type !== "promesa"
+      ? unsent.some((w) => w.id === selected.id) || sent.some((w) => w.id === selected.id)
+      : false;
 
   const customerId = selected?.customerId ?? null;
   const { data: customer } = useApi<CustomerDetail | null>(
@@ -907,7 +918,6 @@ function Tablero({
     cols.push({ key: "rechazados", title: "Rechazados", dot: "bg-line-strong", items: fRejected });
   }
   const gridCols = cols.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3";
-  const total = fPending.length + fUnsent.length + fSent.length + fRejected.length;
   const nFilters = (fAgent ? 1 : 0) + (fType ? 1 : 0) + (fVenc ? 1 : 0) + (q ? 1 : 0);
 
   // A qué acción equivale soltar en cada columna (null = no es blanco válido).
@@ -955,7 +965,6 @@ function Tablero({
         setFtype={setFtype}
         setFvenc={setFvenc}
         nFilters={nFilters}
-        total={total}
         onReset={() => {
           setSearch("");
           setFagent(null);
@@ -1272,7 +1281,6 @@ function FilterBar({
   setFtype,
   setFvenc,
   nFilters,
-  total,
   onReset,
 }: {
   search: string;
@@ -1288,7 +1296,6 @@ function FilterBar({
   setFtype: (t: WorkType | null) => void;
   setFvenc: (v: string | null) => void;
   nFilters: number;
-  total: number;
   onReset: () => void;
 }) {
   const vencActivo = fVenc ? vencOpts.find((o) => o.key === fVenc) : null;
@@ -1360,7 +1367,6 @@ function FilterBar({
             Limpiar
           </button>
         )}
-        <span className="tnum ml-auto shrink-0 text-apoyo text-ink-3">{total} en el tablero</span>
       </div>
     </div>
   );

@@ -121,7 +121,8 @@ export function Sidebar() {
   }
 
   const load = useCallback(() => {
-    api.cartera().then((c) => setPending(c.pending_approvals)).catch(() => setPending(null));
+    // El mismo número que la columna "Espera tu OK" del Centro: lo define el server.
+    api.cartera().then((c) => setPending(c.espera_tu_ok)).catch(() => setPending(null));
   }, []);
 
   useEffect(() => {
@@ -132,10 +133,21 @@ export function Sidebar() {
   useEffect(() => {
     const refresh = () => load();
     const toggle = () => setMobileOpen((v) => !v);
+    // Tras una escritura el globo se vuelve a contar. Con un respiro: el server
+    // confirma el cambio justo después de responder, y varias escrituras seguidas
+    // se juntan en una sola consulta.
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    const trasEscritura = () => {
+      clearTimeout(espera);
+      espera = setTimeout(load, 600);
+    };
     window.addEventListener("agents-changed", refresh);
+    window.addEventListener("aiuda-escritura", trasEscritura);
     window.addEventListener("toggle-sidebar", toggle);
     return () => {
+      clearTimeout(espera);
       window.removeEventListener("agents-changed", refresh);
+      window.removeEventListener("aiuda-escritura", trasEscritura);
       window.removeEventListener("toggle-sidebar", toggle);
     };
   }, [load]);
