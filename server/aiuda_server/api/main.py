@@ -259,6 +259,25 @@ _MAX_CUERPO_EMPAREJAR = 2048
 # computadora: no está en _SIN_LLAVE a propósito, para que la puerta de la red no lo
 # conteste. Lo valida la propia ruta, con el `state` del intento (api/provider.py).
 _REGRESO_CHATGPT = "/auth/callback"
+
+
+class _RegresoSinQuery(logging.Filter):
+    """El regreso trae en la URL el código de un solo uso y el `state`. Ya gastados no
+    sirven de nada, pero no tienen por qué quedar escritos en el log de accesos."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if (
+            isinstance(args, tuple)
+            and len(args) >= 3
+            and isinstance(args[2], str)
+            and args[2].startswith(_REGRESO_CHATGPT + "?")
+        ):
+            record.args = (*args[:2], _REGRESO_CHATGPT + "?…", *args[3:])
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_RegresoSinQuery())
 _INTENTOS_POR_MINUTO = 10
 _intentos: dict[str, list[float]] = {}
 _candado_intentos = threading.Lock()

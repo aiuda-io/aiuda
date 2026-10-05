@@ -431,7 +431,14 @@ def chat(
             # Corte honesto: el tope del mes se alcanzó; no se llamó a la IA.
             run.cortar(str(exc))
             raise HTTPException(status_code=402, detail=str(exc))
-        except Exception:
+        except Exception as exc:
+            # Un fallo con salida concreta (el plan de ChatGPT llegó a su límite, la
+            # sesión venció) trae su `code` y un mensaje ya escrito para el dueño: se
+            # le dice eso, que es lo que puede arreglar, y no un "no disponible".
+            from aiuda_core.engine.codex import CodexError
+
+            if isinstance(exc, CodexError) and exc.code:
+                raise HTTPException(status_code=502, detail=str(exc))
             raise HTTPException(status_code=502, detail="El ayudante no está disponible ahora.")
         run.contar(respuestas=1)
     db.flush()

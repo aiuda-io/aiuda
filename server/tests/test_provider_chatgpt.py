@@ -446,3 +446,65 @@ def test_desconectar_sin_poder_avisar_a_openai_borra_igual_y_lo_dice(falso, clie
     assert r["connected"] is False
     assert "no pudimos confirmar la desconexión con OpenAI" in r["aviso"]
     assert db_session.scalar(select(IntegrationCredential)) is None
+
+
+# --- el chat y el log --------------------------------------------------------
+def _ayudante(client) -> str:
+    return client.post("/v1/ayudantes", json={"name": "Ayudante de prueba"}).json()["id"]
+
+
+def test_el_chat_contesta_con_el_plan_y_cuenta_el_uso(falso, client):
+    _entrar(client)
+    r = client.post(f"/v1/ayudantes/{_ayudante(client)}/chat", json={"message": "hola"})
+    assert r.json() == {"reply": "Hola desde el plan"}
+    por_modelo = client.get("/v1/usage").json()["by_model"]
+    assert por_modelo == [
+        {"model": "chatgpt-plan", "input_tokens": 11, "output_tokens": 4, "cost_usd": 0.0}
+    ]
+
+
+def test_en_el_chat_el_limite_del_plan_se_dice_tal_cual(falso, client):
+    _entrar(client)
+    falso.modo["responses"] = "limite"
+    r = client.post(f"/v1/ayudantes/{_ayudante(client)}/chat", json={"message": "hola"})
+    assert r.status_code == 502
+    assert "límite de uso de tu plan de ChatGPT" in r.json()["detail"]
+
+
+def test_sesion_vencida_a_media_platica_se_dice_y_borra_los_tokens(
+    falso, client, db_session, tenant
+):
+    """Que eso sobreviva a la reversión de la petición se prueba en core, con una base
+    en disco (aquí la sesión de prueba es compartida y nada se revierte)."""
+    _entrar(client)
+    aid = _ayudante(client)
+    db_session.commit()
+    falso.vencer_access_tokens()
+    falso.modo["refresh"] = "invalid_grant"
+
+    r = client.post(f"/v1/ayudantes/{aid}/chat", json={"message": "hola"})
+    assert r.status_code == 502
+    assert r.json()["detail"] == (
+        "Tu conexión con ChatGPT venció. Vuelve a entrar con ChatGPT en Tu IA."
+    )
+    chatgpt_auth._ultimo.clear()
+    queda = _bundle(db_session, tenant)
+    assert queda["access_token"] == "" and queda["client_id"].startswith("oaiapp_falso_")
+
+
+def test_el_log_de_accesos_no_guarda_el_codigo_ni_el_state_del_regreso():
+    import logging
+
+    from aiuda_server.api.main import _RegresoSinQuery
+
+    def linea(ruta: str) -> str:
+        rec = logging.LogRecord(
+            "uvicorn.access", logging.INFO, "", 0, '%s - "%s %s HTTP/%s" %d',
+            ("127.0.0.1:1", "GET", ruta, "1.1", 200), None,
+        )
+        assert _RegresoSinQuery().filter(rec) is True
+        return rec.getMessage()
+
+    assert "secreto" not in linea("/auth/callback?code=secreto&state=secreto")
+    assert "/auth/callback?…" in linea("/auth/callback?code=secreto&state=secreto")
+    assert "page=2" in linea("/v1/invoices?page=2")
