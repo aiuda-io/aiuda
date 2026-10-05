@@ -161,7 +161,7 @@ class OdooConnector:
             common = _proxy(f"{self.url}/xmlrpc/2/common")
             uid = common.authenticate(self.db, self.username, self.api_key, {})
             if not uid:
-                raise PermissionError("Autenticación con Odoo falló — revisa credenciales")
+                raise PermissionError("Odoo no aceptó el acceso. Revisa el usuario y la llave.")
             self._uid = uid
         return self._uid
 

@@ -38,7 +38,7 @@ class ClipClient:
     ):
         key = api_key or settings.clip_api_key
         if not key:
-            raise RuntimeError("CLIP_API_KEY no configurado — ver .env.example")
+            raise RuntimeError("CLIP_API_KEY no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=BASE_URL,
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},

@@ -3,274 +3,209 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { PageHeader, PrimaryButton, SecondaryButton, EmptyState, ErrorState, Skeleton } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, PrimaryButton, SecondaryButton, Skeleton, TextInput } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
-import {
-  createAyudante,
-  useAyudantes,
-  useCatalog,
-  type Ayudante,
-} from "@/lib/ayudantes-store";
-import type { AiuditasCatalog, PerfilSpec } from "@/lib/api";
+import { Drawer } from "@/components/drawer";
+import { toast } from "@/components/toast";
+import { createAyudante, useAyudantes, useCatalog, type Ayudante } from "@/lib/ayudantes-store";
+import type { AiuditasCatalog } from "@/lib/api";
 import { appearanceForSlug, lookForAiuditas, normalizeAppearance } from "@/lib/look";
 import { perfilesActivos } from "@/lib/perfiles";
 
-/** Sugerencias de nombre para el primer ayudante (cortos, propios, sin apellido). */
-const NOMBRES_SUGERIDOS = ["abi", "ome", "gio", "uli", "tavo", "nan"];
-
-function aiuditasDePerfil(catalog: AiuditasCatalog, slug: string) {
-  return catalog.aiuditas.filter((a) => a.perfil === slug);
+function Flecha() {
+  return (
+    <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3 shrink-0 text-ink-3" fill="none">
+      <path d="M4.5 3 8 6l-3.5 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
-/** Tarjeta "roster": el ayudante como alguien de tu plantilla · mascota, nombre, oficio
- *  (sus perfiles activos), lo que sabe hacer (chips de aiuditas) y su nivel real. Se abre
- *  a su ficha. */
-function AyudanteCard({ a, catalog }: { a: Ayudante; catalog: AiuditasCatalog | null }) {
-  const perfiles = catalog ? perfilesActivos(catalog, a.aiuditas) : [];
-  const specs = catalog ? catalog.aiuditas.filter((c) => c.id in a.aiuditas) : [];
-  const rol = perfiles.length > 0 ? perfiles.map((p) => p.name).join(" · ") : "Sin oficio todavía";
-  const MAX = 3;
+/** Un renglón del equipo: su cara, el nombre que le puso el dueño, de qué se encarga
+ *  y si tiene algo esperando aprobación. */
+function Renglon({ a, catalog }: { a: Ayudante; catalog: AiuditasCatalog | null }) {
+  const oficios = catalog ? perfilesActivos(catalog, a.aiuditas) : [];
   return (
-    <Link
-      href={`/ayudantes/detalle?id=${a.id}`}
-      className="group flex flex-col rounded-lg border border-line bg-surface p-4 transition-colors hover:border-line-strong"
-    >
-      <div className="flex items-center gap-3">
+    <li className="border-b border-line last:border-0">
+      <Link href={`/ayudantes/detalle?id=${a.id}`} className="-mx-3 flex items-center gap-4 rounded-lg px-3 py-4 hover:bg-panel">
         <Avatar name={a.name} size={44} {...normalizeAppearance(a.appearance)} />
         <div className="min-w-0 flex-1">
-          <p className="text-cuerpo font-semibold text-ink group-hover:text-accent-ink">{a.name}</p>
-          <p className="truncate text-apoyo text-ink-3">{rol}</p>
+          <p className="truncate text-seccion font-semibold text-ink">{a.name}</p>
+          <p className="truncate text-cuerpo text-ink-2">
+            {oficios.length > 0 ? oficios.map((p) => p.name).join(" y ") : "Todavía sin tareas"}
+          </p>
         </div>
-      </div>
-
-      {specs.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {specs.slice(0, MAX).map((c) => (
-            <span key={c.id} className="rounded-md bg-panel px-2 py-0.5 text-sello text-ink-2">
-              {c.label}
-            </span>
-          ))}
-          {specs.length > MAX && (
-            <span className="rounded-md px-1.5 py-0.5 text-sello text-ink-3">
-              +{specs.length - MAX}
-            </span>
-          )}
-        </div>
-      ) : (
-        <p className="mt-3 text-apoyo text-ink-3">Sin aiuditas todavía</p>
-      )}
-
-      <div className="mt-3 flex items-center justify-between border-t border-line/60 pt-3">
-        <span className="text-apoyo text-ink-3">
-          <span className="font-medium text-ink-2">{a.nivel.nivel}</span> · {a.acciones.total} acci
-          {a.acciones.total === 1 ? "ón" : "ones"}
-        </span>
-        <span className="text-cuerpo font-medium text-accent-ink group-hover:underline">
-          Abrir &rarr;
-        </span>
-      </div>
-    </Link>
+        {a.acciones.pendientes > 0 && (
+          <span className="mark shrink-0" style={{ "--mark": "var(--color-accent)" } as React.CSSProperties}>
+            {a.acciones.pendientes} por aprobar
+          </span>
+        )}
+        <Flecha />
+      </Link>
+    </li>
   );
 }
 
-/** Plantilla en fila compacta: un rol ya armado (mascota, nombre, cuántas aiuditas trae y
- *  cuántas están listas) con un botón para partir de ahí. El catálogo completo ya no se
- *  apila en la página: se explora al agregar aiuditas dentro de la ficha. */
-function PlantillaCard({
-  p,
-  count,
-  live,
-  onUse,
-  busy,
-  disabled,
+/** Alta de un ayudante: el dueño le pone nombre y elige de qué se va a encargar. El
+ *  oficio solo le precarga sus tareas; se pueden cambiar después. */
+function Nuevo({
+  open,
+  onClose,
+  catalog,
+  cuantos,
 }: {
-  p: PerfilSpec;
-  count: number;
-  live: number;
-  onUse: () => void;
-  busy: boolean;
-  disabled: boolean;
+  open: boolean;
+  onClose: () => void;
+  catalog: AiuditasCatalog | null;
+  cuantos: number;
 }) {
-  return (
-    <div className={`flex items-center gap-3 rounded-lg border border-line bg-surface p-3 ${busy ? "ring-1 ring-accent/40" : ""}`}>
-      <Avatar name={p.name} size={34} {...appearanceForSlug(p.slug)} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-seccion font-semibold text-ink">{p.name}</p>
-        <p className="text-apoyo text-ink-3">
-          {count} aiudita{count === 1 ? "" : "s"}
-          {live > 0 ? ` · ${live} lista${live === 1 ? "" : "s"}` : " · por conectar"}
-        </p>
-      </div>
-      <SecondaryButton onClick={onUse} disabled={disabled || busy}>
-        {busy ? "Creando…" : "Usar"}
-      </SecondaryButton>
-    </div>
-  );
-}
-
-function CrearAyudante({ onClose, count }: { onClose: () => void; count: number }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [oficio, setOficio] = useState("cobranza");
+  const [creando, setCreando] = useState(false);
 
   const crear = async () => {
-    if (saving) return;
-    setSaving(true);
+    const name = nombre.trim();
+    if (!name || creando) return;
+    setCreando(true);
     try {
-      const a = await createAyudante(name.trim() || "Sin nombre", lookForAiuditas([], count));
+      const ids = catalog ? catalog.aiuditas.filter((x) => x.perfil === oficio).map((x) => x.id) : [];
+      const cara = oficio ? appearanceForSlug(oficio) : lookForAiuditas([], cuantos);
+      const a = await createAyudante(name, cara, ids);
       router.push(`/ayudantes/detalle?id=${a.id}&nuevo=1`);
-    } catch {
-      setSaving(false);
+    } catch (e) {
+      toast(`No se pudo crear: ${(e as Error).message}`, "error");
+      setCreando(false);
     }
   };
 
+  const opciones = [
+    ...(catalog?.perfiles ?? []).map((p) => {
+      const tareas = catalog!.aiuditas.filter((x) => x.perfil === p.slug);
+      const faltan = tareas.filter((x) => !x.live).length;
+      return {
+        slug: p.slug,
+        nombre: p.name,
+        desc: p.desc,
+        nota: faltan > 0 ? `${faltan} de sus ${tareas.length} tareas todavía no funcionan.` : "",
+      };
+    }),
+    { slug: "", nombre: "Lo decido después", desc: "Empieza sin tareas y se las agregas tú.", nota: "" },
+  ];
+
   return (
-    <div className="rounded-lg border border-line bg-surface p-4">
-      <p className="text-cuerpo font-medium text-ink">Nuevo ayudante</p>
-      <p className="mt-0.5 text-apoyo text-ink-3">
-        Ponle un nombre corto. Luego le agregas las aiuditas que quieras.
-      </p>
+    <Drawer open={open} onClose={onClose} title="Nuevo ayudante" subtitle="Tú le pones el nombre">
       <form
-        className="mt-3 flex flex-wrap items-center gap-2"
+        className="space-y-7"
         onSubmit={(e) => {
           e.preventDefault();
           crear();
         }}
       >
-        <input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="abi"
-          className="min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
-        />
-        <PrimaryButton type="submit" disabled={saving}>
-          {saving ? "Creando…" : "Crear ayudante"}
-        </PrimaryButton>
-        <SecondaryButton type="button" onClick={onClose}>
-          Cancelar
-        </SecondaryButton>
+        <label className="block">
+          <span className="text-cuerpo font-medium text-ink">¿Cómo se llama?</span>
+          <TextInput
+            autoFocus
+            className="mt-2"
+            value={nombre}
+            maxLength={120}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="El nombre que tú quieras"
+          />
+        </label>
+
+        <fieldset>
+          <legend className="text-cuerpo font-medium text-ink">¿De qué se va a encargar?</legend>
+          <div className="mt-2">
+            {opciones.map((o) => (
+              <label
+                key={o.slug || "ninguno"}
+                className="flex cursor-pointer items-start gap-3 border-b border-line py-3 last:border-0"
+              >
+                <input
+                  type="radio"
+                  name="oficio"
+                  className="mt-1 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+                  checked={oficio === o.slug}
+                  onChange={() => setOficio(o.slug)}
+                />
+                <span className="min-w-0">
+                  <span className="block text-cuerpo font-medium text-ink">{o.nombre}</span>
+                  <span className="block text-apoyo text-ink-2">{o.desc}</span>
+                  {o.nota && <span className="block text-apoyo text-ink-3">{o.nota}</span>}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="flex gap-2">
+          <PrimaryButton type="submit" disabled={!nombre.trim() || creando}>
+            {creando ? "Creando…" : "Crear ayudante"}
+          </PrimaryButton>
+          <SecondaryButton type="button" onClick={onClose}>
+            Cancelar
+          </SecondaryButton>
+        </div>
       </form>
-      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-        <span className="text-apoyo text-ink-3">Sugerencias:</span>
-        {NOMBRES_SUGERIDOS.map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => setName(n)}
-            className="rounded-full border border-line bg-panel/50 px-2 py-0.5 text-sello text-ink-2 transition-colors hover:border-line-strong hover:text-ink"
-          >
-            {n}
-          </button>
-        ))}
-      </div>
-    </div>
+    </Drawer>
   );
 }
 
 export default function AyudantesPage() {
   const { ayudantes, loading, error, retry } = useAyudantes();
-  const { catalog, error: catError, retry: catRetry } = useCatalog();
-  const [creating, setCreating] = useState(false);
-  const [usando, setUsando] = useState<string | null>(null);
-  const router = useRouter();
-
-  const usarPlantilla = async (p: PerfilSpec) => {
-    if (!catalog || usando) return;
-    setUsando(p.slug);
-    try {
-      const ids = aiuditasDePerfil(catalog, p.slug).map((a) => a.id);
-      const a = await createAyudante(p.name, appearanceForSlug(p.slug), ids);
-      router.push(`/ayudantes/detalle?id=${a.id}&nuevo=1`);
-    } catch {
-      setUsando(null);
-    }
-  };
+  const { catalog } = useCatalog();
+  const [nuevo, setNuevo] = useState(false);
+  const hay = ayudantes.length > 0;
 
   return (
     <div className="min-w-0">
       <PageHeader
         title="Ayudantes"
-        subtitle="Crea un ayudante desde cero o desde una plantilla, y agrégale aiuditas: las cosas concretas que quieres que haga. Cada una se explica y se configura a tu negocio."
-        right={
-          !creating && (
-            <PrimaryButton onClick={() => setCreating(true)}>Crear ayudante</PrimaryButton>
-          )
-        }
+        subtitle="Tu equipo. Cada uno redacta y propone; nada sale sin que tú lo apruebes."
+        right={hay ? <PrimaryButton onClick={() => setNuevo(true)}>Agregar ayudante</PrimaryButton> : undefined}
       />
+      <Nuevo open={nuevo} onClose={() => setNuevo(false)} catalog={catalog} cuantos={ayudantes.length} />
 
-      {creating && (
-        <div className="mb-6">
-          <CrearAyudante onClose={() => setCreating(false)} count={ayudantes.length} />
+      {error ? (
+        <ErrorState message={error} retry={retry} />
+      ) : loading ? (
+        <div className="max-w-3xl space-y-2">
+          <Skeleton className="h-[76px] w-full" />
+          <Skeleton className="h-[76px] w-full" />
         </div>
+      ) : !hay ? (
+        <EmptyState
+          title="Todavía no tienes ayudantes"
+          action={<PrimaryButton onClick={() => setNuevo(true)}>Crear mi primer ayudante</PrimaryButton>}
+        >
+          Falta crear al primero. Le pones nombre, eliges de qué se encarga y empieza a proponerte
+          qué hacer.
+        </EmptyState>
+      ) : (
+        <ul className="max-w-3xl">
+          {ayudantes.map((a) => (
+            <Renglon key={a.id} a={a} catalog={catalog} />
+          ))}
+        </ul>
       )}
 
-      <section>
-        <h2 className="mb-2.5 eyebrow">
-          Tus ayudantes · {ayudantes.length}
-        </h2>
-        {error ? (
-          <ErrorState message={error} retry={retry} />
-        ) : loading ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Skeleton className="h-28" />
-            <Skeleton className="h-28" />
-          </div>
-        ) : ayudantes.length === 0 ? (
-          !creating && (
-            <EmptyState
-              title="Todavía no tienes ayudantes"
-              action={<PrimaryButton onClick={() => setCreating(true)}>Crear mi primer ayudante</PrimaryButton>}
-            >
-              Un ayudante es tuyo: tú lo nombras (abi, ome, gio…) y le agregas las aiuditas
-              que tu negocio necesita. Empieza desde cero, o usa una plantilla de abajo.
-            </EmptyState>
-          )
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ayudantes.map((a) => (
-              <AyudanteCard key={a.id} a={a} catalog={catalog} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="mt-9">
-        <h2 className="mb-1 eyebrow">
-          Empieza desde una plantilla
-        </h2>
-        <p className="mb-3.5 text-cuerpo text-ink-3">
-          Una plantilla es un rol ya armado con sus aiuditas. Úsala para no partir de cero:
-          se crea un ayudante que luego nombras y ajustas a tu gusto. El catálogo completo de
-          aiuditas se explora al agregarlas dentro de cada ayudante.
-        </p>
-        {catError ? (
-          <ErrorState message={catError} retry={catRetry} />
-        ) : !catalog ? (
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {catalog.perfiles.map((p) => {
-              const items = aiuditasDePerfil(catalog, p.slug);
-              return (
-                <PlantillaCard
-                  key={p.slug}
-                  p={p}
-                  count={items.length}
-                  live={items.filter((a) => a.live).length}
-                  onUse={() => usarPlantilla(p)}
-                  busy={usando === p.slug}
-                  disabled={usando !== null}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {/* Portales salió del menú y entra desde aquí: es trabajo que aiuda hace por el
+          dueño en un sitio web, igual que el de un ayudante. */}
+      {!error && !loading && (
+        <section className="mt-14 max-w-3xl">
+          <h2 className="eyebrow">También trabaja por ti</h2>
+          <Link href="/rutinas" className="-mx-3 mt-1 flex items-center gap-4 rounded-lg px-3 py-4 hover:bg-panel">
+            <div className="min-w-0 flex-1">
+              <p className="text-seccion font-semibold text-ink">Portales</p>
+              <p className="text-cuerpo text-ink-2">
+                aiuda entra al portal del SAT y te baja tu opinión de cumplimiento y tu constancia de
+                situación fiscal.
+              </p>
+            </div>
+            <Flecha />
+          </Link>
+        </section>
+      )}
     </div>
   );
 }

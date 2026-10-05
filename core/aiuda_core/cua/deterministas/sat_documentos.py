@@ -54,7 +54,7 @@ _NOMBRE = {
 
 MSG_SIN_NAVEGADOR = (
     "Esta instalación de aiuda no trae el navegador que hace falta para entrar al "
-    "portal del SAT. La app de escritorio todavía no lo incluye."
+    "portal del SAT. La app de escritorio no lo incluye."
 )
 
 

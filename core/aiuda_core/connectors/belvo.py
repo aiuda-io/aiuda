@@ -41,7 +41,7 @@ class BelvoClient:
             secret_password or settings.belvo_secret_password,
         )
         if not auth[0]:
-            raise RuntimeError("BELVO_SECRET_ID no configurado — ver .env.example")
+            raise RuntimeError("BELVO_SECRET_ID no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=self.base_url, auth=auth, timeout=30, transport=transport
         )

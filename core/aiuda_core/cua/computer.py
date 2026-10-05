@@ -26,16 +26,16 @@ WIDTH, HEIGHT = 1280, 800
 # una terminal. El comando es cosa de quien instala: lo da `aiuda doctor`
 # (COMANDO_INSTALAR) y está en docs/CUA.md.
 MSG_EXTRA_NO_INSTALADO = (
-    "El navegador que el asistente usa para entrar a los portales no está instalado "
-    "en esta instalación de aiuda. La app de escritorio todavía no lo incluye."
+    "Esta instalación de aiuda no trae el navegador que hace falta para entrar a los "
+    "portales. La app de escritorio no lo incluye."
 )
 MSG_CHROMIUM_FALTA = (
-    "El navegador que el asistente usa para entrar a los portales no está completo "
-    "en esta instalación de aiuda: le falta una parte."
+    "Al navegador que hace falta para entrar a los portales le falta una parte en "
+    "esta instalación de aiuda."
 )
 MSG_NAVEGADOR_NO_ARRANCA = (
-    "El navegador que el asistente usa para entrar a los portales no pudo arrancar "
-    "en esta instalación de aiuda."
+    "El navegador que hace falta para entrar a los portales no pudo arrancar en "
+    "esta instalación de aiuda."
 )
 COMANDO_INSTALAR = "uv sync --extra cua && .venv/bin/playwright install chromium"
 
@@ -62,7 +62,7 @@ def estado_navegador() -> tuple[bool, str]:
     if not paquete_playwright_instalado():
         return False, MSG_EXTRA_NO_INSTALADO
     if _CHROMIUM_LISTO:
-        return True, "Navegador listo (Playwright + Chromium instalados)."
+        return True, "Navegador listo."
     try:
         from playwright.sync_api import sync_playwright
 
@@ -75,7 +75,7 @@ def estado_navegador() -> tuple[bool, str]:
         logger.warning("El navegador del CUA no pudo arrancar: %s", exc)
         return False, MSG_NAVEGADOR_NO_ARRANCA
     _CHROMIUM_LISTO = True
-    return True, "Navegador listo (Playwright + Chromium instalados)."
+    return True, "Navegador listo."
 
 # Teclas estilo computer-use (xdotool) -> teclas de Playwright.
 _KEYMAP = {

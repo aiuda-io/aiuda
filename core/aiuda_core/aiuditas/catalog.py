@@ -79,6 +79,11 @@ class Aiudita:
     # Las fuentes posibles se DERIVAN de la capacidad en la capa de integraciones
     # (una sola fuente de verdad); la elegida se guarda en la config como `_fuente`.
     capacidad: str = ""
+    # Las dos cosas que el dueño pregunta de cada tarea, en sus palabras y en una
+    # frase: cuándo trabaja y si algo sale sin que él lo apruebe. Vacío = todavía no
+    # hay nada que decir porque la aiudita no tiene ejecutor (`live=False`).
+    cuando: str = ""
+    aprobacion: str = ""
 
 
 @dataclass(frozen=True)
@@ -131,6 +136,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
         linea="Lee tus facturas abiertas con su atraso real, nunca de memoria, antes de decir cualquier monto o folio.",
         lectura=True,
         capacidad="cuentas_por_cobrar",
+        cuando="Cada vez que redacta o le preguntas algo.",
+        aprobacion="Solo lee. No envía nada.",
         live=True,
     ),
     Aiudita(
@@ -169,6 +176,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
             ),
         ),
         reglas_libres=True,  # caja: "no menciones recargos", "ofrece pago en OXXO"…
+        cuando="Cada hora revisa tu cartera, y cuando lo pones a trabajar.",
+        aprobacion="El borrador queda en Hoy para que lo apruebes.",
         live=True,
     ),
     Aiudita(
@@ -199,6 +208,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 live=True,
             ),
         ),
+        cuando="Cuando un cliente contesta con una fecha de pago.",
+        aprobacion="Solo lo anota. El seguimiento queda en Hoy para que lo apruebes.",
         live=True,
     ),
     Aiudita(
@@ -208,6 +219,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
         label="Registrar pago reportado",
         linea="Guarda que el cliente dice haber pagado; la factura sigue abierta hasta verificar contra el banco. Un dicho no es un pago.",
         lectura=False,
+        cuando="Cuando un cliente dice que ya pagó.",
+        aprobacion="No cierra la factura. El pago lo confirmas tú.",
         live=True,
     ),
     Aiudita(
@@ -215,7 +228,7 @@ AIUDITAS: tuple[Aiudita, ...] = (
         perfil="cobranza",
         tool="enviar_whatsapp",
         label="Enviar por WhatsApp",
-        linea="Manda el recordatorio ya aprobado al cliente, respetando tus reglas de autonomía y de no-molestar.",
+        linea="Manda el recordatorio ya aprobado al cliente, dentro de tu horario y sin escribirle de más.",
         lectura=False,
         perillas=(
             Perilla(
@@ -223,16 +236,16 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 label="Cuándo puede enviar",
                 tipo=PerillaTipo.ENUM,
                 default="siempre_pedir",
-                ayuda="El control es tuyo por defecto. El auto-envío es opt-in y nunca aplica a casos críticos.",
+                ayuda="De fábrica nada sale sin tu aprobación. Enviar solo lo eliges tú, y nunca aplica a los casos críticos.",
                 opciones=(
                     Opcion("siempre_pedir", "Siempre pedir mi aprobación"),
-                    Opcion("auto_bajo_umbral", "Auto-enviar bajo cierto atraso"),
+                    Opcion("auto_bajo_umbral", "Enviar solo si el atraso es poco"),
                 ),
                 live=True,
             ),
             Perilla(
                 key="umbral_auto_dias",
-                label="Auto-enviar solo por debajo de",
+                label="Enviar solo por debajo de",
                 tipo=PerillaTipo.NUMERO,
                 default=7,
                 ayuda="Arriba de este atraso siempre pide tu aprobación.",
@@ -258,7 +271,7 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 label="Atraso crítico",
                 tipo=PerillaTipo.NUMERO,
                 default=45,
-                ayuda="Arriba de esto nunca auto-envía: solo avisa que el responsable contactará en persona.",
+                ayuda="Arriba de esto nunca envía solo: avisa que el responsable contactará en persona.",
                 minimo=15,
                 maximo=180,
                 unidad="días",
@@ -273,6 +286,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 live=True,
             ),
         ),
+        cuando="Después de tu aprobación, dentro de tu horario.",
+        aprobacion="La decides tú, aquí abajo.",
         live=True,
     ),
     Aiudita(
@@ -301,13 +316,17 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 live=True,
             ),
         ),
+        cuando="Todos los días, a la hora que elijas.",
+        aprobacion="Te llega a ti, no a tus clientes.",
         live=True,
     ),
     # ---- VENTAS (lectura viva, resto por conectar) ----
     Aiudita("ventas.consultar_catalogo", "ventas", "consultar_catalogo", "Consultar catálogo",
-            "Busca productos, precios y existencias reales antes de cotizar.", lectura=True, capacidad="catalogo_productos", live=True),
+            "Busca productos, precios y existencias reales antes de cotizar.", lectura=True, capacidad="catalogo_productos",
+            cuando="Cuando cotiza o le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("ventas.consultar_cliente", "ventas", "consultar_cliente", "Consultar cliente",
-            "Revisa los datos y el saldo del cliente para atender con contexto.", lectura=True, capacidad="directorio_clientes", live=True),
+            "Revisa los datos y el saldo del cliente para atender con contexto.", lectura=True, capacidad="directorio_clientes",
+            cuando="Cuando cotiza o le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita(
         id="ventas.generar_cotizacion",
         perfil="ventas",
@@ -349,31 +368,38 @@ AIUDITAS: tuple[Aiudita, ...] = (
             ),
         ),
         reglas_libres=True,  # caja: "ofrece envío gratis arriba de $5,000", condiciones…
+        cuando="Cuando armas una cotización en Productos.",
+        aprobacion="La cotización queda en Hoy para que la apruebes.",
         live=True,
     ),
     Aiudita("ventas.agendar_seguimiento", "ventas", "agendar_seguimiento", "Agendar seguimiento",
             "Programa el recordatorio si el prospecto no responde.", lectura=False),
     Aiudita("ventas.registrar_oportunidad", "ventas", "registrar_oportunidad", "Registrar oportunidad",
-            "Deja la oportunidad visible en el pipeline del equipo.", lectura=False),
+            "Deja la oportunidad a la vista de tu equipo.", lectura=False),
     # ---- RECEPCIÓN (lectura viva, resto por conectar) ----
     Aiudita("recepcion.consultar_agenda", "recepcion", "consultar_agenda", "Consultar agenda",
-            "Revisa la disponibilidad real del calendario.", lectura=True, capacidad="agenda", live=True),
+            "Revisa la disponibilidad real del calendario.", lectura=True, capacidad="agenda",
+            cuando="Cuando le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("recepcion.buscar_cita", "recepcion", "buscar_cita", "Buscar cita",
-            "Encuentra una cita existente por cliente o fecha.", lectura=True, capacidad="agenda", live=True),
+            "Encuentra una cita existente por cliente o fecha.", lectura=True, capacidad="agenda",
+            cuando="Cuando le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("recepcion.agendar_cita", "recepcion", "agendar_cita", "Agendar cita",
             "Agenda con confirmación y recordatorio 24h antes.", lectura=False),
     Aiudita("recepcion.buscar_en_kb", "recepcion", "buscar_en_kb", "Responder preguntas frecuentes",
-            "Contesta solo con la base de conocimiento que tu negocio aprobó.", lectura=True, reglas_libres=True),
-    Aiudita("recepcion.escalar_a_humano", "recepcion", "escalar_a_humano", "Escalar a un humano",
-            "Pasa la conversación al humano correcto, con todo el contexto.", lectura=False),
+            "Contesta solo con las respuestas que tu negocio aprobó.", lectura=True, reglas_libres=True),
+    Aiudita("recepcion.escalar_a_humano", "recepcion", "escalar_a_humano", "Pasar a una persona",
+            "Pasa la conversación a la persona correcta, con todo el contexto.", lectura=False),
     # ---- CONCILIACIÓN (consulta y propuesta de matches vivas; CFDI por conectar) ----
     Aiudita("conciliacion.consultar_pagos", "conciliacion", "consultar_pagos", "Consultar pagos por conciliar",
             "Lee los depósitos detectados y a qué factura corresponden según la propuesta, antes de dar un pago por aplicado.",
-            lectura=True, capacidad="confirmacion_pago", live=True),
+            lectura=True, capacidad="confirmacion_pago",
+            cuando="Cuando le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("conciliacion.descargar_cfdi", "conciliacion", "descargar_cfdi", "Descargar CFDI",
             "Baja los CFDI del SAT con tu e.firma, solo lectura.", lectura=True, capacidad="cfdi"),
     Aiudita("conciliacion.conciliar", "conciliacion", "conciliar", "Conciliar",
-            "Cruza facturas contra depósitos y te propone las coincidencias; tú confirmas cada match.", lectura=False, live=True),
+            "Cruza facturas contra depósitos y te propone las coincidencias; tú confirmas cada una.", lectura=False,
+            cuando="Cuando entra un pago o subes tu estado de cuenta.",
+            aprobacion="Ningún pago se aplica solo. Los confirmas tú en Cartera.", live=True),
     Aiudita("conciliacion.detectar_irregulares", "conciliacion", "detectar_irregulares", "Detectar irregulares",
             "Marca cancelados, sin comprobante o sin complemento.", lectura=True, capacidad="cfdi"),
 )
@@ -457,6 +483,8 @@ def _aiudita_payload(a: Aiudita) -> dict:
         "live": a.live,
         "reglas_libres": a.reglas_libres,
         "capacidad": a.capacidad,  # la capa de integraciones deriva sus fuentes
+        "cuando": a.cuando,
+        "aprobacion": a.aprobacion,
         "perillas": [_perilla_payload(p) for p in a.perillas],
     }
 

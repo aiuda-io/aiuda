@@ -178,7 +178,7 @@ def test_sin_extra_cua_es_noop_honesto_aunque_haya_credencial(monkeypatch):
     runner = CuaRunner(client=object())  # credencial/cliente presentes
     result = asyncio.run(runner.run(_mission()))
     assert result.success is False
-    assert "no está instalado" in (result.error or "")
+    assert "no trae el navegador" in (result.error or "")
     _sin_terminal(result.error or "")
 
 
@@ -193,7 +193,7 @@ def test_estado_navegador_sin_paquete(monkeypatch):
 
     monkeypatch.setattr(comp, "paquete_playwright_instalado", lambda: False)
     listo, detalle = comp.estado_navegador()
-    assert listo is False and "no está instalado" in detalle
+    assert listo is False and "no trae el navegador" in detalle
     _sin_terminal(detalle)
 
 
@@ -219,7 +219,7 @@ def test_estado_navegador_con_todo_instalado():
 
     listo, detalle = estado_navegador()
     if not listo:  # entorno con playwright pero sin el Chromium descargado
-        assert "no está completo" in detalle  # honesto, en palabras del dueño
+        assert "le falta una parte" in detalle  # honesto, en palabras del dueño
     else:
         assert "listo" in detalle.lower()
 
@@ -248,5 +248,5 @@ def test_error_de_chromium_faltante_se_traduce(tmp_path, monkeypatch):
     )
     result = asyncio.run(runner.run(_mission()))
     assert result.success is False
-    assert "no está completo" in (result.error or "")
+    assert "le falta una parte" in (result.error or "")
     _sin_terminal(result.error or "")

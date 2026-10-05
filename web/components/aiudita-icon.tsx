@@ -66,20 +66,13 @@ const BY_TIPO: Record<string, ReactNode> = {
   envia: svg([3.5, 4.5, 16.5, 15], <><path d="M3.5 11.5 20 4.5l-5 15-4-6-7-2z" /><path d="M11 13.5 20 4.5" /></>),
 };
 
-/** Tipo de la aiudita: qué tan "atrevida" es, para el color y la etiqueta. */
+/** Tipo de la aiudita: solo decide el dibujo de las que no tienen uno propio. */
 export type AiuditaTipo = "consulta" | "actua" | "envia";
 
 export function aiuditaTipo(id: string, lectura: boolean): AiuditaTipo {
   if (id.includes("enviar") || id.includes("publicar") || id.includes("programar")) return "envia";
   return lectura ? "consulta" : "actua";
 }
-
-export const TIPO_META: Record<AiuditaTipo, { label: string; tone: string; soft: string; ink: string }> = {
-  // tone = punto/realce; soft = fondo del círculo; ink = color del icono y la etiqueta
-  consulta: { label: "Consulta", tone: "var(--color-ink-3)", soft: "var(--color-panel)", ink: "var(--color-ink-2)" },
-  actua: { label: "Actúa", tone: "var(--color-accent)", soft: "var(--color-accent-soft)", ink: "var(--color-accent-ink)" },
-  envia: { label: "Envía", tone: "var(--color-warn)", soft: "var(--color-warn-soft)", ink: "var(--color-warn)" },
-};
 
 export function AiuditaIcon({ id, tipo, className = "" }: { id: string; tipo: AiuditaTipo; className?: string }) {
   return (

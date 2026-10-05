@@ -42,7 +42,7 @@ class HubSpotClient:
     ):
         self.token = token or settings.hubspot_token
         if not self.token:
-            raise RuntimeError("HUBSPOT_TOKEN no configurado — ver .env.example")
+            raise RuntimeError("HUBSPOT_TOKEN no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=BASE_URL,
             headers={"Authorization": f"Bearer {self.token}"},

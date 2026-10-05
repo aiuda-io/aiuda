@@ -19,7 +19,7 @@ Hay dos maneras de operar un portal, y conviene no confundirlas:
 
 ## Rutinas sin IA: los documentos del SAT
 
-En **Rutinas** aparece un bloque por cada RFC con e.firma conectada, con dos
+En **Ayudantes > Portales** aparece un bloque por cada RFC con e.firma conectada, con dos
 rutinas:
 
 | Rutina | Qué te deja |
@@ -80,7 +80,7 @@ ahora**. Se usó la e.firma vigente de una persona moral. Lo que se comprobó:
   folio. En el intento anterior el SAT contestó un error 500 antes de mostrar la
   pantalla de acceso: la rutina lo intentó una vez más, se detuvo con la captura
   y el motivo, y no mandó la e.firma;
-- cada PDF quedó guardado, se abre con **Ver PDF** en Rutinas y en SAT · Bóveda
+- cada PDF quedó guardado, se abre con **Ver PDF** en Portales y en SAT · Bóveda
   fiscal, es un PDF válido y menciona el RFC;
 - la bitácora quedó en español, y la contraseña no aparece en la bitácora, en las
   capturas, en el registro del servidor ni en claro en la base.

@@ -112,7 +112,7 @@ class MercadoLibreClient:
         self.seller_id = str(seller_id or settings.mercadolibre_seller_id or "")
         if not self.access_token and not self.refresh_token:
             raise RuntimeError(
-                "Mercado Libre no configurado — captura el access token (o el refresh "
+                "Mercado Libre no está configurado: captura el access token (o el refresh "
                 "token con client_id/client_secret)."
             )
         # True si durante la corrida se rotó el token: el motor lo persiste (uso único).

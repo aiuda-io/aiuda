@@ -37,7 +37,7 @@ class FacturamaClient:
         self.base_url = (base_url or settings.facturama_base_url).rstrip("/")
         auth = (user or settings.facturama_user, password or settings.facturama_password)
         if not auth[0]:
-            raise RuntimeError("FACTURAMA_USER no configurado — ver .env.example")
+            raise RuntimeError("FACTURAMA_USER no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=self.base_url, auth=auth, timeout=30, transport=transport
         )

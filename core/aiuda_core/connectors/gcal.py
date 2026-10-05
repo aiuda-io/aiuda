@@ -36,7 +36,7 @@ class GoogleCalendarClient:
     ):
         self.token = token or settings.google_calendar_token
         if not self.token:
-            raise RuntimeError("GOOGLE_CALENDAR_TOKEN no configurado — ver .env.example")
+            raise RuntimeError("GOOGLE_CALENDAR_TOKEN no configurado. Captura ese dato al conectar.")
         self.calendar_id = calendar_id or settings.google_calendar_id
         self._http = httpx.Client(
             base_url=BASE_URL,
