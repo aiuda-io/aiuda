@@ -189,6 +189,10 @@ def test_id_token_vencido_de_otro_emisor_o_sin_firma_se_rechaza(falso):
         with pytest.raises(chatgpt_auth.ChatGPTAuthError):
             chatgpt_auth.verificar_id_token(falso.jwt(malo), client_id="c1", nonce="n")
 
+    # Un JSON válido que no es un objeto tampoco truena: se rechaza igual.
+    lista = chatgpt_auth._b64(b"[]")
+    with pytest.raises(chatgpt_auth.ChatGPTAuthError, match="no se pudo comprobar"):
+        chatgpt_auth.verificar_id_token(f"{lista}.{lista}.AA", client_id="c1", nonce="n")
     # alg=none: un token "firmado" con nada no pasa.
     sin_firma = (
         chatgpt_auth._b64(json.dumps({"alg": "none", "kid": falso.kid}).encode())

@@ -300,6 +300,8 @@ def verificar_id_token(id_token: str, *, client_id: str, nonce: str) -> dict:
         firma = _unb64(firma_b64)
     except (ValueError, AttributeError) as exc:
         raise malo from exc
+    if not isinstance(cabeza, dict) or not isinstance(datos, dict):
+        raise malo
     if cabeza.get("alg") != "RS256" or not cabeza.get("kid"):
         raise malo
     try:

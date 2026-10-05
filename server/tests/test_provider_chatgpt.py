@@ -255,7 +255,11 @@ def test_si_el_canje_falla_el_registro_se_conserva_y_no_se_crea_otra_app(
     falso, client, tenant, db_session
 ):
     falso.modo["token"] = "caido"
-    assert "No se pudo conectar" in _entrar(client).text
+    r = _entrar(client)
+    assert r.status_code == 400 and "No se pudo conectar" in r.text
+    # Una sola instrucción para reintentar, no dos pegadas.
+    assert "ChatGPT no completó la entrada. Inténtalo otra vez. Vuelve a aiuda.<" in r.text
+    assert r.text.count("otra vez") == 1
     db_session.refresh(tenant)
     registrado = tenant.config["chatgpt"]["client_id"]
     assert registrado.startswith("oaiapp_falso_")
@@ -266,6 +270,28 @@ def test_si_el_canje_falla_el_registro_se_conserva_y_no_se_crea_otra_app(
     segundo = falso.visto["authorize"][-1]
     assert segundo["client_id"] == registrado and "agent_name_hint" not in segundo
     assert client.get("/v1/provider").json()["connected"] is True
+
+
+def test_si_guardar_la_conexion_truena_el_dueno_ve_una_pagina_y_la_consola_el_motivo(
+    falso, client, monkeypatch
+):
+    """Un fallo que no es del flujo (aquí, la llave de cifrado) no puede dejar un 500 en
+    la pestaña ni a la consola diciendo que pasó demasiado tiempo."""
+
+    def truena(*a, **kw):
+        raise RuntimeError("no hay llave de cifrado")
+
+    monkeypatch.setattr(api.cred, "set_credential", truena)
+    r = _entrar(client)
+    assert r.status_code == 400 and "No se pudo conectar" in r.text
+    assert "aiuda no pudo guardar tu conexión con ChatGPT" in r.text
+    assert "RuntimeError" not in r.text and "llave de cifrado" not in r.text
+    estado = client.get("/v1/provider").json()
+    assert estado["connected"] is False and estado["chatgpt"]["pendiente"] is False
+    assert estado["chatgpt"]["error"].startswith("aiuda no pudo guardar")
+    # Los tokens que OpenAI acababa de emitir no se quedan vivos sin dueño.
+    assert len(falso.visto["revoke"]) == 1
+    assert chatgpt_auth._ultimo == {}
 
 
 def test_volver_a_entrar_con_un_client_id_distinto_se_rechaza(falso, client):

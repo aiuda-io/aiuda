@@ -523,10 +523,17 @@ def chatgpt_callback(request: Request, db=Depends(get_db)):
         _terminar_entrada(db, tenant, intento, q)
     except chatgpt_auth.ChatGPTAuthError as exc:
         mensaje = str(exc)
-        with _candado_intento:
-            _pendiente["error"] = mensaje
-        return _pagina(False, f"{mensaje} Vuelve a aiuda e inténtalo otra vez.")
-    return _pagina(True, "Ya puedes cerrar esta pestaña y volver a aiuda.")
+    except Exception:  # noqa: BLE001 — el dueño ve una página en español, no un 500
+        # Algo que no es del flujo (la llave de cifrado, una respuesta con otra forma).
+        # El intento ya se consumió: sin esto la consola diría "pasó demasiado tiempo".
+        log.exception("chatgpt: el regreso falló al dejar la conexión guardada")
+        db.rollback()
+        mensaje = "aiuda no pudo guardar tu conexión con ChatGPT. Inténtalo otra vez."
+    else:
+        return _pagina(True, "Ya puedes cerrar esta pestaña y volver a aiuda.")
+    with _candado_intento:
+        _pendiente["error"] = mensaje
+    return _pagina(False, f"{mensaje} Vuelve a aiuda.", 400)
 
 
 def _terminar_entrada(db, tenant: Tenant, intento, q) -> None:
@@ -586,21 +593,21 @@ def _terminar_entrada(db, tenant: Tenant, intento, q) -> None:
             previo={"client_id": client_id, "subject": datos["sub"], "email": datos.get("email")},
         )
         bundle["model"] = chatgpt_auth.elegir_modelo(bundle["access_token"])
-    except Error:
-        # Los tokens recién emitidos no se van a usar: se le avisa a OpenAI y se tiran.
+        cred.set_credential(db, tenant.id, IA, chatgpt_auth.valores(bundle))
+        _scrub_legacy(db, tenant)
+        cfg.update(subject=datos["sub"], email=datos.get("email"))
+        _guardar_cfg_chatgpt(db, tenant, cfg)
+        audit.record(
+            db,
+            tenant_id=tenant.id,
+            action="provider.update",
+            entity_type="provider",
+            entity_id=IA,
+            after={"name": "chatgpt", "mode": "oauth"},  # nunca los tokens
+        )
+    except Exception:
+        # Los tokens recién emitidos no se van a usar (no cuadraron, o no se pudieron
+        # guardar): se le avisa a OpenAI y se tiran.
         chatgpt_auth.revocar({"client_id": client_id, "refresh_token": tok.get("refresh_token")})
         raise
-
-    cred.set_credential(db, tenant.id, IA, chatgpt_auth.valores(bundle))
     chatgpt_auth.recordar(tenant.id, bundle)
-    _scrub_legacy(db, tenant)
-    cfg.update(subject=datos["sub"], email=datos.get("email"))
-    _guardar_cfg_chatgpt(db, tenant, cfg)
-    audit.record(
-        db,
-        tenant_id=tenant.id,
-        action="provider.update",
-        entity_type="provider",
-        entity_id=IA,
-        after={"name": "chatgpt", "mode": "oauth"},  # nunca los tokens
-    )
