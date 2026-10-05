@@ -613,3 +613,20 @@ def test_api_desvincular_que_falla_no_miente(client, tenant, falso, monkeypatch)
     r = client.delete("/v1/integrations/whatsapp/session")
     assert r.status_code == 502 and "No se pudo cerrar la sesión" in r.json()["detail"]
     assert tenant.config["integrations"]["whatsapp"]["via"] == "wacli"
+
+
+# ---------- el candado de la suite: nada del dueño está al alcance ----------
+
+
+def test_la_suite_no_ve_el_wacli_ni_la_carpeta_de_datos_del_dueno(tmp_path):
+    """Ni con WACLI_BIN o WACLI_STORE_ROOT en el entorno de quien desarrolla: sin
+    un binario puesto por la prueba no hay wacli, y `~` es una carpeta desechable
+    (ahí caerían `~/.aiuda` y el store default `~/.wacli`)."""
+    import tempfile
+
+    from aiuda_core.db import default_data_dir
+
+    assert wacli_bin.resolver() is None
+    assert settings.wacli_store_root == ""
+    assert Path.home().resolve().is_relative_to(Path(tempfile.gettempdir()).resolve())
+    assert default_data_dir().parent == Path.home()
