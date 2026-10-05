@@ -49,7 +49,8 @@ Lo que las hace distintas del asistente con IA:
 Se detienen, con una captura y el motivo en la bitácora, cuando:
 
 - el SAT pide un captcha;
-- el portal pide aceptar, firmar o confirmar algo (aiuda no le da clic);
+- el portal pide aceptar, firmar o confirmar algo (aiuda no le da clic). Un
+  aviso que solo informa se cierra y queda anotado en la bitácora, sin detener;
 - el portal contesta con un error o no responde;
 - el SAT rechaza la e.firma (revocada, vencida, o contraseña que no coincide);
 - lo descargado no es un PDF, no menciona tu RFC o no es el documento pedido.
