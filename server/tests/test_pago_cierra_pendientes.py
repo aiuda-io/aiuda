@@ -129,6 +129,13 @@ def test_registrar_pago_cumple_promesas_y_retira_recordatorios(
     assert promesa_ajena.fulfilled is False and ajeno.status == "pending_approval"
     # Y ya no cuenta en lo que espera al dueño.
     assert [p["id"] for p in client.get("/v1/promises").json()] == [promesa_ajena.id]
+    # La ficha de la factura dice por qué ya no está pendiente (no "rechazado" a secas).
+    ficha = client.get(f"/v1/invoices/{inv.id}").json()
+    assert {r["status"]: r["retirado"] for r in ficha["reminders"]} == {
+        "rejected": "La factura ya se pagó.",
+        "sent": None,
+    }
+    assert ficha["promises"][0]["fulfilled"] is True
     assert client.get("/v1/cartera").json()["espera_tu_ok"] == 1
 
 

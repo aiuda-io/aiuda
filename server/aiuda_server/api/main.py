@@ -2683,6 +2683,9 @@ def invoice_detail(
                 "bucket": r.bucket,
                 "status": r.status,
                 "message": r.message,
+                # Por qué aiuda lo sacó de lo pendiente (la factura se pagó o se
+                # canceló): sin esto la ficha lo pintaría como rechazado por el dueño.
+                "retirado": (r.meta or {}).get("retirado"),
                 "sent_at": r.sent_at.isoformat() if r.sent_at else None,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
