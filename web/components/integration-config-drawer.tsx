@@ -155,12 +155,15 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
           {st.telefono ? `Número vinculado: +${st.telefono}. ` : ""}
           {v.texto}
         </p>
-        <button
-          onClick={logout}
-          className="mt-3 rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
-        >
-          Desvincular
-        </button>
+        <div className="mt-3 flex flex-wrap items-start gap-2">
+          <ConnectionTester intKey="whatsapp" />
+          <button
+            onClick={logout}
+            className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
+          >
+            Desvincular
+          </button>
+        </div>
       </div>
     );
   }
@@ -226,6 +229,9 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
               ? "WhatsApp cerró la sesión de esta computadora, casi siempre porque se quitó desde el teléfono en Dispositivos vinculados. Vuelve a escanear el código QR."
               : "Vincula tu número de WhatsApp escaneando un código QR, como WhatsApp Web. Tu número, tu sesión; aiuda actúa encima."}
           </p>
+          {st.aviso && st.estado !== "sesion_cerrada" && (
+            <p className="mt-2 text-cuerpo leading-relaxed text-danger">{st.aviso}</p>
+          )}
           <button
             onClick={startQr}
             disabled={loading}

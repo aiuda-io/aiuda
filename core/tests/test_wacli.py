@@ -8,7 +8,7 @@ import pytest
 
 from aiuda_core.config import Settings
 from aiuda_core.connectors import wacli as wacli_mod
-from aiuda_core.connectors.wacli import WacliClient, WacliError
+from aiuda_core.connectors.wacli import WacliClient, WacliError, explicar_fallo_wacli
 
 DEFAULT_TEMPLATE = "{bin} send text --to {phone} --message {message} --lock-wait 30s"
 
@@ -81,6 +81,50 @@ def test_send_text_raises_on_nonzero(monkeypatch):
     _capture(monkeypatch, result=_Result(returncode=1, stderr="not authenticated"))
     with pytest.raises(WacliError, match="not authenticated"):
         WacliClient(send_template=DEFAULT_TEMPLATE).send_text("5213314872210", "x")
+
+
+@pytest.mark.parametrize(
+    ("crudo", "empieza"),
+    [
+        ("not authenticated; run `wacli auth`", "Tu WhatsApp no está vinculado."),
+        ("WhatsApp session was revoked: device_removed", "WhatsApp cerró la sesión"),
+        (
+            "store is locked (another wacli is running?): store locked: /x/LOCK (pid=1)",
+            "WhatsApp está ocupado",
+        ),
+        ("timed out waiting for store lock after 30s: store locked", "WhatsApp está ocupado"),
+        (
+            "no reply from the running sync process before the timeout; the text may still "
+            "have gone through, so check before retrying",
+            "No supimos si el mensaje salió.",
+        ),
+        ("request deadline passed before dispatch; it was not sent", "El mensaje no salió"),
+        ("send timed out after 30s", "El mensaje no salió"),
+        ("not connected", "No hay conexión con WhatsApp."),
+        ("reconnect failed: websocket: close 1006", "No hay conexión con WhatsApp."),
+        ("WhatsApp client outdated; update wacli and try again", "WhatsApp pidió una versión"),
+        ("QR code timed out; run `wacli auth` again to get a new code", "El código QR caducó."),
+        ("QR scanned, but multi-device is not enabled on the phone", "Tu WhatsApp no tiene"),
+        ("WhatsApp requires passkey verification", "Tu WhatsApp pide una llave de acceso"),
+        ("send text to the linked account itself is not supported", "No se puede enviar"),
+        ("file too large (9 bytes); maximum size is 1 bytes", "El archivo es demasiado grande"),
+        ("no LID found for 5215500000000", "Ese número no parece tener WhatsApp."),
+        ("panic: algo que nadie previó", "WhatsApp no pudo enviar el mensaje."),
+    ],
+)
+def test_explicar_fallo_dice_en_espanol_lo_que_wacli_dice_en_ingles(crudo, empieza):
+    dicho = explicar_fallo_wacli(WacliError(crudo))
+    assert dicho.startswith(empieza)
+    # Nunca se cuela el texto crudo ni el nombre de la herramienta.
+    assert crudo not in dicho and "wacli" not in dicho
+
+
+def test_explicar_fallo_por_tipo_de_excepcion():
+    import subprocess
+
+    corte = subprocess.TimeoutExpired(cmd="wacli", timeout=60)
+    assert explicar_fallo_wacli(corte).startswith("No supimos si el mensaje salió.")
+    assert "presiona Instalar" in explicar_fallo_wacli(FileNotFoundError("wacli"))
 
 
 def test_send_file_builds_command(monkeypatch):

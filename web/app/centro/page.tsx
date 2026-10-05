@@ -573,7 +573,13 @@ function Mesa({
             <div className="mt-5">
               <p className="text-cuerpo text-danger">
                 No se pudo enviar a {r.correo?.para ?? r.customer_phone ?? "el destinatario"}
-                {r.motivo_fallo ? `: ${r.motivo_fallo}` : ""}. Revisa el canal y reintenta.
+                {/* Un motivo que ya es una oración completa (los de WhatsApp dicen qué
+                    hacer) va solo; a los cortos se les agrega el consejo de siempre. */}
+                {!r.motivo_fallo
+                  ? ". Revisa el canal y reintenta."
+                  : r.motivo_fallo.endsWith(".")
+                    ? `. ${r.motivo_fallo}`
+                    : `: ${r.motivo_fallo}. Revisa el canal y reintenta.`}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button

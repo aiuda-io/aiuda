@@ -100,8 +100,11 @@ export type ChatMessage = {
   author: string;
   body: string;
   created_at: string | null;
-  // Entrega del saliente: sent | failed | pending | null (entrante/sin rastreo).
+  // Entrega del saliente: sent | failed | pending | sending (adjunto) | held | null.
   delivery?: string | null;
+  // Si falló: por qué, en español. Un adjunto fallido no se puede reintentar.
+  motivo_fallo?: string | null;
+  reintentable?: boolean;
   // Presentes solo en la respuesta de envío (no al listar el hilo).
   delivered?: boolean;
   delivery_error?: string | null;
@@ -407,6 +410,8 @@ export type ConversationDetail = {
     author: string;
     body: string;
     delivery?: string | null;
+    motivo_fallo?: string | null;
+    reintentable?: boolean;
     created_at: string;
   }[];
 };
@@ -1193,6 +1198,8 @@ export type WhatsappStatus = WhatsappInstalacion & {
   telefono: string | null;
   /** El QR vigente mientras se empareja (wacli lo rota). */
   qr: string | null;
+  /** Lo último que falló, en español (el QR caducó, no hay internet). */
+  aviso: string | null;
 };
 
 export const api = {

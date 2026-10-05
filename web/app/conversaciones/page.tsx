@@ -126,14 +126,24 @@ function Conversacion({ id }: { id: string }) {
       meta:
         mine && human ? (
           m.delivery === "failed" ? (
-            <button
-              onClick={() => resend(m.id)}
-              disabled={retryingId === m.id}
-              className="text-sello font-medium text-danger underline decoration-danger/40 underline-offset-2 hover:decoration-danger disabled:opacity-60"
-            >
-              {retryingId === m.id ? "Reintentando…" : "No se envió · Reintentar"}
-            </button>
-          ) : m.delivery === "pending" ? (
+            // El motivo va junto al aviso: "No se envió" a secas no dice qué hacer.
+            <span className="flex flex-col items-end gap-0.5 text-right">
+              {m.reintentable === false ? (
+                <span className="text-sello font-medium text-danger">No se envió</span>
+              ) : (
+                <button
+                  onClick={() => resend(m.id)}
+                  disabled={retryingId === m.id}
+                  className="text-sello font-medium text-danger underline decoration-danger/40 underline-offset-2 hover:decoration-danger disabled:opacity-60"
+                >
+                  {retryingId === m.id ? "Reintentando…" : "No se envió · Reintentar"}
+                </button>
+              )}
+              {m.motivo_fallo && (
+                <span className="max-w-xs text-sello text-ink-3">{m.motivo_fallo}</span>
+              )}
+            </span>
+          ) : m.delivery === "pending" || m.delivery === "sending" ? (
             <span className="text-sello text-ink-3">Enviando…</span>
           ) : m.delivery === "sent" ? (
             <span className="text-sello text-ink-3">Enviado</span>

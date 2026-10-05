@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
+from aiuda_core.connectors.wacli import FALLO_GENERICO, explicar_fallo_wacli
 from aiuda_core.connectors.channel import (
     CHANNELS,
     get_channel_sender,
@@ -422,24 +423,80 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
                 approval.advance(reminder, "failed")
             if reminder.status == "failed":
                 canal = CHANNELS.get(channel, {}).get("label", channel)
+                por_wacli = channel == "whatsapp" and wa is not None and wa.provider == "wacli"
                 reminder.meta = {
                     **(reminder.meta or {}),
-                    "motivo_fallo": f"No salió por {canal}: {str(exc)[:200]}",
+                    # wacli falla en inglés y para quien programa: al dueño se le
+                    # dice qué pasó y qué hacer (el crudo ya quedó en el log).
+                    "motivo_fallo": (
+                        explicar_fallo_wacli(exc)
+                        if por_wacli
+                        else f"No salió por {canal}: {str(exc)[:200]}"
+                    ),
                 }
         # Hubo veredicto (sent/failed) o retención deliberada (sombra/horario): la
         # marca de en-vuelo se limpia. Solo una muerte del proceso la deja puesta.
         reminder.meta = _sin_marca_en_vuelo(reminder.meta)
 
 
-def _mark_delivery(tenant_id: str, message_id: str | None, status: str) -> None:
-    """Fija el estado de entrega del saliente. Sin message_id no hace nada (compat)."""
+# Motivo del último intento fallido de cada saliente humano. Vive en
+# tenant.config (sin columna nueva ni migración), acotado a los más recientes.
+ENVIOS_FALLIDOS_KEY = "envios_fallidos"
+_MAX_ENVIOS_FALLIDOS = 200
+
+SIN_CANAL = "WhatsApp no está conectado. Ve a Integraciones, abre WhatsApp y conéctalo."
+ADJUNTO_PERDIDO = "El envío del archivo se interrumpió. Vuelve a adjuntarlo."
+
+
+def _mark_delivery(
+    tenant_id: str,
+    message_id: str | None,
+    status: str,
+    motivo: str | None = None,
+    adjunto: bool = False,
+) -> None:
+    """Fija el estado de entrega del saliente. Sin message_id no hace nada (compat).
+    Con 'failed' guarda además POR QUÉ (para la consola y el teléfono); cualquier
+    otro veredicto borra el motivo anterior."""
     if not message_id:
         return
     with session_scope() as session:
         msg = session.get(Message, message_id)
-        if msg is not None and msg.tenant_id == tenant_id:
-            msg.delivery = status
-            session.add(msg)
+        if msg is None or msg.tenant_id != tenant_id:
+            return
+        msg.delivery = status
+        session.add(msg)
+        tenant = session.get(Tenant, tenant_id)
+        if tenant is None:
+            return
+        fallidos = dict((tenant.config or {}).get(ENVIOS_FALLIDOS_KEY) or {})
+        if status == "failed":
+            fallidos.pop(message_id, None)  # reinsertar lo deja como el más reciente
+            fallidos[message_id] = {
+                "motivo": motivo or FALLO_GENERICO,
+                "cuando": utcnow().isoformat(),
+                **({"adjunto": True} if adjunto else {}),
+            }
+            for viejo in list(fallidos)[:-_MAX_ENVIOS_FALLIDOS]:
+                del fallidos[viejo]
+        elif message_id not in fallidos:
+            return
+        else:
+            del fallidos[message_id]
+        tenant.config = {**(tenant.config or {}), ENVIOS_FALLIDOS_KEY: fallidos}
+        session.add(tenant)
+
+
+def motivo_de_fallo(tenant: Tenant, message_id: str) -> dict | None:
+    """{"motivo", "cuando", "adjunto"?} del saliente fallido, o None."""
+    return ((tenant.config or {}).get(ENVIOS_FALLIDOS_KEY) or {}).get(message_id)
+
+
+def _explicar(exc: BaseException, wa) -> str:
+    """El motivo de un envío de WhatsApp que tronó, para el dueño."""
+    if wa is not None and wa.provider == "wacli":
+        return explicar_fallo_wacli(exc)
+    return FALLO_GENERICO
 
 
 def send_human_message_blocking(
@@ -454,7 +511,10 @@ def send_human_message_blocking(
     `sent` o `failed`. Si el proceso muere antes, el mensaje queda en `pending` y el barrido
     de la corrida diaria lo reintenta. Un `pending` viejo = envío que nunca obtuvo veredicto."""
     if not phone or not body:
-        _mark_delivery(tenant_id, message_id, "failed")
+        _mark_delivery(
+            tenant_id, message_id, "failed",
+            "Falta el teléfono del cliente." if not phone else "El mensaje está vacío.",
+        )
         return
     with session_scope() as session:
         tenant = session.get(Tenant, tenant_id)
@@ -467,7 +527,8 @@ def send_human_message_blocking(
             return
         wa = resolve_whatsapp(session, tenant) if tenant is not None else None
         if wa is None:
-            _mark_delivery(tenant_id, message_id, "failed")  # sin canal: honesto, no se barre
+            # sin canal: honesto, no se barre
+            _mark_delivery(tenant_id, message_id, "failed", SIN_CANAL)
             return
         # La ventana de 24 h (Cloud API) se decide aquí, con la sesión viva; el envío
         # ocurre después, ya sin sesión.
@@ -477,44 +538,66 @@ def send_human_message_blocking(
             else False
         )
     with _pause_for(wa):
-        ok = _safe_send(
+        fallo = _intentar_envio(
             f"mensaje a {phone}",
             lambda: get_whatsapp_sender(wa, lambda _p: within)(phone, body),
         )
-    _mark_delivery(tenant_id, message_id, "sent" if ok else "failed")
+    if fallo is None:
+        _mark_delivery(tenant_id, message_id, "sent")
+    else:
+        _mark_delivery(tenant_id, message_id, "failed", _explicar(fallo, wa))
 
 
 def send_human_file_blocking(
-    tenant_id: str, phone: str, file_path: str, caption: str, filename: str
+    tenant_id: str,
+    phone: str,
+    file_path: str,
+    caption: str,
+    filename: str,
+    message_id: str | None = None,
 ) -> None:
     """Igual que send_human_message_blocking pero para un archivo (PDF/imagen). Borra el
-    temporal al terminar, pase lo que pase."""
+    temporal al terminar, pase lo que pase. Con `message_id` el adjunto también recibe
+    veredicto (sent/failed con motivo/held): antes no quedaba rastro de si salió."""
     import os
+
+    def veredicto(status: str, motivo: str | None = None) -> None:
+        _mark_delivery(tenant_id, message_id, status, motivo, adjunto=True)
 
     try:
         if not phone:
+            veredicto("failed", "Falta el teléfono del cliente.")
             return
         with session_scope() as session:
             tenant = session.get(Tenant, tenant_id)
             if tenant is not None and bool((tenant.config or {}).get("modo_sombra")):
                 log.info("modo sombra: adjunto a %s retenido (no se envió)", phone)
+                veredicto("held")
                 return
             wa = resolve_whatsapp(session, tenant) if tenant is not None else None
             if wa is None:
+                veredicto("failed", SIN_CANAL)
                 return
             if wa.provider != "wacli":
                 # Honesto: el adjunto por Cloud API (media upload) aún no está cableado.
                 log.warning("adjunto omitido: el canal del negocio no es wacli")
+                veredicto(
+                    "failed", "Por WhatsApp Business (oficial) todavía no se pueden enviar archivos."
+                )
                 return
         from aiuda_core.connectors.wacli import WacliClient
 
         with _pause_for(wa):
-            _safe_send(
+            fallo = _intentar_envio(
                 f"archivo a {phone}",
                 lambda: WacliClient(store_dir=wa.store_dir).send_file(
                     phone, file_path, caption=caption, filename=filename
                 ),
             )
+        if fallo is None:
+            veredicto("sent")
+        else:
+            veredicto("failed", _explicar(fallo, wa))
     finally:
         try:
             os.remove(file_path)
@@ -800,15 +883,21 @@ def process_writebacks_blocking(tenant_id: str) -> None:
             _process_writebacks(session, tenant)
 
 
+def _intentar_envio(label: str, send_fn) -> Exception | None:
+    """Envía sin tumbar a quien llama. Devuelve None si salió, o la excepción (para
+    poder decirle al dueño POR QUÉ no salió; el crudo queda en el log)."""
+    try:
+        send_fn()
+        return None
+    except Exception as exc:  # noqa: BLE001 — un canal caído no debe abortar el día
+        log.warning("envío omitido (%s): %s", label, exc)
+        return exc
+
+
 def _safe_send(label: str, send_fn) -> bool:
     """Envía sin tumbar la corrida: en free no hay canal (wacli) y el envío truena.
     Si falla, lo registra y sigue — lo redactado queda en Aprobaciones de todos modos."""
-    try:
-        send_fn()
-        return True
-    except Exception as exc:  # noqa: BLE001 — un canal caído no debe abortar el día
-        log.warning("envío omitido (%s): %s", label, exc)
-        return False
+    return _intentar_envio(label, send_fn) is None
 
 
 def run_daily_blocking(
@@ -1007,6 +1096,18 @@ def _sweep_pending_sends(now: datetime, older_than_min: int = 10, cap: int = 50)
             (m.tenant_id, m.id, c.id, c.channel or "whatsapp", c.remote_phone, m.body)
             for m, c in rows
         ]
+        # Un adjunto que se quedó a medias no se puede reintentar (su archivo
+        # temporal ya no existe): se marca fallido con el motivo, no se reenvía.
+        adjuntos = session.execute(
+            select(Message.tenant_id, Message.id).where(
+                Message.direction == "out",
+                Message.author == "human",
+                Message.delivery == "sending",
+                Message.created_at < cutoff,
+            )
+        ).all()
+    for tenant_id, message_id in adjuntos:
+        _mark_delivery(tenant_id, message_id, "failed", ADJUNTO_PERDIDO, adjunto=True)
     for tenant_id, message_id, conv_id, channel, phone, body in stuck:
         log.info("barrido: reintento de saliente pendiente %s (%s)", message_id, channel)
         if channel == "correo":

@@ -109,9 +109,12 @@ def test_adjunto_se_guarda_y_agenda_envio(client, db_session, monkeypatch):
     assert res.status_code == 200 and res.json()["queued"] is True
     assert res.json()["body"] == "Tu factura"
     assert db_session.scalar(select(Message).where(Message.tenant_id == t.id)) is not None
-    # (tenant, phone, tmp_path, caption, filename)
-    tid, phone, tmp_path, caption, filename = calls[0]
+    # (tenant, phone, tmp_path, caption, filename, message_id)
+    tid, phone, tmp_path, caption, filename, message_id = calls[0]
     assert (tid, phone, caption, filename) == (t.id, "5215599998888", "Tu factura", "factura.pdf")
+    # El adjunto ya tiene rastro de entrega: 'sending' hasta que la tarea dé veredicto.
+    assert message_id == res.json()["id"]
+    assert db_session.get(Message, message_id).delivery == "sending"
     # El endpoint dejó el temporal escrito (la tarea real lo borraría al enviar).
     assert os.path.exists(tmp_path)
     os.remove(tmp_path)
@@ -484,8 +487,10 @@ def test_send_reminder_falla_marca_failed_sin_propagar(monkeypatch):
 
     worker_main.send_reminder_blocking(t.id, r.id)  # no debe lanzar
     assert r.status == "failed"
-    # El motivo queda VISIBLE para la UI (qué pasó y por dónde), no un failed mudo.
-    assert "wacli caído" in r.meta["motivo_fallo"]
+    # El motivo queda VISIBLE para la UI, no un failed mudo; y en español llano: el
+    # texto crudo del canal se queda en el log, no en la pantalla del dueño.
+    assert r.meta["motivo_fallo"].startswith("WhatsApp no pudo enviar el mensaje.")
+    assert "wacli caído" not in r.meta["motivo_fallo"]
     assert r.sent_at is None
 
 

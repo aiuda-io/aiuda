@@ -24,6 +24,87 @@ class WacliError(RuntimeError):
     pass
 
 
+# Lo que wacli dice cuando falla (en inglés, para quien programa) y lo que se le
+# dice al dueño. Se busca por fragmento, en orden: el primero que aparece gana.
+# Los textos de wacli salen de su código (v0.20.0); "not authenticated" además se
+# vio en vivo. El crudo va al log, nunca a la pantalla.
+_SIN_VINCULAR = (
+    "Tu WhatsApp no está vinculado. Ve a Integraciones, abre WhatsApp y escanea el código QR."
+)
+_SESION_CERRADA = (
+    "WhatsApp cerró la sesión de esta computadora, casi siempre porque se quitó desde "
+    "el teléfono en Dispositivos vinculados. Vuelve a escanear el código QR."
+)
+_OCUPADO = (
+    "WhatsApp está ocupado en esta computadora con otra tarea. Intenta de nuevo en un minuto."
+)
+_NO_SUPIMOS = (
+    "No supimos si el mensaje salió. Antes de reenviar, revisa en tu WhatsApp si le "
+    "llegó al cliente."
+)
+_TARDO = "El mensaje no salió porque WhatsApp tardó demasiado. Intenta de nuevo."
+_SIN_RED = (
+    "No hay conexión con WhatsApp. Revisa el internet de esta computadora e intenta de nuevo."
+)
+_SIN_WHATSAPP = "Ese número no parece tener WhatsApp. Revisa el teléfono del cliente."
+FALLO_GENERICO = (
+    "WhatsApp no pudo enviar el mensaje. Intenta de nuevo; si sigue fallando, usa "
+    "Probar conexión en Integraciones."
+)
+_FALLOS: tuple[tuple[str, str], ...] = (
+    ("not authenticated", _SIN_VINCULAR),
+    ("session was revoked", _SESION_CERRADA),
+    ("login failed", _SESION_CERRADA),
+    ("logged_out", _SESION_CERRADA),
+    ("store is locked", _OCUPADO),
+    ("waiting for store lock", _OCUPADO),
+    ("no reply from the running sync process", _NO_SUPIMOS),
+    ("request deadline passed before dispatch", _TARDO),
+    ("send timed out", _TARDO),
+    (
+        "client outdated",
+        "WhatsApp pidió una versión más nueva del conector. Ve a Integraciones, abre "
+        "WhatsApp y presiona Actualizar.",
+    ),
+    ("qr code timed out", "El código QR caducó. Genera uno nuevo y escanéalo."),
+    (
+        "multi-device is not enabled",
+        "Tu WhatsApp no tiene activos los dispositivos vinculados. Actualiza WhatsApp en "
+        "tu teléfono e intenta de nuevo.",
+    ),
+    (
+        "passkey",
+        "Tu WhatsApp pide una llave de acceso para vincular y esta conexión todavía no "
+        "la soporta.",
+    ),
+    ("linked account itself", "No se puede enviar un mensaje a tu propio número."),
+    ("no lid found", _SIN_WHATSAPP),
+    ("file too large", "El archivo es demasiado grande para WhatsApp."),
+    ("not connected", _SIN_RED),
+    ("reconnect failed", _SIN_RED),
+    ("websocket", _SIN_RED),
+    ("dial tcp", _SIN_RED),
+    ("no such host", _SIN_RED),
+)
+
+
+def explicar_fallo_wacli(fallo: BaseException | str) -> str:
+    """Una falla de wacli, dicha en español llano para el dueño. Nunca devuelve el
+    texto crudo: lo que no se reconoce sale como un aviso genérico con qué hacer."""
+    if isinstance(fallo, subprocess.TimeoutExpired):
+        return _NO_SUPIMOS  # se cortó a media espera: pudo haber salido
+    if isinstance(fallo, FileNotFoundError):
+        return wacli_bin.SIN_INSTALAR
+    texto = str(fallo)
+    if "Falta instalar el conector" in texto:
+        return wacli_bin.SIN_INSTALAR  # ya venía traducido (WacliClient._run)
+    bajo = texto.lower()
+    for fragmento, mensaje in _FALLOS:
+        if fragmento in bajo:
+            return mensaje
+    return FALLO_GENERICO
+
+
 class WacliClient:
     def __init__(
         self,

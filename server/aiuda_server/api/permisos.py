@@ -37,6 +37,7 @@ INVITADO: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/v1/invoices/{invoice_id}/cfdi.pdf"),
     ("GET", "/v1/invoices/{invoice_id}/cfdi.xml"),
     ("GET", "/v1/learning/summary"),
+    ("GET", "/v1/mensajes/fallidos"),
     ("GET", "/v1/products"),
     ("GET", "/v1/promises"),
     ("GET", "/v1/reconciliation"),

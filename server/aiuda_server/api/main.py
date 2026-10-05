@@ -1297,6 +1297,11 @@ def resend_message(
         raise HTTPException(status_code=404, detail="Mensaje no encontrado")
     if message.direction != "out" or message.author != "human":
         raise HTTPException(status_code=400, detail="Solo puedes reintentar tus propios mensajes.")
+    if not _entrega(tenant, message)["reintentable"]:
+        raise HTTPException(
+            status_code=400,
+            detail="El archivo ya no está guardado. Vuelve a adjuntarlo desde la ficha del cliente.",
+        )
     conv = db.get(Conversation, conversation_id)
     message.delivery = "pending"
     db.add(message)
@@ -1311,6 +1316,67 @@ def resend_message(
             send_human_message_blocking, tenant.id, conv.remote_phone, message.body, message.id
         )
     return {"id": message.id, "delivery": "pending"}
+
+
+def _entrega(tenant: Tenant, m: Message) -> dict:
+    """Estado de entrega de un mensaje para la consola y el teléfono. `delivery`:
+    sent | failed | pending | sending (adjunto en camino) | held (modo sombra) |
+    null (entrante o sin rastreo). Si falló, POR QUÉ, y si se puede reintentar (un
+    adjunto no: su archivo ya no existe)."""
+    from aiuda_server.worker.main import motivo_de_fallo
+
+    fallo = (motivo_de_fallo(tenant, m.id) or {}) if m.delivery == "failed" else {}
+    return {
+        "delivery": m.delivery,
+        "motivo_fallo": (
+            fallo.get("motivo") or "No se pudo enviar. Intenta de nuevo."
+            if m.delivery == "failed"
+            else None
+        ),
+        "reintentable": not fallo.get("adjunto"),
+    }
+
+
+@app.get("/v1/mensajes/fallidos")
+def mensajes_fallidos(
+    limit: int = Query(default=50, ge=1, le=200),
+    tenant: Tenant = Depends(get_tenant),
+    db=Depends(get_db),
+):
+    """Los mensajes escritos a mano que NO salieron, del más reciente al más viejo,
+    con su motivo. Para que el teléfono los muestre sin recorrer cada conversación.
+    (Los recordatorios fallidos ya vienen en GET /v1/reminders con su motivo.)"""
+    rows = db.execute(
+        select(Message, Conversation)
+        .join(Conversation, Message.conversation_id == Conversation.id)
+        .where(
+            Message.tenant_id == tenant.id,
+            Message.direction == "out",
+            Message.author == "human",
+            Message.delivery == "failed",
+        )
+        .order_by(Message.created_at.desc())
+        .limit(limit)
+    ).all()
+    fallidos = []
+    for m, conv in rows:
+        customer = _customer_de_conversacion(db, tenant, conv)
+        entrega = _entrega(tenant, m)
+        fallidos.append(
+            {
+                "id": m.id,
+                "conversation_id": conv.id,
+                "channel": conv.channel or "whatsapp",
+                "remote_phone": conv.remote_phone,
+                "customer": customer.name if customer else None,
+                "customer_id": customer.id if customer else None,
+                "body": m.body,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "motivo_fallo": entrega["motivo_fallo"],
+                "reintentable": entrega["reintentable"],
+            }
+        )
+    return {"fallidos": fallidos}
 
 
 @app.get("/v1/conversations/{conversation_id}")
@@ -1346,7 +1412,7 @@ def get_conversation(
                 "direction": m.direction,
                 "author": m.author,
                 "body": m.body,
-                "delivery": m.delivery,  # sent | failed | pending | null (entrante/sin rastreo)
+                **_entrega(tenant, m),
                 "created_at": m.created_at.isoformat(),
             }
             for m in messages
@@ -1649,7 +1715,7 @@ def _conversation_messages(db, tenant: Tenant, conv: Conversation | None) -> lis
             "direction": m.direction,
             "author": m.author,
             "body": m.body,
-            "delivery": m.delivery,  # sent | failed | pending | null (entrante/sin rastreo)
+            **_entrega(tenant, m),
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
         for m in msgs
@@ -2037,7 +2103,14 @@ def attach_to_customer(
 
     body = caption.strip() or f"[archivo] {safe_name}"
     message = Message(
-        tenant_id=tenant.id, conversation_id=conv.id, direction="out", author="human", body=body
+        tenant_id=tenant.id,
+        conversation_id=conv.id,
+        direction="out",
+        author="human",
+        body=body,
+        # 'sending' y no 'pending': el barrido de pendientes reenvía el TEXTO del
+        # mensaje, y de un adjunto solo sabría mandar "[archivo] nombre".
+        delivery="sending",
     )
     db.add(message)
     db.flush()
@@ -2059,8 +2132,15 @@ def attach_to_customer(
         fh.write(raw)
     from aiuda_server.worker.main import send_human_file_blocking
 
+    db.commit()  # la tarea marca el mensaje en su propia sesión; ver send_human_message
     background.add_task(
-        send_human_file_blocking, tenant.id, cust.phone, tmp_path, caption.strip(), safe_name
+        send_human_file_blocking,
+        tenant.id,
+        cust.phone,
+        tmp_path,
+        caption.strip(),
+        safe_name,
+        message.id,
     )
     return {
         "id": message.id,

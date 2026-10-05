@@ -28,6 +28,7 @@ from aiuda_server.api.deps import get_db, get_tenant
 from aiuda_core.config import settings
 from aiuda_core.connectors import wacli_bin
 from aiuda_core.connectors.channel import wacli_store_dir, whatsapp_config
+from aiuda_core.connectors.wacli import explicar_fallo_wacli
 from aiuda_core.connectors.waba import parse_webhook as parse_waba_webhook
 from aiuda_core.models import Conversation, IntegrationCredential, Message, Tenant
 
@@ -88,6 +89,12 @@ def _estado_vivo(tenant: Tenant, db) -> dict:
         "desde": foto["desde"],
         "telefono": foto["telefono"] if vinculado else None,
         "qr": _qr_imagen(foto["qr"]),
+        # Lo último que falló, ya en español (el QR caducó, no hay internet...).
+        "aviso": (
+            explicar_fallo_wacli(foto["error"])
+            if foto["error"] and foto["estado"] in (wacli_sync.SIN_VINCULAR, wacli_sync.SIN_CONEXION)
+            else None
+        ),
         **_instalacion(),
     }
 
@@ -110,11 +117,17 @@ def whatsapp_qr(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         return {"connected": True, "qr": None}
 
     instance = tenant.evolution_instance
-    code = wacli_sync.vincular(instance, wacli_store_dir(instance))
+    store = wacli_store_dir(instance)
+    code = wacli_sync.vincular(instance, store)
     if not code:
+        error = wacli_sync.estado(instance, store)["error"]
         raise HTTPException(
             status_code=502,
-            detail="No se pudo generar el código QR. Intenta de nuevo en un momento.",
+            detail=(
+                explicar_fallo_wacli(error)
+                if error
+                else "No se pudo generar el código QR. Intenta de nuevo en un momento."
+            ),
         )
     return {"connected": False, "qr": _qr_imagen(code)}
 

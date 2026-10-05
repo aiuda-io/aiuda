@@ -10,6 +10,7 @@ import os
 import subprocess
 import time
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,7 @@ from sqlalchemy.pool import StaticPool
 
 from aiuda_core.config import settings
 from aiuda_core.connectors import wacli_bin
+from aiuda_core.connectors.wacli import WacliClient, WacliError
 import aiuda_server.worker.main as worker_main
 from aiuda_core.models import Base, Customer, Tenant
 from aiuda_server import wacli_sync
@@ -159,6 +161,160 @@ def test_mensaje_desde_la_ficha_queda_sent_y_no_pending(api_real, monkeypatch):
     url = f"/v1/conversations/{r['conversation_id']}/messages/{r2['id']}/resend"
     assert http.post(url).status_code == 200
     assert _mensaje(http, r["conversation_id"], r2["id"])["delivery"] == "sent"
+
+
+def _falla_con(monkeypatch, exc):
+    def sender(wa, w=None):
+        def _s(phone, text):
+            raise exc
+        return _s
+
+    monkeypatch.setattr(worker_main, "get_whatsapp_sender", sender)
+
+
+def test_mensaje_que_falla_guarda_el_motivo_en_espanol(api_real, monkeypatch):
+    http, cliente_id = api_real
+    _falla_con(monkeypatch, WacliError("not authenticated; run `wacli auth`"))
+    r = http.post(f"/v1/customers/{cliente_id}/messages", json={"body": "Hola"}).json()
+    m = _mensaje(http, r["conversation_id"], r["id"])
+    assert m["delivery"] == "failed" and m["reintentable"] is True
+    assert m["motivo_fallo"].startswith("Tu WhatsApp no está vinculado.")
+    assert "wacli" not in m["motivo_fallo"]
+
+    # El teléfono los ve todos juntos, sin recorrer cada conversación.
+    fallidos = http.get("/v1/mensajes/fallidos").json()["fallidos"]
+    assert [f["id"] for f in fallidos] == [r["id"]]
+    assert fallidos[0]["motivo_fallo"] == m["motivo_fallo"]
+    assert fallidos[0]["customer"] == "Cliente" and fallidos[0]["body"] == "Hola"
+
+    # Reintento que sí sale: el motivo se borra y deja de aparecer como fallido.
+    monkeypatch.setattr(worker_main, "get_whatsapp_sender", lambda wa, w=None: lambda p, t: None)
+    http.post(f"/v1/conversations/{r['conversation_id']}/messages/{r['id']}/resend")
+    m = _mensaje(http, r["conversation_id"], r["id"])
+    assert m["delivery"] == "sent" and m["motivo_fallo"] is None
+    assert http.get("/v1/mensajes/fallidos").json()["fallidos"] == []
+
+
+def test_envio_que_se_corta_a_media_espera_no_invita_a_reenviar_a_ciegas(api_real, monkeypatch):
+    http, cliente_id = api_real
+    _falla_con(monkeypatch, subprocess.TimeoutExpired(cmd="wacli", timeout=60))
+    r = http.post(f"/v1/customers/{cliente_id}/messages", json={"body": "Hola"}).json()
+    motivo = _mensaje(http, r["conversation_id"], r["id"])["motivo_fallo"]
+    assert motivo.startswith("No supimos si el mensaje salió.")
+
+
+def test_adjunto_que_falla_queda_fallido_con_motivo_y_no_se_reintenta(api_real, monkeypatch):
+    http, cliente_id = api_real
+
+    def send_file(self, phone, file_path, caption="", filename=None):
+        raise WacliError("file too large (99 bytes); maximum size is 1 bytes")
+
+    monkeypatch.setattr(WacliClient, "send_file", send_file)
+    r = http.post(
+        f"/v1/customers/{cliente_id}/attachments",
+        files={"file": ("factura.pdf", b"%PDF-1.4", "application/pdf")},
+    ).json()
+    m = _mensaje(http, r["conversation_id"], r["id"])
+    assert m["delivery"] == "failed" and m["reintentable"] is False
+    assert m["motivo_fallo"] == "El archivo es demasiado grande para WhatsApp."
+    url = f"/v1/conversations/{r['conversation_id']}/messages/{r['id']}/resend"
+    assert http.post(url).status_code == 400  # el archivo ya no existe: se vuelve a adjuntar
+
+
+def test_adjunto_que_sale_queda_sent(api_real, monkeypatch):
+    http, cliente_id = api_real
+    monkeypatch.setattr(WacliClient, "send_file", lambda self, *a, **k: None)
+    r = http.post(
+        f"/v1/customers/{cliente_id}/attachments",
+        files={"file": ("factura.pdf", b"%PDF-1.4", "application/pdf")},
+    ).json()
+    assert _mensaje(http, r["conversation_id"], r["id"])["delivery"] == "sent"
+
+
+def test_adjunto_interrumpido_se_marca_fallido_y_no_se_reenvia_como_texto(api_real, monkeypatch):
+    http, cliente_id = api_real
+    # La tarea "muere" sin dar veredicto: el mensaje se queda en 'sending'.
+    monkeypatch.setattr(worker_main, "send_human_file_blocking", lambda *a: None)
+    r = http.post(
+        f"/v1/customers/{cliente_id}/attachments",
+        files={"file": ("factura.pdf", b"%PDF-1.4", "application/pdf")},
+    ).json()
+    assert _mensaje(http, r["conversation_id"], r["id"])["delivery"] == "sending"
+    enviados = []
+    monkeypatch.setattr(worker_main, "send_human_message_blocking", lambda *a: enviados.append(a))
+    worker_main._sweep_pending_sends(datetime.now(timezone.utc) + timedelta(hours=1))
+    m = _mensaje(http, r["conversation_id"], r["id"])
+    assert m["delivery"] == "failed" and "Vuelve a adjuntarlo" in m["motivo_fallo"]
+    assert enviados == []
+
+
+def test_los_motivos_guardados_no_crecen_sin_limite(api_real, monkeypatch):
+    http, cliente_id = api_real
+    monkeypatch.setattr(worker_main, "_MAX_ENVIOS_FALLIDOS", 2)
+    _falla_con(monkeypatch, WacliError("not connected"))
+    ids = [
+        http.post(f"/v1/customers/{cliente_id}/messages", json={"body": f"m{i}"}).json()["id"]
+        for i in range(3)
+    ]
+    with worker_main.session_scope() as s:
+        guardados = list(s.query(Tenant).one().config[worker_main.ENVIOS_FALLIDOS_KEY])
+    assert guardados == ids[1:]
+
+
+# ---------- probar conexión y "conectado" en vivo ----------
+
+def _marcado(db_session, tenant) -> None:
+    tenant.config = {"integrations": {"whatsapp": {"via": "wacli", "instance": "inst-a"}}}
+    db_session.add(tenant)
+    db_session.flush()
+
+
+def _conectado_en_lista(client) -> bool:
+    sistemas = client.get("/v1/integrations").json()["systems"]
+    return next(s for s in sistemas if s["key"] == "whatsapp")["connected"]
+
+
+def test_probar_conexion_sin_conector_dice_que_falta_instalar(client, tenant, monkeypatch):
+    monkeypatch.setattr(wacli_bin, "puede_instalarse", lambda: None)
+    r = client.post("/v1/integrations/whatsapp/test").json()
+    assert r["ok"] is False and "presiona Instalar" in r["message"]
+
+
+def test_probar_conexion_sin_vincular(client, tenant, falso):
+    r = client.post("/v1/integrations/whatsapp/test").json()
+    assert r["ok"] is False and "escanea el código QR" in r["message"]
+
+
+def test_probar_conexion_con_sesion_viva(client, tenant, falso):
+    _vinculado(falso)
+    r = client.post("/v1/integrations/whatsapp/test").json()  # arranca el sync y espera
+    assert r == {
+        "ok": True, "message": "Conectado a WhatsApp.", "details": {"Número": "+5215511112222"}
+    }
+
+
+def test_probar_conexion_con_la_sesion_cerrada_desde_el_telefono(client, tenant, falso):
+    _vinculado(falso)
+    client.post("/v1/integrations/whatsapp/test")
+    (falso / "cerrar_sesion").write_text("")
+    assert _esperar(lambda: _estado(falso) == "sesion_cerrada")
+    r = client.post("/v1/integrations/whatsapp/test").json()
+    assert r["ok"] is False and "Vuelve a escanear el código QR" in r["message"]
+
+
+def test_conectado_sigue_a_la_sesion_y_no_a_la_marca_guardada(client, db_session, tenant, falso):
+    _marcado(db_session, tenant)
+    # La marca dice wacli, pero no hay sesión: NO está conectado.
+    assert _conectado_en_lista(client) is False
+    _vinculado(falso)
+    assert _conectado_en_lista(client) is True
+    # WhatsApp cierra la sesión desde el teléfono: deja de estar conectado solo.
+    wacli_sync.arrancar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    (falso / "cerrar_sesion").write_text("")
+    assert _esperar(lambda: _estado(falso) == "sesion_cerrada")
+    assert _conectado_en_lista(client) is False
+    assert tenant.config["integrations"]["whatsapp"]["via"] == "wacli"  # la marca sigue
 
 
 # ---------- el server es dueño del proceso de wacli ----------
@@ -376,6 +532,29 @@ def test_api_cerrar_la_ventana_cancela_el_emparejamiento(client, tenant, falso):
     assert _candado_tomado(falso)
     assert client.delete("/v1/integrations/whatsapp/qr").status_code == 200
     assert not _candado_tomado(falso)
+
+
+def test_api_qr_que_caduca_lo_dice_en_espanol(client, tenant, falso, monkeypatch):
+    monkeypatch.setattr(wacli_sync, "_VINCULACION_MAX_S", 0.4)
+    client.post("/v1/integrations/whatsapp/qr")
+    assert _esperar(lambda: _status(client)["estado"] == "sin_vincular")
+    assert _status(client)["aviso"] == "El código QR caducó. Genera uno nuevo y escanéalo."
+
+
+def test_api_qr_con_el_whatsapp_ocupado_por_otro_programa(client, tenant, falso):
+    # Sin sesión todavía, pero otro wacli tiene el store (alguien emparejando a mano).
+    ajeno = subprocess.Popen(
+        [WACLI_FALSO, "auth", "--store", str(falso)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    try:
+        assert _esperar(lambda: _candado_tomado(falso))
+        r = client.post("/v1/integrations/whatsapp/qr")
+        assert r.status_code == 502
+        assert r.json()["detail"].startswith("WhatsApp está ocupado en esta computadora")
+    finally:
+        ajeno.terminate()
+        ajeno.wait(timeout=5)
 
 
 def test_api_sesion_vinculada_desde_fuera_se_reconoce_y_arranca(client, tenant, falso):
