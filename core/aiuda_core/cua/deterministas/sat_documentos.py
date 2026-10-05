@@ -31,10 +31,13 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 import re
 import time
 import unicodedata
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 OPINION_32D = "opinion_32d"
 CONSTANCIA = "constancia"
@@ -158,8 +161,8 @@ _JS_PIDE_ACEPTAR = """() => {
   return '';
 }"""
 
-_JS_BAJAR_PDF = """async (ruta) => {
-  const r = await fetch(ruta, {credentials: 'include'});
+_JS_BAJAR_PDF = """async ([ruta, tope_ms]) => {
+  const r = await fetch(ruta, {credentials: 'include', signal: AbortSignal.timeout(tope_ms)});
   const b = new Uint8Array(await r.arrayBuffer());
   let s = '';
   for (let i = 0; i < b.length; i += 8192) {
@@ -258,7 +261,7 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
                 ) from None
             c.paso("El SAT no mostró la pantalla de acceso. Espero y lo intento una vez más.")
             pg.wait_for_timeout(portal.pausa_reintento_s * 1000)
-    pg.wait_for_load_state("load")
+    _esperar_carga(pg)
     c.paso("El SAT mostró su pantalla de acceso.")
     c.foto()
 
@@ -278,7 +281,7 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
             "El portal del SAT no mostró el formulario de e.firma. Puede que haya "
             "cambiado su pantalla de acceso."
         )
-    pg.wait_for_load_state("load")
+    _esperar_carga(pg)
     if pg.locator("#userCaptcha:visible").count():
         c.foto()
         raise Alto(
@@ -299,7 +302,15 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
         pg.fill("#privateKeyPassword", c._password)
     except Exception:
         raise Alto("No se pudo escribir en el campo de contraseña del SAT.") from None
-    del_formulario = (pg.input_value("#rfc") or "").strip().upper()
+    try:
+        del_formulario = (pg.input_value("#rfc", timeout=10000) or "").strip().upper()
+    except Exception:
+        _vaciar_contrasena(pg)
+        c.foto()
+        raise Alto(
+            "El formulario de e.firma del SAT no mostró el RFC del certificado. Puede "
+            "que el portal haya cambiado. No se entró."
+        ) from None
     if del_formulario and del_formulario != rfc.upper():
         _vaciar_contrasena(pg)
         raise Alto(
@@ -332,6 +343,15 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
         "El portal del SAT no terminó el acceso con la e.firma en un minuto. "
         "Inténtalo más tarde."
     )
+
+
+def _esperar_carga(pg) -> None:
+    """Que la página termine de cargar. Si se tarda, se sigue: el paso siguiente tiene
+    su propia espera y su propio motivo si falla."""
+    try:
+        pg.wait_for_load_state("load", timeout=30000)
+    except Exception:
+        pass
 
 
 def _vaciar_contrasena(pg) -> None:
@@ -438,7 +458,17 @@ def _constancia(c: _Corrida, cer: bytes, key: bytes, rfc: str) -> tuple[bytes, d
         ) from None
     c.paso("Pedí la constancia con «Generar Constancia».")
     c.revisar_avisos()
-    estado, b64 = pg.evaluate(_JS_BAJAR_PDF, "/PTSC/IdcSiat/IdcGeneraConstancia.jsf")
+    try:
+        estado, b64 = pg.evaluate(
+            _JS_BAJAR_PDF,
+            ["/PTSC/IdcSiat/IdcGeneraConstancia.jsf", portal.espera_documento_s * 1000],
+        )
+    except Exception:
+        c.foto()
+        raise Alto(
+            "Pedí la constancia, pero la descarga del PDF se cortó o tardó demasiado. "
+            "Inténtalo más tarde."
+        ) from None
     pdf = base64.b64decode(b64)
     if estado != 200 or not pdf.startswith(b"%PDF"):
         c.foto()
@@ -497,13 +527,15 @@ def bajar_documento(
                 if corrida is not None:
                     out.pasos, out.capturas = corrida.pasos, corrida.capturas
                 navegador.close()
-    except Exception as exc:  # el portal se salió del guion o el navegador no arrancó
-        detalle = str(exc).splitlines()[0][:200] if str(exc) else type(exc).__name__
+    except Exception as exc:  # algo fuera del guion: el portal, la red o el navegador
+        # El detalle técnico (en inglés) va al registro, nunca a la bitácora del dueño.
+        detalle = str(exc).splitlines()[0] if str(exc) else type(exc).__name__
         if password:
             detalle = detalle.replace(password, "***")
-        out.pasos.append(f"Detalle técnico: {detalle}")
+        logger.warning("Rutina del SAT (%s) fuera del guion: %s", documento, detalle[:200])
+        out.pasos.append("Algo salió distinto a lo que espera el guion y me detuve.")
         out.error = (
-            "El portal del SAT se comportó distinto a lo esperado y la rutina se "
-            "detuvo sin bajar nada. Inténtalo más tarde."
+            "La rutina se detuvo sin bajar nada: el portal del SAT cambió o se cortó la "
+            "conexión. Inténtalo más tarde."
         )
     return out

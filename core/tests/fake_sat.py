@@ -150,10 +150,13 @@ class FakeSat:
             "tras_login": "ok",
             "opinion": "ok",  # ok | sin_exito | otro_rfc | no_pdf
             "sentido": "Positivo",
-            "constancia": "ok",  # ok | otro_rfc | html | otro_documento
+            # ok | otro_rfc | html | otro_documento | cortada (cierra la conexión) |
+            # colgada (no contesta el PDF)
+            "constancia": "ok",
         }
         self.visto: list[tuple[str, str, str]] = []
         self._candado = threading.Lock()
+        self._soltar = threading.Event()  # libera las respuestas colgadas al cerrar
         self._http = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.base = f"http://127.0.0.1:{self._http.server_address[1]}"
 
@@ -162,6 +165,7 @@ class FakeSat:
         return self
 
     def __exit__(self, *a):
+        self._soltar.set()
         self._http.shutdown()
         self._http.server_close()
         return False
@@ -262,6 +266,11 @@ class FakeSat:
                     })
                 if url.path == RUTA_PDF_CONSTANCIA:
                     c = modo["constancia"]
+                    if c == "cortada":
+                        self.close_connection = True
+                        return self.connection.close()
+                    if c == "colgada":
+                        return falso._soltar.wait(20)
                     if c == "html":
                         return self._enviar("<h1>Sesión expirada</h1>")
                     if c == "otro_documento":

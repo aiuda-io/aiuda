@@ -242,6 +242,27 @@ def test_salir_del_login_no_se_anota_como_efirma_aceptada(sat, documento):
     assert sat.rutas("POST") == []
 
 
+@pytest.mark.parametrize("modo", ["cortada", "colgada"])
+def test_la_descarga_de_la_constancia_cortada_o_colgada_se_dice_en_llano(sat, modo):
+    sat.modo["constancia"] = modo
+    r = bajar(sat, CONSTANCIA, espera_documento_s=2)
+    assert not r.ok and "la descarga del PDF se cortó o tardó demasiado" in r.error
+    assert r.pdf is None and r.capturas
+    bitacora = " ".join(r.pasos)
+    assert "Detalle técnico" not in bitacora and "Page." not in bitacora
+
+
+def test_un_tropiezo_fuera_del_guion_no_deja_ingles_en_la_bitacora(sat, monkeypatch, caplog):
+    def truena(*a, **k):
+        raise RuntimeError("Page.evaluate: TypeError: Failed to fetch")
+
+    monkeypatch.setitem(sd._GUIONES, OPINION_32D, truena)
+    r = bajar(sat, OPINION_32D)
+    assert not r.ok and "se detuvo sin bajar nada" in r.error
+    assert "Failed to fetch" not in " ".join(r.pasos) + r.error
+    assert "Failed to fetch" in caplog.text  # el detalle sí queda en el registro
+
+
 def test_el_sat_no_entrega_la_opinion(sat):
     sat.modo["opinion"] = "sin_exito"
     r = bajar(sat, OPINION_32D)
