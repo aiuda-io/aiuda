@@ -361,3 +361,33 @@ def test_no_cfdi_avisa_sin_tronar(session, tenant):
     res = importar_cfdis(session, tenant, ["<no>es cfdi</no>", "ni siquiera xml <"])
     assert res["cfdis"] == 0 and res["nuevos"] == 0
     assert len(res["avisos"]) == 2
+
+
+def test_un_cfdi_que_no_se_puede_guardar_no_tumba_a_los_demas(
+    session, tenant, monkeypatch
+):
+    """Un comprobante que la base rechaza se omite con aviso y el resto del lote
+    entra. Antes uno solo deshacía el paquete completo, vuelta tras vuelta."""
+    from aiuda_core.engine import sync as sync_mod
+
+    con_empresas(tenant, HANOVA)
+    crear = sync_mod._sat_crear_cartera
+
+    def crear_que_choca(session, tenant, d, *a, **kw):
+        if d["uuid"] == U1:
+            session.add(Customer(tenant_id=tenant.id, name="A", phone="5215500000000"))
+            session.add(Customer(tenant_id=tenant.id, name="B", phone="5215500000000"))
+            session.flush()  # viola la unicidad (tenant, phone)
+        return crear(session, tenant, d, *a, **kw)
+
+    monkeypatch.setattr(sync_mod, "_sat_crear_cartera", crear_que_choca)
+    res = importar_cfdis(
+        session, tenant,
+        [cfdi_xml(U1, folio="1"), cfdi_xml(U2, folio="2")],
+    )
+    assert res["cfdis"] == 2 and res["nuevos"] == 1 and res["omitidos"] == 1
+    assert res["facturas_creadas"] == 1
+    assert any("A-1" in a and "se omitió" in a for a in res["avisos"])
+    assert [f.uuid for f in session.scalars(select(CfdiBoveda)).all()] == [U2]
+    assert [i.folio for i in session.scalars(select(Invoice)).all()] == ["A-2"]
+    assert session.scalar(select(Customer).where(Customer.name == "A")) is None

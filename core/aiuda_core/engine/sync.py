@@ -12,8 +12,10 @@ hay credenciales configuradas.
 
 import base64
 import copy
+import io
 import logging
 import re
+import zipfile
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -1173,6 +1175,74 @@ def aplicar_cancelaciones(session: Session, tenant: Tenant, filas: list[dict]) -
     return res
 
 
+def _sat_importar_uno(
+    session: Session, tenant: Tenant, d: dict, texto: str, empresas: set[str],
+    today: date, source: str, crear_cartera: bool, res: dict,
+) -> None:
+    """Un CFDI ya leído: a la bóveda y, si toca, a la cartera."""
+    res["cfdis"] += 1
+    direccion = _sat_direccion(d, empresas)
+    row = session.scalar(
+        select(CfdiBoveda).where(
+            CfdiBoveda.tenant_id == tenant.id, CfdiBoveda.uuid == d["uuid"]
+        )
+    )
+    emisor, receptor = d.get("emisor") or {}, d.get("receptor") or {}
+    if row is not None:
+        res["duplicados"] += 1
+        sanado = row.direccion == "desconocida" and direccion != "desconocida"
+        _sat_reclasificar(session, row, direccion, res)
+        if not sanado:
+            return
+        # Estaba sin clasificar y ahora sí se sabe de quién es (el dueño
+        # registró su RFC, o el CFDI se había leído mal: los recibos de
+        # nómina reales entraron sin emisor ni receptor antes de corregir el
+        # lector). Se completan sus datos y, abajo, tiene el mismo efecto que
+        # uno recién llegado: volver a importarlo lo deja como debió quedar.
+        row.rfc_emisor = (emisor.get("rfc") or "").upper() or None
+        row.nombre_emisor = emisor.get("nombre")
+        row.rfc_receptor = (receptor.get("rfc") or "").upper() or None
+        row.nombre_receptor = receptor.get("nombre")
+        res["reclasificados"] += 1
+    else:
+        row = CfdiBoveda(
+            tenant_id=tenant.id,
+            uuid=d["uuid"],
+            tipo=d.get("tipo") or "I",
+            metodo_pago=d.get("metodo_pago"),
+            folio=_sat_folio(d),
+            fecha=d.get("fecha"),
+            rfc_emisor=(emisor.get("rfc") or "").upper() or None,
+            nombre_emisor=emisor.get("nombre"),
+            rfc_receptor=(receptor.get("rfc") or "").upper() or None,
+            nombre_receptor=receptor.get("nombre"),
+            total=Decimal(str(d["total"])) if d.get("total") is not None else None,
+            moneda=d.get("moneda") or "MXN",
+            direccion=direccion,
+            source=source,
+            xml=texto,
+        )
+        session.add(row)
+        res["nuevos"] += 1
+        if direccion == "intercompania":
+            res["intercompania"] += 1
+        elif direccion == "recibida":
+            res["recibidas"] += 1
+        elif direccion == "desconocida":
+            res["sin_clasificar"] += 1
+    if direccion == "emitida":
+        tipo = d.get("tipo")
+        if tipo == "I":
+            row.invoice_id = _sat_crear_cartera(
+                session, tenant, d, texto, today, res, crear=crear_cartera
+            )
+        elif tipo == "E":
+            _sat_aplicar_egreso(session, tenant, d, res)
+        elif tipo == "P":
+            _sat_aplicar_pago(session, tenant, d, res)
+    session.flush()
+
+
 def importar_cfdis(
     session: Session,
     tenant: Tenant,
@@ -1204,7 +1274,7 @@ def importar_cfdis(
         "facturas_creadas": 0, "facturas_vinculadas": 0, "pue_en_boveda": 0,
         "pagos_aplicados": 0, "egresos_aplicados": 0,
         "intercompania": 0, "recibidas": 0, "sin_clasificar": 0, "reclasificados": 0,
-        "avisos": [],
+        "omitidos": 0, "avisos": [],
     }
     parsed: list[tuple[dict, str]] = []
     for xml in xmls:
@@ -1225,67 +1295,23 @@ def importar_cfdis(
     parsed.sort(key=lambda par: orden.get(par[0].get("tipo") or "", 1))
 
     for d, texto in parsed:
-        res["cfdis"] += 1
-        direccion = _sat_direccion(d, empresas)
-        row = session.scalar(
-            select(CfdiBoveda).where(
-                CfdiBoveda.tenant_id == tenant.id, CfdiBoveda.uuid == d["uuid"]
-            )
-        )
-        emisor, receptor = d.get("emisor") or {}, d.get("receptor") or {}
-        if row is not None:
-            res["duplicados"] += 1
-            sanado = row.direccion == "desconocida" and direccion != "desconocida"
-            _sat_reclasificar(session, row, direccion, res)
-            if not sanado:
-                continue
-            # Estaba sin clasificar y ahora sí se sabe de quién es (el dueño
-            # registró su RFC, o el CFDI se había leído mal: los recibos de
-            # nómina reales entraron sin emisor ni receptor antes de corregir el
-            # lector). Se completan sus datos y, abajo, tiene el mismo efecto que
-            # uno recién llegado: volver a importarlo lo deja como debió quedar.
-            row.rfc_emisor = (emisor.get("rfc") or "").upper() or None
-            row.nombre_emisor = emisor.get("nombre")
-            row.rfc_receptor = (receptor.get("rfc") or "").upper() or None
-            row.nombre_receptor = receptor.get("nombre")
-            res["reclasificados"] += 1
-        else:
-            row = CfdiBoveda(
-                tenant_id=tenant.id,
-                uuid=d["uuid"],
-                tipo=d.get("tipo") or "I",
-                metodo_pago=d.get("metodo_pago"),
-                folio=_sat_folio(d),
-                fecha=d.get("fecha"),
-                rfc_emisor=(emisor.get("rfc") or "").upper() or None,
-                nombre_emisor=emisor.get("nombre"),
-                rfc_receptor=(receptor.get("rfc") or "").upper() or None,
-                nombre_receptor=receptor.get("nombre"),
-                total=Decimal(str(d["total"])) if d.get("total") is not None else None,
-                moneda=d.get("moneda") or "MXN",
-                direccion=direccion,
-                source=source,
-                xml=texto,
-            )
-            session.add(row)
-            res["nuevos"] += 1
-            if direccion == "intercompania":
-                res["intercompania"] += 1
-            elif direccion == "recibida":
-                res["recibidas"] += 1
-            elif direccion == "desconocida":
-                res["sin_clasificar"] += 1
-        if direccion == "emitida":
-            tipo = d.get("tipo")
-            if tipo == "I":
-                row.invoice_id = _sat_crear_cartera(
-                    session, tenant, d, texto, today, res, crear=crear_cartera
+        cuenta = {k: v for k, v in res.items() if k != "avisos"}
+        try:
+            # Savepoint por CFDI: si la base rechaza uno, se omite ESE y el resto
+            # del paquete entra. Antes uno solo atoraba la descarga completa.
+            with session.begin_nested():
+                _sat_importar_uno(
+                    session, tenant, d, texto, empresas, today, source,
+                    crear_cartera, res,
                 )
-            elif tipo == "E":
-                _sat_aplicar_egreso(session, tenant, d, res)
-            elif tipo == "P":
-                _sat_aplicar_pago(session, tenant, d, res)
-        session.flush()
+        except Exception as exc:  # noqa: BLE001 — se avisa y se sigue con los demás
+            log.warning("CFDI %s: no se pudo guardar: %s", d.get("uuid"), exc)
+            res.update(cuenta)
+            res["cfdis"] += 1
+            res["omitidos"] += 1
+            res["avisos"].append(
+                f"El comprobante {_sat_folio(d)} no se pudo guardar y se omitió."
+            )
     if not empresas and res["sin_clasificar"]:
         res["avisos"].append(
             "No sé cuál RFC es del negocio: agrega tus empresas (hasta "
@@ -1347,6 +1373,15 @@ _SAT_DUPLICADA = (
 _SAT_SIN_DATOS = "El SAT no tiene comprobantes nuevos en ese periodo."
 _SAT_RECHAZADA = "El SAT no pudo preparar la solicitud. aiuda vuelve a pedir mañana."
 _SAT_FALLO = "Esta vuelta no se pudo completar. aiuda lo intenta de nuevo en la siguiente."
+_SAT_SOLTADA = (
+    "No se pudieron leer los comprobantes que entregó el SAT. aiuda los pide de "
+    "nuevo mañana."
+)
+# Cuántas veces se reintenta antes de soltar y pedir otro día. Bajar: el SAT
+# entrega cada paquete dos veces. Importar: lee de la copia guardada, no le
+# cuesta nada al SAT.
+_SAT_INTENTOS_BAJAR = 2
+_SAT_INTENTOS_IMPORTAR = 3
 
 
 def _sat_codigo(st: dict, sol: dict, codigo: str, rfc: str, scope: str,
@@ -1408,6 +1443,29 @@ def _sat_leer_paquete(fila: SatPaquete) -> bytes:
     return base64.b64decode(crypto.decrypt(fila.contenido, fila.key_version))
 
 
+def _sat_contar_fallo(
+    session: Session, tenant: Tenant, st: dict, paquetes: list[str], tope: int
+) -> bool:
+    """Anota un intento fallido de bajar o importar la solicitud pendiente. Al
+    llegar al tope la SUELTA: borra las copias guardadas y olvida la solicitud,
+    para que otro día se pida con fechas nuevas. Sin esto un paquete que no se
+    puede leer dejaba esa dirección detenida para siempre. True si la soltó."""
+    sol = st.get("solicitud") or {}
+    fallos = int(sol.get("fallos") or 0) + 1
+    if fallos < tope:
+        st["solicitud"] = {**sol, "fallos": fallos}
+        st["aviso"] = _SAT_FALLO
+        return False
+    for id_paquete in paquetes:
+        fila = _sat_paquete(session, tenant, id_paquete)
+        if fila is not None:
+            session.delete(fila)
+    session.flush()
+    st.pop("solicitud", None)
+    st["aviso"] = _SAT_SOLTADA
+    return True
+
+
 def _sat_traer(
     session: Session,
     tenant: Tenant,
@@ -1454,13 +1512,24 @@ def _sat_traer(
                     continue  # ese ya se había bajado en una vuelta anterior
                 try:
                     contenido = client.descargar(id_paquete)
+                    if not zipfile.is_zipfile(io.BytesIO(contenido)):
+                        # Se revisa ANTES de guardar: una copia ilegible no sirve.
+                        raise ValueError("el paquete no es un ZIP")
                 except Exception as exc:  # noqa: BLE001 — los ya guardados se conservan
                     log.warning("SAT %s (%s): %s", rfc, scope, exc)
-                    st["aviso"] = _SAT_FALLO
-                    report.avisos.append(f"SAT {rfc} ({scope}): no se pudo: {exc}")
+                    soltada = _sat_contar_fallo(
+                        session, tenant, st, paquetes, _SAT_INTENTOS_BAJAR
+                    )
+                    if not soltada:  # para poder limpiar lo ya bajado si se borra la e.firma
+                        st["solicitud"]["bajando"] = paquetes
+                    report.avisos.append(
+                        f"SAT {rfc} ({scope}): no se pudo bajar un paquete; "
+                        + ("se pide de nuevo mañana." if soltada
+                           else "se intenta en la siguiente vuelta.")
+                    )
                     return
                 _sat_guardar_paquete(session, tenant, id_paquete, contenido)
-            st["solicitud"] = {**sol, "paquetes": paquetes}
+            st["solicitud"] = {**sol, "paquetes": paquetes, "fallos": 0}
             return
         st.pop("solicitud", None)
         if _sat_codigo(st, sol, codigo, rfc, scope, report):
@@ -1612,8 +1681,15 @@ def _sync_sat(
     """El ciclo completo para todas las empresas conectadas. Aislado por RFC:
     que una empresa falle (red, e.firma vencida, SAT caído) no tumba a las otras
     dos. El estado por empresa vive en tenant.config['sat_descarga'][rfc]."""
-    cfg = dict(tenant.config or {})
-    estado = {k: dict(v) for k, v in (cfg.get("sat_descarga") or {}).items()}
+    estado = {
+        k: dict(v) for k, v in ((tenant.config or {}).get("sat_descarga") or {}).items()
+    }
+
+    def guardar() -> None:
+        tenant.config = {**(tenant.config or {}), "sat_descarga": copy.deepcopy(estado)}
+        flag_modified(tenant, "config")
+        session.flush()
+
     for rfc, client in clients.items():
         st_rfc = {
             scope: dict((estado.get(rfc) or {}).get(scope) or {})
@@ -1622,15 +1698,20 @@ def _sync_sat(
         if isinstance(client, Exception):  # la e.firma no abrió al construir
             report.avisos.append(f"SAT {rfc}: no se pudo usar la e.firma: {client}")
             continue
+        estado[rfc] = st_rfc
         for scope in ("emitidas", "recibidas"):
             for st, etiqueta, traer, aplicar in _sat_carriles(
                 session, tenant, rfc, client, scope, st_rfc[scope], today, report,
                 crear_cartera,
             ):
-                for paso in (traer, lambda: _sat_importar(session, tenant, st, aplicar)):
+                pasos = (
+                    (traer, False),
+                    (lambda: _sat_importar(session, tenant, st, aplicar), True),
+                )
+                for paso, importando in pasos:
                     antes = copy.deepcopy(st)
                     try:
-                        # Savepoint por paso: si la base rechaza un CFDI a media
+                        # Savepoint por paso: si la base rechaza algo a media
                         # importación, se deshace SOLO la importación (los
                         # paquetes bajados siguen guardados). Sin esto la sesión
                         # quedaba envenenada y se caían la otra dirección, las
@@ -1642,13 +1723,18 @@ def _sync_sat(
                         st.clear()
                         st.update({**antes, "aviso": _SAT_FALLO})
                         log.warning("SAT %s (%s): %s", rfc, etiqueta, exc)
-                        report.avisos.append(f"SAT {rfc} ({etiqueta}): no se pudo: {exc}")
+                        soltada = importando and _sat_contar_fallo(
+                            session, tenant, st,
+                            (st.get("solicitud") or {}).get("paquetes") or [],
+                            _SAT_INTENTOS_IMPORTAR,
+                        )
+                        report.avisos.append(
+                            f"SAT {rfc} ({etiqueta}): no se pudo completar; "
+                            + ("se pide de nuevo mañana." if soltada
+                               else "se intenta en la siguiente vuelta.")
+                        )
                         break
-        estado[rfc] = st_rfc
-    cfg["sat_descarga"] = estado
-    tenant.config = cfg
-    flag_modified(tenant, "config")
-    session.flush()
+    guardar()
 
 
 def sync_cfdi(

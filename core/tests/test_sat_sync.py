@@ -556,3 +556,64 @@ def test_no_cierra_la_factura_de_otra_fuente_con_otro_comprobante(session, tenan
     )
     assert otra.status == "open"
     assert session.scalar(select(CfdiBoveda)).meta["cancelado"] is True
+
+
+# --- Un paquete que no se puede leer no detiene la dirección para siempre ------ #
+
+
+def test_un_paquete_ilegible_se_suelta_y_se_pide_otro_dia(session, tenant):
+    """El SAT entrega algo que no es un ZIP. No se guarda, se intenta bajar una
+    vez más (el SAT entrega cada paquete dos veces) y se suelta: al día
+    siguiente se pide con fechas nuevas. Antes esa dirección no volvía a pedir."""
+    from aiuda_core.models import SatPaquete
+
+    fake = FakeSat(paquetes={"P1": b""})
+    fake.verificar = lambda _id: {"EstadoSolicitud": 3, "IdsPaquetes": ["P1"]}
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # solicita
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert session.scalars(select(SatPaquete)).all() == []  # no se guarda basura
+    assert _estado(tenant, HANOVA)["emitidas"]["solicitud"]["fallos"] == 1
+    assert not any("zip" in a.lower() for a in r.avisos)  # nada en inglés al dueño
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    st = _estado(tenant, HANOVA)["emitidas"]
+    assert "solicitud" not in st and "mañana" in st["aviso"]
+    assert st.get("ultima_fecha") is None  # ese periodo no quedó cubierto
+    descargas = len(fake.descargas)
+    for _hora in range(5):  # el resto del día: ni pide ni baja
+        sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert len(fake.descargas) == descargas
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})
+    emitidas = [s for s in fake.solicitudes if s[0] == "emitidas"]
+    assert len(emitidas) == 2 and emitidas[1][2].startswith("2026-07-29")
+
+
+def test_una_importacion_que_siempre_falla_se_suelta(session, tenant, monkeypatch):
+    """La copia guardada no se puede aplicar (llave cambiada, base que la
+    rechaza). Tres intentos y se suelta: se borra la copia y otro día se pide de
+    nuevo. Antes se reintentaba la misma copia para siempre."""
+    from aiuda_core.engine import sync as sync_mod
+    from aiuda_core.models import SatPaquete
+
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    xml = cfdi_basico(uuid="CCCC0013-0000-4000-8000-000000000013", emisor=HANOVA)
+    fake = FakeSat(paquetes={"P1": _zip(xml)})
+    fake.verificar = lambda _id: {"EstadoSolicitud": 3, "IdsPaquetes": ["P1"]}
+
+    def truena(*a, **kw):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(sync_mod, "importar_cfdis", truena)
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # solicita
+    for intento in (1, 2):
+        r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+        assert _estado(tenant, HANOVA)["emitidas"]["solicitud"]["fallos"] == intento
+        assert len(session.scalars(select(SatPaquete)).all()) == 1
+    assert not any("locked" in a for a in r.avisos)  # el error crudo va a la bitácora
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    st = _estado(tenant, HANOVA)["emitidas"]
+    assert "solicitud" not in st and "mañana" in st["aviso"]
+    assert session.scalars(select(SatPaquete)).all() == []
+    assert any("emitidas" in a and "mañana" in a for a in r.avisos)
+    assert fake.descargas == ["P1"]  # y nunca se volvió a bajar
+    sync_cfdi(session, tenant, today=MANANA, sat_clients={HANOVA: fake})
+    assert len([s for s in fake.solicitudes if s[0] == "emitidas"]) == 2
