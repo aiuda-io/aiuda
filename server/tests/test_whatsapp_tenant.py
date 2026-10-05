@@ -134,8 +134,6 @@ def test_dos_tenants_envian_por_sus_stores_sin_cruzarse(db_session, monkeypatch)
     """Flujo REAL worker → channel → wacli (subprocess fake): el argv de cada envío
     lleva el --store de SU tenant. Ninguno sale por la sesión del otro."""
     monkeypatch.setattr(settings, "wacli_store_root", "/stores")
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     a = _tenant(db_session, "Negocio A", "inst-a")
     b = _tenant(db_session, "Negocio B", "inst-b")
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
@@ -162,8 +160,6 @@ def test_dos_tenants_envian_por_sus_stores_sin_cruzarse(db_session, monkeypatch)
 def test_tenant_sin_canal_no_sale_por_el_numero_de_otro(db_session, monkeypatch):
     """El corazón del fix cross-tenant: un negocio SIN WhatsApp conectado no envía
     nada, aunque otro negocio del mismo servidor sí tenga canal."""
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     _tenant(db_session, "Conectado", "inst-a")
     sin_canal = _tenant(db_session, "Sin canal", "inst-b", connected=False)
     monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
@@ -186,8 +182,6 @@ def test_tenant_sin_canal_no_sale_por_el_numero_de_otro(db_session, monkeypatch)
 # ---------- opt-out end-to-end ----------
 
 def test_inbound_baja_marca_optout_y_confirma_sin_llm(db_session, monkeypatch):
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     t = _tenant(db_session, "Negocio", "inst-a")
     conv = Conversation(tenant_id=t.id, remote_phone="5215587654321")
     db_session.add(conv)
@@ -228,8 +222,6 @@ def test_recordatorio_a_cliente_dado_de_baja_falla_con_motivo(db_session, monkey
     from aiuda_core.models import Invoice, Reminder
     from aiuda_core.optout import mark_opt_out
 
-    monkeypatch.setattr(settings, "wacli_sync_stop_cmd", "")
-    monkeypatch.setattr(settings, "wacli_sync_start_cmd", "")
     t = _tenant(db_session, "Negocio", "inst-a")
     c = Customer(tenant_id=t.id, name="Cliente", phone="5215587654321")
     db_session.add(c)
@@ -424,8 +416,10 @@ def test_qr_en_modo_multi_no_hay_conflicto(client, db_session, monkeypatch):
     # Con store propio no hay dueño único que defender; el QR sigue su curso normal
     # (aquí wacli no está en el PATH del test: 502 honesto, NO el 409 de conflicto).
     monkeypatch.setattr(wa_api.wacli_bin, "resolver", lambda: "/opt/wacli")
-    monkeypatch.setattr(wa_api, "_is_authenticated", lambda tenant: False)
-    monkeypatch.setattr(wa_api, "_capture_qr", lambda tenant, deadline_s=15.0: None)
+    monkeypatch.setattr(wa_api.wacli_sync, "estado", lambda i, s: {
+        "estado": "sin_vincular", "desde": "", "qr": None, "telefono": None, "error": "",
+    })
+    monkeypatch.setattr(wa_api.wacli_sync, "vincular", lambda i, s: None)
     r = client.post("/v1/integrations/whatsapp/qr")
     assert r.status_code == 502
 

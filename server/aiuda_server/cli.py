@@ -107,9 +107,22 @@ def _apagar_con_el_padre() -> None:
         # borra aquí, a mano: este es el camino de todos los días, el de cerrar
         # la ventana, y sin esto sesion.json se quedaba tirado siempre.
         _borrar_sesion()
+        _detener_whatsapp()
         os._exit(0)
 
     threading.Thread(target=_vigilar, name="aiuda-vigilante", daemon=True).start()
+
+
+def _detener_whatsapp() -> None:
+    """Ningún wacli se queda vivo cuando aiuda se apaga. El cierre normal de
+    uvicorn ya lo hace; esto cubre las salidas que se lo saltan (os._exit al
+    morir la app de escritorio, y la señal)."""
+    try:
+        from aiuda_server import wacli_sync
+
+        wacli_sync.detener_todo()
+    except Exception:  # noqa: BLE001 — apagar no puede fallar por WhatsApp
+        pass
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -155,6 +168,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         # creerle), pero deja basura y confunde a quien la lea.
         def _apagar(_sig, _frame):
             _borrar_sesion()
+            _detener_whatsapp()
             raise SystemExit(0)
 
         for señal in (signal.SIGTERM, signal.SIGHUP):

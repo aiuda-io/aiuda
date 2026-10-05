@@ -66,6 +66,7 @@ DUENO: frozenset[tuple[str, str]] = frozenset({
     ("DELETE", "/v1/cua/rutinas/{rutina_id}"),
     ("DELETE", "/v1/custom-connectors/{cid}"),
     ("DELETE", "/v1/dispositivos/invitacion"),
+    ("DELETE", "/v1/integrations/whatsapp/qr"),
     ("DELETE", "/v1/integrations/whatsapp/session"),
     ("DELETE", "/v1/integrations/{key}/config"),
     ("DELETE", "/v1/provider"),

@@ -12,6 +12,7 @@ de macOS, sin Homebrew (misma lección que los CLIs de IA en
 ``engine/cli_runner.py``). ``resolver()`` devuelve SIEMPRE una ruta absoluta.
 """
 
+import functools
 import hashlib
 import io
 import os
@@ -90,6 +91,16 @@ def resolver() -> str | None:
 
 def version(binario: str) -> str | None:
     """`wacli --version` → "0.20.0", o None si no respondió."""
+    try:
+        return _version(binario, os.stat(binario).st_mtime_ns)
+    except OSError:
+        return None
+
+
+@functools.lru_cache(maxsize=8)
+def _version(binario: str, _mtime: int) -> str | None:
+    # Por (ruta, fecha del archivo): la consola pregunta seguido y el binario
+    # solo cambia cuando se reinstala.
     try:
         out = subprocess.run([binario, "--version"], capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.SubprocessError):

@@ -73,15 +73,21 @@ async def lifespan(app: FastAPI):
     # entrantes, envíos) corre INLINE con BackgroundTasks en este mismo proceso,
     # y la corrida horaria la dispara el scheduler local (un hilo, sin Redis).
     from aiuda_core.db import create_all
-    from aiuda_server import scheduler
+    from aiuda_server import scheduler, wacli_sync
 
     create_all()
     _purgar_secretos_en_claro()
     if settings.scheduler_enabled:
         scheduler.start()
+        # El sync de WhatsApp de cada negocio vinculado, en su hilo: preguntarle a
+        # wacli no debe retrasar que abra la consola.
+        threading.Thread(
+            target=wacli_sync.arrancar_conectados, name="aiuda-wacli-arranque", daemon=True
+        ).start()
     _reabrir_red_local(app)
     yield
     scheduler.stop()
+    wacli_sync.detener_todo()
     from aiuda_server import red_local
 
     red_local.escucha.apagar(app)

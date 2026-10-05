@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { api, type SourceCap, type WhatsappInstalacion } from "@/lib/api";
+import { api, type SourceCap, type WhatsappStatus } from "@/lib/api";
 import { oficioDe } from "@/lib/oficios";
 import { Drawer } from "@/components/drawer";
 import { SIN_ESTRENAR_NOTA, SinEstrenar } from "@/components/ui";
@@ -30,63 +30,95 @@ export type ConfigNode = {
   does?: string;
 };
 
+// Lo que se le dice al dueño cuando su número ya está vinculado, según cómo
+// está la sesión AHORA (no como quedó guardada).
+const WA_VINCULADO: Record<string, { titulo: string; texto: string; ok: boolean }> = {
+  conectado: {
+    titulo: "WhatsApp conectado",
+    texto: "Tus clientes te escriben y tu equipo responde desde la consola.",
+    ok: true,
+  },
+  conectando: {
+    titulo: "Conectando con WhatsApp…",
+    texto: "Tu número está vinculado. En unos segundos queda listo.",
+    ok: true,
+  },
+  sin_conexion: {
+    titulo: "Sin conexión con WhatsApp",
+    texto:
+      "Tu número sigue vinculado, pero ahora no hay conexión. aiuda reintenta solo; revisa el internet de esta computadora.",
+    ok: false,
+  },
+  externo: {
+    titulo: "WhatsApp abierto en otro programa",
+    texto:
+      "Tu número está vinculado, pero otro programa de esta computadora tiene abierta la sesión. aiuda la retoma sola en cuanto ese programa se cierre.",
+    ok: false,
+  },
+};
+
 function WhatsAppPairing({ onChange }: { onChange: () => void }) {
-  const [qr, setQr] = useState<string | null>(null);
+  const [st, setSt] = useState<WhatsappStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [paired, setPaired] = useState<boolean | null>(null);
-  const [instalacion, setInstalacion] = useState<WhatsappInstalacion | null>(null);
   const [instalando, setInstalando] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ¿Este drawer pidió un QR que sigue sin escanearse? Si se cierra así, se cancela.
+  const esperandoQr = useRef(false);
 
   useEffect(() => {
-    // Estado real de wacli (no la heurística del grafo).
-    api
-      .whatsappStatus()
-      .then((s) => {
-        setInstalacion(s);
-        setPaired(s.connected);
-      })
-      .catch(() => setPaired(false));
+    let vivo = true;
+    // Estado EN VIVO de wacli, cada 3 s: así el QR se refresca cuando rota y la
+    // etiqueta sigue a la sesión (conectando, conectado, sin conexión).
+    const leer = () =>
+      api
+        .whatsappStatus()
+        .then((s) => {
+          if (!vivo) return;
+          if (esperandoQr.current && s.connected) {
+            esperandoQr.current = false;
+            toast("WhatsApp conectado.", "success");
+            onChange();
+          }
+          setSt(s);
+        })
+        .catch(() => {
+          /* sigue intentando */
+        });
+    leer();
+    const id = setInterval(leer, 3000);
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      vivo = false;
+      clearInterval(id);
+      // Cerrar sin escanear no deja el emparejamiento ocupando el WhatsApp.
+      if (esperandoQr.current) api.whatsappQrCancelar().catch(() => {});
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startQr() {
     setLoading(true);
     try {
       const res = await api.whatsappQr();
-      if (res.connected) {
-        setPaired(true);
-        onChange();
-        return;
-      }
-      setQr(res.qr);
-      pollRef.current = setInterval(async () => {
-        try {
-          const s = await api.whatsappStatus();
-          if (s.connected) {
-            if (pollRef.current) clearInterval(pollRef.current);
-            setPaired(true);
-            setQr(null);
-            toast("WhatsApp conectado.", "success");
-            onChange();
-          }
-        } catch {
-          /* sigue intentando */
-        }
-      }, 3000);
+      esperandoQr.current = !res.connected;
+      setSt(await api.whatsappStatus());
+      if (res.connected) onChange();
     } catch (e) {
-      toast(`No se pudo iniciar el emparejamiento: ${(e as Error).message}`, "error");
+      toast((e as Error).message, "error");
     } finally {
       setLoading(false);
     }
   }
 
+  async function cancelarQr() {
+    esperandoQr.current = false;
+    await api.whatsappQrCancelar().catch(() => {});
+    setSt(await api.whatsappStatus());
+  }
+
   async function instalar() {
     setInstalando(true);
     try {
-      setInstalacion(await api.whatsappInstalar());
+      await api.whatsappInstalar();
+      setSt(await api.whatsappStatus());
       toast("Conector de WhatsApp instalado.", "success");
     } catch (e) {
       toast((e as Error).message, "error");
@@ -96,23 +128,32 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
   }
 
   async function logout() {
-    await api.whatsappLogout().catch(() => {});
-    setPaired(false);
-    setQr(null);
+    try {
+      await api.whatsappLogout();
+      toast("WhatsApp desvinculado.", "info");
+    } catch (e) {
+      toast((e as Error).message, "error");
+    }
+    setSt(await api.whatsappStatus());
     onChange();
-    toast("WhatsApp desconectado.", "info");
   }
 
-  if (paired === null) {
+  if (st === null) {
     return <div className="skeleton h-40 w-full rounded-lg" />;
   }
 
-  if (paired) {
+  if (st.connected) {
+    const v = WA_VINCULADO[st.estado] ?? WA_VINCULADO.conectando;
     return (
-      <div className="rounded-lg border border-ok/30 bg-ok-soft/40 px-4 py-4">
-        <p className="text-cuerpo font-medium text-ok">WhatsApp conectado</p>
+      <div
+        className={`rounded-lg border px-4 py-4 ${
+          v.ok ? "border-ok/30 bg-ok-soft/40" : "border-warn/40 bg-warn-soft"
+        }`}
+      >
+        <p className={`text-cuerpo font-medium ${v.ok ? "text-ok" : "text-warn"}`}>{v.titulo}</p>
         <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
-          Tu número está vinculado. Tus clientes te escriben y tu equipo responde desde la consola.
+          {st.telefono ? `Número vinculado: +${st.telefono}. ` : ""}
+          {v.texto}
         </p>
         <button
           onClick={logout}
@@ -124,23 +165,25 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
     );
   }
 
-  if (instalacion && !instalacion.instalado) {
+  if (!st.instalado || st.estado === "desactualizado") {
+    const actualizar = st.instalado;
     return (
       <div className="rounded-lg border border-line bg-surface px-4 py-5 text-center">
-        {instalacion.no_se_puede ? (
-          <p className="text-cuerpo leading-relaxed text-ink-2">{instalacion.no_se_puede}</p>
+        {st.no_se_puede ? (
+          <p className="text-cuerpo leading-relaxed text-ink-2">{st.no_se_puede}</p>
         ) : (
           <>
             <p className="text-cuerpo leading-relaxed text-ink-2">
-              Para conectar tu WhatsApp, esta computadora necesita un conector. Se instala solo, en
-              menos de un minuto.
+              {actualizar
+                ? "WhatsApp pidió una versión más nueva del conector. Actualízalo para volver a conectar."
+                : "Para conectar tu WhatsApp, esta computadora necesita un conector. Se instala solo, en menos de un minuto."}
             </p>
             <button
               onClick={instalar}
               disabled={instalando}
               className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
             >
-              {instalando ? "Instalando…" : "Instalar"}
+              {instalando ? "Instalando…" : actualizar ? "Actualizar" : "Instalar"}
             </button>
             <p className="mt-3 text-apoyo leading-relaxed text-ink-3">
               El conector es wacli (github.com/openclaw/wacli), software libre de terceros con
@@ -155,10 +198,10 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
 
   return (
     <div>
-      {qr ? (
+      {st.qr ? (
         <div className="flex flex-col items-center rounded-lg border border-line bg-surface px-4 py-5 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qr} alt="Código QR de WhatsApp" className="h-44 w-44" />
+          <img src={st.qr} alt="Código QR de WhatsApp" className="h-44 w-44" />
           <p className="mt-3 text-cuerpo font-medium text-ink">Escanea para vincular</p>
           <ol className="mx-auto mt-2 max-w-xs space-y-0.5 text-left text-apoyo leading-relaxed text-ink-3">
             <li>1. Abre WhatsApp en tu teléfono</li>
@@ -169,12 +212,19 @@ function WhatsAppPairing({ onChange }: { onChange: () => void }) {
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
             Esperando a que escanees…
           </p>
+          <button
+            onClick={cancelarQr}
+            className="mt-2 text-apoyo text-ink-3 underline underline-offset-2 hover:text-ink"
+          >
+            Cancelar
+          </button>
         </div>
       ) : (
         <div className="rounded-lg border border-line bg-surface px-4 py-5 text-center">
           <p className="text-cuerpo leading-relaxed text-ink-2">
-            Vincula tu número de WhatsApp escaneando un código QR, como WhatsApp Web. Tu número, tu
-            sesión; aiuda actúa encima.
+            {st.estado === "sesion_cerrada"
+              ? "WhatsApp cerró la sesión de esta computadora, casi siempre porque se quitó desde el teléfono en Dispositivos vinculados. Vuelve a escanear el código QR."
+              : "Vincula tu número de WhatsApp escaneando un código QR, como WhatsApp Web. Tu número, tu sesión; aiuda actúa encima."}
           </p>
           <button
             onClick={startQr}

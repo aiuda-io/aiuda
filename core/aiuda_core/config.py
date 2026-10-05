@@ -45,21 +45,13 @@ class Settings(BaseSettings):
     # Canal de WhatsApp por default cuando el tenant no declara su vía: "wacli".
     whatsapp_provider: str = "wacli"
     # Comando de envío de wacli; placeholders {bin}, {phone} y {message}.
-    # wacli 0.8.x: `send` exige el subcomando `text` con --to/--message; --lock-wait
-    # hace que el envío espere el lock si hay un `wacli sync` corriendo en vez de fallar.
+    # wacli 0.8.x: `send` exige el subcomando `text` con --to/--message. El sync propio
+    # se pausa para enviar (server/aiuda_server/wacli_sync.py); --lock-wait cubre el caso
+    # de que OTRO programa tenga el store (un `wacli sync` que el dueño corrió a mano).
     wacli_send_template: str = "{bin} send text --to {phone} --message {message} --lock-wait 30s"
-    # Binario de wacli (lo usan el emparejado por QR y, vía {bin}, el envío).
+    # Binario de wacli. El default deja que aiuda lo resuelva (el que instaló, o el del
+    # sistema: connectors/wacli_bin.py); otro valor fija una ruta explícita.
     wacli_bin: str = "wacli"
-    # El cuello de botella del envío: `wacli sync --follow` retiene el lock del store y
-    # `wacli send` espera ~30s a que se libere. Solución (igual que fastapi_service): pausar
-    # el sync justo antes de enviar y reiniciarlo al terminar. Comandos de shell; si ambos
-    # quedan vacíos, no se toca el sync (el envío cae al --lock-wait de la plantilla).
-    #   macOS local:  launchctl unload/load ~/Library/LaunchAgents/sh.wacli.sync.plist
-    #   server Linux: systemctl stop/start wacli-sync.service
-    wacli_sync_stop_cmd: str = ""
-    wacli_sync_start_cmd: str = ""
-    # Segundos de espera tras pausar el sync para que suelte el lock antes de enviar.
-    wacli_sync_settle_secs: float = 0.4
     # Raíz de stores de wacli por workspace: cada instancia usa <root>/<instance>
     # vía la flag global --store (sesión y datos aislados; cada negocio su número).
     # Vacío = store default del host.

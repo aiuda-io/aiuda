@@ -1175,7 +1175,25 @@ export type WhatsappInstalacion = {
   no_se_puede: string | null;
 };
 
-export type WhatsappStatus = WhatsappInstalacion & { connected: boolean };
+/** El WhatsApp del negocio EN VIVO. `connected` = el número está vinculado;
+ *  `estado` dice cómo está la sesión ahora mismo. */
+export type WhatsappStatus = WhatsappInstalacion & {
+  connected: boolean;
+  estado:
+    | "sin_instalar"
+    | "sin_vincular"
+    | "vinculando"
+    | "conectando"
+    | "conectado"
+    | "sin_conexion"
+    | "sesion_cerrada"
+    | "desactualizado"
+    | "externo";
+  desde: string;
+  telefono: string | null;
+  /** El QR vigente mientras se empareja (wacli lo rota). */
+  qr: string | null;
+};
 
 export const api = {
   integrations: () => request<IntegrationsGraph>("/v1/integrations"),
@@ -1305,6 +1323,8 @@ export const api = {
       { method: "POST" },
     ),
   whatsappQr: () => request<{ connected: boolean; qr: string | null }>("/v1/integrations/whatsapp/qr", { method: "POST" }),
+  whatsappQrCancelar: () =>
+    request<{ connected: boolean }>("/v1/integrations/whatsapp/qr", { method: "DELETE" }),
   whatsappStatus: () => request<WhatsappStatus>("/v1/integrations/whatsapp/status"),
   whatsappInstalar: () =>
     request<WhatsappInstalacion>("/v1/integrations/whatsapp/instalar", { method: "POST" }),

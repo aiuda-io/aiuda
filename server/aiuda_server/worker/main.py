@@ -14,17 +14,13 @@ negocio.
 """
 
 import logging
-import shlex
-import subprocess
 import threading
-import time
 from contextlib import contextmanager, nullcontext as _nullcontext
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
-from aiuda_core.config import settings
 from aiuda_core.connectors.channel import (
     CHANNELS,
     get_channel_sender,
@@ -43,9 +39,9 @@ from aiuda_core.models import Conversation, Customer, Invoice, Message, Reminder
 MX_TZ = ZoneInfo("America/Mexico_City")
 log = logging.getLogger("aiuda.worker")
 
-# Un envío a la vez por proceso: pausar/reiniciar el sync de wacli no puede solaparse
-# (dos envíos pisándose el stop/start volverían a chocar con el lock). Serializa también
-# los envíos del chat para que no compitan por el store.
+# Un envío a la vez por proceso: pausar/reanudar el sync de wacli no puede solaparse
+# (dos envíos pisándose volverían a chocar con el lock). Serializa también los envíos
+# del chat para que no compitan por el store.
 _send_lock = threading.Lock()
 
 # Una corrida diaria a la vez por proceso: dos disparos solapados del cron redactarían y
@@ -54,37 +50,25 @@ _send_lock = threading.Lock()
 _daily_lock = threading.Lock()
 
 
-def _run_sync_cmd(cmd: str, label: str) -> None:
-    if not cmd:
-        return
-    try:
-        subprocess.run(shlex.split(cmd), capture_output=True, timeout=20)
-    except Exception as exc:  # noqa: BLE001 — pausar/reanudar el sync no debe tumbar el envío
-        log.warning("sync %s falló (%s): %s", label, cmd, exc)
-
-
 @contextmanager
-def _sync_paused():
-    """Libera el lock del store de wacli durante el envío y lo reanuda al terminar.
+def _sync_paused(wa):
+    """Libera el store de wacli durante el envío y reanuda el sync al terminar.
 
-    `wacli sync --follow` retiene el lock SQLite y `wacli send` espera ~30s a que se
-    libere. Igual que fastapi_service: paramos el sync, enviamos (~2s) y lo reiniciamos.
-    Serializado por `_send_lock` para que dos envíos no se solapen el stop/start. Si no
-    hay comandos configurados, sólo serializa (el envío cae al --lock-wait de siempre)."""
-    with _send_lock:
-        _run_sync_cmd(settings.wacli_sync_stop_cmd, "stop")
-        if settings.wacli_sync_stop_cmd and settings.wacli_sync_settle_secs > 0:
-            time.sleep(settings.wacli_sync_settle_secs)
-        try:
-            yield
-        finally:
-            _run_sync_cmd(settings.wacli_sync_start_cmd, "start")
+    `wacli sync --follow` retiene el candado del store y `wacli send` lo necesita.
+    El sync es del propio server (``wacli_sync``): se detiene, se envía y vuelve
+    solo. Serializado por `_send_lock` para que dos envíos no se pisen. Si el
+    candado lo tiene un programa ajeno (el dueño corrió wacli en una terminal),
+    aquí no hay nada que pausar y el envío cae al --lock-wait de la plantilla."""
+    from aiuda_server import wacli_sync
+
+    with _send_lock, wacli_sync.pausado(wa.instance):
+        yield
 
 
 def _pause_for(wa) -> object:
     """Contexto de envío según el provider: sólo wacli pelea el lock del store con su
-    daemon de sync; la Cloud API es HTTP y no necesita pausar nada."""
-    return _sync_paused() if (wa is not None and wa.provider == "wacli") else _nullcontext()
+    sync; la Cloud API es HTTP y no necesita pausar nada."""
+    return _sync_paused(wa) if (wa is not None and wa.provider == "wacli") else _nullcontext()
 
 
 def _today():

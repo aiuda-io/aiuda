@@ -72,7 +72,10 @@ def salir_ok(data):
 
 
 def salir_error(mensaje, codigo=1):
-    if JSON:
+    # Igual que el real (visto en 0.20.0): con --events el error es un evento.
+    if EVENTS:
+        evento("error", {"message": mensaje})
+    elif JSON:
         print(json.dumps({"success": False, "data": None, "error": mensaje}), file=sys.stderr)
     else:
         print(mensaje, file=sys.stderr)
@@ -183,7 +186,6 @@ if cmd == "auth":
     while not consumir("escanear"):
         ahora = time.monotonic()
         if ahora >= caduca:
-            evento("error", {"message": "QR code timed out"})
             salir_error("QR code timed out; run `wacli auth` again to get a new code")
         if ahora >= proxima:
             n += 1
