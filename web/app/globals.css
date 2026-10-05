@@ -2,33 +2,41 @@
 
 /* ATELIER CLARO
  *
- * Un sistema monocromo: grises neutros, y el azul de la marca como el ÚNICO color
- * del armazón. Los colores de estado existen, pero apagados y solo como una marca
- * chica (un punto) junto al texto que dice lo mismo con palabras. Lo caro aquí no
- * es un adorno: es el aire, la cifra bien puesta y que casi nada tenga marco.
+ * Un sistema monocromo: papel casi blanco, tinta, y el azul de la marca como el
+ * ÚNICO color del armazón. Los colores de estado existen, pero apagados y solo como
+ * una marca chica (un punto) junto al texto que dice lo mismo con palabras. Lo caro
+ * aquí no es un adorno: es el aire, la cifra bien puesta, la raya fina y que casi
+ * nada tenga caja. La jerarquía la dan el tamaño y el peso de la letra.
+ *
+ * Las reglas de uso están en web/DESIGN.md. Los contrastes de abajo están medidos
+ * (WCAG), no estimados.
  */
 @theme {
-  /* Neutros. El croma es residual (0.001 a 0.004, hacia el azul de marca): se leen
-     como gris puro, pero no se ven sucios junto al acento. */
-  --color-bg: oklch(0.992 0.001 250); /* el lienzo del contenido */
-  --color-panel: oklch(0.966 0.0015 250); /* segunda capa: menú, columnas, bandas */
-  --color-surface: oklch(0.999 0.0005 250); /* lo que se posa encima: tarjetas, campos, menús */
-  --color-fill: oklch(0.948 0.002 250); /* relleno de botón secundario, chip, pista */
-  --color-fill-strong: oklch(0.915 0.002 250); /* el mismo relleno al pasar el cursor */
-  --color-line: oklch(0.925 0.002 250); /* la raya fina: separa, no encierra */
-  --color-line-strong: oklch(0.845 0.003 250); /* raya con peso: pista, separador de grupo */
-  --color-field: oklch(0.655 0.004 250); /* borde de campo y de radio: 3:1 sobre blanco */
+  /* Neutros. El croma es residual (hacia el azul de marca): se leen como gris
+     puro, pero no se ven sucios junto al acento. Los grises de relleno son pocos y
+     pálidos a propósito: una pantalla se arma con rayas y aire, no con fichas. */
+  --color-bg: oklch(0.995 0.001 250); /* el papel: el lienzo de toda la consola, menú incluido */
+  --color-surface: oklch(1 0 0); /* lo que flota encima: campo, menú desplegable, diálogo */
+  --color-panel: oklch(0.975 0.002 250); /* banda puntual que agrupa (un aviso, un pie). No es el fondo de una columna */
+  --color-fill: oklch(0.955 0.003 250); /* renglón activo o bajo el cursor */
+  --color-fill-strong: oklch(0.925 0.003 250); /* el mismo, presionado; pista de una barra */
+  --color-line: oklch(0.918 0.003 250); /* la raya fina: separa renglones y secciones */
+  --color-line-strong: oklch(0.86 0.004 250); /* contorno de botón secundario y de sello */
+  --color-field: oklch(0.62 0.006 250); /* borde de campo, casilla y radio: 3.6:1 sobre el papel, 3.2:1 sobre fill */
 
-  --color-ink: oklch(0.205 0.004 255);
-  --color-ink-2: oklch(0.4 0.004 255);
-  --color-ink-3: oklch(0.52 0.004 255); /* el más claro que pasa AA sobre el lienzo */
+  --color-ink: oklch(0.2 0.006 255); /* 17.8:1 */
+  --color-ink-2: oklch(0.39 0.006 255); /* 9.5:1 */
+  --color-ink-3: oklch(0.515 0.006 255); /* 5.5:1 sobre el papel, 4.9:1 sobre fill: el más claro que pasa AA */
 
-  /* Acento: el azul de marca, más profundo para que el blanco encima pase AA.
-     Acción primaria, selección, enlace y foco. Nada más. */
-  --color-accent: oklch(0.52 0.118 236);
-  --color-accent-strong: oklch(0.45 0.112 238);
-  --color-accent-soft: oklch(0.955 0.02 232);
-  --color-accent-ink: oklch(0.44 0.112 238);
+  /* Acento: el azul de aiuda llevado a tinta. Más hondo y menos chillón que un
+     azul de producto, para que el blanco encima pase AAA (7.6:1) y para que se
+     lea como una decisión y no como el color por defecto de una plantilla.
+     Se usa con avaricia: el botón que resuelve la pantalla, el globo de pendientes,
+     un enlace dentro de un texto, y el foco. Nunca como fondo de una zona. */
+  --color-accent: oklch(0.44 0.105 238);
+  --color-accent-strong: oklch(0.37 0.095 240);
+  --color-accent-soft: oklch(0.962 0.016 236);
+  --color-accent-ink: oklch(0.4 0.1 239); /* 8.9:1 sobre el papel */
 
   /* Marca: el azul del wordmark (#2596be) y las superficies oscuras de entrada.
      Solo para la marca, no UI. */
@@ -48,6 +56,9 @@
   --color-warn-strong-soft: oklch(0.965 0.014 55);
   --color-danger: oklch(0.49 0.15 27);
   --color-danger-soft: oklch(0.966 0.012 27);
+  /* La franja del modo de prueba. Es el único fondo con color de toda la consola,
+     y lo es a propósito: mientras está, nada de lo que apruebes sale. */
+  --color-warn-band: oklch(0.945 0.045 85); /* tinta encima: 15.4:1 */
 
   /* Elevación: neutra y solo para lo que de verdad flota (menú, panel, diálogo).
      Una raya de medio pixel hace el borde; la sombra solo da la distancia. */
@@ -55,11 +66,22 @@
   --shadow-md: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.1), 0 6px 20px -6px oklch(0.2 0.004 255 / 0.14);
   --shadow-lg: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.1), 0 28px 64px -20px oklch(0.2 0.004 255 / 0.26);
 
-  /* Radios: cuatro, y se usan por tamaño del objeto. */
-  --radius-md: 8px; /* chip, botón chico, fila */
-  --radius-lg: 10px; /* botón, campo */
-  --radius-xl: 14px; /* tarjeta, columna, menú */
-  --radius-2xl: 18px; /* diálogo */
+  /* ESQUINAS: una regla, tres medidas, y la medida la pone el TIPO de objeto.
+   *
+   *    6  etiqueta   sello, chip, casilla
+   *   10  control    botón, campo, pestaña, renglón que se selecciona
+   *   16  superficie tarjeta, menú desplegable, panel, diálogo
+   *
+   * Las utilidades de Tailwind se doblan sobre esas tres, así que no hay forma de
+   * escribir una cuarta por accidente: rounded-sm y rounded-md dan 6, rounded-lg
+   * da 10, y de rounded-xl para arriba da 16. `rounded-full` queda para puntos y
+   * caras. Un radio suelto en corchetes (rounded-[11px]) está prohibido. */
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
 
   /* SF Pro, la letra del sistema: viene en toda Mac, no se reparte ni se descarga
      nada. El wordmark conserva Avenir Next (también del sistema) para seguir
@@ -83,15 +105,15 @@
    * texto se lee en renglones, es cuerpo o apoyo. El dueño puede tener 50 años y
    * presbicia, y abre esto en su monitor, no pegado a él.
    *
-   * Arriba la escala se abre (40 y 28) y se aprieta el tracking: la jerarquía la
+   * Arriba la escala se abre (44 y 30) y se aprieta el tracking: la jerarquía la
    * da el tamaño, no los marcos.
    */
-  --text-cifra: 40px;
-  --text-cifra--line-height: 1.05;
-  --text-cifra--letter-spacing: -0.032em;
-  --text-titulo: 28px;
-  --text-titulo--line-height: 1.15;
-  --text-titulo--letter-spacing: -0.024em;
+  --text-cifra: 44px;
+  --text-cifra--line-height: 1.02;
+  --text-cifra--letter-spacing: -0.036em;
+  --text-titulo: 30px;
+  --text-titulo--line-height: 1.13;
+  --text-titulo--letter-spacing: -0.027em;
   --text-seccion: 18px;
   --text-seccion--line-height: 1.3;
   --text-seccion--letter-spacing: -0.014em;
@@ -116,7 +138,7 @@
   --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1); /* mover/redimensionar */
 }
 
-/* En el teléfono la cifra y el título bajan un escalón: a 40px un total de seis
+/* En el teléfono la cifra y el título bajan un escalón: a 44px un total de seis
    cifras no cabe en media pantalla. Es un corte, no tipografía fluida. */
 @media (max-width: 640px) {
   :root {
@@ -142,6 +164,16 @@
    todas las pantallas (components/ui.tsx los envuelve). En @layer components: una
    utilidad de Tailwind puesta al lado todavía gana la cascada. */
 @layer components {
+  /* BOTONES: tres, en dos tamaños. No hay más.
+   *
+   *   primario    relleno de acento. UNO por pantalla: el que la resuelve.
+   *   secundario  contorno fino, sin relleno. Las demás acciones con peso.
+   *   callado     solo la palabra. Acciones de renglón, cancelar, "ver más".
+   *
+   * Tamaños: normal (40) y chico (.btn-sm, 32, dentro de un renglón o una tabla).
+   * .btn-lg (52) no es un tercer tamaño de la consola: es del asistente de primer
+   * arranque, donde el botón es el objeto de la pantalla. .btn-danger es el
+   * primario de una confirmación que borra, y solo vive dentro de ese diálogo. */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -159,22 +191,29 @@
   }
   .btn:active:not(:disabled) { transform: scale(0.98); }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-sm { min-height: 32px; padding: 0 12px; border-radius: var(--radius-md); font-size: var(--text-apoyo); }
-  .btn-lg { min-height: 52px; padding: 0 24px; border-radius: 12px; font-size: var(--text-seccion); }
+  .btn-sm { min-height: 32px; padding: 0 12px; font-size: var(--text-apoyo); }
+  .btn-lg { min-height: 52px; padding: 0 24px; font-size: var(--text-seccion); }
 
-  /* La acción principal: la única mancha de color de la pantalla. */
   .btn-primary { background: var(--color-accent); color: var(--color-surface); }
   .btn-primary:hover:not(:disabled) { background: var(--color-accent-strong); }
-  /* La secundaria: relleno gris, sin borde. Pesa, pero no compite. */
-  .btn-secondary { background: var(--color-fill); color: var(--color-ink); }
-  .btn-secondary:hover:not(:disabled) { background: var(--color-fill-strong); }
-  /* La callada: solo texto hasta que pasas encima. */
+  /* El contorno va por sombra interior y no por `border`: así el botón mide lo
+     mismo que el primario y dos botones juntos quedan a la misma altura. */
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1px var(--color-line-strong);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-fill);
+    box-shadow: inset 0 0 0 1px var(--color-field);
+  }
   .btn-quiet { background: transparent; color: var(--color-ink-2); }
   .btn-quiet:hover:not(:disabled) { background: var(--color-fill); color: var(--color-ink); }
   .btn-danger { background: var(--color-danger); color: var(--color-surface); }
   .btn-danger:hover:not(:disabled) { background: oklch(0.43 0.15 27); }
 
-  /* Campo: lo único con borde visible, porque es lo único donde se escribe. */
+  /* Campo: lo único con borde oscuro, porque es lo único donde se escribe. El
+     borde pasa 3:1 contra el papel y contra cualquier relleno de la consola. */
   .field {
     width: 100%;
     min-height: 40px;
@@ -188,7 +227,58 @@
   }
   .field::placeholder { color: var(--color-ink-3); }
   .field:hover { border-color: var(--color-ink-2); }
-  .field-lg { min-height: 52px; padding: 12px 16px; border-radius: 12px; font-size: var(--text-seccion); }
+  .field-lg { min-height: 52px; padding: 12px 16px; font-size: var(--text-seccion); }
+
+  /* Sello: una etiqueta neutra de una palabra ("Sin estrenar"). Contorno fino,
+     sin relleno y sin color: clasifica, no avisa. Para avisar está .mark. */
+  .sello {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 1px var(--color-line-strong);
+    font-size: var(--text-sello);
+    line-height: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--color-ink-2);
+  }
+
+  /* Pestañas de sección: palabras sobre una raya. La activa pesa más y lleva su
+     tramo de raya en tinta. Sin pista gris y sin color. */
+  .tabs {
+    display: flex;
+    max-width: 100%;
+    gap: 28px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    box-shadow: inset 0 -1px 0 var(--color-line);
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    display: inline-flex;
+    flex: none;
+    align-items: baseline;
+    gap: 8px;
+    height: 44px;
+    padding-top: 10px;
+    font-size: var(--text-cuerpo);
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--color-ink-3);
+    cursor: pointer;
+    box-shadow: inset 0 -2px 0 transparent;
+  }
+  .tab:hover { color: var(--color-ink); }
+  .tab[aria-selected="true"] {
+    font-weight: 600;
+    color: var(--color-ink);
+    box-shadow: inset 0 -2px 0 var(--color-ink);
+  }
+  /* El foco por teclado va por dentro: la fila de pestañas recorta lo que sale. */
+  .tab:focus-visible { outline-offset: -2px; }
 
   /* El wordmark: Avenir Next, como siempre. Es la marca, no un nivel de la escala. */
   .wordmark {
@@ -267,7 +357,7 @@
   select:focus-visible {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px oklch(0.52 0.118 236 / 0.16);
+    box-shadow: 0 0 0 3px oklch(0.44 0.105 238 / 0.18);
   }
 
   /* Foco visible para navegar con teclado: TODO lo interactivo (ligas del menú,
@@ -314,6 +404,18 @@ body {
   text-rendering: optimizeLegibility; /* kerning/ligaduras: texto más nítido */
 }
 
+/* Un título nunca deja una palabra sola en el segundo renglón, y un párrafo no
+   termina en una viuda. Es de lo poco que separa una página cuidada de una que
+   solo está ordenada. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
 /* En pantallas táctiles los inputs suben a 16px: por debajo, iOS hace zoom al
    enfocar (rompe el layout). En desktop mantienen la densidad de consola. */
 @media (pointer: coarse) {
@@ -324,8 +426,20 @@ body {
   }
 }
 
+/* El campo de búsqueda trae su propia "x" (components/ui.tsx): la del navegador
+   sobra y quedaban dos. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
 ::selection {
   background: var(--color-accent-soft);
+}
+
+/* Con la franja del modo de prueba arriba (40px en escritorio, una línea), el
+   menú fijo baja lo mismo para no quedar debajo de ella. */
+.marco:has(> .franja) {
+  --franja: 40px;
 }
 
 /* Cifras financieras alineadas */
@@ -341,7 +455,7 @@ body {
   to { background-position: -150% 0; }
 }
 .skeleton {
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background-color: oklch(0.955 0.002 250);
   background-image: linear-gradient(
     100deg,

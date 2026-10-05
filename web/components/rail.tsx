@@ -48,7 +48,7 @@ export function RailLayout({
   );
 }
 
-/** Un bloque del riel: etiqueta en versalitas + su contenido (stats o lista). */
+/** Un bloque del riel: su rótulo y su contenido (cifras o lista). */
 export function RailSection({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section>
