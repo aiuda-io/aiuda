@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -23,7 +23,7 @@ from aiuda_core.config import settings
 from aiuda_core.connectors import wacli_bin
 from aiuda_core.connectors.wacli import WacliClient, WacliError
 import aiuda_server.worker.main as worker_main
-from aiuda_core.models import Base, Customer, Tenant
+from aiuda_core.models import Base, Conversation, Customer, Message, Reminder, Tenant
 from aiuda_server import wacli_sync
 from aiuda_server.api.main import app, get_db
 
@@ -613,6 +613,79 @@ def test_api_desvincular_que_falla_no_miente(client, tenant, falso, monkeypatch)
     r = client.delete("/v1/integrations/whatsapp/session")
     assert r.status_code == 502 and "No se pudo cerrar la sesión" in r.json()["detail"]
     assert tenant.config["integrations"]["whatsapp"]["via"] == "wacli"
+
+
+# ---------- lo que sale al contestar un entrante también pausa el sync ----------
+
+
+def _entrante(telefono: str, texto: str) -> tuple[str, str]:
+    with worker_main.session_scope() as s:
+        t = s.scalars(select(Tenant)).one()
+        conv = Conversation(tenant_id=t.id, remote_phone=telefono)
+        s.add(conv)
+        s.flush()
+        m = Message(tenant_id=t.id, conversation_id=conv.id, direction="in", body=texto)
+        s.add(m)
+        s.flush()
+        return t.id, m.id
+
+
+def _enviados(store) -> list[dict]:
+    try:
+        return [json.loads(x) for x in (store / "enviados.jsonl").read_text().splitlines()]
+    except FileNotFoundError:
+        return []
+
+
+def test_la_confirmacion_de_baja_sale_con_el_sync_propio_corriendo(api_real, falso, monkeypatch):
+    # Sin --lock-wait: si el envío no pausara el sync, chocaría al instante con su candado.
+    monkeypatch.setattr(
+        settings, "wacli_send_template", "{bin} send text --to {phone} --message {message}"
+    )
+    _vinculado(falso)
+    wacli_sync.arrancar("inst-a", str(falso))
+    assert _esperar(lambda: _estado(falso) == "conectado")
+    worker_main.process_incoming_message_blocking(*_entrante("5215599998888", "BAJA"))
+    assert [e["to"] for e in _enviados(falso)] == ["5215599998888@s.whatsapp.net"]
+    assert _esperar(lambda: len(_arranques(falso)) == 2 and _estado(falso) == "conectado")
+
+
+def test_recordatorio_aprobado_por_whatsapp_que_falla_dice_el_motivo_en_espanol(
+    api_real, falso, monkeypatch
+):
+    from types import SimpleNamespace
+
+    import aiuda_core.engine.owner as owner
+    from aiuda_core.engine.engine import CleoEngine
+
+    _vinculado(falso)
+    with worker_main.session_scope() as s:
+        t = s.scalars(select(Tenant)).one()
+        r = Reminder(
+            tenant_id=t.id, bucket="vencida", tone="cordial", message="Hola", status="approved",
+            recipient_phone="5215599998888",
+        )
+        s.add(r)
+        s.flush()
+        rid = r.id
+    monkeypatch.setattr(
+        owner, "handle_owner_command",
+        lambda session, tenant, body: SimpleNamespace(
+            text="Enviando.", send_reminders=[(session.get(Reminder, rid), "5215599998888")]
+        ),
+    )
+
+    def _truena(self, reminder, phone, *a, **k):
+        raise WacliError("not authenticated; run `wacli auth`")
+
+    monkeypatch.setattr(CleoEngine, "send", _truena)
+    worker_main.process_incoming_message_blocking(*_entrante("5215500000000", "ok"))
+    with worker_main.session_scope() as s:
+        r = s.get(Reminder, rid)
+        assert r.status == "failed"
+        assert r.meta["motivo_fallo"].startswith("Tu WhatsApp no está vinculado")
+        assert "wacli" not in r.meta["motivo_fallo"]
+    assert [e["to"] for e in _enviados(falso)] == ["5215500000000@s.whatsapp.net"]  # la respuesta al dueño
 
 
 # ---------- el candado de la suite: nada del dueño está al alcance ----------

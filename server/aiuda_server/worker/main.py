@@ -168,6 +168,9 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
         if conversation.human_takeover:
             return  # el humano tiene el control: el agente no interviene
         engine = _build_engine(session, tenant)
+        # Todo lo que sale de aquí por wacli pausa el sync propio, igual que los
+        # demás envíos: sin eso choca con el candado que tiene nuestro `sync --follow`.
+        wa = resolve_whatsapp(session, tenant)
 
         # ¿Es el dueño? Sus mensajes pueden ser comandos de aprobación. Se compara por los
         # últimos 10 dígitos (match_key): el owner_phone y el teléfono del webhook pueden
@@ -180,7 +183,8 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
 
             owner_reply = handle_owner_command(session, tenant, message.body)
             if owner_reply is not None:
-                engine.send_whatsapp(tenant.owner_phone, owner_reply.text)
+                with _pause_for(wa):
+                    engine.send_whatsapp(tenant.owner_phone, owner_reply.text)
                 session.add(
                     Message(
                         tenant_id=tenant.id,
@@ -194,7 +198,8 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
                     # el cliente pidió la baja, se marca el veredicto y se SIGUE — una
                     # excepción aquí haría rollback y perdería la respuesta al dueño.
                     try:
-                        engine.send(reminder, phone)
+                        with _pause_for(wa):
+                            engine.send(reminder, phone)
                     except OptedOut:
                         from aiuda_core.engine import approval
 
@@ -212,7 +217,11 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
                         if reminder.status == "failed":
                             reminder.meta = {
                                 **(reminder.meta or {}),
-                                "motivo_fallo": f"No salió: {str(exc)[:200]}",
+                                "motivo_fallo": (
+                                    explicar_fallo_wacli(exc)
+                                    if wa is not None and wa.provider == "wacli"
+                                    else f"No salió: {str(exc)[:200]}"
+                                ),
                             }
                 return
             # No era comando: el agente le responde con los datos de su negocio
@@ -223,7 +232,8 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
             mark_opt_out(session, tenant, conversation.remote_phone, via="whatsapp")
             if engine.send_whatsapp is not None:
                 try:
-                    engine.send_whatsapp(conversation.remote_phone, OPT_OUT_CONFIRMATION)
+                    with _pause_for(wa):
+                        engine.send_whatsapp(conversation.remote_phone, OPT_OUT_CONFIRMATION)
                 except Exception as exc:  # noqa: BLE001 — la baja queda aunque la confirmación falle
                     log.warning("confirmación de baja no enviada: %s", exc)
             session.add(
@@ -264,7 +274,8 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
             return
         if not reply.strip():
             return
-        engine.send_whatsapp(conversation.remote_phone, reply)
+        with _pause_for(wa):
+            engine.send_whatsapp(conversation.remote_phone, reply)
         session.add(
             Message(
                 tenant_id=tenant.id,
