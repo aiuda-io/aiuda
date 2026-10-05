@@ -235,3 +235,57 @@ def test_cerrar_pendientes_retira_solo_lo_que_aun_podia_salir(db_session, tenant
         r.status for r in db_session.scalars(select(Reminder).where(Reminder.invoice_id == inv.id))
     )
     assert estados == ["rejected"] * 5 + ["sent"]
+
+
+# ---------- 3. Una promesa vencida se puede dar por incumplida ----------
+
+
+def test_dar_una_promesa_por_incumplida_la_saca_de_lo_que_espera_al_dueno(
+    client, db_session, tenant, customer
+):
+    inv = _inv(db_session, tenant, customer, "M-1", 1000)
+    vencida = _promesa(db_session, tenant, inv, dias=-4)
+    assert client.get("/v1/cartera").json()["espera_tu_ok"] == 1
+
+    res = client.post(f"/v1/promises/{vencida.id}/no-cumplio")
+
+    assert res.status_code == 200
+    assert res.json() == {"id": vencida.id, "fulfilled": False, "incumplida": True}
+    # No se marcó cumplida (sería mentir) ni se tocó la factura: se sigue cobrando.
+    assert vencida.fulfilled is False and inv.status == "open"
+    assert client.get("/v1/cartera").json()["espera_tu_ok"] == 0
+    [p] = client.get("/v1/promises").json()
+    assert (p["vencida"], p["incumplida"]) == (False, True)
+    # Repetirlo no truena ni cambia la fecha en que se dio por incumplida.
+    antes = dict(tenant.config["promesas_incumplidas"])
+    assert client.post(f"/v1/promises/{vencida.id}/no-cumplio").status_code == 200
+    assert tenant.config["promesas_incumplidas"] == antes
+
+
+def test_no_se_da_por_incumplida_una_promesa_vigente_ni_una_cumplida(
+    client, db_session, tenant, customer
+):
+    inv = _inv(db_session, tenant, customer, "M-1", 1000)
+    vigente = _promesa(db_session, tenant, inv, dias=3)
+    cumplida = _promesa(db_session, tenant, inv, dias=-4)
+    cumplida.fulfilled = True
+    db_session.flush()
+
+    assert client.post(f"/v1/promises/{vigente.id}/no-cumplio").status_code == 409
+    assert client.post(f"/v1/promises/{cumplida.id}/no-cumplio").status_code == 409
+    assert client.post("/v1/promises/no-existe/no-cumplio").status_code == 404
+    assert "promesas_incumplidas" not in (tenant.config or {})
+
+
+def test_si_despues_paga_la_promesa_incumplida_queda_cumplida(
+    client, db_session, tenant, customer
+):
+    inv = _inv(db_session, tenant, customer, "M-1", 1000)
+    promesa = _promesa(db_session, tenant, inv, dias=-4)
+    client.post(f"/v1/promises/{promesa.id}/no-cumplio")
+
+    assert client.post(f"/v1/invoices/{inv.id}/pay").status_code == 200
+
+    assert promesa.fulfilled is True
+    [p] = client.get("/v1/promises?status=fulfilled").json()
+    assert p["incumplida"] is False

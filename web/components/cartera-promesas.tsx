@@ -178,6 +178,13 @@ function Cuando({ p, cumplida }: { p: PromiseItem; cumplida: boolean }) {
   if (!p.factura_abierta) {
     return <span className="mark tnum">{fecha(p.promised_date)}, factura ya cerrada</span>;
   }
+  if (p.incumplida) {
+    return (
+      <span className="mark tnum" style={{ "--mark": "var(--color-danger)" } as React.CSSProperties}>
+        No cumplió, quedó para el {fechaDM(p.promised_date)}
+      </span>
+    );
+  }
   const color =
     p.days_left < 0 ? "var(--color-danger)" : p.days_left === 0 ? "var(--color-warn)" : "var(--color-line-strong)";
   const cerca =

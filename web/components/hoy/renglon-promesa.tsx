@@ -7,6 +7,7 @@ import { dinero } from "@/lib/cartera";
 import { fechaDM } from "@/lib/format";
 import { ConfirmarPago } from "@/components/confirmar-pago";
 import { Cabeza, Fila, Marca } from "@/components/hoy/piezas";
+import { PrimaryButton, QuietButton, useConfirm } from "@/components/ui";
 import { idPromesa, type Ejecutar } from "@/components/hoy/tipos";
 
 /** Una promesa de pago que ya venció con la factura todavía abierta: el cliente
@@ -26,8 +27,26 @@ export function RenglonPromesa({
   // La factura cuyo pago se está por registrar: abre la confirmación con monto.
   const [pagoDe, setPagoDe] = useState<string | null>(null);
   const [faltaIA, setFaltaIA] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const quieto = ocupado || saliendo;
   const dias = -p.days_left;
+
+  // La salida honesta cuando no hubo pago: la promesa se da por incumplida y deja de
+  // pedir una decisión. No se marca cumplida ni se toca la factura.
+  async function noCumplio() {
+    const ok = await confirm({
+      title: "Dar la promesa por incumplida",
+      message: `${p.customer} quedó de pagar el ${fechaDM(p.promised_date)} y no pagó. La promesa sale de Hoy. La factura ${p.folio} sigue abierta y se sigue cobrando.`,
+      confirmLabel: "No cumplió",
+      borra: false,
+    });
+    if (!ok) return;
+    await ejecutar(
+      () => api.promesaNoCumplio(p.id),
+      "Promesa dada por incumplida. La factura sigue abierta.",
+      id,
+    );
+  }
 
   async function recordar() {
     setFaltaIA(false);
@@ -74,18 +93,17 @@ export function RenglonPromesa({
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setPagoDe(p.invoice_id)}
-          disabled={quieto}
-          className="btn btn-primary"
-        >
+        <PrimaryButton type="button" onClick={() => setPagoDe(p.invoice_id)} disabled={quieto}>
           Registrar pago
-        </button>
-        <button type="button" onClick={recordar} disabled={quieto} className="btn btn-quiet">
+        </PrimaryButton>
+        <QuietButton type="button" onClick={recordar} disabled={quieto}>
           Recordar de nuevo
-        </button>
+        </QuietButton>
+        <QuietButton type="button" onClick={noCumplio} disabled={quieto}>
+          No cumplió
+        </QuietButton>
       </div>
+      {dialog}
 
       {/* La misma confirmación que en Cartera: cliente, folio, monto y a dónde más se escribe. */}
       <ConfirmarPago

@@ -52,6 +52,7 @@ INVITADO: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/v1/workspace"),
     ("POST", "/v1/invoices/{invoice_id}/pay"),
     ("POST", "/v1/promises/{promise_id}/fulfill"),
+    ("POST", "/v1/promises/{promise_id}/no-cumplio"),
     ("POST", "/v1/reconciliation/{payment_id}/confirm"),
     ("POST", "/v1/reconciliation/{payment_id}/ignore"),
     ("POST", "/v1/reminders/{reminder_id}/approve"),
