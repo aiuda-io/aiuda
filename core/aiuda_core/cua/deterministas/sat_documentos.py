@@ -311,7 +311,9 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
     limite = time.monotonic() + portal.espera_acceso_s
     while time.monotonic() < limite:
         if marca_login not in pg.url:
-            c.paso("El SAT aceptó la e.firma.")
+            # Salir del login no prueba que el SAT aceptó: eso lo dice quien llama,
+            # cuando el destino contesta lo esperado.
+            c.paso("Salí de la pantalla de acceso del SAT.")
             return
         error = pg.locator("#divError:visible")
         if error.count():
@@ -365,9 +367,10 @@ def _opinion_32d(c: _Corrida, cer: bytes, key: bytes, rfc: str) -> tuple[bytes, 
     if "r" not in visto:
         c.foto()
         raise Alto(
-            "Entré al portal del SAT pero no entregó la opinión de cumplimiento. "
-            "Inténtalo más tarde."
+            "Salí de la pantalla de acceso del SAT, pero el portal no entregó la opinión "
+            "de cumplimiento. Inténtalo más tarde."
         )
+    c.paso("El SAT aceptó la e.firma y contestó la consulta.")
     try:
         cuerpo = visto["r"].json()
     except Exception:
@@ -412,9 +415,11 @@ def _constancia(c: _Corrida, cer: bytes, key: bytes, rfc: str) -> tuple[bytes, d
     else:
         c.foto()
         raise Alto(
-            "Entré al portal del SAT pero no apareció «Generar Constancia». Puede que "
-            "el portal haya cambiado o esté fallando; inténtalo más tarde."
+            "Salí de la pantalla de acceso del SAT, pero no apareció «Generar "
+            "Constancia». Puede que el portal haya cambiado o esté fallando; inténtalo "
+            "más tarde."
         )
+    c.paso("El SAT aceptó la e.firma y mostró la pantalla de la constancia.")
     c.foto()
     c.revisar_avisos()  # por si el aviso apareció junto con el botón
     # El botón hace una llamada (prepara la constancia) y después abre una ventana con

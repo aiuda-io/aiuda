@@ -231,6 +231,17 @@ def test_si_el_acceso_pregunta_algo_no_se_teclea_la_contrasena(sat):
     assert RUTA_32D not in sat.rutas()  # nunca entró: no hubo folio
 
 
+@pytest.mark.parametrize("documento", [OPINION_32D, CONSTANCIA])
+def test_salir_del_login_no_se_anota_como_efirma_aceptada(sat, documento):
+    """Tras «Enviar» el portal manda a una página de error: la bitácora no afirma que
+    el SAT aceptó la e.firma ni que aiuda entró."""
+    sat.modo["tras_login"] = "error"
+    r = bajar(sat, documento, espera_documento_s=1.5)
+    assert not r.ok and "Salí de la pantalla de acceso" in r.error
+    assert not any("aceptó la e.firma" in p for p in r.pasos)
+    assert sat.rutas("POST") == []
+
+
 def test_el_sat_no_entrega_la_opinion(sat):
     sat.modo["opinion"] = "sin_exito"
     r = bajar(sat, OPINION_32D)

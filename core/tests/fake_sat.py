@@ -146,7 +146,8 @@ class FakeSat:
             "aviso_login": "",  # alert | confirm: diálogo al abrir el formulario de e.firma
             "boton_aceptar": False,  # un «Aceptar» visible junto a la pantalla normal
             "rfc_formulario": RFC,
-            "tras_login": "ok",  # ok | aceptar (pide aceptar términos) | dialogo
+            # ok | aceptar (pide aceptar términos) | dialogo | error (página de error)
+            "tras_login": "ok",
             "opinion": "ok",  # ok | sin_exito | otro_rfc | no_pdf
             "sentido": "Positivo",
             "constancia": "ok",  # ok | otro_rfc | html | otro_documento
@@ -230,6 +231,8 @@ class FakeSat:
                         return self._enviar(
                             "<!doctype html><script>confirm('¿Acepta el aviso?')</script>"
                         )
+                    if modo["tras_login"] == "error":
+                        return self._enviar("<!doctype html><h1>Servicio no disponible</h1>")
                     extra = _BOTON_ACEPTAR if modo["boton_aceptar"] else ""
                     if destino == "opinion":
                         return self._enviar(_OPINION % (extra, RUTA_32D))
