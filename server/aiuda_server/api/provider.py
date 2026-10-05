@@ -557,15 +557,21 @@ def _terminar_entrada(db, tenant: Tenant, intento, q) -> None:
         if not devuelto or devuelto == chatgpt_auth.CLIENTE_REGISTRO:
             raise Error("ChatGPT no terminó de registrar a aiuda.")
         client_id = devuelto
-        # Se guarda ANTES de canjear: si el canje falla, el siguiente intento vuelve a
-        # entrar con este registro en vez de crear otra app en la cuenta del dueño.
+        ya_habia = bool(cfg.get("client_id"))
         cfg = {
             "host_id": cfg["host_id"],
             "client_id": client_id,
             "bienvenida_vista": bool(cfg.get("bienvenida_vista")),
         }
-        _guardar_cfg_chatgpt(db, tenant, cfg)
-        db.commit()
+        if not ya_habia:
+            # Primer registro: se guarda ANTES de canjear. Si el canje falla, el
+            # siguiente intento vuelve a entrar con este registro en vez de crear otra
+            # app en la cuenta del dueño.
+            _guardar_cfg_chatgpt(db, tenant, cfg)
+            db.commit()
+        # Con una cuenta ya registrada ("Entrar con otra cuenta") es al revés: el
+        # registro nuevo no reemplaza al que está en uso hasta que su identidad quede
+        # comprobada, más abajo. Si este intento falla, la cuenta de antes sigue intacta.
     else:
         # Volver a entrar: el client_id puede no venir; si viene, tiene que ser el mismo.
         if devuelto and devuelto != intento.client_id:
@@ -593,6 +599,7 @@ def _terminar_entrada(db, tenant: Tenant, intento, q) -> None:
             previo={"client_id": client_id, "subject": datos["sub"], "email": datos.get("email")},
         )
         bundle["model"] = chatgpt_auth.elegir_modelo(bundle["access_token"])
+        anterior = _sesion_anterior(db, tenant)
         cred.set_credential(db, tenant.id, IA, chatgpt_auth.valores(bundle))
         _scrub_legacy(db, tenant)
         cfg.update(subject=datos["sub"], email=datos.get("email"))
@@ -611,3 +618,17 @@ def _terminar_entrada(db, tenant: Tenant, intento, q) -> None:
         chatgpt_auth.revocar({"client_id": client_id, "refresh_token": tok.get("refresh_token")})
         raise
     chatgpt_auth.recordar(tenant.id, bundle)
+    # Otra cuenta reemplazó a la de antes: aquella sesión ya no se usa, se le avisa a
+    # OpenAI. Solo si es otro registro: con el mismo client_id es la misma autorización.
+    if anterior.get("client_id") != client_id:
+        chatgpt_auth.revocar(anterior)
+
+
+def _sesion_anterior(db, tenant: Tenant) -> dict:
+    """La sesión de ChatGPT que estaba guardada, ya fuera de la memoria del proceso
+    (espera a una renovación en curso, para que no escriba encima de la nueva)."""
+    try:
+        return chatgpt_auth.soltar(db, tenant.id)
+    except Exception:  # noqa: BLE001 — una fila ilegible no impide volver a entrar
+        chatgpt_auth.olvidar(tenant.id)
+        return {}

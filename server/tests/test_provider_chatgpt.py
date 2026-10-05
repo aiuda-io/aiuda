@@ -316,10 +316,29 @@ def test_volver_a_entrar_con_otra_cuenta_se_rechaza_y_se_puede_pedir_a_proposito
     assert _bundle(db_session, tenant)["access_token"] == primero["access_token"]
     assert len(falso.visto["revoke"]) == 1
 
+    # Pedirlo a propósito y que falle a medio camino deja la cuenta de antes intacta:
+    # el registro nuevo no pisa al que está en uso hasta comprobar quién entró.
+    falso.modo["token"] = "caido"
+    assert _entrar(client, otra_cuenta=True).status_code == 400
+    db_session.refresh(tenant)
+    cfg = tenant.config["chatgpt"]
+    assert cfg["client_id"] == primero["client_id"] and cfg["email"] == "dueno@ejemplo.mx"
+    assert cfg["subject"] == primero["subject"]
+    estado = client.get("/v1/provider").json()
+    assert estado["connected"] is True and estado["chatgpt"]["email"] == "dueno@ejemplo.mx"
+    falso.modo["token"] = "ok"
+
     assert _entrar(client, otra_cuenta=True).status_code == 200
     nuevo = _bundle(db_session, tenant)
     assert nuevo["subject"] == "user-falso-2" and nuevo["client_id"] != primero["client_id"]
     assert client.get("/v1/provider").json()["chatgpt"]["email"] == "otra@ejemplo.mx"
+    # Y la sesión de la cuenta anterior se cierra en OpenAI.
+    assert falso.visto["revoke"][-1] == {
+        "token": primero["refresh_token"],
+        "token_type_hint": "refresh_token",
+        "client_id": primero["client_id"],
+    }
+    assert chatgpt_auth._ultimo[tenant.id]["client_id"] == nuevo["client_id"]
 
 
 def test_entrar_sin_autorizar_el_plan_no_conecta(falso, client):
