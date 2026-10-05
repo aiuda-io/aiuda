@@ -38,8 +38,8 @@ _COMPUTER_TOOL_TYPE = "computer_20250124"
 # un ir y venir de decenas de pasos. Eso es la herramienta de computer-use de
 # Anthropic. Las demás vías de aiuda intercambian texto: no reciben la captura.
 MSG_SIN_IA = (
-    "Para operar portales hace falta una llave de Anthropic (Claude). Conéctala en "
-    "Tu IA. Sin ella el asistente no puede ver la pantalla del portal."
+    "Para entrar a otros portales hace falta conectar Claude con tu llave de Anthropic, "
+    "en Ajustes. Sin ella el asistente no puede ver la pantalla del portal."
 )
 
 

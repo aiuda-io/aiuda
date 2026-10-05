@@ -443,7 +443,7 @@ CONSENTIMIENTO_SAT_TEXTO = (
 )
 MSG_FALTA_CONSENTIMIENTO = (
     "Falta tu permiso para que aiuda entre al portal del SAT con tu e.firma. "
-    "Dalo una vez en Rutinas, en el bloque de ese RFC."
+    "Dalo una vez en Portales, junto a ese RFC."
 )
 
 
@@ -492,7 +492,7 @@ CANDADO_SAT = threading.Lock()
 # lleva más que esto "en curso" se quedó colgada (se cerró aiuda a media corrida) y no
 # debe bloquear la siguiente.
 CORRIDA_COLGADA = timedelta(minutes=15)
-MSG_YA_CORRIENDO = "Esa rutina ya está corriendo para ese RFC. Espera a que termine."
+MSG_YA_CORRIENDO = "Ese documento ya se está bajando para ese RFC. Espera a que termine."
 
 
 def corrida_viva(m: CuaMission | None) -> bool:
