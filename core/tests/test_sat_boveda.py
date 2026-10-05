@@ -391,3 +391,34 @@ def test_un_cfdi_que_no_se_puede_guardar_no_tumba_a_los_demas(
     assert [f.uuid for f in session.scalars(select(CfdiBoveda)).all()] == [U2]
     assert [i.folio for i in session.scalars(select(Invoice)).all()] == ["A-2"]
     assert session.scalar(select(Customer).where(Customer.name == "A")) is None
+
+
+def _pendiente(session, tenant, inv):
+    from aiuda_core.models import Reminder
+
+    r = Reminder(
+        tenant_id=tenant.id, invoice_id=inv.id, bucket="vencida", tone="firme",
+        message="Le recordamos su pago", status="pending_approval",
+    )
+    session.add(r)
+    session.flush()
+    return r
+
+
+def test_nota_de_credito_que_salda_retira_lo_pendiente(session, tenant):
+    con_empresas(tenant, HANOVA)
+    importar_cfdis(session, tenant, [cfdi_xml(U1, metodo="PPD", total="1000.00")])
+    r = _pendiente(session, tenant, session.scalar(select(Invoice)))
+    importar_cfdis(
+        session, tenant, [cfdi_xml(U2, tipo="E", total="1000.00", relacionados=[U1])]
+    )
+    assert r.status == "rejected" and "nota de crédito" in r.meta["retirado"]
+
+
+def test_reclasificar_a_intercompania_retira_lo_pendiente(session, tenant):
+    con_empresas(tenant, HANOVA)
+    importar_cfdis(session, tenant, [cfdi_xml(U1, metodo="PPD", receptor=PERSONA)])
+    r = _pendiente(session, tenant, session.scalar(select(Invoice)))
+    con_empresas(tenant, HANOVA, PERSONA)
+    importar_cfdis(session, tenant, [cfdi_xml(U1, metodo="PPD", receptor=PERSONA)])
+    assert r.status == "rejected" and "tus propias empresas" in r.meta["retirado"]

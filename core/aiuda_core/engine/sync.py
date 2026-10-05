@@ -1024,6 +1024,9 @@ def _sat_aplicar_egreso(session: Session, tenant: Tenant, d: dict, res: dict) ->
             inv.status = "cancelled"
             inv.meta = {**(inv.meta or {}), "notas_credito": notas,
                         "cerrada_por": "nota de crédito"}
+            retirar_recordatorios(
+                session, inv, "La factura se saldó con una nota de crédito."
+            )
         else:
             inv.amount = restante
             inv.meta = {**(inv.meta or {}), "notas_credito": notas}
@@ -1139,6 +1142,9 @@ def _sat_reclasificar(session: Session, row: CfdiBoveda, direccion: str, res: di
                 inv.status = "cancelled"
                 inv.meta = {**(inv.meta or {}),
                             "cerrada_por": "intercompañía (factura entre tus empresas)"}
+                retirar_recordatorios(
+                    session, inv, "La factura es entre tus propias empresas."
+                )
         res["intercompania"] += 1
     elif row.direccion == "desconocida" and direccion != "desconocida":
         row.direccion = direccion  # ahora sí sabemos de qué empresa es
