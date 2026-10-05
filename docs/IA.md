@@ -194,12 +194,12 @@ abajo aplica igual. Cuánto de tu plan llevas gastado lo dice ChatGPT, en
 También existe un tope mensual de tokens, y viene puesto de fábrica: 5 millones
 de tokens al mes. No es un cobro nuestro (nosotros no cobramos nada y nunca vemos
 tu llave): es el freno para que un mes raro, o una corrida que se atore, no te
-sorprenda en el recibo de tu proveedor de IA. Un negocio normal no lo toca: una
+sorprenda en el recibo de tu IA. Un negocio normal no lo toca: una
 corrida de cobranza gasta miles de tokens, no millones.
 
 Cuando se agota, aiuda deja de llamar a la IA: no se cuelga a media iteración,
-la corrida sigue sin IA, y el aviso queda en la bitácora y arriba del Centro de
-mando, donde lo ves al abrir y lo puedes descartar. Para moverlo se escribe
+la revisión sigue sin IA, y el aviso queda en la bitácora y arriba de Hoy, donde
+lo ves al abrir y lo puedes descartar. Para moverlo se escribe
 `ia_tope_tokens_mes` en la configuración del negocio (todavía no hay pantalla
 para eso); con `0` te quedas sin tope, bajo tu propio riesgo.
 

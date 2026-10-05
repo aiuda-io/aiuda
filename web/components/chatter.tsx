@@ -22,7 +22,7 @@ const fmtTime = (iso?: string | null) => (iso ? fechaHora(iso) : "");
 function Avatar({ name, src }: { name: string; src?: string | null }) {
   if (src)
     return (
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-fill">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent">
         <img src={src} alt={name} className="h-full w-full object-contain p-0.5" />
       </span>
     );

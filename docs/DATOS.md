@@ -26,7 +26,7 @@ la configuración del negocio.
 
 Cifrado con la llave de `key`, dentro de la misma base:
 
-- Las credenciales de tus conectores y el secreto de tu proveedor de IA.
+- Las credenciales de tus conexiones y el secreto de tu IA.
 - Las sesiones de portales que capturaste con el handoff del CUA (cookies y
   storage ya autenticados; la contraseña de esos portales no se guarda nunca). Ver
   [CUA.md](CUA.md).
@@ -43,7 +43,7 @@ la bitácora del sistema.
 ## Tu estado de cuenta bancario (PDF)
 
 No necesitas open banking para conciliar: el PDF que tu banco ya te manda cada
-mes alcanza. En **Conciliación** (o en **Importar datos**) arrastras el PDF,
+mes alcanza. En **Cartera, pestaña Pagos** (o en **Importar**) arrastras el PDF,
 aiuda te enseña qué leyó y si los movimientos cuadran contra el saldo inicial y
 final del estado, y solo cuando tú apruebas, los depósitos entran a la bandeja
 de conciliación. Ahí tu ayudante propone qué factura liquida cada depósito y tú

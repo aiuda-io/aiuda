@@ -11,13 +11,13 @@ aquí también.
 
 Hay dos maneras de operar un portal, y conviene no confundirlas:
 
-- **Rutinas sin IA** (guion fijo). Hoy son dos, las dos del SAT: bajar tu opinión
+- **Portales sin IA** (guion fijo). Hoy son dos, las dos del SAT: bajar tu opinión
   de cumplimiento y tu constancia de situación fiscal. Van primero porque son lo
   más firme.
 - **El asistente con IA** (el CUA propiamente dicho), que ve la pantalla y decide
   qué hacer. Es el resto de este documento.
 
-## Rutinas sin IA: los documentos del SAT
+## Portales sin IA: los documentos del SAT
 
 En **Ayudantes > Portales** aparece un bloque por cada RFC con e.firma conectada, con dos
 rutinas:
