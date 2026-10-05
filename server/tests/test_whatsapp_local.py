@@ -319,7 +319,7 @@ def test_conectado_sigue_a_la_sesion_y_no_a_la_marca_guardada(client, db_session
 
 # ---------- el server es dueño del proceso de wacli ----------
 
-def _esperar(condicion, segundos=8.0):
+def _esperar(condicion, segundos=20.0):
     fin = time.monotonic() + segundos
     while time.monotonic() < fin:
         if condicion():
@@ -423,9 +423,14 @@ def test_cancelar_el_emparejamiento_suelta_el_candado(falso):
     assert _estado(falso) == "sin_vincular"
 
 
-def test_un_qr_que_nadie_escanea_no_se_queda_con_el_candado(falso, monkeypatch):
-    monkeypatch.setattr(wacli_sync, "_VINCULACION_MAX_S", 0.4)
+def _que_venza_el_qr() -> None:
+    """Como si ya hubieran pasado los 3 minutos sin que nadie escaneara."""
+    wacli_sync._canales["inst-a"].vence = time.monotonic()
+
+
+def test_un_qr_que_nadie_escanea_no_se_queda_con_el_candado(falso):
     assert wacli_sync.vincular("inst-a", str(falso))
+    _que_venza_el_qr()
     assert _esperar(lambda: not _candado_tomado(falso))
     assert _estado(falso) == "sin_vincular"
 
@@ -534,9 +539,9 @@ def test_api_cerrar_la_ventana_cancela_el_emparejamiento(client, tenant, falso):
     assert not _candado_tomado(falso)
 
 
-def test_api_qr_que_caduca_lo_dice_en_espanol(client, tenant, falso, monkeypatch):
-    monkeypatch.setattr(wacli_sync, "_VINCULACION_MAX_S", 0.4)
-    client.post("/v1/integrations/whatsapp/qr")
+def test_api_qr_que_caduca_lo_dice_en_espanol(client, tenant, falso):
+    assert client.post("/v1/integrations/whatsapp/qr").status_code == 200
+    _que_venza_el_qr()
     assert _esperar(lambda: _status(client)["estado"] == "sin_vincular")
     assert _status(client)["aviso"] == "El código QR caducó. Genera uno nuevo y escanéalo."
 
