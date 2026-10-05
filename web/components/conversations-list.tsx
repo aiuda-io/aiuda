@@ -8,6 +8,7 @@ import Link from "next/link";
 import { type ConversationItem, type ConversationStatus } from "@/lib/api";
 import { EmptyState, ErrorState, PrimaryLink, SearchInput, Skeleton, Tabs } from "@/components/ui";
 import { esDeHoy, haceTiempo } from "@/lib/format";
+import { rutaAjustes } from "@/lib/ajustes";
 
 type TabKey = "identificados" | "por_identificar" | "descartados";
 
@@ -119,7 +120,9 @@ export function ConversationsList({
       ) : conversations.length === 0 ? (
         <EmptyState
           title="Aún no hay mensajes"
-          action={<PrimaryLink href="/integraciones/detalle?key=whatsapp">Conectar WhatsApp</PrimaryLink>}
+          action={
+            <PrimaryLink href={rutaAjustes("conexiones", "whatsapp")}>Conectar WhatsApp</PrimaryLink>
+          }
         >
           Falta conectar tu WhatsApp. Cuando un cliente te escriba, su conversación aparece aquí.
         </EmptyState>

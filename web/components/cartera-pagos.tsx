@@ -597,7 +597,7 @@ function RegistrarPagoSheet({
       open={open}
       onClose={onClose}
       title="Registrar un pago"
-      subtitle="Un depósito que no llegó por tu banco conectado: efectivo o transferencia"
+      subtitle="Un depósito que no viene en tu estado de cuenta: efectivo o una transferencia"
     >
       <div className="space-y-4">
         <p className="text-cuerpo text-ink-2">

@@ -57,8 +57,8 @@ def onboarding_state(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
 
     steps = [
         {"key": "datos_cargados", "label": "Cargar tus datos", "done": has_data, "href": "/importar"},
-        {"key": "ia_conectada", "label": "Conectar tu IA", "done": ai_connected, "href": "/proveedor"},
-        {"key": "recordatorio_aprobado", "label": "Aprobar tu primer recordatorio", "done": approved, "href": "/centro"},
+        {"key": "ia_conectada", "label": "Conectar tu IA", "done": ai_connected, "href": "/configuracion?seccion=ia"},
+        {"key": "recordatorio_aprobado", "label": "Aprobar tu primer recordatorio", "done": approved, "href": "/"},
     ]
     done_count = sum(1 for s in steps if s["done"])
     return {"steps": steps, "done_count": done_count, "total": len(steps)}

@@ -598,7 +598,7 @@ export class ApiError extends Error {
 }
 
 /** ¿El error se arregla en Tu IA? (no hay IA conectada, o la que hay no respondió).
- *  Quien lo pinta pone la liga a /proveedor junto al mensaje. */
+ *  Quien lo pinta pone la liga a Tu IA junto al mensaje. */
 export function errorDeIA(e: unknown): boolean {
   return e instanceof ApiError && (e.code === "ia_no_conectada" || e.code === "ia_fallo");
 }
@@ -1118,7 +1118,7 @@ export type RunTurno = {
   error: string | null;
 };
 
-/** Estado del proveedor de IA conectado (panel /proveedor). */
+/** Estado de la IA conectada (Ajustes > Tu IA). */
 export type ProviderState = {
   name: ProviderName;
   mode: ProviderMode;

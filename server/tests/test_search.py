@@ -135,7 +135,7 @@ def test_conexiones_a_la_medida_por_nombre(client, tenant):
     grupo = _grupo(data, "Conexiones a la medida")
     assert grupo is not None
     assert grupo["items"][0]["label"] == "Mi ERP de escritorio"
-    assert grupo["items"][0]["href"] == "/integraciones"
+    assert grupo["items"][0]["href"] == "/configuracion?seccion=conexiones"
 
 
 def test_no_cruza_tenants(client, db_session, tenant):

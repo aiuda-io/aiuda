@@ -11,6 +11,7 @@ import { Collapse } from "@/components/motion";
 import { SecondaryButton, SinEstrenar, inputCls } from "@/components/ui";
 import { removeAiudita, setAiudita } from "@/lib/ayudantes-store";
 import { toast } from "@/components/toast";
+import { rutaAjustes } from "@/lib/ajustes";
 
 /** El catálogo ya trae estas dos frases por tarea (`aiuditas/catalog.py`). Vacías en
  *  las que todavía no funcionan. */
@@ -306,7 +307,7 @@ function FuenteField({
       </p>
       <div className="flex flex-wrap items-center gap-1.5">
         {fuentes.map((f) => {
-          const nombre = f.experimental ? "Entrando al portal" : f.name;
+          const nombre = f.name;
           if (f.live || f.experimental) {
             const on = value === f.key;
             return (
@@ -322,7 +323,11 @@ function FuenteField({
             );
           }
           return (
-            <Link key={f.key} href={`/integraciones/detalle?key=${f.key}`} className="btn btn-quiet btn-sm">
+            <Link
+              key={f.key}
+              href={rutaAjustes("conexiones", f.key)}
+              className="btn btn-quiet btn-sm"
+            >
               Conectar {nombre}
             </Link>
           );

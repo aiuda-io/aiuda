@@ -332,7 +332,8 @@ def fuentes_de_capacidad(cap: str, ocultas: set[str] | frozenset[str] = frozense
         out.append(
             {
                 "key": CUA_FUENTE,
-                "name": "CUA (experimental)",
+                # El nombre que ve el dueño; la consola le pone el sello "Sin estrenar".
+                "name": "Entrando al portal",
                 "logo": "",
                 "color": "#5B6B7A",
                 "live": False,

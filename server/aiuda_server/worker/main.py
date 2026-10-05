@@ -453,7 +453,7 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
 ENVIOS_FALLIDOS_KEY = "envios_fallidos"
 _MAX_ENVIOS_FALLIDOS = 200
 
-SIN_CANAL = "WhatsApp no está conectado. Ve a Integraciones, abre WhatsApp y conéctalo."
+SIN_CANAL = "WhatsApp no está conectado. Ve a Ajustes, Conexiones, abre WhatsApp y conéctalo."
 ADJUNTO_PERDIDO = "El envío del archivo se interrumpió. Vuelve a adjuntarlo."
 
 

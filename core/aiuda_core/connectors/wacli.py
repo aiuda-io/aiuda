@@ -29,7 +29,7 @@ class WacliError(RuntimeError):
 # Los textos de wacli salen de su código (v0.20.0); "not authenticated" además se
 # vio en vivo. El crudo va al log, nunca a la pantalla.
 _SIN_VINCULAR = (
-    "Tu WhatsApp no está vinculado. Ve a Integraciones, abre WhatsApp y escanea el código QR."
+    "Tu WhatsApp no está vinculado. Ve a Ajustes, Conexiones, abre WhatsApp y escanea el código QR."
 )
 _SESION_CERRADA = (
     "WhatsApp cerró la sesión de esta computadora, casi siempre porque se quitó desde "
@@ -49,7 +49,7 @@ _SIN_RED = (
 _SIN_WHATSAPP = "Ese número no parece tener WhatsApp. Revisa el teléfono del cliente."
 FALLO_GENERICO = (
     "WhatsApp no pudo enviar el mensaje. Intenta de nuevo; si sigue fallando, usa "
-    "Probar conexión en Integraciones."
+    "Probar conexión en Ajustes, Conexiones."
 )
 _FALLOS: tuple[tuple[str, str], ...] = (
     ("not authenticated", _SIN_VINCULAR),
@@ -63,7 +63,7 @@ _FALLOS: tuple[tuple[str, str], ...] = (
     ("send timed out", _TARDO),
     (
         "client outdated",
-        "WhatsApp pidió una versión más nueva del conector. Ve a Integraciones y abre "
+        "WhatsApp pidió una versión más nueva del conector. Ve a Ajustes, Conexiones y abre "
         "WhatsApp para ver cómo actualizarlo.",
     ),
     ("qr code timed out", "El código QR caducó. Genera uno nuevo y escanéalo."),

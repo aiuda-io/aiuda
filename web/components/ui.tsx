@@ -442,7 +442,7 @@ export function SourceBadge({
         const logo = SOURCE_LOGO[sys];
         const external = presence?.[sys]?.url;
         // Un registro nacido en aiuda no vive en otro sistema: sin liga (una liga
-        // a /integraciones aquí mentiría; no hay nada que conectar para verlo).
+        // a Conexiones aquí mentiría; no hay nada que conectar para verlo).
         if (sys === "aiuda" && !external) {
           return (
             <span
@@ -459,7 +459,7 @@ export function SourceBadge({
         return (
           <a
             key={sys}
-            href={external ?? "/integraciones"}
+            href={external ?? "/configuracion?seccion=conexiones"}
             target={external ? "_blank" : undefined}
             rel={external ? "noreferrer" : undefined}
             title={

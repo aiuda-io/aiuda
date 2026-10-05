@@ -44,7 +44,7 @@ MACOS_MINIMO = 15
 
 SIN_INSTALAR = (
     "Falta instalar el conector de WhatsApp en esta computadora. Ve a "
-    "Integraciones, abre WhatsApp y presiona Instalar."
+    "Ajustes, Conexiones, abre WhatsApp y presiona Instalar."
 )
 MACOS_VIEJO = (
     "WhatsApp con tu número necesita macOS 15 o más nuevo. Actualiza tu Mac para usarlo."

@@ -117,7 +117,7 @@ def _purgar_secretos_en_claro() -> None:
             if borrados:
                 log.warning(
                     "Se borraron %d credenciales que estaban en texto plano en la config. "
-                    "Vuelve a capturarlas desde Integraciones: ahora se guardan cifradas.",
+                    "Vuelve a capturarlas desde Ajustes, Conexiones: ahora se guardan cifradas.",
                     borrados,
                 )
             if movidas:

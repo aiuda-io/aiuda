@@ -69,23 +69,6 @@ function irA(q: string, lista: Destino[]): SearchGroup | null {
   };
 }
 
-// El servidor todavía nombra dos grupos y dos rutas como antes de la fusión. Se
-// traducen aquí para que el buscador hable igual que el menú y no pase por una
-// redirección; cuando `server/aiuda_server/api/search.py` se ponga al día, sobra.
-const TITULO: Record<string, string> = {
-  Conversaciones: "Mensajes",
-  "Promesas de pago": "Promesas",
-};
-const RUTA: Record<string, string> = {
-  "/promesas": "/facturas?vista=promesas",
-  "/integraciones": "/configuracion?seccion=conexiones",
-};
-function alDia(groups: SearchGroup[]): SearchGroup[] {
-  return groups.map((g) => ({
-    title: TITULO[g.title] ?? g.title,
-    items: g.items.map((it) => ({ ...it, href: RUTA[it.href] ?? it.href })),
-  }));
-}
 
 // ── Componente ────────────────────────────────────────────────────────────────
 
@@ -182,7 +165,8 @@ export function CommandPalette() {
         // Llegó tarde: hay una búsqueda más nueva en curso, descarta esta respuesta.
         if (runId !== runIdRef.current) return;
         // Los destinos van primero: quien escribe "pagos" quiere la pantalla.
-        setGroups([...local(), ...alDia(data.groups)]);
+        // Los títulos y las rutas ya vienen del servidor con los nombres de la consola.
+        setGroups([...local(), ...data.groups]);
         setSelectedIdx(0);
       } finally {
         if (runId === runIdRef.current) setLoading(false);
