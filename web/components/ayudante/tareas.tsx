@@ -14,7 +14,7 @@ import { toast } from "@/components/toast";
 
 /** El catálogo ya trae estas dos frases por tarea (`aiuditas/catalog.py`). Vacías en
  *  las que todavía no funcionan. */
-export type Tarea = AiuditaSpec & { cuando?: string; aprobacion?: string };
+export type Tarea = AiuditaSpec;
 
 type Valor = string | number | boolean;
 

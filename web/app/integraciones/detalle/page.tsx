@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Redireccion } from "@/components/ajustes/redireccion";
-import { rutaAjustes } from "@/lib/ajustes-api";
+import { rutaAjustes } from "@/lib/ajustes";
 
 // La vista completa de una integración repetía el panel lateral (y le faltaba lo
 // principal de WhatsApp: el botón de instalar y conectar). Ahora la única vista es

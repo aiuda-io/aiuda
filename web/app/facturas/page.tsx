@@ -12,7 +12,7 @@ import { PageHeader, SecondaryLink, Tabs, useApi } from "@/components/ui";
 import { CarteraFacturas } from "@/components/cartera-facturas";
 import { CarteraPromesas } from "@/components/cartera-promesas";
 import { CarteraPagos } from "@/components/cartera-pagos";
-import { RUTA, type CarteraConMonedas } from "@/lib/cartera";
+import { RUTA } from "@/lib/cartera";
 
 type Vista = "facturas" | "promesas" | "pagos";
 
@@ -37,7 +37,7 @@ function Cartera() {
 
   // Los números de las pestañas: cuántas promesas siguen abiertas y cuántos pagos
   // esperan confirmación. Se vuelven a contar tras cualquier escritura.
-  const cartera = useApi<CarteraConMonedas>(() => api.cartera() as Promise<CarteraConMonedas>);
+  const cartera = useApi(() => api.cartera());
   const pagos = useApi<ReconcileBandeja>(api.reconciliation);
   const recontarCartera = cartera.refetchQuiet;
   const recontarPagos = pagos.refetchQuiet;

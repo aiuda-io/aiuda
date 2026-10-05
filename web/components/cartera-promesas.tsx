@@ -5,7 +5,7 @@
 // el pago (que cumple la promesa) o se marca cumplida a mano.
 
 import { useMemo, useState } from "react";
-import { api } from "@/lib/api";
+import { api, type PromiseItem } from "@/lib/api";
 import { fecha, fechaDM } from "@/lib/format";
 import { EmptyState, ErrorState, SearchInput, Skeleton, useApi } from "@/components/ui";
 import { InvoiceDrawer } from "@/components/invoice-drawer";
@@ -16,7 +16,6 @@ import {
   dineroPorMoneda,
   plural,
   totalesPorMoneda,
-  type PromesaConMoneda,
 } from "@/lib/cartera";
 
 type Estado = "active" | "fulfilled";
@@ -25,8 +24,8 @@ const COLUMNAS = "md:grid-cols-[minmax(0,1fr)_9rem_10rem_15rem]";
 
 export function CarteraPromesas({ onChanged }: { onChanged?: () => void }) {
   const [estado, setEstado] = useState<Estado>("active");
-  const { data, error, loading, refetch, refetchQuiet } = useApi<PromesaConMoneda[]>(
-    () => api.promises(estado) as Promise<PromesaConMoneda[]>,
+  const { data, error, loading, refetch, refetchQuiet } = useApi(
+    () => api.promises(estado),
     [estado],
   );
   const [query, setQuery] = useState("");
@@ -168,7 +167,7 @@ export function CarteraPromesas({ onChanged }: { onChanged?: () => void }) {
 }
 
 /** La fecha y qué tan cerca está, en una sola marca. */
-function Cuando({ p, cumplida }: { p: PromesaConMoneda; cumplida: boolean }) {
+function Cuando({ p, cumplida }: { p: PromiseItem; cumplida: boolean }) {
   if (cumplida) {
     return (
       <span className="mark tnum" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>

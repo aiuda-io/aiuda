@@ -15,11 +15,12 @@
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader, Tabs, useApi } from "@/components/ui";
+import { api } from "@/lib/api";
 import { AjustesNegocio } from "@/components/ajustes/negocio";
 import { AjustesConexiones } from "@/components/ajustes/conexiones";
 import { AjustesIA } from "@/components/ajustes/tu-ia";
 import { AjustesTelefono } from "@/components/ajustes/telefono";
-import { SECCIONES, ajustesApi, esSeccion, rutaAjustes, type Seccion } from "@/lib/ajustes-api";
+import { SECCIONES, esSeccion, rutaAjustes, type Seccion } from "@/lib/ajustes";
 
 export default function AjustesPage() {
   // useSearchParams exige un límite de Suspense en el export estático.
@@ -67,7 +68,7 @@ function Ajustes() {
 /** Lo que antes vivía en el marco de la consola (el sello LOCAL, el crédito) y ahora
  *  se dice una vez, al fondo de Ajustes. */
 function PieDeAjustes() {
-  const { data } = useApi(() => ajustesApi.instalacion(), []);
+  const { data } = useApi(() => api.workspace(), []);
   return (
     <footer className="mt-16 border-t border-line pt-6 text-apoyo leading-relaxed text-ink-3">
       <p>

@@ -25,6 +25,23 @@ export type Cartera = {
   payment_reports: number;
   by_source: Record<string, number>;
   aging: AgingLine[];
+  /** La moneda de la cifra grande: pesos si hay, si no la que más facturas tenga.
+   *  `open_total`, `open_count`, `aging` y `recovered_this_month` hablan SOLO de ella. */
+  moneda_principal: string;
+  /** El desglose por moneda. Pesos y dólares nunca se suman. */
+  por_moneda: CarteraMoneda[];
+  /** Facturas abiertas en cualquier moneda. */
+  open_count_todas: number;
+};
+
+/** Una moneda del desglose de `GET /v1/cartera` (`por_moneda`). */
+export type CarteraMoneda = {
+  moneda: string;
+  open_total: number;
+  open_count: number;
+  overdue_total: number;
+  recovered_this_month: number;
+  aging: AgingLine[];
 };
 
 export type ReminderItem = {
@@ -61,6 +78,12 @@ export type ReminderItem = {
   retirado?: string | null;
   /** Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…"). */
   pendiente?: string | null;
+  /** Cuenta en "Por aprobar": la regla vive en el server (`_recordatorio_pide_decision`). */
+  pide_decision?: boolean;
+  /** null = no va ligado a una factura. */
+  factura_abierta?: boolean | null;
+  /** Cuándo cambió de estado por última vez. */
+  updated_at?: string | null;
 };
 
 /** Procedencia de un dato: qué es + de qué fuente(s) viene, con su presencia. */
@@ -98,6 +121,8 @@ export type PromiseItem = {
   customer: string;
   customer_id: string;
   amount: number;
+  /** La moneda de la factura prometida. */
+  currency?: string;
   promised_date: string;
   note: string | null;
   days_left: number;
@@ -621,6 +646,25 @@ export type ExportEntidad =
 export type WorkspaceInfo = {
   business_name: string;
   role: string;
+  /** La versión de aiuda que corre en esta computadora. */
+  version?: string;
+};
+
+/** Modo de prueba. `retenidos` = lo aprobado que no ha salido: lo que se iría a
+ *  clientes reales al apagarlo. */
+export type ModoPrueba = { modo_sombra: boolean; retenidos: number };
+
+export type ModoPruebaCambio = ModoPrueba & {
+  retenidos_accion: "enviando" | "no_enviados" | null;
+};
+
+/** Lo que responde registrar un pago. */
+export type PagoRegistrado = {
+  id: string;
+  status: string;
+  paid_source: string;
+  promesas_cumplidas?: number;
+  recordatorios_retirados?: number;
 };
 
 export type SearchResponse = {
@@ -659,6 +703,9 @@ export type SetupEstado = {
   ayudantes: { total: number; listo: boolean };
   extras: { wacli: boolean };
   terminado: boolean;
+  /** El negocio sigue en modo de prueba (toda instalación nueva nace así). */
+  modo_prueba?: boolean;
+  cerrado_por_el_dueno?: boolean;
 };
 
 /** Un modelo que aiuda recomienda para ESTA computadora. `cabe` es el veredicto
@@ -1116,6 +1163,10 @@ export type AiuditaSpec = {
   /** Fuentes posibles para esa capacidad. Aquí el dueño define DE DÓNDE lee. */
   fuentes?: Fuente[];
   perillas: Perilla[];
+  /** Cuándo trabaja, dicho para el dueño ("Cada hora", "Cuando se lo pides"). */
+  cuando?: string;
+  /** Si lo que hace pasa por la aprobación del dueño, dicho para él. */
+  aprobacion?: string;
 };
 
 export type PerfilSpec = { slug: string; name: string; desc: string };
@@ -1193,6 +1244,8 @@ export type CuaCapacidad = {
   estrenada: boolean;
   tiene_sesion: boolean;
   sesion_guardada_en: string | null;
+  /** Lo registró el dueño, o le puso dirección o sesión a uno de fábrica. */
+  del_dueno?: boolean;
 };
 
 /** Un portal a la medida que el dueño registró por URL. */
@@ -1545,12 +1598,14 @@ export const api = {
     request<{ aviso: { mes: string; desde: string | null } | null }>("/v1/avisos/tope-ia"),
   descartarAvisoTopeIa: () =>
     request<{ aviso: null }>("/v1/avisos/tope-ia/descartar", { method: "POST" }),
-  shadowMode: () => request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra"),
-  setShadowMode: (activo: boolean) =>
-    request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra", {
+  shadowMode: () => request<ModoPrueba>("/v1/settings/modo-sombra"),
+  /** `retenidos` solo cuenta al apagar: mandar ya lo aprobado que no ha salido, o
+   *  dejarlo en "No salió" para que no se vaya solo a clientes reales. */
+  setShadowMode: (activo: boolean, retenidos?: "enviar" | "no_enviar") =>
+    request<ModoPruebaCambio>("/v1/settings/modo-sombra", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activo }),
+      body: JSON.stringify({ activo, retenidos: retenidos ?? null }),
     }),
   ventanaEnvio: () => request<{ ventana: string }>("/v1/settings/ventana-envio"),
   setVentanaEnvio: (ventana: string) =>
@@ -1812,7 +1867,8 @@ export const api = {
         ? `/v1/learning/summary?ayudante_id=${encodeURIComponent(ayudanteId)}`
         : `/v1/learning/summary`,
     ),
-  pay: (invoiceId: string) => request(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
+  pay: (invoiceId: string) =>
+    request<PagoRegistrado>(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
   remind: (invoiceId: string) =>
     request<{ id: string; status: string; message: string }>(
       `/v1/invoices/${invoiceId}/remind`,

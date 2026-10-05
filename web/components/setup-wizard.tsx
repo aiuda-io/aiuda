@@ -104,7 +104,7 @@ const AYUDANTE_SUGERIDO = "Tavo";
 const OFICIO = "cobranza"; // el único oficio maduro; los demás se agregan en Ayudantes
 
 /** El estado del asistente, con lo que el servidor agrega y lib/api aún no tipa. */
-type Estado = SetupEstado & { modo_prueba?: boolean; cerrado_por_el_dueno?: boolean };
+type Estado = SetupEstado;
 
 // --- Piezas visuales --------------------------------------------------------
 

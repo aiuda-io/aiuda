@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { api, type InvoiceDetail } from "@/lib/api";
+import { api, type InvoiceDetail, type PagoRegistrado } from "@/lib/api";
 import { Modal } from "@/components/modal";
 import { PrimaryButton, SecondaryButton, SOURCE_LABEL, useApi } from "@/components/ui";
-import { dinero, leerFallo, type PagoRegistrado } from "@/lib/cartera";
+import { dinero, leerFallo } from "@/lib/cartera";
 
 // La ÚNICA puerta para dar una factura por pagada. El dueño ve cliente, folio y monto,
 // y a dónde más se va a escribir, ANTES de confirmar; y al confirmar ve qué pasó y
@@ -80,7 +80,7 @@ function Confirmacion({
     setGuardando(true);
     setFallo(null);
     try {
-      setHecho((await api.pay(data.id)) as PagoRegistrado);
+      setHecho(await api.pay(data.id));
     } catch (e) {
       setFallo(leerFallo(e).mensaje);
     } finally {

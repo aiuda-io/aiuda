@@ -2,7 +2,7 @@
 // factura, SAT e Importar): dinero en SU moneda, totales que no mezclan monedas, y las
 // rutas a las que se manda al dueño cuando algo se arregla en otro lado.
 
-import { ApiError, type AgingLine, type Cartera, type PromiseItem } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 
 export const MONEDA_BASE = "MXN";
 
@@ -92,38 +92,6 @@ export function atraso(dias: number): string {
   if (dias === 0) return "Vence hoy";
   return `Vence en ${plural(-dias, "día", "días")}`;
 }
-
-// ── Lo que el server trae de más y lib/api todavía no tipa ───────────────────
-
-/** Una moneda del desglose de `GET /v1/cartera` (`por_moneda`). */
-export type CarteraMoneda = {
-  moneda: string;
-  open_total: number;
-  open_count: number;
-  overdue_total: number;
-  recovered_this_month: number;
-  aging: AgingLine[];
-};
-
-/** `GET /v1/cartera` con el desglose por moneda. `open_total`, `open_count`, `aging` y
- *  `recovered_this_month` hablan SOLO de `moneda_principal`. */
-export type CarteraConMonedas = Cartera & {
-  moneda_principal: string;
-  por_moneda: CarteraMoneda[];
-  /** Facturas abiertas en cualquier moneda. */
-  open_count_todas: number;
-};
-
-export type PromesaConMoneda = PromiseItem & { currency?: string };
-
-/** Lo que responde registrar un pago. */
-export type PagoRegistrado = {
-  id: string;
-  status: string;
-  paid_source: string;
-  promesas_cumplidas?: number;
-  recordatorios_retirados?: number;
-};
 
 // ── Errores: reconocer el caso por su código, no por su texto ────────────────
 
