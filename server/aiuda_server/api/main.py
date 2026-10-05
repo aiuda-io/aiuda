@@ -915,9 +915,26 @@ def _recordatorio_pide_decision(recordatorio: Reminder, factura: Invoice | None)
     )
 
 
-def _promesa_vencida(promesa: PaymentPromise, factura: Invoice, today) -> bool:
+# Promesas que el dueño ya dio por incumplidas ("No cumplió"): {id: fecha ISO}.
+# Vive en Tenant.config porque el modelo de la promesa solo sabe si se cumplió, y
+# marcarla cumplida para sacarla de Hoy sería mentir. La promesa sigue SIN cumplir
+# (el motor la sigue viendo como rota al redactar el siguiente recordatorio); solo
+# deja de pedirle una decisión al dueño.
+PROMESAS_INCUMPLIDAS_KEY = "promesas_incumplidas"
+
+
+def _promesas_incumplidas(tenant: Tenant) -> dict[str, str]:
+    return dict((tenant.config or {}).get(PROMESAS_INCUMPLIDAS_KEY) or {})
+
+
+def _promesa_vencida(
+    promesa: PaymentPromise, factura: Invoice, today, incumplidas: dict | None = None
+) -> bool:
     return (
-        not promesa.fulfilled and factura.status == "open" and promesa.promised_date < today
+        not promesa.fulfilled
+        and factura.status == "open"
+        and promesa.promised_date < today
+        and promesa.id not in (incumplidas or {})
     )
 
 
@@ -938,7 +955,8 @@ def _espera_tu_ok(db, tenant: Tenant, today) -> int:
         .join(Invoice, PaymentPromise.invoice_id == Invoice.id)
         .where(PaymentPromise.tenant_id == tenant.id, PaymentPromise.fulfilled.is_(False))
     ).all()
-    vencidas = sum(1 for p, inv in promesas if _promesa_vencida(p, inv, today))
+    incumplidas = _promesas_incumplidas(tenant)
+    vencidas = sum(1 for p, inv in promesas if _promesa_vencida(p, inv, today, incumplidas))
     return por_aprobar + int(pagos or 0) + vencidas
 
 
@@ -1679,6 +1697,7 @@ def get_conversation(
 @app.post("/v1/invoices/{invoice_id}/pay")
 def register_payment(
     invoice_id: str,
+    background: BackgroundTasks,
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
     principal: Principal = Depends(get_principal),
@@ -1707,15 +1726,28 @@ def register_payment(
     from aiuda_core.engine.sync import cerrar_pendientes_por_pago
     from aiuda_core.engine.writeback import queue_payment_writeback
 
-    queue_payment_writeback(db, tenant, invoice)
+    entrada = queue_payment_writeback(db, tenant, invoice)
     # Pagada: sus promesas abiertas quedan cumplidas y lo que aún no salía se retira.
     promesas, retirados = cerrar_pendientes_por_pago(db, invoice, invoice.paid_at)
+    if entrada is not None:
+        # El pago regresa a su sistema de origen AHORA, sin esperar a la revisión de
+        # cada hora y sin detener esta respuesta. Si el sistema no contesta o no
+        # está conectado, la entrada se queda en la cola y la revisión horaria la
+        # reintenta: la consola lee el estado real (GET /v1/writeback) antes de
+        # decir que ya llegó.
+        db.commit()  # durable antes del background (las BackgroundTasks corren pre-teardown)
+        from aiuda_server.api.writeback import mandar_ya
+
+        mandar_ya(background, tenant.id)
     return {
         "id": invoice.id,
         "status": invoice.status,
         "paid_source": invoice.paid_source,
         "promesas_cumplidas": promesas,
         "recordatorios_retirados": retirados,
+        # La entrada de la cola que lleva este pago a su sistema (None: no regresa
+        # a ninguno). Con ella la consola pregunta si ya llegó.
+        "writeback_id": entrada.id if entrada is not None else None,
     }
 
 
@@ -1813,6 +1845,45 @@ def fulfill_promise(
     return {"id": promise.id, "fulfilled": True}
 
 
+@app.post("/v1/promises/{promise_id}/no-cumplio")
+def promise_not_kept(
+    promise_id: str,
+    tenant: Tenant = Depends(get_tenant),
+    db=Depends(get_db),
+    principal: Principal = Depends(get_principal),
+):
+    """El dueño da una promesa vencida por incumplida: sale de "Por aprobar" sin
+    registrar un pago que no existe. No toca la factura (sigue abierta y se sigue
+    cobrando) ni marca la promesa como cumplida."""
+    promise = db.scalar(
+        select(PaymentPromise).where(
+            PaymentPromise.tenant_id == tenant.id, PaymentPromise.id == promise_id
+        )
+    )
+    if promise is None:
+        raise HTTPException(status_code=404, detail="Promesa no encontrada")
+    if promise.fulfilled:
+        raise HTTPException(status_code=409, detail="Esta promesa ya está cumplida.")
+    if promise.promised_date >= datetime.now(MX_TZ).date():
+        raise HTTPException(
+            status_code=409,
+            detail="Esta promesa todavía no vence: no se puede dar por incumplida.",
+        )
+    incumplidas = _promesas_incumplidas(tenant)
+    incumplidas.setdefault(promise.id, datetime.now(timezone.utc).date().isoformat())
+    _update_config(db, tenant, **{PROMESAS_INCUMPLIDAS_KEY: incumplidas})
+    audit.record(
+        db,
+        tenant_id=tenant.id,
+        action="promise.no_cumplio",
+        entity_type="promise",
+        entity_id=promise.id,
+        principal=principal,
+        after={"incumplida": True},
+    )
+    return {"id": promise.id, "fulfilled": False, "incumplida": True}
+
+
 @app.get("/v1/promises")
 def list_promises(
     status: str = Query(default="active"),  # active | fulfilled
@@ -1820,6 +1891,7 @@ def list_promises(
     db=Depends(get_db),
 ):
     today = datetime.now(MX_TZ).date()
+    incumplidas = _promesas_incumplidas(tenant)
     query = (
         select(PaymentPromise, Invoice, Customer)
         .join(Invoice, PaymentPromise.invoice_id == Invoice.id)
@@ -1844,7 +1916,9 @@ def list_promises(
             "days_left": (p.promised_date - today).days,
             "fulfilled_at": p.fulfilled_at.isoformat() if p.fulfilled_at else None,
             # Cuenta en "Por aprobar" (misma regla que el globo del menú).
-            "vencida": _promesa_vencida(p, inv, today),
+            "vencida": _promesa_vencida(p, inv, today, incumplidas),
+            # El dueño ya la dio por incumplida: sigue sin cumplir, pero no le pide nada.
+            "incumplida": not p.fulfilled and p.id in incumplidas,
             # Una promesa de una factura ya cerrada no le pide nada al dueño.
             "factura_abierta": inv.status == "open",
         }

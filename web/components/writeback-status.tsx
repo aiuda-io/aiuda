@@ -81,7 +81,7 @@ function detalle(e: WritebackEntry): string {
     const cuando = e.reintento_en ? ` después de las ${fechaHora(e.reintento_en)}` : "";
     return `${donde} no respondió. aiuda lo vuelve a intentar${cuando}.`;
   }
-  return `aiuda lo manda a ${donde} en su siguiente revisión, que hace cada hora en punto mientras está abierta.`;
+  return `Está por mandarse a ${donde}. Si no sale ahora, aiuda lo manda en su siguiente revisión, que hace cada hora en punto mientras está abierta.`;
 }
 
 const ESTADO: Record<string, [string, string]> = {

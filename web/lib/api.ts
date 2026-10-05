@@ -132,6 +132,9 @@ export type PromiseItem = {
   vencida: boolean;
   /** false = la factura ya se pagó o se canceló: la promesa ya no pide nada. */
   factura_abierta: boolean;
+  /** El dueño ya la dio por incumplida ("No cumplió"): sigue sin cumplir, pero ya no
+   *  cuenta en "Por aprobar". */
+  incumplida?: boolean;
 };
 
 export type ChatMessage = {
@@ -676,6 +679,9 @@ export type PagoRegistrado = {
   paid_source: string;
   promesas_cumplidas?: number;
   recordatorios_retirados?: number;
+  /** La entrada de la cola que lleva el pago a su sistema de origen; null si no
+   *  regresa a ninguno. Se manda al momento: su estado real está en /v1/writeback. */
+  writeback_id?: string | null;
 };
 
 export type SearchResponse = {
@@ -1894,6 +1900,12 @@ export const api = {
     ),
   fulfill: (promiseId: string) =>
     request(`/v1/promises/${promiseId}/fulfill`, { method: "POST" }),
+  /** Dar una promesa vencida por incumplida: sale de Hoy; la factura sigue abierta. */
+  promesaNoCumplio: (promiseId: string) =>
+    request<{ id: string; fulfilled: boolean; incumplida: boolean }>(
+      `/v1/promises/${promiseId}/no-cumplio`,
+      { method: "POST" },
+    ),
   reconciliation: () => request<ReconcileBandeja>("/v1/reconciliation"),
   // Acepta una factura o varias (un pago puede liquidar un grupo).
   confirmReconcile: (paymentId: string, invoiceIds: string | string[]) =>

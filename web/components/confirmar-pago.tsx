@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, type InvoiceDetail, type PagoRegistrado } from "@/lib/api";
 import { Modal } from "@/components/modal";
 import { PrimaryButton, SecondaryButton, SOURCE_LABEL, useApi } from "@/components/ui";
@@ -15,10 +15,11 @@ import { dinero, leerFallo } from "@/lib/cartera";
 // monto completo: no hay pago parcial aquí. Tampoco hay "Deshacer", porque no existe
 // una ruta que revierta un pago; por eso se dice que no se deshace.
 //
-// CUÁNDO llega a Odoo (verificado en core/aiuda_core/engine/writeback.py y en el
-// scheduler): registrar el pago solo lo deja anotado para mandarse. Quien lo manda es
-// la revisión que aiuda hace una vez por hora de reloj, y solo corre con aiuda
-// abierta. No es al instante, y así se dice.
+// CUÁNDO llega a Odoo: al registrar el pago el servidor lo manda en ese momento, en
+// segundo plano (no detiene la respuesta). Aquí NO se da por hecho: se le pregunta a
+// la cola (/v1/writeback) y se dice lo que pasó de verdad. Si llegó, "ya quedó en
+// Odoo". Si Odoo no respondió, queda en la cola y lo reintenta la revisión que aiuda
+// hace cada hora en punto mientras está abierta.
 export function ConfirmarPago({
   invoiceId,
   onClose,
@@ -35,14 +36,25 @@ export function ConfirmarPago({
   return <Confirmacion key={invoiceId} invoiceId={invoiceId} onClose={onClose} onDone={onDone} />;
 }
 
-/** Cuándo llega el pago al sistema de origen, con palabras del dueño. */
-function cuandoLlega(fuente: string, conectada: boolean, yaRegistrado: boolean): string {
+/** En qué va el pago rumbo a su sistema de origen. */
+type Llegada = "enviando" | "llego" | "pendiente";
+
+/** Cuántas veces y cada cuánto se le pregunta a la cola si el pago ya llegó. */
+const PREGUNTAS = 8;
+const CADA_MS = 1200;
+
+/** Qué pasa con el pago en el sistema de origen, con palabras del dueño y sin
+ *  prometer de más: antes de registrar, y después según lo que de verdad pasó. */
+function cuandoLlega(fuente: string, conectada: boolean, llegada: Llegada | null): string {
   if (!conectada) {
     return `${fuente} no está conectado ahora. El pago queda guardado aquí y se registrará en ${fuente} cuando lo vuelvas a conectar.`;
   }
-  return yaRegistrado
-    ? `Todavía no está en ${fuente}. aiuda lo manda en su siguiente revisión, que hace cada hora en punto mientras está abierta.`
-    : `También se registrará en ${fuente}, pero no al instante: aiuda lo manda en su siguiente revisión, que hace cada hora en punto mientras está abierta.`;
+  if (llegada === null) {
+    return `También se registra en ${fuente} en cuanto lo confirmes. Si ${fuente} no responde, aiuda lo reintenta en su siguiente revisión, que hace cada hora en punto mientras está abierta.`;
+  }
+  if (llegada === "enviando") return `Mandándolo a ${fuente}…`;
+  if (llegada === "llego") return `Ya quedó registrado en ${fuente}.`;
+  return `Todavía no está en ${fuente}: no respondió. aiuda lo reintenta en su siguiente revisión, que hace cada hora en punto mientras está abierta. En la ficha de la factura puedes ver en qué va.`;
 }
 
 function Confirmacion({
@@ -61,6 +73,40 @@ function Confirmacion({
   const [guardando, setGuardando] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
   const [hecho, setHecho] = useState<PagoRegistrado | null>(null);
+  const [llegada, setLlegada] = useState<Llegada>("enviando");
+
+  // Registrado el pago, se le pregunta a la cola si ya llegó a su sistema. No se
+  // supone: "llegó" solo si la entrada quedó registrada allá. Si tras unos segundos
+  // sigue en espera (o ya falló un intento), se dice que queda para la revisión.
+  const writebackId = hecho?.writeback_id ?? null;
+  useEffect(() => {
+    if (!writebackId) return;
+    let vivo = true;
+    let preguntas = 0;
+    let reloj: ReturnType<typeof setTimeout>;
+    const preguntar = async () => {
+      preguntas += 1;
+      try {
+        const { entries } = await api.writeback({ invoice_id: invoiceId });
+        const entrada = entries.find((e) => e.id === writebackId);
+        if (!vivo) return;
+        if (entrada?.estado === "inyectada") return setLlegada("llego");
+        if (entrada && (entrada.estado !== "pendiente" || entrada.attempts > 0)) {
+          return setLlegada("pendiente");
+        }
+      } catch {
+        // Sin respuesta de la cola no se afirma nada: se sigue preguntando.
+      }
+      if (!vivo) return;
+      if (preguntas >= PREGUNTAS) setLlegada("pendiente");
+      else reloj = setTimeout(preguntar, CADA_MS);
+    };
+    reloj = setTimeout(preguntar, 600);
+    return () => {
+      vivo = false;
+      clearTimeout(reloj);
+    };
+  }, [writebackId, invoiceId]);
 
   const reportado = data?.payment_reported ?? false;
   const regreso = data?.pago_regresa_a ?? null;
@@ -121,7 +167,9 @@ function Confirmacion({
             <ul className="space-y-2 text-cuerpo text-ink-2">
               <li>La factura pasó a Pagadas, como confirmada por ti.</li>
               {fuente && (
-                <li className="font-medium text-ink">{cuandoLlega(fuente, regreso!.conectada, true)}</li>
+                <li className="font-medium text-ink" aria-live="polite">
+                  {cuandoLlega(fuente, regreso!.conectada, writebackId ? llegada : "pendiente")}
+                </li>
               )}
               {(hecho.promesas_cumplidas ?? 0) > 0 && (
                 <li>
@@ -147,7 +195,7 @@ function Confirmacion({
               {reportado && <p>El cliente dijo que ya pagó. Confirma solo si ya viste el dinero.</p>}
               <p>La factura pasa a Pagadas por el monto completo, como confirmada por ti.</p>
               {fuente && (
-                <p className="font-medium text-ink">{cuandoLlega(fuente, regreso!.conectada, false)}</p>
+                <p className="font-medium text-ink">{cuandoLlega(fuente, regreso!.conectada, null)}</p>
               )}
               <p className="text-ink-3">Esto no se puede deshacer desde aiuda.</p>
             </div>
