@@ -1338,6 +1338,14 @@ def _test_whatsapp(tenant: Tenant) -> dict:
     from aiuda_core.connectors.wacli import explicar_fallo_wacli
     from aiuda_server import wacli_sync
 
+    from sqlalchemy.orm import object_session
+
+    from aiuda_server.api.whatsapp import _duena_del_store_default
+
+    # Sin store propio, el WhatsApp de esta computadora es de UN negocio: desde
+    # otro no se prueba (ni se le arranca un sync encima) la sesión ajena.
+    if _duena_del_store_default(object_session(tenant), tenant) is not None:
+        return {"ok": False, "message": explicar_fallo_wacli("not authenticated")}
     instance = tenant.evolution_instance
     store = wacli_store_dir(instance)
     foto = wacli_sync.estado(instance, store)

@@ -287,6 +287,21 @@ def test_probar_conexion_sin_vincular(client, tenant, falso):
     assert r["ok"] is False and "escanea el código QR" in r["message"]
 
 
+def test_probar_conexion_no_toca_el_whatsapp_de_otro_negocio(client, db_session, tenant):
+    # Sin WACLI_STORE_ROOT el store es uno solo y ya es de otro negocio.
+    db_session.add(
+        Tenant(
+            name="Otro", owner_phone="5215500000009", evolution_instance="inst-b",
+            config={"integrations": {"whatsapp": {"via": "wacli", "instance": "inst-b"}}},
+        )
+    )
+    db_session.flush()
+    wacli_sync._canales.clear()
+    r = client.post("/v1/integrations/whatsapp/test").json()
+    assert r["ok"] is False and "escanea el código QR" in r["message"]
+    assert wacli_sync._canales == {}  # ni se preguntó ni se arrancó nada
+
+
 def test_probar_conexion_con_sesion_viva(client, tenant, falso):
     _vinculado(falso)
     r = client.post("/v1/integrations/whatsapp/test").json()  # arranca el sync y espera
