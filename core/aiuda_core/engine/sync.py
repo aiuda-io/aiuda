@@ -1727,6 +1727,7 @@ def _sync_sat(
                 session, tenant, rfc, client, scope, st_rfc[scope], today, report,
                 crear_cartera,
             ):
+                inicial = copy.deepcopy(st)
                 pasos = (
                     (traer, False),
                     (lambda: _sat_importar(session, tenant, st, aplicar), True),
@@ -1757,6 +1758,13 @@ def _sync_sat(
                                else "se intenta en la siguiente vuelta.")
                         )
                         break
+                if st != inicial:
+                    # Lo hablado con el SAT se confirma EN EL MOMENTO, como el
+                    # outbox: si un lector posterior falla o la app se cierra a
+                    # media corrida, no se olvida una solicitud ya aceptada ni un
+                    # paquete ya bajado (olvidarlos era repetirlos).
+                    guardar()
+                    session.commit()
     guardar()
 
 

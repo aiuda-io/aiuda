@@ -606,6 +606,19 @@ def test_sin_red_se_reintenta_pero_pocas_veces(session, tenant):
     assert _estado(tenant, HANOVA)["emitidas"]["pedida_el"] == HOY.isoformat()
 
 
+def test_lo_hablado_con_el_sat_sobrevive_a_que_la_corrida_se_deshaga(session, tenant):
+    """La corrida comparte transacción con los demás lectores (correo, pagos,
+    portales). Si uno fallaba después, o la app se cerraba, se deshacía también
+    la solicitud que el SAT ya había aceptado y la vuelta siguiente la repetía."""
+    session.commit()  # el negocio ya existía antes de la corrida
+    fake = FakeSat()
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    session.rollback()  # un lector posterior tronó, o se cerró la app
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert len([s for s in fake.solicitudes if s[0] == "emitidas"]) == 1
+    assert _estado(tenant, HANOVA)["emitidas"]["solicitud"]["id"] == "S1"
+
+
 # --- Un paquete que no se puede leer no detiene la dirección para siempre ------ #
 
 
