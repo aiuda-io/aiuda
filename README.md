@@ -137,12 +137,13 @@ Pre-1.0, en desarrollo activo. Lo que hay hoy, sin adornos:
 
 - **Cobranza** es el vertical más maduro: conectar Odoo, sincronizar cartera
   real, redactar y aprobar está verificado punta a punta contra un Odoo 19.
-- **Integraciones:** 15 en el catálogo de la consola. Cuatro están estrenadas con
+- **Integraciones:** 13 en el catálogo de la consola. Cuatro están estrenadas con
   cuentas reales (Odoo, Excel/CSV, WhatsApp con tu número y el SAT con e.firma).
-  Las otras 11 están implementadas contra su contrato documentado y nadie las
-  ha usado todavía con una cuenta real: la consola les pone el sello "Sin estrenar" a cada una. Hay
-  cuatro más escritas y con pruebas, pero **ocultas** hasta estrenarlas: Mercado
-  Pago, Clip, Conekta y la API oficial de WhatsApp Business.
+  Las otras 9 están implementadas contra su contrato documentado y nadie las
+  ha usado todavía con una cuenta real: la consola las agrupa bajo "sin estrenar". Hay
+  seis más escritas y con pruebas, pero **ocultas** hasta estrenarlas: todos los
+  conectores de pago (Stripe, Belvo, Mercado Pago, Clip y Conekta) y la API oficial
+  de WhatsApp Business.
 - **App de escritorio:** probada en macOS con chip Apple, de punta a punta y con
   el instalador recién bajado (`scripts/prueba-app.sh`). El paquete está firmado
   pero **falta notarizarlo**, que es lo único que separa el `.dmg` de poder
