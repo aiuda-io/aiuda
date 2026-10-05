@@ -6,7 +6,7 @@ Entra con la e.firma del dueño. La firma del acceso se hace DENTRO del navegado
 funciona el login del SAT): el `.cer` y el `.key` se entregan en memoria a los campos
 de archivo de la página y la contraseña se teclea únicamente en el campo de contraseña
 del SAT. Ninguno de los tres se escribe a disco, a la bitácora, a una captura ni a un
-mensaje de error (todo texto que sale de aquí pasa por `_Corrida.limpio`).
+mensaje de error (todo texto que viene del portal pasa por `_Corrida.ajeno`).
 
 Solo consulta y descarga. Los únicos clics que da son: el botón que cambia al
 formulario de e.firma, "Enviar" del login y "Generar Constancia". Ante un captcha, un
@@ -144,7 +144,7 @@ def _motivo_rechazo(texto: str) -> str:
             "El portal del SAT no aceptó la e.firma guardada: el certificado, la llave "
             "o la contraseña no coinciden. Vuelve a cargarla en SAT · Bóveda fiscal."
         )
-    return f"El SAT rechazó el acceso con la e.firma: {texto.strip()[:200]}"
+    return f"El SAT rechazó el acceso con la e.firma: {texto}"
 
 
 # Botones visibles que piden aceptar o firmar algo. Solo se mira cuando lo esperado no
@@ -187,7 +187,7 @@ class _Corrida:
     def _al_dialogo(self, dialogo) -> None:
         # Todo diálogo del portal se CIERRA sin aceptar. Uno que pregunta (confirmar,
         # escribir algo) detiene la corrida; uno que solo informa se anota y se sigue.
-        mensaje = self.limpio(dialogo.message or "")[:200]
+        mensaje = self.ajeno(dialogo.message or "")
         if dialogo.type == "alert":
             self.pasos.append(f"El portal del SAT mostró un aviso: «{mensaje}». Lo cerré.")
         else:
@@ -197,14 +197,18 @@ class _Corrida:
         except Exception:
             pass
 
-    def limpio(self, texto: str) -> str:
-        """Ningún texto que salga de aquí lleva la contraseña."""
+    def ajeno(self, texto: str, tope: int = 200) -> str:
+        """Un texto que viene del portal (un error, un diálogo, un botón), listo para la
+        bitácora: sin la contraseña y recortado, en ese orden para que el corte no deje
+        media contraseña. Solo se filtra lo ajeno: tachar también los pasos fijos del
+        guion delataría una contraseña que coincida con una palabra suya."""
+        texto = texto.strip()
         if self._password:
             texto = texto.replace(self._password, "***")
-        return texto
+        return texto[:tope]
 
     def paso(self, texto: str) -> None:
-        self.pasos.append(self.limpio(texto))
+        self.pasos.append(texto)
 
     def foto(self) -> None:
         try:
@@ -233,7 +237,7 @@ class _Corrida:
         if boton:
             self.foto()
             raise Alto(
-                f"El portal del SAT pide aceptar o firmar algo (botón «{boton}»). "
+                f"El portal del SAT pide aceptar o firmar algo (botón «{self.ajeno(boton)}»). "
                 "aiuda no acepta ni firma nada por ti: entra tú al portal para revisarlo."
             )
 
@@ -314,7 +318,8 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
     if del_formulario and del_formulario != rfc.upper():
         _vaciar_contrasena(pg)
         raise Alto(
-            f"La e.firma guardada es del RFC {del_formulario}, no de {rfc}. No se entró."
+            f"La e.firma guardada es del RFC {c.ajeno(del_formulario, 20)}, no de {rfc}. "
+            "No se entró."
         )
     pg.click("#submit")
     c.paso("Escribí la contraseña en el campo del SAT y envié el acceso.")
@@ -332,7 +337,7 @@ def _entrar(c: _Corrida, url: str, marca_login: str, cer: bytes, key: bytes, rfc
             if texto:
                 _vaciar_contrasena(pg)
                 c.foto()
-                raise Alto(_motivo_rechazo(texto))
+                raise Alto(_motivo_rechazo(c.ajeno(texto)))
         if c.dialogo is not None:
             _vaciar_contrasena(pg)
             c.revisar_dialogo()
@@ -402,7 +407,7 @@ def _opinion_32d(c: _Corrida, cer: bytes, key: bytes, rfc: str) -> tuple[bytes, 
     validaciones = cuerpo.get("Validaciones") or {}
     if not respuesta.get("Exito") or not cuerpo.get("ContenidoBase64"):
         c.foto()
-        mensaje = str(respuesta.get("Mensaje") or "sin explicación")[:200]
+        mensaje = c.ajeno(str(respuesta.get("Mensaje") or "sin explicación"))
         raise Alto(f"El SAT no entregó la opinión de cumplimiento: {mensaje}")
     pdf = base64.b64decode(cuerpo["ContenidoBase64"])
     pg.wait_for_timeout(1500)  # que la página termine de pintar el documento
@@ -522,7 +527,7 @@ def bajar_documento(
                 corrida.paso(f"Comprobé que el PDF es de {rfc} y es el documento pedido.")
                 out.ok, out.pdf, out.meta = True, pdf, meta
             except Alto as alto:
-                out.error = corrida.limpio(str(alto)) if corrida else str(alto)
+                out.error = str(alto)
             finally:
                 if corrida is not None:
                     out.pasos, out.capturas = corrida.pasos, corrida.capturas

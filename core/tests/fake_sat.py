@@ -143,6 +143,7 @@ class FakeSat:
             "entrada_500": 0,  # cuántas veces la entrada contesta el error 500
             "captcha": False,
             "login": "ok",  # ok | revocada | no_vigente
+            "password": PASSWORD,  # la contraseña que el formulario da por buena
             "aviso_login": "",  # alert | confirm: diálogo al abrir el formulario de e.firma
             "boton_aceptar": False,  # un «Aceptar» visible junto a la pantalla normal
             "rfc_formulario": RFC,
@@ -258,7 +259,7 @@ class FakeSat:
                         "aviso": aviso,
                         "rfc": json.dumps(modo["rfc_formulario"]),
                         "error": json.dumps(error),
-                        "password": json.dumps(PASSWORD),
+                        "password": json.dumps(modo["password"]),
                         "invalida": json.dumps(ERROR_INVALIDA),
                         "destino": json.dumps(
                             "/opinion" if destino == "opinion" else RUTA_CONSTANCIA

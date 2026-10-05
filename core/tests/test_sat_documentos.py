@@ -143,6 +143,31 @@ def test_dos_fallas_de_entrada_y_se_detiene_sin_llegar_al_login(sat):
     assert r.capturas and r.pdf is None
 
 
+@pytest.mark.parametrize(
+    "documento,password", [(OPINION_32D, RFC), (CONSTANCIA, "constancia")]
+)
+def test_una_contrasena_igual_a_una_palabra_del_guion_no_se_delata(sat, documento, password):
+    """Si la contraseña es el RFC (costumbre común) o una palabra que el guion escribe,
+    la bitácora no la tacha: los huecos la delatarían."""
+    sat.modo["password"] = password
+    r = bajar(sat, documento, password=password)
+    assert r.ok, r.error
+    assert "***" not in " ".join(r.pasos)
+    assert any(f"el PDF es de {RFC}" in p for p in r.pasos)
+
+
+def test_lo_que_dice_el_portal_se_filtra_antes_de_recortar():
+    class Pagina:
+        def on(self, *a):
+            pass
+
+    c = sd._Corrida(Pagina(), sd.PORTAL, "secreta-123")
+    assert c.ajeno("  clave secreta-123 inválida ") == "clave *** inválida"
+    # La contraseña cae justo en el corte: no sale ni a medias.
+    recortado = c.ajeno("x" * 195 + "secreta-123")
+    assert "secre" not in recortado and len(recortado) <= 200
+
+
 # --- Se detiene, con motivo claro -------------------------------------------------
 
 
