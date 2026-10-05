@@ -209,6 +209,15 @@
   }
   .btn-quiet { background: transparent; color: var(--color-ink-2); }
   .btn-quiet:hover:not(:disabled) { background: var(--color-fill); color: var(--color-ink); }
+  /* La opción ELEGIDA de un grupo (tono, parte de la cara, fuente): contorno en
+     tinta y relleno gris. No es un cuarto botón: es el estado "puesto" de uno
+     secundario o callado. Nunca en acento: elegir no es la acción de la pantalla. */
+  .btn-elegida,
+  .btn-elegida:hover:not(:disabled) {
+    background: var(--color-fill);
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1.5px var(--color-ink);
+  }
   .btn-danger { background: var(--color-danger); color: var(--color-surface); }
   .btn-danger:hover:not(:disabled) { background: oklch(0.43 0.15 27); }
 
@@ -296,6 +305,13 @@
     line-height: 1.4;
     font-weight: 500;
     color: var(--color-ink-3);
+  }
+
+  /* Lo que se CITA: el mensaje tal como lo va a leer el cliente. Una raya fina a la
+     izquierda y aire; sin caja y sin fondo gris. La raya es neutra, nunca de acento. */
+  .cita {
+    padding-left: 16px;
+    box-shadow: inset 1px 0 0 var(--color-line-strong);
   }
 
   /* Marca de estado: un punto y la palabra. El color va solo en el punto. */

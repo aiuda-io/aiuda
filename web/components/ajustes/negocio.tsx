@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useApi } from "@/components/ui";
+import { useApi, SecondaryLink } from "@/components/ui";
 import { SettingsField, SettingsSection, settingsInputCls } from "@/components/settings";
 
 import { TagManager } from "@/components/tags";
@@ -245,9 +244,9 @@ export function AjustesNegocio() {
         title="Qué hace cada ayudante sin preguntarte"
         desc="Cuándo puede enviar solo, su tono y sus reglas se deciden en cada ayudante."
       >
-        <Link href="/ayudantes" className="btn btn-secondary">
+        <SecondaryLink href="/ayudantes">
           Ir a Ayudantes
-        </Link>
+        </SecondaryLink>
       </SettingsSection>
 
       <SettingsSection

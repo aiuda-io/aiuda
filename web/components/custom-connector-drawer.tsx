@@ -7,6 +7,7 @@
 // Fiel al open-core: una receta declarativa, sin código. Tu clave se cifra en el backend.
 
 import { useEffect, useState, type ReactNode } from "react";
+import { PrimaryButton } from "@/components/ui";
 import { api, type CustomConnector, type CustomTestResult } from "@/lib/api";
 import { Drawer } from "@/components/drawer";
 import { settingsInputCls } from "@/components/settings";
@@ -227,7 +228,7 @@ export function CustomConnectorDrawer({
       }
     >
       <div className="space-y-4">
-        <p className="rounded-[14px] bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
+        <p className="rounded-2xl bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
           Esto es para quien conoce la API de tu sistema: se le dice a aiuda su dirección y qué
           campo es cada dato. aiuda la lee cada hora, como a cualquier otra conexión, y anota de
           dónde vino cada registro. Tu clave se guarda cifrada en esta computadora.
@@ -395,18 +396,17 @@ export function CustomConnectorDrawer({
           >
             {busy === "test" ? "Probando…" : "Probar conexión"}
           </button>
-          <button
+          <PrimaryButton
             onClick={guardar}
             disabled={!baseUrl.trim() || !name.trim() || busy !== ""}
-            className="btn btn-primary"
           >
             {busy === "save" ? "Guardando…" : editar ? "Guardar cambios" : "Guardar conexión"}
-          </button>
+          </PrimaryButton>
         </div>
 
         {result &&
           (result.ok ? (
-            <div className="rounded-lg border border-ok/30 bg-ok-soft/40 px-3.5 py-3 text-cuerpo">
+            <div className="rounded-lg bg-panel px-3.5 py-3 text-cuerpo">
               <p className="font-medium text-ok">
                 Funciona · {result.count} registro{result.count === 1 ? "" : "s"} de muestra
               </p>
@@ -417,7 +417,7 @@ export function CustomConnectorDrawer({
               )}
             </div>
           ) : (
-            <div className="rounded-lg border border-danger/30 bg-danger-soft/40 px-3.5 py-3 text-cuerpo text-danger">
+            <div className="rounded-lg bg-panel px-3.5 py-3 text-cuerpo text-danger">
               {result.error}
             </div>
           ))}

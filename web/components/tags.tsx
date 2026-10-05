@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Tag } from "@/lib/api";
 import { toast } from "@/components/toast";
-import { useConfirm } from "@/components/ui";
+import { useConfirm, PrimaryButton, SecondaryButton } from "@/components/ui";
 
 // Los fondos suaves y el tinta azul salen de los tokens del tema (mismo color, ya no
 // literal, así respetan el tema). Los tintas verde/ámbar/rojo y los pares morado/rosa/
@@ -35,11 +35,11 @@ export function TagChip({
   small?: boolean;
 }) {
   const c = colorOf(tag.color);
+  // Una etiqueta es un sello: contorno fino y su color solo en la marca de 6px. Antes
+  // era una píldora de color, y una lista de clientes parecía confeti.
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full font-medium ${small ? "px-1.5 py-px text-sello" : "px-2 py-0.5 text-apoyo"}`}
-      style={{ background: c.bg, color: c.fg }}
-    >
+    <span className={`sello gap-1.5 ${small ? "" : "h-6 px-2"}`}>
+      <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: c.fg }} />
       {tag.name}
       {onRemove && (
         <button onClick={onRemove} aria-label={`Quitar ${tag.name}`} className="-mr-0.5 leading-none opacity-70 hover:opacity-100">
@@ -130,13 +130,12 @@ export function TagPicker({
               aria-label="Nueva etiqueta"
               className="field min-w-0 flex-1"
             />
-            <button
+            <SecondaryButton
               onClick={create}
               disabled={!draft.trim() || creating}
-              className="btn btn-secondary"
             >
               Crear
-            </button>
+            </SecondaryButton>
           </div>
         </div>
       )}
@@ -220,13 +219,12 @@ export function TagManager() {
           aria-label="Nueva etiqueta"
           className="field min-w-0 flex-1"
         />
-        <button
+        <PrimaryButton
           onClick={add}
           disabled={!draft.trim() || busy}
-          className="btn btn-primary"
         >
           Crear
-        </button>
+        </PrimaryButton>
       </div>
       <p className="mt-3 text-apoyo text-ink-3">Toca una etiqueta para cambiarle el color. Se le ponen a cada cliente desde su ficha.</p>
     </div>

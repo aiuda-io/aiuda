@@ -7,7 +7,7 @@ import { dinero } from "@/lib/cartera";
 import { fechaDM } from "@/lib/format";
 import { ConfirmarPago } from "@/components/confirmar-pago";
 import { Cabeza, Fila, Marca } from "@/components/hoy/piezas";
-import { PrimaryButton, QuietButton, useConfirm } from "@/components/ui";
+import { QuietButton, useConfirm } from "@/components/ui";
 import { idPromesa, type Ejecutar } from "@/components/hoy/tipos";
 
 /** Una promesa de pago que ya venció con la factura todavía abierta: el cliente
@@ -17,11 +17,15 @@ export function RenglonPromesa({
   ocupado,
   saliendo,
   ejecutar,
+  principal,
 }: {
   p: PromiseItem;
   ocupado: boolean;
   saliendo: boolean;
   ejecutar: Ejecutar;
+  /** El renglón que lleva el ÚNICO botón relleno de la pantalla (el primero de la
+   *  lista). En los demás, la misma acción va con contorno. */
+  principal?: boolean;
 }) {
   const id = idPromesa(p);
   // La factura cuyo pago se está por registrar: abre la confirmación con monto.
@@ -72,7 +76,7 @@ export function RenglonPromesa({
         </Marca>
       </Cabeza>
 
-      <div className="mt-4 max-w-2xl rounded-[14px] bg-panel px-4 py-3">
+      <div className="cita mt-4 max-w-2xl">
         <p className="text-cuerpo leading-relaxed text-ink">
           Quedó de pagar el <span className="font-semibold">{fechaDM(p.promised_date)}</span> y la
           factura sigue abierta.
@@ -93,9 +97,14 @@ export function RenglonPromesa({
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <PrimaryButton type="button" onClick={() => setPagoDe(p.invoice_id)} disabled={quieto}>
+        <button
+          type="button"
+          onClick={() => setPagoDe(p.invoice_id)}
+          disabled={quieto}
+          className={`btn ${principal ? "btn-primary" : "btn-secondary"}`}
+        >
           Registrar pago
-        </PrimaryButton>
+        </button>
         <QuietButton type="button" onClick={recordar} disabled={quieto}>
           Recordar de nuevo
         </QuietButton>

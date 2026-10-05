@@ -114,7 +114,7 @@ export function ComoEs({ id, name, instructions }: { id: string; name: string; i
                   key={k}
                   onClick={() => setCual(k)}
                   aria-pressed={cual === k}
-                  className={`btn btn-sm ${cual === k ? "bg-accent-soft text-accent-ink" : "btn-secondary"}`}
+                  className={`btn btn-sm ${cual === k ? "btn-elegida" : "btn-secondary"}`}
                 >
                   {k === "corrida" ? "Cuando le escribe a un cliente" : "Cuando platicas con él"}
                 </button>

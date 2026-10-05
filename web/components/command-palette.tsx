@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { telefonoMx } from "@/lib/format";
 import { useAyudantes } from "@/lib/ayudantes-store";
 import { type Destino, dentroDe, destinos, oficiosDe } from "@/lib/sections";
 
@@ -338,7 +339,8 @@ export function CommandPalette() {
                           <span
                             className="tnum shrink-0 text-apoyo text-ink-3"
                           >
-                            {item.sublabel}
+                            {/* Un teléfono llega crudo del servidor: se agrupa para leerlo. */}
+                            {/^\+?\d{10,13}$/.test(item.sublabel) ? telefonoMx(item.sublabel) : item.sublabel}
                           </span>
                         )}
                       </button>

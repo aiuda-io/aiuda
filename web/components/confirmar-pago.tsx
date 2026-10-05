@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type InvoiceDetail, type PagoRegistrado } from "@/lib/api";
 import { Modal } from "@/components/modal";
-import { PrimaryButton, SecondaryButton, SOURCE_LABEL, useApi } from "@/components/ui";
+import { PrimaryButton, QuietButton, SecondaryButton, SOURCE_LABEL, useApi } from "@/components/ui";
 import { dinero, leerFallo } from "@/lib/cartera";
 
 // La ÚNICA puerta para dar una factura por pagada. El dueño ve cliente, folio y monto,
@@ -213,9 +213,9 @@ function Confirmacion({
               <PrimaryButton onClick={cerrar}>Listo</PrimaryButton>
             ) : (
               <>
-                <SecondaryButton onClick={cerrar} disabled={guardando}>
+                <QuietButton onClick={cerrar} disabled={guardando}>
                   {yaCerrada ? "Cerrar" : "Cancelar"}
-                </SecondaryButton>
+                </QuietButton>
                 {!yaCerrada && (
                   <PrimaryButton onClick={confirmar} disabled={guardando}>
                     {guardando ? "Registrando…" : reportado ? "Sí, confirmar pago" : "Sí, registrar pago"}

@@ -31,7 +31,7 @@ export default function ProductosPage() {
     return {
       total: list.length,
       conPrecio: list.filter((p) => p.price !== null).length,
-      conStock: list.filter((p) => p.stock !== null).length,
+      conStock: list.filter((p) => p.stock !== null && p.stock > 0).length,
     };
   }, [data]);
   const agotados = useMemo(

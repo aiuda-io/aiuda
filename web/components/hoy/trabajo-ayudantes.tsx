@@ -203,7 +203,7 @@ function Detalle({ runId }: { runId: string }) {
 
 function Turno({ t }: { t: RunTurno }) {
   return (
-    <div className="rounded-[14px] bg-panel px-4 py-3">
+    <div className="rounded-2xl bg-panel px-4 py-3">
       <p className="text-apoyo text-ink-3">
         {[t.task, t.model, `${t.latencia_ms} ms`].filter(Boolean).join(" · ")}
       </p>

@@ -10,7 +10,7 @@ import Link from "next/link";
 import { api, apiUrl, TONE_LABEL, type InvoiceDetail, type Cfdi } from "@/lib/api";
 import { fecha, fechaDM, telefonoMx } from "@/lib/format";
 import { toast } from "@/components/toast";
-import { SOURCE_LABEL, SOURCE_LOGO } from "@/components/ui";
+import { SOURCE_LABEL, SOURCE_LOGO, PrimaryButton, SecondaryButton } from "@/components/ui";
 import { WritebackStatus } from "@/components/writeback-status";
 import { InyectarButton } from "@/components/inyectar-button";
 import { ConfirmarPago } from "@/components/confirmar-pago";
@@ -156,17 +156,16 @@ export function InvoiceDetailContent({
                 Ver recordatorio
               </Link>
             ) : (
-              <button onClick={redactar} disabled={redactando} className="btn btn-primary">
+              <PrimaryButton onClick={redactar} disabled={redactando}>
                 {redactando ? "Redactando…" : "Redactar recordatorio"}
-              </button>
+              </PrimaryButton>
             )}
-            <button
+            <SecondaryButton
               onClick={() => setConfirmarPago(true)}
               disabled={redactando}
-              className="btn btn-secondary"
             >
               {data.payment_reported ? "Confirmar pago" : "Registrar pago"}
-            </button>
+            </SecondaryButton>
             {/* Mandar la factura a otro sistema; solo sale si hay a dónde y aún no vive allá. */}
             <InyectarButton
               entidad="factura"

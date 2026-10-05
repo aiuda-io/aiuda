@@ -30,7 +30,7 @@ import {
   type SetupEstado,
   type WhatsappStatus,
 } from "@/lib/api";
-import { PrimaryButton, SecondaryButton, inputCls, inputLgCls } from "@/components/ui";
+import { PrimaryButton, SecondaryButton, inputCls, inputLgCls, QuietButton } from "@/components/ui";
 import { Avatar } from "@/components/avatar";
 import { appearanceForSlug } from "@/lib/look";
 import { dinero } from "@/lib/cartera";
@@ -255,15 +255,15 @@ export function SetupWizard() {
         {paso !== "cierre" && (
           <footer className="mt-10 flex items-center justify-between border-t border-line pt-5">
             {indice > 0 ? (
-              <button className="btn btn-quiet" onClick={atras}>
+              <QuietButton onClick={atras}>
                 Atrás
-              </button>
+              </QuietButton>
             ) : (
               <span />
             )}
-            <button className="btn btn-quiet" onClick={avanzar}>
+            <QuietButton onClick={avanzar}>
               Saltar por ahora
-            </button>
+            </QuietButton>
           </footer>
         )}
       </div>
@@ -499,7 +499,7 @@ function OdooEnLinea({ onListo }: { onListo: () => void }) {
             : "Conectar y traer mi cartera"}
       </SecondaryButton>
       {fallo && (
-        <p role="status" className="rounded-[10px] bg-danger-soft px-4 py-3 text-cuerpo text-ink">
+        <p role="status" className="rounded-lg bg-panel px-4 py-3 text-cuerpo text-ink">
           {fallo}
         </p>
       )}

@@ -166,7 +166,7 @@ function FiltroChip({
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={`btn btn-sm ${activo ? "bg-accent-soft text-accent-ink" : "btn-secondary"}`}
+      className={`btn btn-sm ${activo ? "btn-elegida" : "btn-secondary"}`}
     >
       {children}
     </button>

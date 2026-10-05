@@ -33,6 +33,8 @@ import {
   SinEstrenar,
   Skeleton,
   inputCls,
+  Estado,
+  QuietButton,
 } from "@/components/ui";
 import {
   AdministrarUso,
@@ -127,7 +129,7 @@ type Descarga = {
 
 function LogoVia({ via, grande = false }: { via: Via; grande?: boolean }) {
   const logo = VIAS[via].logo;
-  const caja = grande ? "h-12 w-12 rounded-[14px]" : "h-10 w-10 rounded-[10px]";
+  const caja = grande ? "h-12 w-12 rounded-2xl" : "h-10 w-10 rounded-lg";
   return (
     <span className={`flex shrink-0 items-center justify-center bg-fill ${caja}`}>
       {logo ? (
@@ -153,7 +155,7 @@ function Resultado({ test }: { test: ProviderTest }) {
     );
   }
   return (
-    <div role="status" className="mt-4 rounded-[10px] bg-danger-soft px-4 py-3">
+    <div role="status" className="mt-4 rounded-lg bg-panel px-4 py-3">
       <p className="text-cuerpo font-semibold text-ink">No pudo responder</p>
       <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{test.error}</p>
       {test.code === "limite" && (
@@ -819,8 +821,8 @@ export function ConectarIA({
   if (cargando) {
     return (
       <div className="space-y-3">
-        <Skeleton className="h-28 w-full rounded-[14px]" />
-        <Skeleton className="h-44 w-full rounded-[14px]" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-44 w-full rounded-2xl" />
       </div>
     );
   }
@@ -840,23 +842,23 @@ export function ConectarIA({
     <div>
       {/* Venías de la vía retirada: se dice qué pasó en vez de apagarte la IA en silencio. */}
       {server?.aviso_retirado && (
-        <div className="mb-8 rounded-[14px] bg-warn-soft px-5 py-4">
+        <div className="mb-8 rounded-2xl bg-panel px-5 py-4">
           <p className="text-cuerpo font-semibold text-ink">Tu IA quedó desconectada</p>
           <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{server.aviso_retirado}</p>
         </div>
       )}
 
       <p className="eyebrow">{enUso ? "en uso" : "recomendada para esta Mac"}</p>
-      <section className="mt-2 rounded-[14px] bg-panel px-5 py-5 sm:px-6">
+      <section className="mt-2 rounded-2xl bg-panel px-5 py-5 sm:px-6">
         <div className="flex items-start gap-4">
           <LogoVia via={principal} grande />
           <div className="min-w-0 flex-1">
             <h2 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-seccion font-semibold text-ink">
               {VIAS[principal].nombre}
               {enUso && (
-                <span className="mark" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
+                <Estado tono="ok">
                   Conectada
-                </span>
+                </Estado>
               )}
               {principal === "chatgpt" && <SinEstrenar />}
             </h2>
@@ -889,8 +891,7 @@ export function ConectarIA({
                 <SecondaryButton onClick={probar} disabled={probando}>
                   {probando ? "Probando…" : "Probar que responde"}
                 </SecondaryButton>
-                <button
-                  className="btn btn-quiet"
+                <QuietButton
                   aria-expanded={cambiando}
                   onClick={() => {
                     setTest(null);
@@ -906,11 +907,11 @@ export function ConectarIA({
                         : enUso === "chatgpt"
                           ? "Entrar con otra cuenta"
                           : "Volver a conectar"}
-                </button>
+                </QuietButton>
                 {!enAsistente && (
-                  <button onClick={desconectar} className="btn btn-quiet">
+                  <QuietButton onClick={desconectar}>
                     Desconectar
-                  </button>
+                  </QuietButton>
                 )}
               </div>
               {cambiando && (

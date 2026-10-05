@@ -79,8 +79,8 @@ prueba("una fecha sola es ese día en el calendario local, no el anterior", () =
   const d = f.instante("2026-05-18");
   assert.equal(d.getDate(), 18);
   assert.equal(d.getHours(), 0);
-  assert.match(f.fechaDM("2026-05-18"), /^18/);
-  assert.match(f.fecha("2026-05-18"), /^18/);
+  assert.equal(f.fechaDM("2026-05-18"), "18 may");
+  assert.equal(f.fecha("2026-05-18"), "18 may 2026");
 });
 
 prueba("algo de hace 19 minutos dice hace 19 min, no hace un momento", () => {
@@ -101,6 +101,13 @@ prueba("lo enviado ayer en la noche de México no cuenta como de hoy", () => {
   assert.equal(f.esDeHoy("2026-10-05T16:11:08"), true);
   // Y lo de hoy en la tarde (23:30 UTC = 17:30 local) sí es de hoy.
   assert.equal(f.esDeHoy("2026-10-05T23:30:00"), true);
+});
+
+prueba("una fecha se escribe igual en toda la consola: 2 oct, 5 oct 2026", () => {
+  assert.equal(f.fechaDM("2026-10-02"), "2 oct");
+  assert.equal(f.fecha("2026-10-05"), "5 oct 2026");
+  assert.equal(f.fechaHora("2026-10-05T16:11:08"), "5 oct, 10:11");
+  assert.equal(f.hoyOFecha("2026-10-04T16:11:08"), "4 oct, 10:11");
 });
 
 prueba("la hora de una cita es de reloj: no se corre", () => {

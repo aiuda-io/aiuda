@@ -4,6 +4,20 @@
 
 const MX = "es-MX";
 
+// "2 oct": día sin cero y mes corto, separados por un espacio. El navegador, según
+// su versión, arma "02-oct" o "02 oct." para es-MX; aquí se compone a mano para
+// que una fecha se lea igual en toda la consola.
+function diaMes(d: Date): string {
+  const mes = d.toLocaleDateString(MX, { month: "short" }).replace(".", "");
+  return `${d.getDate()} ${mes}`;
+}
+
+function hora(d: Date): string {
+  const h = String(d.getHours()).padStart(2, "0");
+  const m = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 /** Un instante que manda el servidor, como fecha de verdad. LA única lectura de
  *  fechas de la consola: todo lo demás de este archivo pasa por aquí.
  *
@@ -48,21 +62,19 @@ export function esDeHoy(iso: string | null | undefined): boolean {
 /** 18 may 2026: fecha con año. El formato por defecto de la consola. */
 export function fecha(iso: string | null | undefined): string {
   const d = parse(iso);
-  return d ? d.toLocaleDateString(MX, { day: "2-digit", month: "short", year: "numeric" }) : "·";
+  return d ? `${diaMes(d)} ${d.getFullYear()}` : "·";
 }
 
 /** 18 may: día y mes, sin año (listas densas donde el año se sobreentiende). */
 export function fechaDM(iso: string | null | undefined): string {
   const d = parse(iso);
-  return d ? d.toLocaleDateString(MX, { day: "2-digit", month: "short" }) : "·";
+  return d ? diaMes(d) : "·";
 }
 
 /** 18 may, 14:30: fecha y hora (mensajes, actividad), en la zona de quien mira. */
 export function fechaHora(iso: string | null | undefined): string {
   const d = parse(iso);
-  return d
-    ? d.toLocaleString(MX, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-    : "·";
+  return d ? `${diaMes(d)}, ${hora(d)}` : "·";
 }
 
 /** junio 2026: mes y año (periodos como "Plan y uso"). Sin arg = mes actual. */
@@ -123,7 +135,7 @@ export function hoyOFecha(iso: string | null | undefined): string {
   const d = instante(iso);
   if (!d) return "";
   if (d.toDateString() !== new Date().toDateString()) return fechaHora(iso);
-  return `Hoy, ${d.toLocaleTimeString(MX, { hour: "2-digit", minute: "2-digit" })}`;
+  return `Hoy, ${hora(d)}`;
 }
 
 /** hace 4 min, hace 1 h, hace 2 d: tiempo relativo corto (bandejas). */

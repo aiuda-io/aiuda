@@ -6,7 +6,14 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { ChevronLeft, ErrorState, PrimaryButton, Skeleton, Tabs, useConfirm } from "@/components/ui";
+import {
+  ErrorState,
+  PrimaryButton,
+  Skeleton,
+  Tabs,
+  useConfirm,
+  QuietButton,
+} from "@/components/ui";
 import { Avatar } from "@/components/avatar";
 import { AiuditaPicker } from "@/components/aiudita-picker";
 import { Apariencia } from "@/components/ayudante/apariencia";
@@ -118,10 +125,6 @@ function Ficha() {
 
   return (
     <div className="min-w-0">
-      <Link href="/ayudantes" className="mb-5 inline-flex items-center gap-1.5 text-apoyo text-ink-3 hover:text-ink">
-        <ChevronLeft /> Ayudantes
-      </Link>
-
       <header className="mb-9 flex flex-wrap items-center gap-x-5 gap-y-4">
         <Avatar name={ayudante.name} size={64} {...app} />
         <div className="min-w-0 flex-1 basis-64">
@@ -160,9 +163,9 @@ function Ficha() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <button onClick={eliminar} className="btn btn-quiet">
+          <QuietButton onClick={eliminar}>
             Eliminar
-          </button>
+          </QuietButton>
           {trabajaSolo && (
             <PrimaryButton onClick={trabajar} disabled={trabajando}>
               {trabajando ? "Trabajando…" : "Poner a trabajar"}
@@ -172,7 +175,7 @@ function Ficha() {
       </header>
 
       {resultado && (
-        <p className="mb-8 rounded-xl bg-accent-soft px-5 py-3.5 text-cuerpo text-ink" aria-live="polite">
+        <p className="mb-8 rounded-xl bg-panel px-5 py-3.5 text-cuerpo text-ink" aria-live="polite">
           {resultado.propuestas > 0 ? (
             <>
               {ayudante.name} redactó {resultado.propuestas}{" "}
@@ -203,9 +206,9 @@ function Ficha() {
               .
             </p>
           </div>
-          <button onClick={() => setGuiaCerrada(true)} className="btn btn-quiet btn-sm">
+          <QuietButton onClick={() => setGuiaCerrada(true)} size="sm">
             Entendido
-          </button>
+          </QuietButton>
         </div>
       )}
 

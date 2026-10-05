@@ -20,6 +20,7 @@ import {
   Tabs,
   inputCls,
   useApi,
+  QuietButton,
 } from "@/components/ui";
 import { SettingsSection } from "@/components/settings";
 import { toast } from "@/components/toast";
@@ -171,7 +172,7 @@ export function AjustesTelefono() {
           contigo, cada quien con su tope. Todo pasa dentro de tu WiFi.
         </p>
         {/* Lo que falta se dice antes de que nadie gaste tiempo. */}
-        <div className="mt-5 rounded-[14px] bg-panel px-5 py-4">
+        <div className="mt-5 rounded-2xl bg-panel px-5 py-4">
           <p className="text-cuerpo font-semibold text-ink">
             El teléfono necesita la app de aiuda para iPhone, y todavía no está en la App Store
           </p>
@@ -228,7 +229,7 @@ export function AjustesTelefono() {
               {/* El caso que sí pasa: el dueño le dio "No permitir" al aviso de
                   macOS y después nada funciona sin explicación. */}
               {prendida && red?.permiso_del_sistema === false ? (
-                <div className="rounded-[14px] bg-warn-soft px-5 py-4">
+                <div className="rounded-2xl bg-panel px-5 py-4">
                   <p className="text-cuerpo font-semibold text-ink">
                     Tu Mac no está dejando que aiuda vea la red
                   </p>
@@ -243,9 +244,9 @@ export function AjustesTelefono() {
                         Abrir los Ajustes de la Mac
                       </a>
                     ) : null}
-                    <button type="button" className="btn btn-quiet" onClick={refetchQuiet}>
+                    <QuietButton type="button" onClick={refetchQuiet}>
                       Ya lo permití
-                    </button>
+                    </QuietButton>
                   </div>
                 </div>
               ) : null}
@@ -269,7 +270,7 @@ export function AjustesTelefono() {
               </p>
             ) : invitacion ? (
               <div className="space-y-3">
-                <div className="inline-block rounded-[14px] bg-surface p-3 elev-md">
+                <div className="inline-block rounded-2xl bg-surface p-3 elev-md">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={invitacion.qr_svg}

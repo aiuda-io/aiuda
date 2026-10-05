@@ -15,6 +15,8 @@ import {
   SecondaryButton,
   Skeleton,
   useApi,
+  Estado,
+  QuietButton,
 } from "@/components/ui";
 import { InvoiceDrawer } from "@/components/invoice-drawer";
 import { AgregarSheet } from "@/components/agregar-sheet";
@@ -124,7 +126,7 @@ export function CarteraFacturas({ onChanged }: { onChanged?: () => void }) {
       />
 
       {cargando ? (
-        <Skeleton className="mb-10 h-40 w-full rounded-[14px]" />
+        <Skeleton className="mb-10 h-40 w-full rounded-2xl" />
       ) : (
         !vacia && (
           <Resumen
@@ -164,9 +166,9 @@ export function CarteraFacturas({ onChanged }: { onChanged?: () => void }) {
           />
         )}
         <span className="flex flex-wrap items-center gap-2 md:ml-auto">
-          <button onClick={actualizar} disabled={actualizando} className="btn btn-quiet">
+          <QuietButton onClick={actualizar} disabled={actualizando}>
             {actualizando ? "Actualizando…" : "Actualizar"}
-          </button>
+          </QuietButton>
           <ExportButton
             entidad="facturas"
             filtros={{ status: estado, bucket: tramo, q: query }}
@@ -319,13 +321,13 @@ function Renglon({ inv, onOpen }: { inv: InvoiceItem; onOpen: () => void }) {
 export function EstadoFactura({ inv }: { inv: InvoiceItem }) {
   if (inv.status === "paid") {
     return (
-      <span className="mark" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
+      <Estado tono="ok">
         Pagada{inv.paid_at ? ` el ${fechaDM(inv.paid_at)}` : ""}
-      </span>
+      </Estado>
     );
   }
   if (inv.status === "cancelled") {
-    return <span className="mark">Cancelada</span>;
+    return <Estado>Cancelada</Estado>;
   }
   if (inv.payment_reported) {
     return (

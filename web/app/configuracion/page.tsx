@@ -13,14 +13,16 @@
  */
 
 import { Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { PageHeader, Tabs, useApi } from "@/components/ui";
+import { useSearchParams } from "next/navigation";
+import { PageHeader, Tabs, useApi, useQueryTab } from "@/components/ui";
 import { api } from "@/lib/api";
 import { AjustesNegocio } from "@/components/ajustes/negocio";
 import { AjustesConexiones } from "@/components/ajustes/conexiones";
 import { AjustesIA } from "@/components/ajustes/tu-ia";
 import { AjustesTelefono } from "@/components/ajustes/telefono";
-import { SECCIONES, esSeccion, rutaAjustes, type Seccion } from "@/lib/ajustes";
+import { SECCIONES, rutaAjustes, type Seccion } from "@/lib/ajustes";
+
+const CLAVES = SECCIONES.map((s) => s.key);
 
 export default function AjustesPage() {
   // useSearchParams exige un límite de Suspense en el export estático.
@@ -32,10 +34,8 @@ export default function AjustesPage() {
 }
 
 function Ajustes() {
-  const router = useRouter();
   const params = useSearchParams();
-  const pedida = params.get("seccion");
-  const seccion: Seccion = esSeccion(pedida) ? pedida : "negocio";
+  const [seccion] = useQueryTab<Seccion>("seccion", CLAVES);
   const abrir = seccion === "conexiones" ? params.get("abrir") : null;
 
   return (
@@ -45,7 +45,9 @@ function Ajustes() {
       <Tabs
         tabs={SECCIONES.map((s) => ({ key: s.key, label: s.label }))}
         active={seccion}
-        onChange={(k) => router.replace(rutaAjustes(k as Seccion), { scroll: false })}
+        // Cambiar de sección no arrastra el panel abierto (`abrir`) de la anterior.
+        hrefFor={(k) => rutaAjustes(k as Seccion)}
+        label="Secciones de Ajustes"
       />
 
       {seccion === "negocio" && <AjustesNegocio />}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BUCKET_META } from "@/lib/api";
+import { Estado } from "@/components/ui";
 import { WaText } from "@/components/wa-text";
 import { esLargo } from "@/components/hoy/tipos";
 
@@ -10,22 +11,18 @@ export function etiquetaTramo(bucket: string): string {
   return BUCKET_META[bucket]?.label ?? bucket;
 }
 
-/** Marca de estado: un punto y la palabra. El color va solo en el punto. */
+const TONO_DE = { ok: "ok", warn: "aviso", danger: "falla", accent: "acento" } as const;
+
+/** Cómo va un renglón de Hoy. Es el `Estado` de la consola con los nombres de color
+ *  que ya usaban estas piezas. */
 export function Marca({
   color,
   children,
 }: {
-  color?: "ok" | "warn" | "danger" | "accent";
+  color?: keyof typeof TONO_DE;
   children: React.ReactNode;
 }) {
-  return (
-    <span
-      className="mark"
-      style={color ? ({ "--mark": `var(--color-${color})` } as React.CSSProperties) : undefined}
-    >
-      {children}
-    </span>
-  );
+  return <Estado tono={color ? TONO_DE[color] : "neutro"}>{children}</Estado>;
 }
 
 /** Marca de antigüedad de una factura, con el color de su tramo. */
@@ -118,7 +115,7 @@ export function TextoMensaje({
 }) {
   const largo = esLargo(texto);
   return (
-    <div className="max-w-2xl rounded-[14px] bg-panel px-4 py-3">
+    <div className="cita max-w-2xl">
       <WaText
         className={`break-words text-cuerpo leading-relaxed text-ink ${
           largo && !abierto ? "line-clamp-4" : ""

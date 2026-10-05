@@ -97,7 +97,7 @@ export function DocumentosSat({
                 </div>
 
                 {vencida && (
-                  <p className="mt-3 rounded-lg bg-danger-soft px-4 py-3 text-cuerpo text-danger">
+                  <p className="mt-3 rounded-lg bg-panel px-4 py-3 text-cuerpo text-danger">
                     Con una e.firma vencida el SAT no deja entrar. Renuévala en el SAT y{" "}
                     <Link href="/sat" className="font-medium underline underline-offset-2">
                       carga la nueva
@@ -107,7 +107,7 @@ export function DocumentosSat({
                 )}
 
                 {disponible && !vencida && faltaPermiso && (
-                  <div className="mt-3 rounded-xl bg-accent-soft px-5 py-4">
+                  <div className="mt-3 rounded-xl bg-panel px-5 py-4">
                     <p className="text-cuerpo font-semibold text-ink">Antes de la primera vez, tu permiso</p>
                     <p className="mt-1 max-w-2xl text-cuerpo text-ink-2">{sat.consentimiento_texto}</p>
                     <div className="mt-4 flex flex-wrap items-center gap-3">

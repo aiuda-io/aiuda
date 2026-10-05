@@ -295,7 +295,7 @@ export function FilePicker({
       onDragLeave={() => setEncima(false)}
       onDrop={soltar}
       className={`flex items-center gap-3 rounded-lg border border-dashed p-2 transition-colors ${
-        encima ? "border-accent bg-accent-soft" : "border-field bg-surface"
+        encima ? "border-ink bg-fill" : "border-field bg-surface"
       }`}
     >
       <input

@@ -243,7 +243,7 @@ function PerillaField({
                 role="radio"
                 aria-checked={on}
                 onClick={() => onSave(o.value)}
-                className={`btn btn-sm ${on ? "bg-accent-soft text-accent-ink" : "btn-secondary"}`}
+                className={`btn btn-sm ${on ? "btn-elegida" : "btn-secondary"}`}
               >
                 {o.label}
               </button>
@@ -315,7 +315,7 @@ function FuenteField({
                 key={f.key}
                 onClick={() => onSelect(f.key)}
                 aria-pressed={on}
-                className={`btn btn-sm ${on ? "bg-accent-soft text-accent-ink" : "btn-secondary"}`}
+                className={`btn btn-sm ${on ? "btn-elegida" : "btn-secondary"}`}
               >
                 {nombre}
                 {f.experimental && <SinEstrenar />}

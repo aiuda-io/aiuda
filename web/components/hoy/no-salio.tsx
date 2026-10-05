@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { QuietLink, SecondaryButton } from "@/components/ui";
 import { api } from "@/lib/api";
 import { dinero } from "@/lib/cartera";
 import { Cabeza, Fila, Marca, Seccion, TextoMensaje } from "@/components/hoy/piezas";
@@ -38,6 +38,7 @@ export function NoSalio({
   saliendo,
   ejecutar,
   abrir,
+  principal,
 }: {
   mensajes: Mensaje[];
   prueba: boolean;
@@ -45,12 +46,14 @@ export function NoSalio({
   saliendo: Set<string>;
   ejecutar: Ejecutar;
   abrir: string | null;
+  /** Si "Por aprobar" está vacío, el relleno le toca al primer renglón de aquí. */
+  principal?: boolean;
 }) {
   if (mensajes.length === 0) return null;
   return (
     <Seccion titulo="No salió" n={mensajes.length}>
       <ul>
-        {mensajes.map((m) =>
+        {mensajes.map((m, i) =>
           // Un rechazado que se puede corregir es un mensaje con sus acciones de siempre.
           m.status === "rejected" && !m.retirado && m.factura_abierta !== false ? (
             <RenglonMensaje
@@ -62,6 +65,7 @@ export function NoSalio({
               ejecutar={ejecutar}
               corregir
               abiertoDeInicio={m.id === abrir}
+              principal={principal && i === 0}
             />
           ) : (
             <Detenido
@@ -72,6 +76,7 @@ export function NoSalio({
               saliendo={saliendo.has(idMensaje(m))}
               ejecutar={ejecutar}
               abiertoDeInicio={m.id === abrir}
+              principal={principal && i === 0}
             />
           ),
         )}
@@ -87,6 +92,7 @@ function Detenido({
   saliendo,
   ejecutar,
   abiertoDeInicio,
+  principal,
 }: {
   m: Mensaje;
   prueba: boolean;
@@ -94,6 +100,7 @@ function Detenido({
   saliendo: boolean;
   ejecutar: Ejecutar;
   abiertoDeInicio: boolean;
+  principal?: boolean;
 }) {
   const id = idMensaje(m);
   const [verTexto, setVerTexto] = useState(abiertoDeInicio);
@@ -114,14 +121,13 @@ function Detenido({
     motivo = "La factura ya no está abierta, así que este recordatorio no se debe enviar.";
     if (m.status === "pending_approval") {
       accion = (
-        <button
+        <SecondaryButton
           type="button"
           disabled={quieto}
           onClick={() => ejecutar(() => api.reject(m.id), "Descartado.", id)}
-          className="btn btn-secondary"
         >
           Descartar
-        </button>
+        </SecondaryButton>
       );
     }
   } else if (m.status === "failed") {
@@ -138,23 +144,23 @@ function Detenido({
             id,
           )
         }
-        className="btn btn-primary"
+        className={`btn ${principal ? "btn-primary" : "btn-secondary"}`}
       >
         Reintentar envío
       </button>
     );
     liga = (
-      <Link href="/configuracion?seccion=conexiones" className="btn btn-quiet">
+      <QuietLink href="/configuracion?seccion=conexiones">
         Revisar conexiones
-      </Link>
+      </QuietLink>
     );
   } else if (m.status === "approved" && prueba) {
     marca = <Marca color="warn">Modo de prueba</Marca>;
     motivo = `Lo aprobaste en modo de prueba, así que no se envió a ${a}. Apaga el modo de prueba para poder enviarlo.`;
     liga = (
-      <Link href="/configuracion" className="btn btn-quiet">
+      <QuietLink href="/configuracion">
         Ir a Ajustes
-      </Link>
+      </QuietLink>
     );
   } else if (m.status === "approved") {
     const esperaCanal = Boolean(m.pendiente);
@@ -179,16 +185,16 @@ function Detenido({
             id,
           )
         }
-        className="btn btn-primary"
+        className={`btn ${principal ? "btn-primary" : "btn-secondary"}`}
       >
         Enviar ahora
       </button>
     );
     if (esperaCanal) {
       liga = (
-        <Link href="/configuracion?seccion=conexiones" className="btn btn-quiet">
+        <QuietLink href="/configuracion?seccion=conexiones">
           Conectar canal
-        </Link>
+        </QuietLink>
       );
     }
   } else {

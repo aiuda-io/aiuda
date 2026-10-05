@@ -2,10 +2,10 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { api, type CustomerItem, type Tag } from "@/lib/api";
 import { Saldo } from "@/components/cartera-partes";
-import { dinero, dineroPorMoneda, totalesPorMoneda } from "@/lib/cartera";
+import { dinero, nombreMoneda, totalesPorMoneda } from "@/lib/cartera";
 import { telefonoMx } from "@/lib/format";
 import {
   EmptyState,
@@ -17,6 +17,7 @@ import {
   SecondaryButton,
   Skeleton,
   Tabs,
+  useQueryTab,
   useApi,
 } from "@/components/ui";
 import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
@@ -25,7 +26,8 @@ import { AgregarSheet } from "@/components/agregar-sheet";
 import { Drawer } from "@/components/drawer";
 import { ExportButton } from "@/components/export-button";
 
-type Ver = "todos" | "clientes" | "prospectos";
+const VER = ["todos", "clientes", "prospectos"] as const;
+type Ver = (typeof VER)[number];
 
 export default function ClientesPage() {
   // useSearchParams (?ver=prospectos) exige un boundary de Suspense en el export estático.
@@ -44,10 +46,8 @@ function Clientes() {
   const lista = useMemo(() => todos ?? [], [todos]);
   const clientes = useMemo(() => lista.filter((c) => c.kind !== "prospecto"), [lista]);
   const prospectos = useMemo(() => lista.filter((c) => c.kind === "prospecto"), [lista]);
-  const [elegido, setElegido] = useState<Ver | null>(
-    useSearchParams().get("ver") === "prospectos" ? "prospectos" : null,
-  );
-  const ver: Ver = prospectos.length === 0 ? "todos" : (elegido ?? "todos");
+  const [pedido, hrefFor] = useQueryTab<Ver>("ver", VER);
+  const ver: Ver = prospectos.length === 0 ? "todos" : pedido;
   const [query, setQuery] = useState("");
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [filterTag, setFilterTag] = useState<string | null>(null);
@@ -81,7 +81,7 @@ function Clientes() {
       (s) => s.moneda,
     );
     return {
-      cartera: dineroPorMoneda(totales),
+      totales,
       // La moneda en la que se ordena "Mayor saldo": la principal del negocio.
       moneda: totales[0]?.moneda ?? "MXN",
       conSaldo: clientes.filter((c) => c.open_invoices > 0).length,
@@ -156,7 +156,16 @@ function Clientes() {
           rail={
             <>
               <RailSection label="Cartera">
-                <RailStat label="Por cobrar" value={resumen.cartera} strong />
+                {/* Una cifra por moneda, cada una en su renglón: juntas no caben. */}
+                {resumen.totales.length === 0 && <RailStat label="Por cobrar" value={dinero(0)} strong />}
+                {resumen.totales.map((t, i) => (
+                  <RailStat
+                    key={t.moneda}
+                    label={i === 0 ? "Por cobrar" : `En ${nombreMoneda(t.moneda)}`}
+                    value={dinero(t.total, t.moneda)}
+                    strong={i === 0}
+                  />
+                ))}
                 <RailStat label="Clientes con saldo" value={String(resumen.conSaldo)} />
                 <RailStat
                   label="Sin WhatsApp"
@@ -193,7 +202,8 @@ function Clientes() {
                 { key: "prospectos", label: "Prospectos", count: prospectos.length },
               ]}
               active={ver}
-              onChange={(k) => setElegido(k as Ver)}
+              hrefFor={hrefFor}
+              label="Qué ver"
             />
           )}
           <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">

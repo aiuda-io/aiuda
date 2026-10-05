@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type SourceCap, type WhatsappStatus } from "@/lib/api";
 import { Drawer } from "@/components/drawer";
-import { SIN_ESTRENAR_NOTA, SinEstrenar, inputCls } from "@/components/ui";
+import {
+  SIN_ESTRENAR_NOTA,
+  SinEstrenar,
+  inputCls,
+  Estado,
+  PrimaryButton,
+  QuietButton,
+} from "@/components/ui";
 import { toast } from "@/components/toast";
 import { INTEGRATION_HELP } from "@/lib/integration-help";
 import { fieldsFor, EMAIL_PRESETS } from "@/lib/integration-fields";
@@ -159,7 +166,7 @@ export function WhatsAppPairing({
   if (st.connected) {
     const v = WA_VINCULADO[st.estado] ?? WA_VINCULADO.conectando;
     return (
-      <div className={`rounded-[14px] px-5 py-4 ${v.ok ? "bg-panel" : "bg-warn-soft"}`}>
+      <div className={`rounded-2xl px-5 py-4 ${v.ok ? "bg-panel" : "bg-panel"}`}>
         <p
           className="mark !text-cuerpo !font-semibold !text-ink"
           style={
@@ -174,9 +181,9 @@ export function WhatsAppPairing({
         </p>
         <div className="mt-4 flex flex-wrap items-start gap-2">
           <ConnectionTester intKey="whatsapp" />
-          <button onClick={logout} className="btn btn-quiet">
+          <QuietButton onClick={logout}>
             Desvincular
-          </button>
+          </QuietButton>
         </div>
       </div>
     );
@@ -188,7 +195,7 @@ export function WhatsAppPairing({
     // no arregla nada. Hace falta un aiuda más nuevo.
     const sinNadaQueInstalar = actualizar && st.version === st.version_fijada;
     return (
-      <div className="rounded-[14px] bg-panel px-5 py-5">
+      <div className="rounded-2xl bg-panel px-5 py-5">
         {st.no_se_puede || sinNadaQueInstalar ? (
           <p className="text-cuerpo leading-relaxed text-ink-2">
             {st.no_se_puede ??
@@ -222,7 +229,7 @@ export function WhatsAppPairing({
   return (
     <div>
       {st.qr ? (
-        <div className="flex flex-col items-center rounded-[14px] bg-panel px-5 py-5 text-center">
+        <div className="flex flex-col items-center rounded-2xl bg-panel px-5 py-5 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={st.qr}
@@ -247,7 +254,7 @@ export function WhatsAppPairing({
           </button>
         </div>
       ) : (
-        <div className="rounded-[14px] bg-panel px-5 py-5">
+        <div className="rounded-2xl bg-panel px-5 py-5">
           <p className="text-cuerpo leading-relaxed text-ink-2">
             {st.estado === "sesion_cerrada"
               ? "WhatsApp cerró la sesión de esta computadora, casi siempre porque se quitó desde el teléfono en Dispositivos vinculados. Vuelve a escanear el código QR."
@@ -397,7 +404,7 @@ export function IntegrationConfigDrawer({
     <Drawer open={!!node} onClose={onClose} title={node.name} subtitle={node.rol}>
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-fill">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fill">
             {node.logo ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={node.logo} alt="" className="h-5 w-5 object-contain" />
@@ -406,15 +413,15 @@ export function IntegrationConfigDrawer({
             )}
           </span>
           {node.verified === "error" ? (
-            <span className="mark" style={{ "--mark": "var(--color-danger)" } as React.CSSProperties}>
+            <Estado tono="falla">
               Revisar
-            </span>
+            </Estado>
           ) : node.connected ? (
-            <span className="mark" style={{ "--mark": "var(--color-ok)" } as React.CSSProperties}>
+            <Estado tono="ok">
               Conectado
-            </span>
+            </Estado>
           ) : (
-            <span className="mark">Sin conectar</span>
+            <Estado>Sin conectar</Estado>
           )}
           {node.estrenada === false && <SinEstrenar />}
         </div>
@@ -474,7 +481,7 @@ export function IntegrationConfigDrawer({
         {node.key === "whatsapp" ? (
           <WhatsAppPairing onChange={onSaved} aviso={node.warning} />
         ) : isExcel ? (
-          <div className="rounded-[14px] bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
+          <div className="rounded-2xl bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
             No hay nada que conectar: subes tu hoja (clientes, productos, facturas, citas o
             prospectos) y tu IA reconoce qué es y la carga.
             <div className="mt-4">
@@ -489,7 +496,7 @@ export function IntegrationConfigDrawer({
           // Una fuente que no declara campos no se conecta desde aquí (sat vive en su
           // propia pantalla). Antes caía al formulario genérico y pedía un secreto
           // inventado que se guardaba sin cifrar.
-          <div className="rounded-[14px] bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
+          <div className="rounded-2xl bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
             {node.key === "sat"
               ? "El SAT tiene su propia pantalla: ahí cargas tu e.firma, importas tus XML y ves tu bóveda."
               : "Esta conexión no se hace capturando datos aquí."}
@@ -534,9 +541,9 @@ export function IntegrationConfigDrawer({
             </div>
 
             <div className="flex flex-wrap items-start gap-2">
-              <button onClick={save} disabled={saving} className="btn btn-primary">
+              <PrimaryButton onClick={save} disabled={saving}>
                 {saving ? "Guardando…" : configured ? "Guardar cambios" : "Conectar"}
-              </button>
+              </PrimaryButton>
               <ConnectionTester intKey={node.key} disabled={!configured} onProbada={onSaved} />
               {configured && (
                 <button onClick={disconnect} className="btn btn-quiet ml-auto">
@@ -546,7 +553,7 @@ export function IntegrationConfigDrawer({
             </div>
 
             {node.key === "whatsapp_cloud" && configured && (
-              <div className="rounded-[14px] bg-panel px-5 py-4">
+              <div className="rounded-2xl bg-panel px-5 py-4">
                 <p className="text-cuerpo leading-relaxed text-ink-2">
                   Con las credenciales guardadas, activa esta vía oficial como TU canal de
                   WhatsApp: recordatorios y respuestas saldrán por aquí, y no por tu número
@@ -612,7 +619,7 @@ function IntegrationHelp({ nodeKey, name }: { nodeKey: string; name: string }) {
             </ol>
           )}
           {help.credentials.length > 0 && (
-            <div className="rounded-[14px] bg-panel px-5 py-4">
+            <div className="rounded-2xl bg-panel px-5 py-4">
               <p className="eyebrow">dónde obtener cada dato</p>
               <ul className="mt-1.5 space-y-1.5">
                 {help.credentials.map((c) => (

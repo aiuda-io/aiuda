@@ -7,7 +7,13 @@ import { useEffect, useState } from "react";
 import { api, type CuaEstado, type CuaSesionHandoff } from "@/lib/api";
 import { Drawer } from "@/components/drawer";
 import { Collapse } from "@/components/motion";
-import { PrimaryButton, SecondaryButton, TextInput, useConfirm } from "@/components/ui";
+import {
+  PrimaryButton,
+  SecondaryButton,
+  TextInput,
+  useConfirm,
+  QuietButton,
+} from "@/components/ui";
 import { toast } from "@/components/toast";
 import { Marca, urlBonita, type Portal } from "@/components/portales/comunes";
 
@@ -164,14 +170,14 @@ export function Accesos({
       <Drawer open={open} onClose={onClose} title="Tus portales" subtitle="Tú entras una vez y aiuda reusa tu acceso" size="lg">
         <div className="space-y-6">
           {estado !== null && !puedeAbrir && (
-            <p className="rounded-lg bg-warn-soft px-4 py-3 text-cuerpo text-ink-2">
+            <p className="rounded-lg bg-panel px-4 py-3 text-cuerpo text-ink-2">
               <span className="font-semibold text-ink">No se pueden conectar accesos en esta instalación.</span>{" "}
               {estado.handoff_detalle}
             </p>
           )}
 
           {sesion && (
-            <div className="rounded-xl bg-accent-soft px-5 py-4">
+            <div className="rounded-xl bg-panel px-5 py-4">
               {sesion.estado === "abriendo" && (
                 <p className="text-cuerpo text-ink-2">Abriendo la ventana de «{sesion.sistema}»…</p>
               )}
@@ -252,15 +258,15 @@ export function Accesos({
 
                   <div className="-ml-3 mt-2 flex flex-wrap items-center gap-1">
                     {!p.url_configurada && !p.editable && editCap !== p.capacidad && (
-                      <button
+                      <QuietButton
                         onClick={() => {
                           setEditCap(p.capacidad);
                           setEditUrl("");
                         }}
-                        className="btn btn-quiet btn-sm"
-                      >
+ size="sm"
+>
                         Poner la dirección
-                      </button>
+                      </QuietButton>
                     )}
                     {puedeAbrir && p.url_configurada && (
                       <button
@@ -276,14 +282,14 @@ export function Accesos({
                       </button>
                     )}
                     {p.tiene_sesion && (
-                      <button onClick={() => olvidar(p)} className="btn btn-quiet btn-sm">
+                      <QuietButton onClick={() => olvidar(p)} size="sm">
                         Olvidar acceso
-                      </button>
+                      </QuietButton>
                     )}
                     {p.editable && (
-                      <button onClick={() => borrar(p)} className="btn btn-quiet btn-sm">
+                      <QuietButton onClick={() => borrar(p)} size="sm">
                         Borrar portal
-                      </button>
+                      </QuietButton>
                     )}
                   </div>
                 </li>
