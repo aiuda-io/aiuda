@@ -23,6 +23,33 @@ from aiuda_core.models import Tenant
 from aiuda_core.models.base import new_id
 
 
+class ErrorConCodigo(HTTPException):
+    """Un error que la consola necesita RECONOCER, no solo mostrar: además del
+    mensaje para el dueño (``detail``, en español y sin texto de excepción) lleva un
+    ``code`` estable. Con él la pantalla sabe, por ejemplo, que lo que falta es
+    conectar la IA y pone la liga a Tu IA en vez de pintar el mensaje y ya.
+
+    Vive aquí (y no en main) para que los routers lo puedan lanzar sin importar la
+    app; el manejador que lo vuelve ``{detail, code}`` sigue registrado en main."""
+
+    def __init__(self, status_code: int, detail: str, code: str):
+        super().__init__(status_code=status_code, detail=detail)
+        self.code = code
+
+
+def tope_de_ia(que: str) -> ErrorConCodigo:
+    """La IA del dueño llegó al tope de uso del mes. El motivo completo (cuánto
+    lleva, de cuánto) queda en el aviso que deja el worker; aquí se le dice qué NO
+    pasó y por qué, sin cifras técnicas. ``que`` completa la frase: "redactar el
+    recordatorio", "leer tu archivo"."""
+    return ErrorConCodigo(
+        402,
+        f"Tu IA llegó al tope de uso de este mes, así que no pudo {que}. "
+        "Vuelve a trabajar el mes que entra.",
+        code="ia_tope",
+    )
+
+
 def get_db():
     session = get_sessionmaker()()
     try:

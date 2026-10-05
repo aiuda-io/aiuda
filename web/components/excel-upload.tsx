@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 import { api, type ImportAnalysis, type ImportResult } from "@/lib/api";
-import { SecondaryButton } from "@/components/ui";
+import { PrimaryButton, SecondaryButton, inputCls } from "@/components/ui";
+import { FalloAccion } from "@/components/cartera-partes";
+import { leerFallo, plural, type Fallo } from "@/lib/cartera";
 
 const EXTRA = "__extra__";
 const IGNORE = "__ignore__";
@@ -23,8 +25,9 @@ function pretty(field: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Importador con mapeo: la IA propone tipo y columnas, tú ajustas, y lo que no
- *  mapeas se guarda como dato extra (no se pierde nada). Dos pasos sin recargar. */
+/** Subir un Excel: tu IA propone qué es la hoja y a qué corresponde cada columna, tú lo
+ *  revisas, y lo que no corresponda a nada se guarda como dato extra (no se pierde
+ *  nada). Dos pasos sin recargar. */
 export function ExcelUpload({
   className = "",
   onImported,
@@ -39,7 +42,7 @@ export function ExcelUpload({
   // ni se pisan; cada columna conserva su destino y sus datos.
   const [colMap, setColMap] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fallo, setFallo] = useState<Fallo | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
 
   function initColMap(a: ImportAnalysis) {
@@ -54,7 +57,7 @@ export function ExcelUpload({
 
   async function pick(f: globalThis.File) {
     setBusy(true);
-    setError(null);
+    setFallo(null);
     setResult(null);
     setFile(f);
     try {
@@ -62,7 +65,7 @@ export function ExcelUpload({
       setAnalysis(a);
       initColMap(a);
     } catch (e) {
-      setError((e as Error).message);
+      setFallo(leerFallo(e));
       setFile(null);
     } finally {
       setBusy(false);
@@ -78,7 +81,7 @@ export function ExcelUpload({
       setAnalysis(a);
       initColMap(a);
     } catch (e) {
-      setError((e as Error).message);
+      setFallo(leerFallo(e));
     } finally {
       setBusy(false);
     }
@@ -109,7 +112,7 @@ export function ExcelUpload({
       else if (target !== IGNORE) mapping[target] = col;
     });
     setBusy(true);
-    setError(null);
+    setFallo(null);
     try {
       const r = await api.commitImport(file, analysis.entity, mapping, extras);
       setResult(r);
@@ -117,7 +120,7 @@ export function ExcelUpload({
       setFile(null);
       if (r.created > 0) onImported?.();
     } catch (e) {
-      setError((e as Error).message);
+      setFallo(leerFallo(e));
     } finally {
       setBusy(false);
     }
@@ -127,7 +130,7 @@ export function ExcelUpload({
     setAnalysis(null);
     setFile(null);
     setResult(null);
-    setError(null);
+    setFallo(null);
     setColMap({});
   }
 
@@ -135,49 +138,44 @@ export function ExcelUpload({
   if (result) {
     return (
       <div className={className}>
-        <div className="rounded-md bg-panel px-3.5 py-3">
-          <p className="text-cuerpo text-ink">
-            Importé{" "}
-            <span className="font-semibold text-accent-ink">{result.entity_label}</span>:{" "}
-            {result.created} cargados
-            {result.skipped > 0 && `, ${result.skipped} ya existían`}.
+        <p
+          className="mark text-cuerpo text-ink"
+          style={{ "--mark": "var(--color-ok)", whiteSpace: "normal" } as React.CSSProperties}
+        >
+          {result.entity_label}: {plural(result.created, "registro cargado", "registros cargados")}
+          {result.skipped > 0 &&
+            `, ${plural(result.skipped, "ya existía", "ya existían")}`}
+        </p>
+        {result.errors.map((aviso) => (
+          <p key={aviso} className="mt-2 text-apoyo text-ink-2">
+            {aviso}
           </p>
-          {result.errors.length > 0 && (
-            <p className="mt-1.5 text-apoyo text-warn">{result.errors.join(" · ")}</p>
-          )}
-        </div>
-        <SecondaryButton className="mt-3" onClick={reset}>
-          Importar otro archivo
+        ))}
+        <SecondaryButton className="mt-4" onClick={reset}>
+          Subir otro archivo
         </SecondaryButton>
       </div>
     );
   }
 
-  // --- Paso 2: mapeo ---
+  // --- Paso 2: revisar qué es cada columna ---
   if (analysis) {
     const fieldKeys = Object.keys(analysis.fields);
     const ready = !!analysis.entity;
     return (
       <div className={className}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-cuerpo font-medium text-ink">
-            {analysis.filename}{" "}
-            <span className="font-normal text-ink-3">· {analysis.row_count} filas</span>
-          </p>
-          <button onClick={reset} className="text-apoyo text-ink-3 hover:text-ink">
-            Cancelar
-          </button>
-        </div>
+        <p className="text-seccion font-semibold text-ink">{analysis.filename}</p>
+        <p className="tnum mt-0.5 text-apoyo text-ink-3">{plural(analysis.row_count, "fila", "filas")}</p>
 
-        <label className="mt-3 flex flex-wrap items-center gap-2 text-cuerpo">
-          <span className="text-ink-2">Esto son</span>
+        <label className="mt-4 flex flex-wrap items-center gap-3 text-cuerpo text-ink">
+          <span>Esta hoja trae</span>
           <select
             value={analysis.entity}
             onChange={(e) => changeType(e.target.value)}
             disabled={busy}
-            className="rounded-md border border-line bg-surface px-2.5 py-1.5 text-cuerpo text-ink focus:border-accent focus:outline-none"
+            className={`${inputCls} w-auto`}
           >
-            <option value="">Elige un tipo…</option>
+            <option value="">Elige qué trae</option>
             {analysis.types.map((t) => (
               <option key={t.key} value={t.key}>
                 {t.label}
@@ -185,69 +183,72 @@ export function ExcelUpload({
             ))}
           </select>
           {ready && analysis.confidence >= 0.5 && (
-            <span className="text-apoyo text-ink-3">la IA lo detectó</span>
+            <span className="text-apoyo text-ink-3">Lo reconoció tu IA</span>
           )}
         </label>
 
         {!ready ? (
-          <p className="mt-3 rounded-md bg-panel px-3.5 py-3 text-apoyo leading-relaxed text-ink-2">
-            No reconocí qué tipo de datos trae. Elige uno arriba para mapear las columnas, o
-            cancela: por ahora entiendo facturas, clientes, productos, citas y prospectos.
+          <p className="mt-4 text-cuerpo text-ink-2">
+            No se reconoció qué trae esta hoja. Elige arriba si son facturas, clientes,
+            productos, citas o prospectos.
           </p>
         ) : (
           <>
-            <div className="mt-3 overflow-hidden rounded-md border border-line">
-              <div className="grid grid-cols-[1fr_auto] gap-2 border-b border-line bg-panel/60 px-3 py-2 eyebrow">
-                <span>Tu columna</span>
-                <span>Campo en aiuda</span>
-              </div>
-              <ul>
-                {analysis.columns.map((col, i) => {
-                  const ejemplo = analysis.sample[0]?.[col] ?? "";
-                  return (
-                    <li
-                      key={`${col}::${i}`}
-                      className="grid grid-cols-[1fr_auto] items-center gap-2 border-b border-line/50 px-3 py-1.5 last:border-0"
-                    >
-                      <span className="min-w-0">
-                        <span className="text-cuerpo font-medium text-ink">{col}</span>
-                        {ejemplo && (
-                          <span className="ml-1.5 truncate text-apoyo text-ink-3">{ejemplo}</span>
-                        )}
-                      </span>
-                      <select
-                        value={colMap[i] ?? EXTRA}
-                        onChange={(e) => setColTarget(i, e.target.value)}
-                        className="rounded border border-line bg-surface px-1.5 py-1 text-sello text-ink focus:border-accent focus:outline-none"
-                      >
-                        {fieldKeys.map((f) => (
-                          <option key={f} value={f}>
-                            {pretty(f)}
-                          </option>
-                        ))}
-                        <option value={EXTRA}>Dato extra</option>
-                        <option value={IGNORE}>Ignorar</option>
-                      </select>
-                    </li>
-                  );
-                })}
-              </ul>
+            <div className="mt-5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 border-b border-line pb-2 text-rotulo font-medium text-ink-3">
+              <span>Tu columna</span>
+              <span>Qué es</span>
             </div>
-            <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
-              Lo que dejes como <span className="font-medium text-ink-2">dato extra</span> se
-              guarda y se ve en la ficha; nada se pierde.
+            <ul>
+              {analysis.columns.map((col, i) => {
+                const ejemplo = analysis.sample[0]?.[col] ?? "";
+                return (
+                  <li
+                    key={`${col}::${i}`}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border-b border-line py-2 last:border-0"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-cuerpo font-medium text-ink">{col}</span>
+                      {ejemplo && <span className="block truncate text-apoyo text-ink-3">{ejemplo}</span>}
+                    </span>
+                    <select
+                      value={colMap[i] ?? EXTRA}
+                      onChange={(e) => setColTarget(i, e.target.value)}
+                      aria-label={`Qué es la columna ${col}`}
+                      className={`${inputCls} w-40 max-w-[45vw]`}
+                    >
+                      {fieldKeys.map((f) => (
+                        <option key={f} value={f}>
+                          {pretty(f)}
+                        </option>
+                      ))}
+                      <option value={EXTRA}>Dato extra</option>
+                      <option value={IGNORE}>No cargar</option>
+                    </select>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-3 text-apoyo text-ink-2">
+              Lo que dejes como dato extra se guarda y se ve en su ficha. Nada se pierde.
             </p>
-            <button
-              onClick={doImport}
-              disabled={busy}
-              className="mt-3 btn btn-primary"
-            >
-              {busy ? "Importando…" : `Importar ${analysis.row_count}`}
-            </button>
           </>
         )}
 
-        {error && <p className="mt-2 text-cuerpo text-danger">{error}</p>}
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          {ready && (
+            <PrimaryButton onClick={doImport} disabled={busy}>
+              {busy ? "Cargando…" : `Cargar ${plural(analysis.row_count, "fila", "filas")}`}
+            </PrimaryButton>
+          )}
+          <button onClick={reset} disabled={busy} className="btn btn-quiet">
+            Cancelar
+          </button>
+        </div>
+        {fallo && (
+          <div className="mt-3">
+            <FalloAccion fallo={fallo} />
+          </div>
+        )}
       </div>
     );
   }
@@ -255,10 +256,10 @@ export function ExcelUpload({
   // --- Paso 1: elegir archivo ---
   return (
     <div className={className}>
-      <p className="text-cuerpo font-medium text-ink">Sube cualquier Excel y la IA entiende qué es</p>
-      <p className="mt-0.5 text-apoyo leading-relaxed text-ink-3">
-        Sin plantilla. La IA detecta qué es y propone el mapeo; tú lo revisas, ajustas las
-        columnas y lo que no mapees se guarda como dato extra. Nada se pierde.
+      <p className="text-cuerpo font-medium text-ink">Sube tu Excel tal como lo llevas</p>
+      <p className="mt-1 max-w-md text-apoyo text-ink-2">
+        No necesitas plantilla. Tu IA reconoce qué trae la hoja y a qué corresponde cada
+        columna; tú lo revisas antes de que se cargue.
       </p>
       <input
         ref={fileRef}
@@ -267,10 +268,14 @@ export function ExcelUpload({
         className="hidden"
         onChange={(e) => e.target.files?.[0] && pick(e.target.files[0])}
       />
-      <SecondaryButton className="mt-2.5" onClick={() => fileRef.current?.click()} disabled={busy}>
-        {busy ? "La IA está leyendo tu archivo…" : "Elegir archivo (.xlsx o .csv)"}
+      <SecondaryButton className="mt-4" onClick={() => fileRef.current?.click()} disabled={busy}>
+        {busy ? "Tu IA está leyendo el archivo…" : "Elegir archivo de Excel"}
       </SecondaryButton>
-      {error && <p className="mt-2 text-cuerpo text-danger">{error}</p>}
+      {fallo && (
+        <div className="mt-3">
+          <FalloAccion fallo={fallo} />
+        </div>
+      )}
     </div>
   );
 }

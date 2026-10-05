@@ -14,6 +14,7 @@ la contraseña, ni siquiera enmascarados por partes. Nada de secretos en logs.
 
 import base64
 import io
+import logging
 import re
 import zipfile
 from datetime import datetime, timezone
@@ -25,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
 from aiuda_server import audit
-from aiuda_server.api.deps import get_db, get_tenant, require_role
+from aiuda_server.api.deps import ErrorConCodigo, get_db, get_tenant, require_role
 from aiuda_core.connectors import credentials as cred
 from aiuda_core.cua.fallback import olvidar_consentimiento_sat
 from aiuda_core.connectors.sat_descarga import (
@@ -50,6 +51,7 @@ from aiuda_core.models import (
 )
 
 router = APIRouter()
+log = logging.getLogger("aiuda.sat")
 
 _RFC_RE = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 
@@ -292,7 +294,14 @@ def sat_conectar_efirma(
     except SatCredencialInvalida as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:  # falta satcfdi en este entorno
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        # El texto de la excepción manda a correr un comando: eso no se le dice al dueño.
+        log.error("sat: no se pudo validar la e.firma: %s", exc)
+        raise ErrorConCodigo(
+            503,
+            "Esta instalación de aiuda no trae lo necesario para hablar con el SAT. "
+            "No se guardó nada.",
+            code="sat_no_disponible",
+        ) from exc
     _tope_empresas(db, tenant, info["rfc"])
     proveedor = f"{SAT_EFIRMA_PREFIX}{info['rfc']}"
     cer_b64 = base64.b64encode(cer_bytes).decode()
@@ -375,9 +384,14 @@ def sat_probar_efirma(
         row.last_test_at = datetime.now(timezone.utc)
         row.last_error = str(exc)
         db.flush()
-        raise HTTPException(
-            status_code=502,
-            detail=f"El SAT no aceptó la e.firma de {rfc}: {exc}",
+        # El motivo crudo (viene en inglés, de la librería) se queda en la fila;
+        # al dueño se le dice qué pasó y qué revisar.
+        log.warning("sat: el SAT no aceptó la e.firma de %s (%s)", rfc, type(exc).__name__)
+        raise ErrorConCodigo(
+            502,
+            f"El SAT no aceptó la e.firma de {rfc}. Revisa que siga vigente y que "
+            "no la hayas renovado; si la renovaste, sube la nueva.",
+            code="sat_rechazo",
         ) from exc
     row.status = "connected"
     row.last_test_at = datetime.now(timezone.utc)
