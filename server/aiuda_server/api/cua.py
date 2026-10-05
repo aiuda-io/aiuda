@@ -6,7 +6,7 @@ Nunca mira el navegador — todo es headless, en segundo plano.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
@@ -19,7 +19,9 @@ from aiuda_core.cua.fallback import (
     CUA_PORTALES_URL_KEY,
     CUA_TEMPLATES,
     PORTAL_PREFIX,
+    RUTINAS_DETERMINISTAS,
     borrar_sesion,
+    efirmas_guardadas,
     ejecutar_recado,
     enqueue_cua_mission,
     portal_efectivo,
@@ -171,6 +173,71 @@ class NuevoRecado(BaseModel):
     # Indicación específica del dueño para esta corrida (opcional). Afina el objetivo
     # por defecto del trabajador; se guarda y se le pasa al agente al operar el portal.
     instruccion: str | None = None
+    # Solo para las rutinas deterministas del SAT: de qué empresa. Si el negocio tiene
+    # una sola e.firma se puede omitir.
+    rfc: str | None = None
+
+
+# Una corrida del SAT tarda cerca de un minuto. Si una lleva más que esto "en curso",
+# se quedó colgada (se cerró aiuda a media corrida) y no debe bloquear la siguiente.
+_CORRIDA_COLGADA = timedelta(minutes=10)
+
+
+def _como_utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _corridas_deterministas(db, tenant: Tenant) -> dict[tuple[str, str], CuaMission]:
+    """La corrida más reciente de cada rutina determinista por RFC."""
+    filas = db.scalars(
+        select(CuaMission)
+        .where(
+            CuaMission.tenant_id == tenant.id,
+            CuaMission.capacidad.in_(list(RUTINAS_DETERMINISTAS)),
+        )
+        .order_by(CuaMission.created_at.desc())
+        .limit(200)
+    ).all()
+    ultimas: dict[tuple[str, str], CuaMission] = {}
+    for m in filas:
+        ultimas.setdefault((m.capacidad, str((m.data or {}).get("_rfc") or "")), m)
+    return ultimas
+
+
+def _en_curso(m: CuaMission | None) -> bool:
+    return (
+        m is not None
+        and m.status in ("queued", "running")
+        and datetime.now(timezone.utc) - _como_utc(m.created_at) < _CORRIDA_COLGADA
+    )
+
+
+def _encolar_determinista(body: NuevoRecado, background, db, tenant: Tenant) -> dict:
+    """Las dos rutinas del SAT: sin IA y sin instrucción, con la e.firma guardada."""
+    con_efirma = efirmas_guardadas(db, tenant)
+    rfc = (body.rfc or "").strip().upper()
+    if not rfc and len(con_efirma) == 1:
+        rfc = con_efirma[0]
+    if not con_efirma:
+        raise HTTPException(
+            status_code=400,
+            detail="Primero carga tu e.firma en SAT · Bóveda fiscal.",
+        )
+    if rfc not in con_efirma:
+        raise HTTPException(
+            status_code=400,
+            detail="Elige de cuál de tus empresas con e.firma quieres el documento.",
+        )
+    if _en_curso(_corridas_deterministas(db, tenant).get((body.capacidad, rfc))):
+        raise HTTPException(
+            status_code=409,
+            detail="Esa rutina ya está corriendo para ese RFC. Espera a que termine.",
+        )
+    recado = enqueue_cua_mission(db, tenant, body.capacidad, rfc=rfc)
+    # Confirmado antes de despachar: la corrida abre su propia sesión de base.
+    db.commit()
+    background.add_task(run_recado_blocking, recado.id)
+    return _serialize(recado)
 
 
 @router.post("/v1/cua/misiones", status_code=201)
@@ -182,12 +249,84 @@ def encolar(
 ) -> dict:
     """Encola un trabajo y lo corre en segundo plano (headless). Devuelve el trabajo en
     cola; el log se actualiza solo cuando el asistente termina."""
+    if body.capacidad in RUTINAS_DETERMINISTAS:
+        return _encolar_determinista(body, background, db, tenant)
     if portal_efectivo(tenant, body.capacidad) is None:
         raise HTTPException(status_code=400, detail="Ese portal no está disponible.")
     instruccion = (body.instruccion or "").strip() or None
     recado = enqueue_cua_mission(db, tenant, body.capacidad, instruccion=instruccion)
     background.add_task(run_recado_blocking, recado.id)
     return _serialize(recado)
+
+
+# ---------- Rutinas deterministas: los documentos del SAT, sin IA ----------
+#
+# Guion fijo, sin IA: no dependen de qué IA conectó el dueño (ni de que haya una).
+# Se despachan con el mismo POST /v1/cua/misiones (capacidad + rfc) y dejan su PDF en
+# /v1/documentos. Aquí va lo que la pantalla necesita para pintarlas por empresa.
+
+
+@router.get("/v1/cua/deterministas")
+def deterministas(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> dict:
+    """Las rutinas sin IA por empresa con e.firma: su última corrida y el último
+    documento que trajeron. Dice también si este aiuda tiene el navegador que
+    necesitan, en palabras del dueño."""
+    from aiuda_core.cua.computer import estado_navegador
+    from aiuda_core.cua.deterministas.sat_documentos import MSG_SIN_NAVEGADOR
+    from aiuda_core.engine.sync import sat_empresas
+    from aiuda_core.models import Documento
+    from aiuda_server.api.documentos import serializar
+
+    navegador_listo, _ = estado_navegador()
+    corridas = _corridas_deterministas(db, tenant)
+    empresas = []
+    for e in sat_empresas(db, tenant):
+        if not e.get("efirma"):
+            continue
+        rutinas = []
+        for capacidad, spec in RUTINAS_DETERMINISTAS.items():
+            doc = db.scalar(
+                select(Documento)
+                .where(
+                    Documento.tenant_id == tenant.id,
+                    Documento.rfc == e["rfc"],
+                    Documento.tipo == spec["documento"],
+                )
+                .order_by(Documento.fecha.desc())
+                .limit(1)
+            )
+            m = corridas.get((capacidad, e["rfc"]))
+            rutinas.append(
+                {
+                    "capacidad": capacidad,
+                    "nombre": spec["nombre"],
+                    "en_curso": _en_curso(m),
+                    "ultima_corrida": (
+                        {
+                            "id": m.id,
+                            "status": m.status,
+                            "error": m.error or "",
+                            "fecha": (m.finished_at or m.created_at).isoformat(),
+                        }
+                        if m is not None
+                        else None
+                    ),
+                    "ultimo_documento": serializar(doc) if doc is not None else None,
+                }
+            )
+        empresas.append(
+            {
+                "rfc": e["rfc"],
+                "nombre": e.get("nombre") or "",
+                "vigente_hasta": e.get("vigente_hasta"),
+                "rutinas": rutinas,
+            }
+        )
+    return {
+        "navegador_listo": navegador_listo,
+        "navegador_detalle": "" if navegador_listo else MSG_SIN_NAVEGADOR,
+        "empresas": empresas,
+    }
 
 
 # ---------- Rutinas guardadas: una tarea de portal que el dueño repite ----------

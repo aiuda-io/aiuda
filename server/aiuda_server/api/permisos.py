@@ -78,6 +78,7 @@ DUENO: frozenset[tuple[str, str]] = frozenset({
     ("GET", "/v1/audit"),
     ("GET", "/v1/ayudantes/{ayudante_id}/prompt"),
     ("GET", "/v1/cua/capacidades"),
+    ("GET", "/v1/cua/deterministas"),
     ("GET", "/v1/cua/estado"),
     ("GET", "/v1/cua/misiones"),
     ("GET", "/v1/cua/misiones/{mission_id}"),
