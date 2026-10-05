@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { unidad } from "@/lib/format";
 import { api, mxn, type ProductItem } from "@/lib/api";
-import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, SecondaryButton, SecondaryLink, Skeleton, SOURCE_LABEL, useApi } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, SecondaryButton, Skeleton, SOURCE_LABEL, useApi } from "@/components/ui";
 import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
 import { RecordDrawer } from "@/components/record-drawer";
 import { NuevaCotizacion } from "@/components/nueva-cotizacion";
@@ -47,35 +47,30 @@ export default function ProductosPage() {
     <div className="min-w-0">
       <PageHeader
         title="Productos"
-        subtitle="Tu catálogo. Lo usan tus ayudantes de ventas. Súbelo desde Excel."
+        subtitle="Tu catálogo. Con estos precios cotiza tu ayudante de Ventas."
         right={
-          <div className="flex items-center gap-2">
-            <ExportButton entidad="productos" filtros={{ q: query }} count={rows.length} />
-            {hayProductos && (
-              <SecondaryButton onClick={() => setCotizar(true)}>Nueva cotización</SecondaryButton>
-            )}
-            <PrimaryButton onClick={() => setAgregar(true)}>Agregar producto</PrimaryButton>
-          </div>
+          hayProductos ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <ExportButton entidad="productos" filtros={{ q: query }} count={rows.length} />
+              <SecondaryButton onClick={() => setAgregar(true)}>Agregar producto</SecondaryButton>
+              <PrimaryButton onClick={() => setCotizar(true)}>Nueva cotización</PrimaryButton>
+            </div>
+          ) : undefined
         }
       />
 
       <NuevaCotizacion open={cotizar} onClose={() => setCotizar(false)} productos={data ?? []} />
       <AgregarSheet open={agregar} onClose={() => setAgregar(false)} tipo="productos" label="producto" onCreated={refetch} />
 
-      {loading && <Skeleton className="h-32 w-full" />}
+      {loading && <Skeleton className="h-40 w-full" />}
 
       {!loading && !hayProductos && (
         <EmptyState
           title="Aún no hay productos"
-          action={
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <PrimaryLink href="/importar">Subir mi catálogo</PrimaryLink>
-              <SecondaryLink href="/integraciones">Conectar mi tienda</SecondaryLink>
-            </div>
-          }
+          action={<PrimaryLink href="/importar">Subir mi catálogo</PrimaryLink>}
         >
-          Sube tu catálogo desde un Excel (la IA detecta nombre, SKU, precio y existencia) o,
-          más adelante, entran desde tu tienda u Odoo.
+          Falta tu catálogo. Súbelo en un Excel, tal como lo llevas: aiuda reconoce el nombre, el
+          precio y la existencia.
         </EmptyState>
       )}
 
@@ -97,7 +92,7 @@ export default function ProductosPage() {
                     <RailRow key={p.id}>
                       <button
                         onClick={() => setSelected(p)}
-                        className="min-w-0 truncate text-left text-cuerpo text-ink-2 transition-colors hover:text-accent-ink"
+                        className="min-w-0 truncate text-left text-cuerpo text-ink-2 hover:text-accent-ink"
                       >
                         {p.name}
                       </button>
@@ -111,18 +106,18 @@ export default function ProductosPage() {
             </>
           }
         >
-          <div className="mb-3">
-            <SearchInput value={query} onChange={setQuery} placeholder="Buscar por nombre o SKU…" />
+          <div className="mb-5">
+            <SearchInput value={query} onChange={setQuery} placeholder="Buscar por nombre o clave" />
           </div>
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] text-left">
               <thead>
-                <tr className="border-b border-line bg-panel/60 eyebrow">
-                  <th className="px-4 py-2.5">Producto</th>
-                  <th className="px-4 py-2.5">SKU</th>
-                  <th className="px-4 py-2.5">Fuente</th>
-                  <th className="px-4 py-2.5 text-right">Precio</th>
-                  <th className="px-4 py-2.5 text-right">Existencia</th>
+                <tr className="border-b border-line text-rotulo text-ink-3">
+                  <th className="px-4 pb-3 font-medium">Producto</th>
+                  <th className="px-4 pb-3 font-medium">Clave</th>
+                  <th className="px-4 pb-3 font-medium">Viene de</th>
+                  <th className="px-4 pb-3 text-right font-medium">Precio</th>
+                  <th className="px-4 pb-3 text-right font-medium">Existencia</th>
                 </tr>
               </thead>
               <tbody>
@@ -132,29 +127,28 @@ export default function ProductosPage() {
                   <tr
                     key={p.id}
                     onClick={() => setSelected(p)}
-                    className="cursor-pointer border-b border-line/60 last:border-0 hover:bg-panel/40"
+                    className="cursor-pointer border-b border-line last:border-0 hover:bg-panel"
                   >
-                    <td className="px-4 py-2.5">
+                    <td className="max-w-[22rem] px-4 py-3.5">
                       {/* Botón real (no solo tr onClick): la ficha se abre con teclado. */}
                       <button
                         onClick={() => setSelected(p)}
-                        className="text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
+                        title={p.name}
+                        className="block max-w-full truncate text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
                       >
                         {p.name}
                       </button>
                     </td>
-                    <td className="tnum px-4 py-2.5 text-cuerpo text-ink-2">
+                    <td className="tnum whitespace-nowrap px-4 py-3.5 text-cuerpo text-ink-2">
                       {p.sku ?? <span className="text-ink-3">·</span>}
                     </td>
-                    <td className="px-4 py-2.5 text-cuerpo">
-                      <span className="rounded bg-panel px-1.5 py-px font-medium text-ink-2">
-                        {src ? (SOURCE_LABEL[src] ?? src) : "aiuda"}
-                      </span>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-cuerpo text-ink-2">
+                      {src ? (SOURCE_LABEL[src] ?? src) : "aiuda"}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-right text-cuerpo text-ink">
-                      {p.price !== null ? mxn(p.price) : <span className="text-ink-3">·</span>}
+                    <td className="tnum whitespace-nowrap px-4 py-3.5 text-right text-cuerpo font-semibold text-ink">
+                      {p.price !== null ? mxn(p.price) : <span className="font-normal text-ink-3">·</span>}
                     </td>
-                    <td className="tnum px-4 py-2.5 text-right text-cuerpo text-ink-2">
+                    <td className="tnum whitespace-nowrap px-4 py-3.5 text-right text-cuerpo text-ink-2">
                       {p.stock !== null ? (
                         <>
                           {p.stock}
@@ -169,8 +163,8 @@ export default function ProductosPage() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-cuerpo text-ink-3">
-                      Sin resultados para tu búsqueda.
+                    <td colSpan={5} className="px-4 py-12 text-center text-cuerpo text-ink-3">
+                      Ningún producto coincide con lo que buscas.
                     </td>
                   </tr>
                 )}
@@ -184,7 +178,7 @@ export default function ProductosPage() {
         open={selected !== null}
         onClose={() => setSelected(null)}
         title={selected?.name ?? ""}
-        subtitle={selected?.sku ? `SKU ${selected.sku}` : "Producto"}
+        subtitle={selected?.sku ? `Clave ${selected.sku}` : "Producto"}
         fields={
           selected
             ? [
@@ -196,7 +190,7 @@ export default function ProductosPage() {
                       ? `${selected.stock}${selected.unit ? ` ${selected.unit}` : ""}`
                       : null,
                 },
-                { label: "SKU", value: selected.sku },
+                { label: "Clave", value: selected.sku },
                 { label: "Unidad", value: selected.unit },
               ]
             : []

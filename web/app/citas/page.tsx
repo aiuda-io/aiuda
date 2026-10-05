@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { api, type AppointmentItem } from "@/lib/api";
-import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, SecondaryLink, Skeleton, SOURCE_LABEL, useApi } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, Skeleton, SOURCE_LABEL, useApi } from "@/components/ui";
 import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
 import { RecordDrawer } from "@/components/record-drawer";
 import { AgregarSheet } from "@/components/agregar-sheet";
@@ -67,33 +67,28 @@ export default function CitasPage() {
   return (
     <div className="min-w-0">
       <PageHeader
-        title="Citas"
-        subtitle="Tu agenda. La atiende tu ayudante de recepción. Súbela desde Excel."
+        title="Agenda"
+        subtitle="Tus citas. De aquí lee tu ayudante de Recepción."
         right={
-          <div className="flex items-center gap-2">
-            <ExportButton entidad="citas" filtros={{ q: query }} count={rows.length} />
-            <PrimaryButton onClick={() => setAgregar(true)}>Agregar cita</PrimaryButton>
-          </div>
+          agenda.total > 0 ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <ExportButton entidad="citas" filtros={{ q: query }} count={rows.length} />
+              <PrimaryButton onClick={() => setAgregar(true)}>Agregar cita</PrimaryButton>
+            </div>
+          ) : undefined
         }
       />
       <AgregarSheet open={agregar} onClose={() => setAgregar(false)} tipo="citas" label="cita" onCreated={refetch} />
 
-      {loading && <Skeleton className="h-32 w-full" />}
+      {loading && <Skeleton className="h-40 w-full" />}
 
       {!loading && agenda.total === 0 && (
         <EmptyState
-          title="Aún no hay citas"
-          action={
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <PrimaryLink href="/importar">Subir mi agenda</PrimaryLink>
-              <SecondaryLink href="/integraciones/detalle?key=googlecalendar">
-                Conectar Google Calendar
-              </SecondaryLink>
-            </div>
-          }
+          title="Tu agenda está vacía"
+          action={<PrimaryLink href="/importar">Subir mi agenda</PrimaryLink>}
         >
-          Sube tu agenda desde un Excel (la IA detecta el asunto, el cliente y la fecha) o,
-          más adelante, entran desde Google Calendar.
+          Faltan tus citas. Súbelas en un Excel, tal como las llevas: aiuda reconoce el asunto, el
+          cliente y la fecha.
         </EmptyState>
       )}
 
@@ -102,7 +97,7 @@ export default function CitasPage() {
           rail={
             <>
               <RailSection label="Agenda">
-                <RailStat label="Citas" value={String(agenda.total)} strong />
+                <RailStat label="En tu agenda" value={String(agenda.total)} strong />
                 <RailStat label="Hoy" value={String(agenda.hoy)} />
                 <RailStat label="Próximos 7 días" value={String(agenda.semana)} />
               </RailSection>
@@ -112,7 +107,7 @@ export default function CitasPage() {
                   {agenda.proximas.map((a) => (
                     <RailRow key={a.id}>
                       <button onClick={() => setSelected(a)} className="min-w-0 text-left">
-                        <span className="block truncate text-cuerpo text-ink-2 transition-colors hover:text-accent-ink">
+                        <span className="block truncate text-cuerpo text-ink-2 hover:text-accent-ink">
                           {a.title}
                         </span>
                         <span className="text-apoyo text-ink-3">{formatWhen(a.starts_at)}</span>
@@ -124,35 +119,33 @@ export default function CitasPage() {
             </>
           }
         >
-          <div className="mb-3">
-            <SearchInput value={query} onChange={setQuery} placeholder="Buscar por asunto o cliente…" />
+          <div className="mb-5">
+            <SearchInput value={query} onChange={setQuery} placeholder="Buscar por asunto o cliente" />
           </div>
-          <ul className="reveal-stagger overflow-hidden rounded-lg border border-line bg-surface">
+          <ul>
             {rows.map((a) => (
               <li
                 key={a.id}
                 onClick={() => setSelected(a)}
-                className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 border-b border-line/60 px-4 py-3 last:border-0 hover:bg-panel/40"
+                className="flex cursor-pointer flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line py-3.5 last:border-0"
               >
                 {/* Botón real (no solo li onClick): el detalle se abre con teclado. */}
                 <button
                   onClick={() => setSelected(a)}
-                  className="text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
+                  className="min-w-0 truncate text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
                 >
                   {a.title}
                 </button>
                 {a.customer_name && (
-                  <span className="text-cuerpo text-ink-2">· {a.customer_name}</span>
+                  <span className="min-w-0 truncate text-cuerpo text-ink-2">{a.customer_name}</span>
                 )}
-                <span className="tnum ml-auto text-cuerpo text-ink-3">{formatWhen(a.starts_at)}</span>
-                {a.notes && (
-                  <p className="w-full text-apoyo leading-relaxed text-ink-3">{a.notes}</p>
-                )}
+                <span className="tnum ml-auto shrink-0 text-apoyo text-ink-3">{formatWhen(a.starts_at)}</span>
+                {a.notes && <p className="w-full text-apoyo text-ink-3">{a.notes}</p>}
               </li>
             ))}
             {rows.length === 0 && (
-              <li className="px-4 py-10 text-center text-cuerpo text-ink-3">
-                Sin resultados para tu búsqueda.
+              <li className="px-4 py-12 text-center text-cuerpo text-ink-3">
+                Ninguna cita coincide con lo que buscas.
               </li>
             )}
           </ul>
@@ -174,7 +167,7 @@ export default function CitasPage() {
                 // Tras inyectarse, la cita queda LIGADA a su copia en el destino
                 // (meta.inyectada_en[destino] = ref + url): texto y salto directo.
                 ...Object.entries(selected.meta?.inyectada_en ?? {}).map(([destino, liga]) => ({
-                  label: `Inyectada en ${SOURCE_LABEL[destino] ?? destino}`,
+                  label: `También está en ${SOURCE_LABEL[destino] ?? destino}`,
                   value: liga?.url ? (
                     <a
                       href={liga.url}
@@ -182,10 +175,10 @@ export default function CitasPage() {
                       rel="noreferrer"
                       className="font-medium text-accent-ink hover:underline"
                     >
-                      {liga.ref ? `${liga.ref} ↗` : "Abrir ↗"}
+                      {liga.ref ? `Abrir ${liga.ref}` : "Abrir"}
                     </a>
                   ) : (
-                    (liga?.ref ?? "creada allá")
+                    (liga?.ref ?? "Creada allá")
                   ),
                 })),
               ]

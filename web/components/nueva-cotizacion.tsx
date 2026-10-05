@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { api, mxn, type CustomerItem, type ProductItem } from "@/lib/api";
 import { Drawer } from "@/components/drawer";
-import { PrimaryButton, SecondaryButton } from "@/components/ui";
+import { PrimaryButton, PrimaryLink, SecondaryButton, inputCls } from "@/components/ui";
 import { toast } from "@/components/toast";
 
 type Linea = { product: ProductItem; cantidad: number };
 
-/** Drawer para que el dueño arme una cotización: elige cliente + productos + descuento.
- *  Se genera con precios reales y queda en Aprobaciones. */
+/** El dueño arma una cotización: cliente, productos y descuento. Se redacta con sus
+ *  precios reales y queda en Hoy para que la apruebe. */
 export function NuevaCotizacion({
   open,
   onClose,
@@ -80,54 +79,57 @@ export function NuevaCotizacion({
         items: lineas.map((l) => ({ product_id: l.product.id, cantidad: l.cantidad })),
         descuento_pct: descuento || 0,
       });
-      toast("Cotización lista en Aprobaciones", "success");
+      toast("Cotización redactada. Queda en Hoy para que la apruebes.", "success");
       setCreada(true);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo generar", "error");
+      toast(e instanceof Error ? e.message : "No se pudo redactar la cotización.", "error");
     } finally {
       setEnviando(false);
     }
   };
 
   return (
-    <Drawer open={open} onClose={onClose} title="Nueva cotización" subtitle="Se arma con tus precios reales">
+    <Drawer open={open} onClose={onClose} title="Nueva cotización" subtitle="Con los precios de tu catálogo">
       {creada ? (
-        <div className="flex flex-col items-start gap-3">
-          <p className="text-cuerpo text-ink-2">
-            Tu cotización quedó redactada y espera tu aprobación. Revísala, ajústala si quieres y envíala.
+        <div>
+          <p className="text-seccion font-semibold text-ink">Cotización redactada</p>
+          <p className="mt-2 text-cuerpo text-ink-2">
+            Queda en Hoy para que la apruebes. Ahí la revisas, la ajustas si quieres y decides si se
+            envía.
           </p>
-          <Link href="/centro" className="text-cuerpo font-medium text-accent-ink hover:underline">
-            Ir a Aprobaciones →
-          </Link>
-          <SecondaryButton onClick={onClose}>Cerrar</SecondaryButton>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <PrimaryLink href="/">Ir a Hoy</PrimaryLink>
+            <SecondaryButton onClick={onClose}>Cerrar</SecondaryButton>
+          </div>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-7">
           {/* Cliente */}
           <div>
             <label className="text-cuerpo font-semibold text-ink">Cliente</label>
             {cliente ? (
-              <div className="mt-1.5 flex items-center justify-between rounded-md border border-line bg-panel/40 px-3 py-2">
-                <span className="text-cuerpo text-ink">{cliente.name}</span>
-                <button onClick={() => setCliente(null)} className="text-cuerpo text-ink-3 hover:text-ink">
+              <div className="mt-2 flex items-center justify-between gap-3 rounded-lg bg-panel py-1.5 pl-4 pr-1.5">
+                <span className="min-w-0 truncate text-cuerpo text-ink">{cliente.name}</span>
+                <button onClick={() => setCliente(null)} className="btn btn-quiet btn-sm shrink-0">
                   Cambiar
                 </button>
               </div>
             ) : (
-              <div className="relative mt-1.5">
+              <div className="relative mt-2">
                 <input
                   value={buscaCliente}
                   onChange={(e) => setBuscaCliente(e.target.value)}
-                  placeholder="Busca un cliente…"
-                  className="w-full rounded-md border border-line bg-surface px-3 py-2 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                  placeholder="Busca un cliente"
+                  aria-label="Buscar cliente"
+                  className={inputCls}
                 />
                 {clientesFiltrados.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-line bg-surface shadow-lg">
+                  <div className="elev-md absolute z-10 mt-1 w-full overflow-hidden rounded-xl bg-surface p-1">
                     {clientesFiltrados.map((c) => (
                       <button
                         key={c.id}
                         onClick={() => { setCliente(c); setBuscaCliente(""); }}
-                        className="block w-full px-3 py-2 text-left text-cuerpo text-ink hover:bg-accent-soft"
+                        className="block w-full truncate rounded-md px-3 py-2 text-left text-cuerpo text-ink hover:bg-fill"
                       >
                         {c.name}
                       </button>
@@ -141,23 +143,24 @@ export function NuevaCotizacion({
           {/* Productos */}
           <div>
             <label className="text-cuerpo font-semibold text-ink">Productos</label>
-            <div className="relative mt-1.5">
+            <div className="relative mt-2">
               <input
                 value={buscaProd}
                 onChange={(e) => setBuscaProd(e.target.value)}
-                placeholder="Busca un producto para agregar…"
-                className="w-full rounded-md border border-line bg-surface px-3 py-2 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                placeholder="Busca un producto para agregarlo"
+                aria-label="Buscar producto"
+                className={inputCls}
               />
               {prodsFiltrados.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-line bg-surface shadow-lg">
+                <div className="elev-md absolute z-10 mt-1 w-full overflow-hidden rounded-xl bg-surface p-1">
                   {prodsFiltrados.map((p) => (
                     <button
                       key={p.id}
                       onClick={() => agregar(p)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-cuerpo text-ink hover:bg-accent-soft"
+                      className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-cuerpo text-ink hover:bg-fill"
                     >
-                      <span>{p.name}</span>
-                      <span className="text-ink-3">{p.price != null ? mxn(p.price) : "sin precio"}</span>
+                      <span className="min-w-0 truncate">{p.name}</span>
+                      <span className="tnum shrink-0 text-ink-3">{p.price != null ? mxn(p.price) : "Sin precio"}</span>
                     </button>
                   ))}
                 </div>
@@ -165,22 +168,23 @@ export function NuevaCotizacion({
             </div>
 
             {lineas.length > 0 && (
-              <div className="mt-2.5 space-y-1.5">
+              <div className="mt-2">
                 {lineas.map((l) => (
-                  <div key={l.product.id} className="flex items-center gap-2 rounded-md border border-line px-3 py-2">
+                  <div key={l.product.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
                     <span className="min-w-0 flex-1 truncate text-cuerpo text-ink">{l.product.name}</span>
                     <input
                       type="number"
                       min={1}
                       value={l.cantidad}
                       onChange={(e) => setCantidad(l.product.id, Number(e.target.value))}
-                      className="w-14 rounded border border-line bg-surface px-1.5 py-1 text-right text-sello text-ink focus:border-accent focus:outline-none"
+                      aria-label={`Cantidad de ${l.product.name}`}
+                      className={`${inputCls} tnum !w-20 text-right`}
                     />
-                    <span className="w-20 text-right text-cuerpo text-ink-2">
+                    <span className="tnum w-24 shrink-0 text-right text-cuerpo text-ink-2">
                       {mxn((l.product.price ?? 0) * l.cantidad)}
                     </span>
-                    <button onClick={() => quitar(l.product.id)} aria-label="Quitar" className="text-ink-3 hover:text-danger">
-                      &times;
+                    <button onClick={() => quitar(l.product.id)} className="btn btn-quiet btn-sm shrink-0">
+                      Quitar
                     </button>
                   </div>
                 ))}
@@ -189,8 +193,8 @@ export function NuevaCotizacion({
           </div>
 
           {/* Descuento + total */}
-          <div className="flex items-center justify-between gap-3">
-            <label className="text-cuerpo font-semibold text-ink">
+          <div className="flex items-end justify-between gap-3">
+            <label className="flex items-center gap-2 text-cuerpo font-semibold text-ink">
               Descuento
               <input
                 type="number"
@@ -198,23 +202,23 @@ export function NuevaCotizacion({
                 max={100}
                 value={descuento}
                 onChange={(e) => setDescuento(Number(e.target.value))}
-                className="ml-2 w-16 rounded border border-line bg-surface px-1.5 py-1 text-right text-sello text-ink focus:border-accent focus:outline-none"
+                className={`${inputCls} tnum !w-20 text-right font-normal`}
               />
-              <span className="ml-1 text-cuerpo text-ink-3">%</span>
+              <span className="font-normal text-ink-3">%</span>
             </label>
             <div className="text-right">
               <p className="text-apoyo text-ink-3">Subtotal</p>
-              <p className="text-cuerpo font-semibold tabular-nums text-ink">{mxn(subtotal)}</p>
+              <p className="tnum text-seccion font-semibold text-ink">{mxn(subtotal)}</p>
             </div>
           </div>
           <p className="text-apoyo text-ink-3">
-            El descuento se topa al máximo que configuraste; el IVA y la vigencia salen de las perillas
-            de la aiudita. Tú apruebas antes de enviar.
+            El descuento no pasa del máximo que le pusiste a tu ayudante de Ventas; el IVA y la vigencia
+            salen de sus ajustes. Nada se envía sin tu aprobación.
           </p>
 
           <div className="flex items-center gap-2">
             <PrimaryButton onClick={generar} disabled={!cliente || lineas.length === 0 || enviando}>
-              {enviando ? "Generando…" : "Generar cotización"}
+              {enviando ? "Redactando…" : "Redactar cotización"}
             </PrimaryButton>
             <SecondaryButton onClick={onClose}>Cancelar</SecondaryButton>
           </div>
