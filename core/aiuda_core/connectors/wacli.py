@@ -139,21 +139,29 @@ class WacliClient:
         digits = normalize_mx(phone)
         return f"{digits}@s.whatsapp.net" if digits else digits
 
-    def _enviar(self, command: list[str]) -> None:
+    def _enviar(self, command: list[str], a_si_mismo: bool = False) -> None:
         """Corre un `send`. Va sin --lock-wait: con un sync vivo (el del server o
         el de otro programa) wacli le delega el envío por su socket y sale en 2 o
         3 segundos, sin que el sync suelte la conexión; con --lock-wait esperaría
         primero el plazo completo (visto con wacli 0.18.2: 32 s). Solo si el store
         está ocupado por algo que no es un sync (otro envío directo, por ejemplo)
-        se repite, ahora sí esperando el candado. "Store is locked" es de antes de
-        conectar: ese intento no mandó nada."""
+        se repite, ahora sí esperando el candado.
+
+        `a_si_mismo`: si wacli rechaza el texto porque el destinatario es el número
+        vinculado (el resumen y las respuestas al dueño, cuando conectó su propio
+        número), se repite con --allow-self. La bandera va solo en ese caso.
+
+        Los dos rechazos son de antes de conectar: ese intento no mandó nada."""
         while True:
             result = self._run(command)
             if result.returncode == 0:
                 return
             error = result.stderr.strip() or f"wacli salió con {result.returncode}"
-            if "store is locked" in error.lower() and "--lock-wait" not in command:
+            bajo = error.lower()
+            if "store is locked" in bajo and "--lock-wait" not in command:
                 command = [*command, "--lock-wait", "30s"]
+            elif a_si_mismo and "linked account itself" in bajo and "--allow-self" not in command:
+                command = [*command, "--allow-self"]
             else:
                 raise WacliError(error)
 
@@ -165,7 +173,7 @@ class WacliClient:
             part.replace("{bin}", self.bin).replace("{phone}", recipient).replace("{message}", text)
             for part in shlex.split(self.send_template)
         ] + self._store_args()
-        self._enviar(command)
+        self._enviar(command, a_si_mismo=True)
 
     def send_file(self, phone: str, file_path: str, caption: str = "", filename: str | None = None) -> None:
         """Envía un archivo (PDF, imagen, etc.) por `wacli send file`. El archivo debe

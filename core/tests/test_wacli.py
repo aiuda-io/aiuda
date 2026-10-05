@@ -99,6 +99,34 @@ def test_si_esperando_tampoco_sale_ya_no_se_insiste(monkeypatch):
     assert len(comandos) == 2
 
 
+A_SI_MISMO = (
+    "send text to the linked account itself is not supported: WhatsApp can acknowledge "
+    "self-messages without delivering them; use the official Message Yourself chat"
+)
+
+
+def test_al_numero_vinculado_se_repite_con_allow_self(monkeypatch):
+    """El resumen y las respuestas al dueño, cuando el número conectado es el suyo."""
+    comandos = _en_orden(monkeypatch, [_Result(returncode=1, stderr=A_SI_MISMO), _Result()])
+    WacliClient().send_text("5213314872210", "hola")
+    assert "--allow-self" not in comandos[0]
+    assert comandos[1] == [*comandos[0], "--allow-self"]
+
+
+def test_a_cualquier_otro_numero_no_va_allow_self(monkeypatch):
+    comandos = _en_orden(monkeypatch, [_Result()])
+    WacliClient().send_text("5213314872210", "hola")
+    assert len(comandos) == 1 and "--allow-self" not in comandos[0]
+
+
+def test_si_con_allow_self_tampoco_sale_se_dice_en_espanol(monkeypatch):
+    comandos = _en_orden(monkeypatch, [_Result(returncode=1, stderr=A_SI_MISMO)] * 2)
+    with pytest.raises(WacliError) as fallo:
+        WacliClient().send_text("5213314872210", "hola")
+    assert len(comandos) == 2
+    assert explicar_fallo_wacli(fallo.value) == "No se puede enviar un mensaje a tu propio número."
+
+
 def test_otra_falla_no_se_reintenta(monkeypatch):
     comandos = _en_orden(monkeypatch, [_Result(returncode=1, stderr="not connected")])
     with pytest.raises(WacliError, match="not connected"):

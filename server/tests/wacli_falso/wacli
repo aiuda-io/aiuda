@@ -250,6 +250,14 @@ if cmd == "sync":
 if cmd == "send" and sub in ("text", "file"):
     if not autenticado():
         salir_error("not authenticated; run `wacli auth`")
+    propio = sesion().get("phone", "5215500000001") + "@s.whatsapp.net"
+    if sub == "text" and flag("--to") == propio and "--allow-self" not in argv:
+        # El texto del real (0.18.2). El archivo al número propio sí lo deja pasar.
+        salir_error(
+            "send text to the linked account itself is not supported: WhatsApp can "
+            "acknowledge self-messages without delivering them; use the official "
+            "Message Yourself chat"
+        )
     delegado = False
     if sync_vivo():
         time.sleep(espera_del_candado())
@@ -269,6 +277,7 @@ if cmd == "send" and sub in ("text", "file"):
         "caption": flag("--caption"),
         "filename": flag("--filename"),
         "lock_wait": flag("--lock-wait"),
+        "allow_self": "--allow-self" in argv,
         "delegado": delegado,
         "id": f"FALSO{int(time.time() * 1000)}",
     }

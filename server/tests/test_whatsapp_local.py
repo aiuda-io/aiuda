@@ -769,6 +769,17 @@ def test_api_desvincular_que_falla_no_miente(client, tenant, falso, monkeypatch)
     assert tenant.config["integrations"]["whatsapp"]["via"] == "wacli"
 
 
+def test_al_numero_vinculado_el_texto_sale_con_allow_self_y_a_los_demas_no(falso):
+    _vinculado(falso)  # vinculado con el 5215511112222
+    cliente = WacliClient(store_dir=str(falso))
+    cliente.send_text("5215511112222", "resumen del día")
+    cliente.send_text("5215599998888", "hola")
+    assert [(e["to"], e["allow_self"]) for e in _enviados(falso)] == [
+        ("5215511112222@s.whatsapp.net", True),
+        ("5215599998888@s.whatsapp.net", False),
+    ]
+
+
 # ---------- lo que sale al contestar un entrante, con el sync corriendo ----------
 
 
