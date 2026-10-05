@@ -165,8 +165,9 @@ Lo que conviene saber:
 - Cada vez que bajas la opinión, el SAT le pone un folio nuevo.
 - La app de escritorio todavía no trae el navegador que hace falta; ahí la
   pantalla lo avisa.
-- Todavía lleva el sello «Sin estrenar»: dentro de aiuda solo se ha corrido contra
-  un portal de prueba. Los detalles están en [CUA.md](CUA.md).
+- Las dos se corrieron contra el SAT real, ya dentro de aiuda, el 5 de octubre de
+  2026: bajaron una opinión en sentido Positivo y una constancia. Qué se comprobó
+  y qué falta ver está en [CUA.md](CUA.md).
 
 ## Prueba técnica en vivo
 

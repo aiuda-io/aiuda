@@ -69,12 +69,26 @@ Tres cosas que conviene saber:
   necesitan. Ahí la pantalla lo dice y apaga los botones. Hoy solo corren en la
   instalación desde el código (ver Instalar, abajo).
 
-**Sin estrenar.** El guion se armó con un prototipo que sí se corrió contra el
-portal real del SAT el 4 y 5 de octubre de 2026 (acceso con e.firma, opinión y
-constancia). La rutina ya dentro de aiuda (e.firma guardada, permiso, corrida,
-PDF guardado y servido) solo se ha corrido contra un portal de prueba local. Por
-eso la consola le pone el sello «Sin estrenar» hasta que alguien la corra contra
-el SAT de verdad.
+**Estrenadas el 5 de octubre de 2026.** Las dos se corrieron contra el portal
+real del SAT ya dentro de aiuda: el servidor normal, la e.firma guardada desde la
+pantalla del SAT, el permiso dado y la rutina despachada como lo hace **Bajar
+ahora**. Se usó la e.firma vigente de una persona moral. Lo que se comprobó:
+
+- sin el permiso, el servidor se negó a correrlas;
+- la constancia bajó a la primera, en unos 20 segundos;
+- la opinión de cumplimiento bajó en unos 30 segundos, con sentido Positivo y su
+  folio. En el intento anterior el SAT contestó un error 500 antes de mostrar la
+  pantalla de acceso: la rutina lo intentó una vez más, se detuvo con la captura
+  y el motivo, y no mandó la e.firma;
+- cada PDF quedó guardado, se abre con **Ver PDF** en Rutinas y en SAT · Bóveda
+  fiscal, es un PDF válido y menciona el RFC;
+- la bitácora quedó en español, y la contraseña no aparece en la bitácora, en las
+  capturas, en el registro del servidor ni en claro en la base.
+
+Lo que **no** se ha visto contra el SAT real, solo contra el portal de prueba:
+una opinión en sentido Negativo, una persona física, un captcha, un aviso que
+pida aceptar algo, una e.firma rechazada y más de un RFC. Fueron tres visitas al
+portal en total; si el SAT cambia sus pantallas, la rutina se detiene y lo dice.
 
 El código vive en `core/aiuda_core/cua/deterministas/sat_documentos.py` y el
 registro (`RUTINAS_DETERMINISTAS`) en `core/aiuda_core/cua/fallback.py`.
@@ -214,8 +228,8 @@ ANTHROPIC_API_KEY=sk-... uv run python scripts/cua_demo.py
 
 ## Estado
 
-Listos: las dos rutinas sin IA del SAT (sin estrenar por el camino del producto,
-ver arriba), el contrato, el runner con Playwright, las tres plantillas, los
+Listos: las dos rutinas sin IA del SAT (estrenadas contra el SAT real el 5 de
+octubre de 2026, ver arriba), el contrato, el runner con Playwright, las tres plantillas, los
 portales a la medida, el handoff de login, el CUA como fuente, la detección
 honesta y la evidencia visible en la consola.
 

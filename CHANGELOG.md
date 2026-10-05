@@ -40,8 +40,9 @@ código hoy.
   las saca de la cartera y retira sus recordatorios pendientes.
 - Rutinas sin IA para el SAT: bajar la opinión de cumplimiento (32-D) y la
   constancia de situación fiscal en PDF con la e.firma guardada, con tu permiso
-  una vez por RFC. Sin estrenar: dentro de aiuda solo se han corrido contra un
-  portal de prueba. La app de escritorio todavía no trae el navegador que usan.
+  una vez por RFC. Estrenadas contra el SAT real el 5 de octubre de 2026 (una
+  opinión Positiva y una constancia, con una e.firma). La app de escritorio
+  todavía no trae el navegador que usan.
 - Aviso en el Centro de mando cuando la IA se pausa por el tope de gasto del mes.
 - App de iPhone (repo aparte): se empareja por QR en la red de la oficina. Aún no
   está en la App Store.
