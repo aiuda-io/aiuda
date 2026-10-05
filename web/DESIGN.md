@@ -120,6 +120,23 @@ del asistente de primer arranque y de ningún otro lado. `.btn-danger` es el pri
 confirmación que borra y solo vive dentro de ese diálogo. Un botón no se escribe a mano
 con utilidades, y a un `.btn` no se le pone `inline-block` (lo descuadra).
 
+**Barra de acciones: `.barra`.**
+
+Los botones que van juntos (arriba de una página, sobre una lista, al pie de un renglón
+que pide una decisión) van en una `.barra`, y el `right` de `PageHeader` ya es una. En
+escritorio es una fila, cada botón a su ancho. **En teléfono hay una sola regla, igual en
+todas las pantallas:**
+
+- dos botones por renglón, del mismo ancho, de orilla a orilla;
+- el que no cabe en media pantalla, o el que queda solo, ocupa el renglón completo;
+- el callado se dibuja con contorno, para que no quede una palabra suelta junto a un
+  botón. Un callado que va solo ("Eliminar") sigue siendo una palabra;
+- el buscador ocupa su propio renglón, de orilla a orilla, arriba de los botones.
+
+Nunca una fila de botones con `flex flex-wrap` a mano: en teléfono se escalona, uno por
+renglón y cada uno de un ancho. El relleno sigue siendo uno por pantalla; la barra solo
+decide dónde cae cada botón.
+
 **Sello y Estado: las dos únicas etiquetas.**
 
 - `Sello`: una etiqueta neutra que CLASIFICA ("Sin estrenar", "Borrador"). Contorno fino,

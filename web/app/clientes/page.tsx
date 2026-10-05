@@ -110,7 +110,7 @@ function Clientes() {
         subtitle="A quién le vendes y cuánto te debe cada uno."
         right={
           hayGente ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <>
               <ExportButton
                 entidad={ver === "prospectos" ? "prospectos" : "clientes"}
                 filtros={{ q: query, tag: filterTag }}
@@ -118,7 +118,7 @@ function Clientes() {
               />
               <SecondaryButton onClick={() => setEtiquetas(true)}>Etiquetas</SecondaryButton>
               <PrimaryButton onClick={() => setAgregar(true)}>Agregar cliente</PrimaryButton>
-            </div>
+            </>
           ) : undefined
         }
       />

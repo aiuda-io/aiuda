@@ -201,11 +201,11 @@ export function CarteraPagos({ onChanged }: { onChanged?: () => void }) {
           onChange={setVista}
           opciones={[
             { key: "pendientes", label: "Por confirmar", count: items.length },
-            { key: "dichos", label: "El cliente dice que pagó", count: dichos.length },
+            { key: "dichos", label: "Dice que pagó", count: dichos.length },
             { key: "resueltos", label: "Resueltos" },
           ]}
         />
-        <span className="flex flex-wrap items-center gap-2 md:ml-auto">
+        <div className="barra md:ml-auto">
           {/* Se exporta lo resuelto: lo pendiente todavía no es un hecho. */}
           {vista === "resueltos" && <ExportButton entidad="conciliacion" />}
           <QuietButton onClick={() => setRegistrar(true)}>
@@ -214,7 +214,7 @@ export function CarteraPagos({ onChanged }: { onChanged?: () => void }) {
           {!vacioPendientes && (
             <SecondaryButton onClick={() => setSubirEstado(true)}>Subir estado de cuenta</SecondaryButton>
           )}
-        </span>
+        </div>
       </div>
 
       {cargando ? (
@@ -383,15 +383,18 @@ function ListaPendientes({
             )}
 
             <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
-              <div className="mr-auto min-w-0 text-apoyo text-ink-2">
-                {sel?.reason && !elegir && <p>Por qué: {sel.reason}.</p>}
-                {sel?.parcial && (
-                  <p>
-                    Se aplican {dinero(item.amount, item.currency)} y la factura sigue abierta: le
-                    faltarían {dinero(sel.saldoRestante, item.currency)}.
-                  </p>
-                )}
-              </div>
+              {((sel?.reason && !elegir) || sel?.parcial) && (
+                <div className="min-w-0 flex-1 basis-64 text-apoyo text-ink-2">
+                  {sel?.reason && !elegir && <p>Por qué: {sel.reason}.</p>}
+                  {sel?.parcial && (
+                    <p>
+                      Se aplican {dinero(item.amount, item.currency)} y la factura sigue abierta: le
+                      faltarían {dinero(sel.saldoRestante, item.currency)}.
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="barra sm:ml-auto">
               <QuietButton onClick={() => onReject(item)} disabled={busy !== null}>
                 Descartar
               </QuietButton>
@@ -404,6 +407,7 @@ function ListaPendientes({
               >
                 {busy === item.id ? "Confirmando…" : sel?.parcial ? "Aplicar pago parcial" : "Confirmar pago"}
               </button>
+              </div>
             </div>
           </li>
         );

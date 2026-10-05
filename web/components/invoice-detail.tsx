@@ -160,7 +160,7 @@ export function InvoiceDetailContent({
     ) : (
       abierta && (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="barra">
             {enCurso ? (
               <Link href={`${RUTA.hoy}?r=${enCurso.id}`} className="btn btn-primary">
                 Ver recordatorio
@@ -373,7 +373,7 @@ export function InvoiceDetailContent({
   );
 
   const atajos = (
-    <div className="flex flex-wrap gap-2 border-t border-line pt-5">
+    <div className="barra border-t border-line pt-5">
       <Link href={`/clientes/detalle?id=${data.customer_id}`} className="btn btn-sm btn-secondary">
         Ver cliente
       </Link>

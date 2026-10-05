@@ -11,7 +11,9 @@ export function PageHeader({
   right,
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
+  /** Los botones de la página, sueltos (sin envolver): el encabezado los pone en
+   *  una `.barra`, que es la que sabe acomodarlos en teléfono. */
   right?: React.ReactNode;
 }) {
   return (
@@ -20,7 +22,7 @@ export function PageHeader({
         <h1 className="text-titulo font-semibold text-ink">{title}</h1>
         {subtitle && <p className="mt-2.5 max-w-xl text-cuerpo text-ink-2">{subtitle}</p>}
       </div>
-      {right}
+      {right && <div className="barra">{right}</div>}
     </header>
   );
 }
@@ -609,7 +611,7 @@ export function SearchInput({
   placeholder: string;
 }) {
   return (
-    <div className="relative w-full max-w-xs">
+    <div className="relative w-full sm:max-w-xs">
       <svg
         viewBox="0 0 14 14"
         className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3"

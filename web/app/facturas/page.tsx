@@ -49,10 +49,10 @@ function Cartera() {
       <PageHeader
         title="Cartera"
         right={
-          <span className="flex flex-wrap items-center gap-2">
+          <>
             <SecondaryLink href={RUTA.sat}>Traer del SAT</SecondaryLink>
             <SecondaryLink href={RUTA.importar}>Importar Excel</SecondaryLink>
-          </span>
+          </>
         }
       />
 

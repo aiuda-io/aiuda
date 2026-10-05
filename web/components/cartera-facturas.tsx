@@ -165,7 +165,7 @@ export function CarteraFacturas({ onChanged }: { onChanged?: () => void }) {
             placeholder="Buscar cliente o folio"
           />
         )}
-        <span className="flex flex-wrap items-center gap-2 md:ml-auto">
+        <div className="barra md:ml-auto">
           <QuietButton onClick={actualizar} disabled={actualizando}>
             {actualizando ? "Actualizando…" : "Actualizar"}
           </QuietButton>
@@ -175,7 +175,7 @@ export function CarteraFacturas({ onChanged }: { onChanged?: () => void }) {
             count={rows.length}
           />
           <SecondaryButton onClick={() => setAgregar(true)}>Agregar factura</SecondaryButton>
-        </span>
+        </div>
       </div>
 
       {cargando ? (
@@ -301,7 +301,7 @@ function Renglon({ inv, onOpen }: { inv: InvoiceItem; onOpen: () => void }) {
       onClick={onOpen}
       className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-1 py-3.5 text-left transition-colors duration-150 hover:bg-panel md:items-center md:rounded-lg md:px-3 ${COLUMNAS}`}
     >
-      <span className="order-1 truncate text-cuerpo font-medium text-ink" title={inv.customer}>
+      <span className="order-1 text-cuerpo font-medium text-ink md:truncate" title={inv.customer}>
         {inv.customer}
       </span>
       <span className="tnum order-2 whitespace-nowrap text-right text-cuerpo font-semibold text-ink md:order-3">

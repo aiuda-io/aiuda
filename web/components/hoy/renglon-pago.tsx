@@ -146,7 +146,7 @@ export function RenglonPago({
           <p className="text-cuerpo text-ink-2">
             ¿Descartar este pago? No se aplica a ninguna factura. Queda en el historial de Pagos.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="barra mt-3">
             <button
               type="button"
               disabled={quieto}
@@ -167,7 +167,7 @@ export function RenglonPago({
           </div>
         </div>
       ) : (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="barra mt-4">
           {sel && (
             <button
               type="button"

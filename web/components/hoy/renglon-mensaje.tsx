@@ -177,7 +177,7 @@ export function RenglonMensaje({
           <p className="text-cuerpo text-ink-2">
             ¿Rechazar este mensaje? No se envía. Queda en No salió por si lo corriges.
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="barra mt-3">
             <button type="button" onClick={rechazar} disabled={quieto} className="btn btn-danger">
               Sí, rechazar
             </button>
@@ -191,7 +191,7 @@ export function RenglonMensaje({
           </div>
         </div>
       ) : (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="barra mt-4">
           <button type="button" onClick={aprobar} disabled={quieto} className={`btn ${principal ? "btn-primary" : "btn-secondary"}`}>
             {prueba ? "Aprobar (prueba, no se envía)" : "Aprobar y enviar"}
           </button>

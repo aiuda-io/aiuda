@@ -96,7 +96,7 @@ export function RenglonPromesa({
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="barra mt-4">
         <button
           type="button"
           onClick={() => setPagoDe(p.invoice_id)}

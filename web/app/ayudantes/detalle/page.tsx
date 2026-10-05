@@ -8,7 +8,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import {
   ErrorState,
-  PrimaryButton,
   Skeleton,
   Tabs,
   useConfirm,
@@ -162,14 +161,20 @@ function Ficha() {
             )}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="barra shrink-0">
           <QuietButton onClick={eliminar}>
             Eliminar
           </QuietButton>
           {trabajaSolo && (
-            <PrimaryButton onClick={trabajar} disabled={trabajando}>
+            // En Platicar el relleno es el de enviar: aquí baja a contorno, para que
+            // la pantalla siga teniendo un solo botón relleno.
+            <button
+              onClick={trabajar}
+              disabled={trabajando}
+              className={`btn ${vista === "platicar" ? "btn-secondary" : "btn-primary"}`}
+            >
               {trabajando ? "Trabajando…" : "Poner a trabajar"}
-            </PrimaryButton>
+            </button>
           )}
         </div>
       </header>

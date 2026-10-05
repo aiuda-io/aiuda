@@ -93,9 +93,9 @@ export function CarteraPromesas({ onChanged }: { onChanged?: () => void }) {
         {!vacia && (
           <SearchInput value={query} onChange={setQuery} placeholder="Buscar cliente o folio" />
         )}
-        <span className="md:ml-auto">
+        <div className="barra md:ml-auto">
           <ExportButton entidad="promesas" filtros={{ status: estado, q: query }} count={rows.length} />
-        </span>
+        </div>
       </div>
 
       {cargando ? (
@@ -135,7 +135,7 @@ export function CarteraPromesas({ onChanged }: { onChanged?: () => void }) {
                   onClick={() => setOpenId(p.invoice_id)}
                   className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6 gap-y-1 py-3.5 text-left transition-colors duration-150 hover:bg-panel md:items-center md:rounded-lg md:px-3 ${COLUMNAS}`}
                 >
-                  <span className="order-1 truncate text-cuerpo font-medium text-ink" title={p.customer}>
+                  <span className="order-1 text-cuerpo font-medium text-ink md:truncate" title={p.customer}>
                     {p.customer}
                   </span>
                   <span className="tnum order-2 whitespace-nowrap text-right text-cuerpo font-semibold text-ink md:order-3">

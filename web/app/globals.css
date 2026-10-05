@@ -221,6 +221,34 @@
   .btn-danger { background: var(--color-danger); color: var(--color-surface); }
   .btn-danger:hover:not(:disabled) { background: oklch(0.43 0.15 27); }
 
+  /* BARRA DE ACCIONES: los botones que van juntos (arriba de una página, sobre una
+     lista, al pie de un renglón que pide una decisión). En escritorio es una fila
+     a su ancho. En teléfono hay UNA regla, la misma en toda la consola:
+       - dos por renglón, del mismo ancho, de orilla a orilla;
+       - el que no cabe en media pantalla, o el que queda solo, ocupa el renglón;
+       - el callado se dibuja con contorno, para que no quede una palabra suelta
+         junto a un botón (un callado que va solo sigue siendo una palabra).
+     Así ninguna barra queda escalonada, con botones de anchos distintos. */
+  .barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  @media (max-width: 639px) {
+    .barra { width: 100%; }
+    .barra > .btn { flex: 1 1 calc(50% - 4px); }
+    .barra > .btn-quiet {
+      color: var(--color-ink);
+      box-shadow: inset 0 0 0 1px var(--color-line-strong);
+    }
+    .barra > .btn-quiet:only-child {
+      flex: 0 0 auto;
+      color: var(--color-ink-2);
+      box-shadow: none;
+    }
+  }
+
   /* Campo: lo único con borde oscuro, porque es lo único donde se escribe. El
      borde pasa 3:1 contra el papel y contra cualquier relleno de la consola. */
   .field {
