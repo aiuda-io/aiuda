@@ -3,6 +3,7 @@
 import { type ReactNode } from "react";
 import { Drawer } from "@/components/drawer";
 import { ProvenanceBar } from "@/components/provenance";
+import { etiquetaDato } from "@/lib/format";
 
 type Field = { label: string; value: ReactNode };
 
@@ -47,7 +48,7 @@ export function RecordDrawer({
             <dl className="mt-2">
               {metaEntries.map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 border-b border-line py-2.5 text-cuerpo last:border-0">
-                  <dt className="shrink-0 text-ink-3">{k}</dt>
+                  <dt className="max-w-[45%] shrink-0 break-words text-ink-3">{etiquetaDato(k)}</dt>
                   <dd className="min-w-0 break-words text-right font-medium text-ink">{v}</dd>
                 </div>
               ))}

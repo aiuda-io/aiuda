@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api, type CustomerDetail, type ChatMessage } from "@/lib/api";
 import { dinero } from "@/lib/cartera";
-import { fechaDM, telefonoMx } from "@/lib/format";
+import { etiquetaDato, fechaDM, telefonoMx } from "@/lib/format";
 import {
   BucketPill,
   ErrorState,
@@ -230,11 +230,9 @@ function ClienteDetalle() {
               <div className="mt-3 space-y-2">
                 {Object.entries(draft.meta).map(([key, value]) => (
                   <div key={key} className="grid grid-cols-[minmax(0,8rem)_minmax(0,1fr)_auto] items-center gap-2">
-                    <span className="truncate text-cuerpo text-ink-2" title={key}>
-                      {key}
-                    </span>
+                    <span className="break-words text-cuerpo text-ink-2">{etiquetaDato(key)}</span>
                     <TextInput
-                      aria-label={key}
+                      aria-label={etiquetaDato(key)}
                       value={value}
                       onChange={(e) => setDraft((d) => ({ ...d, meta: { ...d.meta, [key]: e.target.value } }))}
                     />
@@ -279,7 +277,7 @@ function ClienteDetalle() {
                 <PrimaryButton onClick={saveEdit} disabled={saving}>
                   {saving ? "Guardando…" : "Guardar"}
                 </PrimaryButton>
-                <SecondaryButton onClick={() => setEditing(false)}>Cancelar</SecondaryButton>
+                <QuietButton onClick={() => setEditing(false)}>Cancelar</QuietButton>
               </div>
             </section>
           ) : (
@@ -290,17 +288,17 @@ function ClienteDetalle() {
                 nativeLabel={data.kind === "prospecto" ? "Prospecto en aiuda" : "Dado de alta en aiuda"}
               />
 
-              <header className="mb-10 mt-6 flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+              <header className="mb-10 mt-3 flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
                 <div className="min-w-0 flex-1 basis-80">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <h1 className="min-w-0 truncate text-titulo font-semibold text-ink" title={data.name}>
-                      {data.name}
-                    </h1>
-                    {data.kind === "prospecto" && <span className="mark shrink-0">Prospecto</span>}
-                  </div>
-                  <p className="tnum mt-2 truncate text-cuerpo text-ink-2">
-                    {data.phone ? `WhatsApp ${telefonoMx(data.phone, { pais: true })}` : "Sin teléfono"}
-                    {data.email ? ` · ${data.email}` : ""}
+                  {/* El nombre va completo, en los renglones que pida: ni cortado con
+                      puntos ni compartiendo renglón con una marca. */}
+                  <h1 className="break-words text-titulo font-semibold text-ink">{data.name}</h1>
+                  <p className="tnum mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 break-all text-cuerpo text-ink-2">
+                    {data.kind === "prospecto" && <span className="mark">Prospecto</span>}
+                    <span className="break-normal">
+                      {data.phone ? `WhatsApp ${telefonoMx(data.phone, { pais: true })}` : "Sin teléfono"}
+                    </span>
+                    {data.email && <span>{data.email}</span>}
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
                     {selectedTags
@@ -519,10 +517,8 @@ function ClienteDetalle() {
                   <dl>
                     {Object.entries(data.meta).map(([k, v]) => (
                       <div key={k} className="flex justify-between gap-4 border-b border-line py-2.5 text-cuerpo last:border-0">
-                        <dt className="shrink-0 text-ink-3">{k}</dt>
-                        <dd className="min-w-0 truncate text-right font-medium text-ink" title={v}>
-                          {v}
-                        </dd>
+                        <dt className="max-w-[45%] shrink-0 break-words text-ink-3">{etiquetaDato(k)}</dt>
+                        <dd className="min-w-0 break-words text-right font-medium text-ink">{v}</dd>
                       </div>
                     ))}
                   </dl>
