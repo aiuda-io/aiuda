@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 
 from aiuda_core.connectors.wacli import FALLO_GENERICO, explicar_fallo_wacli
+from aiuda_core.connectors.wacli_inbound import es_solo_etiqueta
 from aiuda_core.connectors.channel import (
     CHANNELS,
     get_channel_sender,
@@ -219,6 +220,11 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
                     body=OPT_OUT_CONFIRMATION,
                 )
             )
+            return
+
+        # Un audio, una foto o un documento sin nota se queda en la bandeja: no
+        # trae nada escrito que el ayudante pueda contestar.
+        if es_solo_etiqueta(message.body):
             return
 
         # Sin IA conectada no hay respuesta automática: el mensaje ya quedó en la

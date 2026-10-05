@@ -1,6 +1,6 @@
 """Lógica pura del daemon de entrada de wacli: qué mensajes son nuevos y en qué contrato."""
 
-from aiuda_core.connectors.wacli_inbound import collect_inbound, select_new
+from aiuda_core.connectors.wacli_inbound import collect_inbound, es_solo_etiqueta, select_new
 
 JID = "5215587654321@s.whatsapp.net"
 
@@ -159,3 +159,24 @@ def test_un_adjunto_con_nota_entra_con_la_nota():
         _real("i", Text="mi comprobante", DisplayText="Sent image", MediaType="image",
               MediaCaption="mi comprobante"),
     ]) == ["mi comprobante"]
+
+
+def test_los_marcadores_de_wacli_no_entran_como_texto_del_cliente():
+    """Formas vistas en el store de una cuenta real (wacli 0.18.2)."""
+    assert _entran([
+        _real("al", Text="[Album]", DisplayText="[Album]"),
+        _real("al2", Text="[Album: 3 images]", DisplayText="[Album: 3 images]"),
+        _real("al3", Text="[Album: 2 images, 1 videos]", DisplayText="[Album: 2 images, 1 videos]"),
+        _real("au", Text="[Audio]", MediaCaption="[Audio]", MediaType="audio"),
+        _real("au2", Text="[Audio]", DisplayText="[Audio]"),
+        _real("f", DisplayText="Sent image", MediaType="image"),
+    ]) == ["[audio]", "[audio]", "[imagen]"]
+
+
+def test_solo_etiqueta_distingue_lo_que_el_cliente_no_escribio():
+    for cuerpo in ("[audio]", "[imagen]", "[video]", "[documento]", "[documento] pago.pdf",
+                   "[Pendiente]", " [Audio] "):
+        assert es_solo_etiqueta(cuerpo), cuerpo
+    for cuerpo in ("ya pagué", "[urgente] necesito mi factura", "te mando el [comprobante]",
+                   "", None, "[]"):
+        assert not es_solo_etiqueta(cuerpo), cuerpo

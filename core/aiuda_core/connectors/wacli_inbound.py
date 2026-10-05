@@ -13,6 +13,7 @@ lo que llega después. El webhook además deduplica por `id`, así que un reenv�
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Callable, Iterable
 from datetime import datetime
 
@@ -45,6 +46,27 @@ _ADJUNTOS = {
 }
 
 
+# Marcadores que wacli pone donde el cliente no escribió nada (salen de su binario,
+# 0.18.2): "[Audio]" como nota de un audio, y "[Album]" o "[Album: 3 images]" como
+# texto del mensaje que solo agrupa un álbum. Vistos con una cuenta real: entraban
+# a la bandeja como si el cliente hubiera escrito eso.
+_MARCADOR_AUDIO = re.compile(r"\[audio\]", re.IGNORECASE)
+_MARCADOR_ALBUM = re.compile(r"\[album(:[^\]]*)?\]", re.IGNORECASE)
+
+# Un mensaje que es solo una etiqueta entre corchetes: las de arriba ("[audio]",
+# "[imagen]"), "[documento] nombre.pdf" o cualquier otra que llegue así
+# ("[Pendiente]", vista en la misma prueba; no sale de wacli).
+_SOLO_ETIQUETA = re.compile(r"\[[^\[\]\n]{1,60}\]")
+
+
+def es_solo_etiqueta(body) -> bool:
+    """¿El mensaje no trae nada escrito por el cliente? Un audio, una foto o un
+    documento sin nota se quedan en la bandeja con su etiqueta, pero no hay qué
+    contestarles: el ayudante no responde a algo que no pudo leer."""
+    texto = str(body or "").strip()
+    return bool(_SOLO_ETIQUETA.fullmatch(texto)) or texto.startswith(_ADJUNTOS["document"] + " ")
+
+
 def _text(msg: dict) -> str:
     """Lo que el cliente escribió, o la etiqueta de lo que mandó. Cadena vacía si
     no hay nada que atender.
@@ -55,20 +77,24 @@ def _text(msg: dict) -> str:
     stickers a la bandeja como si el cliente hubiera escrito eso, y el ayudante
     les contestaba. Aquí una reacción o un sticker no es un mensaje; una foto, un
     audio o un documento sin nota entra con su etiqueta (un comprobante de pago
-    suele llegar así) y con nota entra la nota."""
+    suele llegar así) y con nota entra la nota. El mensaje que agrupa un álbum
+    tampoco entra: cada foto llega aparte, con su propio mensaje."""
     if _first(msg, "ReactionToID"):
         return ""
     tipo = str(_first(msg, "MediaType") or "").strip().lower()
     if tipo:
         nota = str(_first(msg, "MediaCaption") or "").strip()
-        if nota:
+        if nota and not _MARCADOR_AUDIO.fullmatch(nota):
             return nota
         etiqueta = _ADJUNTOS.get(tipo)
         if etiqueta is None:
             return ""  # sticker u otro tipo sin contenido que leer
         nombre = str(_first(msg, "Filename") or "").strip()
         return f"{etiqueta} {nombre}" if tipo == "document" and nombre else etiqueta
-    return str(_first(msg, "Text", "Body", "Message", "text") or "").strip()
+    texto = str(_first(msg, "Text", "Body", "Message", "text") or "").strip()
+    if _MARCADOR_ALBUM.fullmatch(texto):
+        return ""
+    return _ADJUNTOS["audio"] if _MARCADOR_AUDIO.fullmatch(texto) else texto
 
 
 def _ts(msg: dict) -> float | None:

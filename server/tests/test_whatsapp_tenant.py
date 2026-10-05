@@ -388,6 +388,29 @@ def test_con_ia_conectada_el_cliente_si_recibe_respuesta(db_session, monkeypatch
     assert enviados == [("5215587654321", "Debes $1,200 de la factura F-1.")]
 
 
+@pytest.mark.parametrize("cuerpo", ["[audio]", "[imagen]", "[documento] pago.pdf", "[Pendiente]"])
+def test_un_adjunto_sin_nota_se_queda_en_la_bandeja_y_la_ia_no_le_contesta(
+    db_session, monkeypatch, cuerpo
+):
+    from types import SimpleNamespace
+
+    t, msg = _entrante_de_cliente(db_session, cuerpo)
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(db_session))
+    monkeypatch.setattr(settings, "anthropic_api_key", "sk-de-prueba")
+    llamadas: list = []
+    monkeypatch.setattr(
+        worker_main, "_build_engine",
+        lambda s, tenant, run=None: SimpleNamespace(
+            handle_incoming=lambda *a, **k: llamadas.append("ia") or "¿En qué te ayudo?",
+            send_whatsapp=lambda phone, texto: llamadas.append("envío"),
+        ),
+    )
+    worker_main.process_incoming_message_blocking(t.id, msg.id)
+    assert llamadas == []
+    guardados = db_session.scalars(select(Message).where(Message.tenant_id == t.id)).all()
+    assert [(m.direction, m.body) for m in guardados] == [("in", cuerpo)]
+
+
 def test_recordatorio_a_cliente_dado_de_baja_falla_con_motivo(db_session, monkeypatch):
     from datetime import date
 
