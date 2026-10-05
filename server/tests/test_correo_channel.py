@@ -126,6 +126,33 @@ def _hilo_correo(session, t, *, de="ana@cliente.mx", asunto="Factura F-102") -> 
 # ---------- worker: recordatorio aprobado sale por correo ----------
 
 
+def test_recordatorio_aprobado_de_factura_cancelada_no_sale(monkeypatch):
+    """Aprobado y esperando turno cuando la factura se cancela en el SAT: el
+    envío es la última puerta y no lo deja salir."""
+    session = _session()
+    t = _tenant(session)
+    ana = _ana(session, t)
+    inv = Invoice(tenant_id=t.id, customer_id=ana.id, folio="F-103", amount=100,
+                  issued_date=date.today(), due_date=date.today(),
+                  status="cancelled", meta={"cerrada_por": "cancelada en el SAT"})
+    session.add(inv)
+    session.flush()
+    r = Reminder(tenant_id=t.id, invoice_id=inv.id, bucket="vencida", tone="firme",
+                 message="Hola Ana, tu factura F-103 sigue pendiente.",
+                 channel="correo", status="approved")
+    session.add(r)
+    session.flush()
+    monkeypatch.setattr(worker_main, "session_scope", _scope_of(session))
+    enviados = _smtp_interceptado(monkeypatch)
+
+    worker_main.send_reminder_blocking(t.id, r.id)
+
+    assert enviados == []
+    assert r.status == "rejected"
+    assert r.meta["retirado"] == "La factura ya no se cobra: cancelada en el SAT."
+
+
+
 def test_recordatorio_por_correo_sale_y_queda_en_el_hilo(monkeypatch):
     session = _session()
     t = _tenant(session)

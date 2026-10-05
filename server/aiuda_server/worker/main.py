@@ -340,6 +340,17 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
         if reminder.invoice_id:
             invoice = session.get(Invoice, reminder.invoice_id)
             customer = session.get(Customer, invoice.customer_id) if invoice else None
+            if invoice is not None and invoice.status == "cancelled":
+                # Última puerta: una factura cancelada (en el SAT, por nota de
+                # crédito o por ser entre tus empresas) ya no se cobra, aunque el
+                # recordatorio se hubiera aprobado antes.
+                from aiuda_core.engine.sync import retirar_recordatorios
+
+                retirar_recordatorios(
+                    session, invoice,
+                    f"La factura ya no se cobra: {(invoice.meta or {}).get('cerrada_por') or 'cancelada'}.",
+                )
+                return
         field = CHANNELS.get(channel, {}).get("recipient_field", "phone")
         if field == "email":
             # Respuestas de correo traen su destinatario en meta.correo.para (el

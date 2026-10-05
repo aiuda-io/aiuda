@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -42,6 +42,7 @@ from aiuda_core.models import (
     Payment,
     Product,
     PurchaseOrder,
+    Reminder,
     SatPaquete,
     Tenant,
 )
@@ -1106,6 +1107,72 @@ def _sat_reclasificar(session: Session, row: CfdiBoveda, direccion: str, res: di
         row.direccion = direccion  # ahora sí sabemos de qué empresa es
 
 
+CANCELADA_EN_SAT = "cancelada en el SAT"
+# Un recordatorio en cualquiera de estos estados todavía puede salir.
+_RECORDATORIO_VIVO = ("draft", "pending_approval", "approved", "failed")
+
+
+def retirar_recordatorios(session: Session, invoice: Invoice, motivo: str) -> int:
+    """Saca de la bandeja lo que aún no se envía de una factura que ya no se
+    cobra. Queda como rechazado con el motivo en meta (trazabilidad: no se
+    borra). No pasa por approval.advance a propósito: esa máquina cuida que nada
+    SALGA sin aprobación y esto es lo contrario, impedir que salga."""
+    vivos = session.scalars(
+        select(Reminder).where(
+            Reminder.tenant_id == invoice.tenant_id,
+            Reminder.invoice_id == invoice.id,
+            Reminder.status.in_(_RECORDATORIO_VIVO),
+        )
+    ).all()
+    for r in vivos:
+        r.status = "rejected"
+        r.meta = {**(r.meta or {}), "retirado": motivo}
+    return len(vivos)
+
+
+def aplicar_cancelaciones(session: Session, tenant: Tenant, filas: list[dict]) -> dict:
+    """Marca como cancelados en la bóveda los CFDI que el SAT reporta cancelados
+    (`filas` viene de leer_metadata) y saca de la cartera la factura que nació de
+    cada uno: una factura cancelada no se cobra, así que se cierra y se retiran
+    sus recordatorios pendientes.
+
+    Solo se cierra la factura cuyo comprobante ES el cancelado (mismo UUID); una
+    factura de otra fuente que solo comparte folio no se toca. Es idempotente:
+    el SAT repite la lista completa cada día."""
+    res: dict = {"cancelados": 0, "facturas_cerradas": 0, "retirados": 0, "avisos": []}
+    for fila in filas:
+        if not fila.get("cancelado"):
+            continue
+        row = session.scalar(
+            select(CfdiBoveda).where(
+                CfdiBoveda.tenant_id == tenant.id, CfdiBoveda.uuid == fila["uuid"]
+            )
+        )
+        if row is None or (row.meta or {}).get("cancelado"):
+            continue  # no lo tenemos, o ya se había atendido
+        cuando = fila.get("fecha_cancelacion")
+        row.meta = {**(row.meta or {}), "cancelado": True, "cancelado_el": cuando}
+        res["cancelados"] += 1
+        inv = session.get(Invoice, row.invoice_id) if row.invoice_id else None
+        if inv is None or ((inv.cfdi or {}).get("uuid") or "").upper() != row.uuid:
+            continue
+        inv.cfdi = {**inv.cfdi, "status": "cancelado", "cancelado_el": cuando}
+        if inv.status != "open":
+            continue  # ya estaba pagada o cerrada: solo queda anotado en el comprobante
+        inv.status = "cancelled"
+        inv.meta = {**(inv.meta or {}), "cerrada_por": CANCELADA_EN_SAT,
+                    "cancelada_sat_el": cuando}
+        res["facturas_cerradas"] += 1
+        res["retirados"] += retirar_recordatorios(
+            session, inv, "La factura se canceló en el SAT."
+        )
+        res["avisos"].append(
+            f"La factura {inv.folio} se canceló en el SAT: salió de tu cartera."
+        )
+    session.flush()
+    return res
+
+
 def importar_cfdis(
     session: Session,
     tenant: Tenant,
@@ -1337,9 +1404,13 @@ def _sat_traer(
     st: dict,
     today: date,
     report: SyncReport,
+    pedir,
+    desde: date | None = None,
 ) -> None:
     """Primera mitad de una vuelta para (empresa, emitidas|recibidas): lo que se
-    habla con el SAT. El web service es asíncrono: se SOLICITA un periodo, el SAT
+    habla con el SAT. `pedir(inicio, fin)` envía la solicitud (los CFDI del
+    periodo o la lista de cancelados); `desde` fija el inicio del periodo cuando
+    no es el incremental. El web service es asíncrono: se SOLICITA un periodo, el SAT
     lo prepara y en una corrida siguiente se VERIFICA y DESCARGA.
 
     Reglas para no gastar el servicio (el SAT limita las solicitudes con los
@@ -1394,17 +1465,18 @@ def _sat_traer(
     if st.get("pedida_el") == today.isoformat():
         return
     ultima = _parse_date(st.get("ultima_fecha") or "")
-    desde = (
-        ultima - timedelta(days=_SAT_TRASLAPE_DIAS)
-        if ultima
-        else today - timedelta(days=_SAT_VENTANA_INICIAL_DIAS)
-    )
+    if desde is None:
+        desde = (
+            ultima - timedelta(days=_SAT_TRASLAPE_DIAS)
+            if ultima
+            else today - timedelta(days=_SAT_VENTANA_INICIAL_DIAS)
+        )
     inicio = datetime.combine(desde, datetime.min.time())
     fin = datetime.combine(today, datetime.max.time().replace(microsecond=0))
     sol = {"desde": inicio.isoformat(), "hasta": fin.isoformat()}
     if f"{sol['desde']}|{sol['hasta']}" in (st.get("agotadas") or []):
         return  # ese periodo exacto ya se agotó (5002): jamás re-pedirlo
-    r = client.solicitar(scope, inicio, fin)
+    r = pedir(inicio, fin)
     # El SAT ya contestó: aceptada o no, hoy no se vuelve a pedir lo mismo.
     st["pedida_el"] = today.isoformat()
     id_solicitud = r.get("IdSolicitud")
@@ -1421,19 +1493,12 @@ def _sat_traer(
     )
 
 
-def _sat_importar(
-    session: Session,
-    tenant: Tenant,
-    st: dict,
-    today: date,
-    report: SyncReport,
-    crear_cartera: bool,
-) -> None:
-    """Segunda mitad: importar los paquetes YA guardados, sin hablar con el SAT.
-    Corre en su propio savepoint: si la base rechaza algo, los paquetes siguen
-    guardados y se reintenta desde ahí. Al terminar bien se borran."""
-    from aiuda_core.connectors.sat_descarga import extraer_xmls
-
+def _sat_importar(session: Session, tenant: Tenant, st: dict, aplicar) -> None:
+    """Segunda mitad: aplicar los paquetes YA guardados, sin hablar con el SAT.
+    `aplicar(paquetes)` recibe los ZIP y hace el trabajo (importar CFDI o marcar
+    cancelados). Corre en su propio savepoint: si la base rechaza algo, los
+    paquetes siguen guardados y se reintenta desde ahí. Al terminar bien se
+    borran."""
     sol = st.get("solicitud")
     if not sol or "paquetes" not in sol:
         return
@@ -1443,20 +1508,84 @@ def _sat_importar(
         # y solo se baja la que falte.
         st["solicitud"] = {k: v for k, v in sol.items() if k != "paquetes"}
         return
-    xmls: list[bytes] = []
-    for fila in filas:
-        xmls.extend(extraer_xmls(_sat_leer_paquete(fila)))
-    res = importar_cfdis(
-        session, tenant, xmls, today=today, source="sat", crear_cartera=crear_cartera,
-    )
-    report.cfdis_importados += res["nuevos"]
-    report.pedidos_importados += res["facturas_creadas"]
-    report.avisos.extend(res["avisos"])
+    aplicar([_sat_leer_paquete(fila) for fila in filas])
     for fila in filas:
         session.delete(fila)
     st["ultima_fecha"] = sol["hasta"][:10]
     st.pop("solicitud", None)
     st.pop("aviso", None)
+
+
+def _sat_carriles(
+    session: Session,
+    tenant: Tenant,
+    rfc: str,
+    client,
+    scope: str,
+    st: dict,
+    today: date,
+    report: SyncReport,
+    crear_cartera: bool,
+):
+    """Los dos trabajos de una dirección, cada uno con su estado y su solicitud:
+    los CFDI del periodo y, aparte, la lista de los que se CANCELARON. Cada uno
+    es (estado, etiqueta para avisos, paso de traer, cómo aplicar los paquetes)."""
+    from aiuda_core.connectors.sat_descarga import extraer_xmls, leer_metadata
+
+    def importar(paquetes: list[bytes]) -> None:
+        xmls = [xml for paquete in paquetes for xml in extraer_xmls(paquete)]
+        res = importar_cfdis(
+            session, tenant, xmls, today=today, source="sat", crear_cartera=crear_cartera,
+        )
+        report.cfdis_importados += res["nuevos"]
+        report.pedidos_importados += res["facturas_creadas"]
+        report.avisos.extend(res["avisos"])
+
+    yield (
+        st,
+        scope,
+        lambda: _sat_traer(
+            session, tenant, rfc, client, scope, st, today, report,
+            pedir=lambda inicio, fin: client.solicitar(scope, inicio, fin),
+        ),
+        importar,
+    )
+
+    # Cancelaciones: la descarga normal trae los vigentes del periodo y no avisa
+    # de lo que se canceló después. Una vez al día se pide la lista de cancelados
+    # desde el CFDI más viejo que aiuda tiene de esa empresa y dirección: sin
+    # nada en la bóveda no hay qué cancelar y no se le pide nada al SAT.
+    columna = CfdiBoveda.rfc_emisor if scope == "emitidas" else CfdiBoveda.rfc_receptor
+    mas_viejo = _parse_date(
+        (
+            session.scalar(
+                select(func.min(CfdiBoveda.fecha)).where(
+                    CfdiBoveda.tenant_id == tenant.id, columna == rfc
+                )
+            )
+            or ""
+        )[:10]
+    )
+    if mas_viejo is None:
+        return
+    canc = st.setdefault("cancelados", {})
+    etiqueta = f"cancelaciones de {scope}"
+
+    def cancelar(paquetes: list[bytes]) -> None:
+        filas = [fila for paquete in paquetes for fila in leer_metadata(paquete)]
+        res = aplicar_cancelaciones(session, tenant, filas)
+        report.avisos.extend(res["avisos"])
+
+    yield (
+        canc,
+        etiqueta,
+        lambda: _sat_traer(
+            session, tenant, rfc, client, etiqueta, canc, today, report,
+            pedir=lambda inicio, fin: client.solicitar_cancelados(scope, inicio, fin),
+            desde=mas_viejo,
+        ),
+        cancelar,
+    )
 
 
 def _sync_sat(
@@ -1481,28 +1610,27 @@ def _sync_sat(
             report.avisos.append(f"SAT {rfc}: no se pudo usar la e.firma: {client}")
             continue
         for scope in ("emitidas", "recibidas"):
-            st = st_rfc[scope]
-            pasos = (
-                lambda: _sat_traer(session, tenant, rfc, client, scope, st, today, report),
-                lambda: _sat_importar(session, tenant, st, today, report, crear_cartera),
-            )
-            for paso in pasos:
-                antes = copy.deepcopy(st)
-                try:
-                    # Savepoint por paso: si la base rechaza un CFDI a media
-                    # importación, se deshace SOLO la importación (los paquetes
-                    # bajados siguen guardados). Sin esto la sesión quedaba
-                    # envenenada y se caían la otra dirección, las demás
-                    # empresas y los lectores que corren después.
-                    with session.begin_nested():
-                        paso()
-                except Exception as exc:  # noqa: BLE001 — se avisa y se sigue con lo demás
-                    # Lo pendiente se conserva; se reintenta la siguiente vuelta.
-                    st.clear()
-                    st.update({**antes, "aviso": _SAT_FALLO})
-                    log.warning("SAT %s (%s): %s", rfc, scope, exc)
-                    report.avisos.append(f"SAT {rfc} ({scope}): no se pudo: {exc}")
-                    break
+            for st, etiqueta, traer, aplicar in _sat_carriles(
+                session, tenant, rfc, client, scope, st_rfc[scope], today, report,
+                crear_cartera,
+            ):
+                for paso in (traer, lambda: _sat_importar(session, tenant, st, aplicar)):
+                    antes = copy.deepcopy(st)
+                    try:
+                        # Savepoint por paso: si la base rechaza un CFDI a media
+                        # importación, se deshace SOLO la importación (los
+                        # paquetes bajados siguen guardados). Sin esto la sesión
+                        # quedaba envenenada y se caían la otra dirección, las
+                        # demás empresas y los lectores que corren después.
+                        with session.begin_nested():
+                            paso()
+                    except Exception as exc:  # noqa: BLE001 — se avisa y se sigue con lo demás
+                        # Lo pendiente se conserva; se reintenta la siguiente vuelta.
+                        st.clear()
+                        st.update({**antes, "aviso": _SAT_FALLO})
+                        log.warning("SAT %s (%s): %s", rfc, etiqueta, exc)
+                        report.avisos.append(f"SAT {rfc} ({etiqueta}): no se pudo: {exc}")
+                        break
         estado[rfc] = st_rfc
     cfg["sat_descarga"] = estado
     tenant.config = cfg

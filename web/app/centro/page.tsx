@@ -509,6 +509,9 @@ function Mesa({
             </div>
           </div>
         )}
+        {r.retirado && (
+          <p className="mt-4 text-cuerpo text-ink-2">aiuda lo retiró de la bandeja. {r.retirado}</p>
+        )}
         {!readOnly && (
           <>
             <div className="mt-4 flex flex-wrap items-center gap-1.5">

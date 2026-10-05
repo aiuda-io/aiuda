@@ -51,8 +51,12 @@ class FakeSat:
     """La interfaz de SatDescargaClient, con guion: qué contesta verificar y qué
     trae cada paquete."""
 
-    def __init__(self, rfc=HANOVA, verificaciones=None, paquetes=None, rechazos=None):
+    def __init__(self, rfc=HANOVA, verificaciones=None, paquetes=None, rechazos=None,
+                 cancelados=None):
         self.rfc = rfc
+        # Lo que contesta verificar para las solicitudes de cancelados (ids "C…").
+        self.verificaciones_cancelados = list(cancelados or [])
+        self.cancelados_pedidos: list[tuple[str, str, str]] = []
         self.solicitudes: list[tuple[str, str, str]] = []  # (scope, desde, hasta)
         self.verificaciones = list(verificaciones or [])
         self.paquetes = dict(paquetes or {})
@@ -67,7 +71,15 @@ class FakeSat:
         self._contador += 1
         return {"IdSolicitud": f"S{self._contador}", "CodEstatus": "5000"}
 
+    def solicitar_cancelados(self, scope, desde, hasta):
+        self.cancelados_pedidos.append((scope, desde.isoformat(), hasta.isoformat()))
+        return {"IdSolicitud": f"C{len(self.cancelados_pedidos)}", "CodEstatus": "5000"}
+
     def verificar(self, id_solicitud):
+        if id_solicitud.startswith("C"):
+            if self.verificaciones_cancelados:
+                return self.verificaciones_cancelados.pop(0)
+            return {"EstadoSolicitud": 2}
         if self.verificaciones:
             return self.verificaciones.pop(0)
         return {"EstadoSolicitud": 2}
@@ -370,3 +382,177 @@ def test_respeta_al_dueno_que_eligio_otra_fuente_de_cartera(session, tenant):
     )
     assert r.cfdis_importados == 1  # la bóveda sí
     assert session.scalar(select(Invoice)) is None  # la cartera del dueño no se pisa
+
+
+# --- Cancelaciones: la descarga normal no avisa de lo que se canceló después --- #
+
+ENCABEZADO = (
+    "Uuid~RfcEmisor~NombreEmisor~RfcReceptor~NombreReceptor~PacCertifico~"
+    "FechaEmision~FechaCertificacionSat~Monto~EfectoComprobante~Estatus~FechaCancelacion"
+)
+
+
+def _metadata(*filas: tuple[str, str, str]) -> bytes:
+    """Un paquete de Metadata como lo entrega el SAT: (uuid, estatus, cancelación)."""
+    lineas = [ENCABEZADO] + [
+        f"{uuid}~{HANOVA}~Emisor~PIA210312BD3~Receptor~PAC010101AAA~"
+        f"2026-07-01 10:00:00~2026-07-01 10:00:01~1160~I~{estatus}~{cuando}"
+        for uuid, estatus, cuando in filas
+    ]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("metadata.txt", "\n".join(lineas))
+    return buf.getvalue()
+
+
+def _con_factura_abierta(session, tenant, uuid):
+    """La bóveda con un PPD emitido ya importado y su factura abierta."""
+    from aiuda_core.engine.sync import importar_cfdis
+
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    importar_cfdis(session, tenant, [cfdi_basico(uuid=uuid, emisor=HANOVA)], today=HOY)
+    inv = session.scalar(select(Invoice))
+    assert inv.status == "open"
+    return inv
+
+
+def test_metadata_se_lee_por_las_orillas():
+    from aiuda_core.connectors.sat_descarga import leer_metadata
+
+    u1 = "dddd0001-0000-4000-8000-000000000001"
+    u2 = "DDDD0002-0000-4000-8000-000000000002"
+    linea_rara = (  # una razón social con el separador adentro recorre las columnas
+        f"{u2}~{HANOVA}~Emisor~XAXX010101000~TIENDAS ~ Y MAS~PAC010101AAA~"
+        "2026-07-02 10:00:00~2026-07-02 10:00:01~500~I~0~2026-07-05 09:00:00"
+    )
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("m.txt", "\n".join([ENCABEZADO,
+                    f"{u1}~{HANOVA}~E~R~R~P~f~f~1~I~1~", linea_rara, ""]))
+    assert leer_metadata(buf.getvalue()) == [
+        {"uuid": u1.upper(), "cancelado": False, "fecha_cancelacion": None},
+        {"uuid": u2, "cancelado": True, "fecha_cancelacion": "2026-07-05 09:00:00"},
+    ]
+
+
+def test_factura_cancelada_despues_sale_de_la_cartera(session, tenant):
+    """El caso real: un PPD que aiuda ya había descargado se cancela en el SAT.
+    La descarga normal nunca lo dice y la factura se quedaba abierta para
+    siempre, con aiuda cobrando algo que ya no existe."""
+    from aiuda_core.models import Reminder
+
+    uuid = "CCCC0020-0000-4000-8000-000000000020"
+    inv = _con_factura_abierta(session, tenant, uuid)
+    pendiente = Reminder(
+        tenant_id=tenant.id, invoice_id=inv.id, bucket="vencida", tone="firme",
+        message="Le recordamos su pago", status="pending_approval",
+    )
+    aprobado = Reminder(
+        tenant_id=tenant.id, invoice_id=inv.id, bucket="vencida", tone="firme",
+        message="Aprobado, esperando horario", status="approved",
+    )
+    enviado = Reminder(
+        tenant_id=tenant.id, invoice_id=inv.id, bucket="vencida", tone="firme",
+        message="Ya salió", status="sent",
+    )
+    session.add_all([pendiente, aprobado, enviado])
+    session.flush()
+    fake = FakeSat(
+        cancelados=[{"EstadoSolicitud": 3, "IdsPaquetes": ["M1"], "NumeroCFDIs": 1}],
+        paquetes={"M1": _metadata((uuid, "0", "2026-07-20 11:54:11"))},
+    )
+
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # pide la lista
+    assert fake.cancelados_pedidos == [
+        ("emitidas", "2026-07-01T00:00:00", "2026-07-28T23:59:59")
+    ]
+    assert inv.status == "open"
+    r = sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})  # la aplica
+
+    assert inv.status == "cancelled"
+    assert inv.meta["cerrada_por"] == "cancelada en el SAT"
+    assert inv.meta["cancelada_sat_el"] == "2026-07-20 11:54:11"
+    assert inv.cfdi["status"] == "cancelado"
+    fila = session.scalar(select(CfdiBoveda))
+    assert fila.meta == {"cancelado": True, "cancelado_el": "2026-07-20 11:54:11"}
+    assert pendiente.status == "rejected" and aprobado.status == "rejected"
+    assert pendiente.meta["retirado"] == "La factura se canceló en el SAT."
+    assert enviado.status == "sent"  # lo que ya salió no se reescribe
+    assert any("S-0020" in a and "canceló en el SAT" in a for a in r.avisos)
+    assert fake.descargas == ["M1"]
+
+
+def test_la_lista_de_cancelados_se_pide_una_vez_al_dia(session, tenant):
+    fake = FakeSat()
+    fake.verificar = lambda _id: {"EstadoSolicitud": 3, "IdsPaquetes": []}
+    sync_cfdi(session, tenant, today=HOY, sat_clients={HANOVA: fake})
+    assert fake.cancelados_pedidos == []  # bóveda vacía: no hay qué cancelar
+    _con_factura_abierta(session, tenant, "CCCC0021-0000-4000-8000-000000000021")
+    for dia in range(3):
+        for _hora in range(24):
+            sync_cfdi(
+                session, tenant, today=HOY + timedelta(days=dia),
+                sat_clients={HANOVA: fake},
+            )
+    # una al día, solo de emitidas (de recibidas no hay nada en la bóveda)
+    assert [p[0] for p in fake.cancelados_pedidos] == ["emitidas"] * 3
+    assert len(set(fake.cancelados_pedidos)) == 3
+
+
+def test_un_vigente_en_la_lista_no_cancela_nada(session, tenant):
+    from aiuda_core.engine.sync import aplicar_cancelaciones
+
+    uuid = "CCCC0022-0000-4000-8000-000000000022"
+    inv = _con_factura_abierta(session, tenant, uuid)
+    res = aplicar_cancelaciones(
+        session, tenant,
+        [
+            {"uuid": uuid, "cancelado": False, "fecha_cancelacion": None},
+            {"uuid": "FFFF0000-0000-4000-8000-000000000000", "cancelado": True,
+             "fecha_cancelacion": "2026-07-20 10:00:00"},  # uno que aiuda no tiene
+        ],
+    )
+    assert inv.status == "open" and res["cancelados"] == 0
+
+
+def test_cancelar_dos_veces_no_reabre_ni_duplica(session, tenant):
+    from aiuda_core.engine.sync import aplicar_cancelaciones, importar_cfdis
+
+    uuid = "CCCC0023-0000-4000-8000-000000000023"
+    inv = _con_factura_abierta(session, tenant, uuid)
+    fila = {"uuid": uuid, "cancelado": True, "fecha_cancelacion": "2026-07-20 10:00:00"}
+    assert aplicar_cancelaciones(session, tenant, [fila])["facturas_cerradas"] == 1
+    assert aplicar_cancelaciones(session, tenant, [fila])["cancelados"] == 0
+    # volver a subir el XML tampoco la regresa a la cartera
+    importar_cfdis(session, tenant, [cfdi_basico(uuid=uuid, emisor=HANOVA)], today=HOY)
+    assert inv.status == "cancelled"
+    assert len(session.scalars(select(Invoice)).all()) == 1
+
+
+def test_no_cierra_la_factura_de_otra_fuente_con_otro_comprobante(session, tenant):
+    """Una factura de otra fuente que solo comparte folio con el CFDI cancelado
+    (su comprobante adjunto es otro) no se cierra por esa cancelación."""
+    from aiuda_core.engine.sync import aplicar_cancelaciones
+    from aiuda_core.models import Customer
+
+    uuid = "CCCC0024-0000-4000-8000-000000000024"
+    tenant.config = {"sat_empresas": [{"rfc": HANOVA}]}
+    cliente = Customer(tenant_id=tenant.id, name="Receptor")
+    session.add(cliente)
+    session.flush()
+    otra = Invoice(
+        tenant_id=tenant.id, customer_id=cliente.id, folio="S-0024", amount=1160,
+        issued_date=date(2026, 7, 1), due_date=date(2026, 7, 31), source="odoo",
+        cfdi={"uuid": "AAAA9999-0000-4000-8000-000000000000"},
+    )
+    session.add(otra)
+    session.flush()
+    from aiuda_core.engine.sync import importar_cfdis
+
+    importar_cfdis(session, tenant, [cfdi_basico(uuid=uuid, emisor=HANOVA)], today=HOY)
+    aplicar_cancelaciones(
+        session, tenant,
+        [{"uuid": uuid, "cancelado": True, "fecha_cancelacion": "2026-07-20 10:00:00"}],
+    )
+    assert otra.status == "open"
+    assert session.scalar(select(CfdiBoveda)).meta["cancelado"] is True

@@ -433,6 +433,10 @@ def sat_estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
                 "solicitud_pendiente": bool((st.get(scope) or {}).get("solicitud")),
                 # Lo último que contestó el SAT, ya en español (o None si va al día).
                 "aviso": (st.get(scope) or {}).get("aviso"),
+                # Hasta qué día se revisó qué comprobantes se cancelaron en el SAT.
+                "cancelaciones_hasta": (
+                    (st.get(scope) or {}).get("cancelados") or {}
+                ).get("ultima_fecha"),
             }
             for scope in ("emitidas", "recibidas")
         }
@@ -445,6 +449,7 @@ def sat_estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         "recibidas": sum(1 for f in filas if f.direccion == "recibida"),
         "intercompania": sum(1 for f in filas if f.direccion == "intercompania"),
         "desconocida": sum(1 for f in filas if f.direccion == "desconocida"),
+        "canceladas": sum(1 for f in filas if (f.meta or {}).get("cancelado")),
     }
     return {
         "empresas": empresas,
@@ -489,6 +494,9 @@ def sat_boveda(
                 "direccion": f.direccion,
                 "source": f.source,
                 "invoice_id": f.invoice_id,
+                # Cancelado en el SAT después de emitido (lo dice la lista diaria).
+                "cancelado": bool((f.meta or {}).get("cancelado")),
+                "cancelado_el": (f.meta or {}).get("cancelado_el"),
             }
             for f in filas
         ],

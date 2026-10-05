@@ -262,6 +262,11 @@ export default function SatPage() {
                     {empresa.sync[scope].aviso && (
                       <p className="mt-1 text-ink-3">{empresa.sync[scope].aviso}</p>
                     )}
+                    {empresa.sync[scope].cancelaciones_hasta && (
+                      <p className="mt-1 text-ink-3">
+                        Cancelaciones revisadas al {fecha(empresa.sync[scope].cancelaciones_hasta)}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -417,7 +422,15 @@ export default function SatPage() {
                       <td className="max-w-40 truncate px-3 py-2.5 text-ink-2">{cfdi.nombre_emisor || cfdi.rfc_emisor}</td>
                       <td className="max-w-40 truncate px-3 py-2.5 text-ink-2">{cfdi.nombre_receptor || cfdi.rfc_receptor}</td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-right text-ink">{mxn(cfdi.total ?? 0)}</td>
-                      <td className="px-3 py-2.5 capitalize text-ink-3">{cfdi.direccion}</td>
+                      <td className="px-3 py-2.5 text-ink-3">
+                        <span className="capitalize">{cfdi.direccion}</span>
+                        {cfdi.cancelado && (
+                          <span className="block text-danger">
+                            Cancelado en el SAT
+                            {cfdi.cancelado_el ? ` el ${fecha(cfdi.cancelado_el)}` : ""}
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {boveda.cfdis.length === 0 && (
