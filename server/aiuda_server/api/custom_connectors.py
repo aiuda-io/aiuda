@@ -11,7 +11,7 @@ IMPORTAR una receta de la comunidad — al importar, la clave la capturas tú.
 
 import base64
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ValidationError
@@ -212,7 +212,7 @@ def reprobar(
         resultado = {"ok": False, "error": err, "count": 0, "sample": []}
     else:
         resultado = _probar(declaracion, secret)
-    entry["last_test_at"] = datetime.now().isoformat(timespec="seconds")
+    entry["last_test_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     entry["last_test_ok"] = resultado["ok"]
     entry["last_test_error"] = resultado["error"] or ""
     _save(db, tenant, sources)

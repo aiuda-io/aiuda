@@ -32,9 +32,6 @@ from aiuda_core.config import settings
 
 SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
 
-# Tipos de hoja que aiuda sabe ingerir hoy (cada uno cae a un lector custom).
-TIPOS = ("facturas", "clientes", "productos")
-
 # Convenciones de encabezado -> campo de aiuda, por tipo. Las llaves de salida son
 # EXACTAMENTE las que esperan los lectores custom (engine/sync._custom_cartera /
 # _custom_directorio / _custom_catalogo). Los alias van normalizados (minúsculas,
@@ -127,7 +124,7 @@ class GoogleSheetsClient:
         self.api_key = api_key or settings.google_sheets_api_key
         if not self.api_key:
             raise RuntimeError(
-                "GOOGLE_SHEETS_API_KEY no configurada — captura la API key de Google."
+                "Falta la llave de Google Sheets. Captúrala al conectar."
             )
         self._http = httpx.Client(base_url=SHEETS_API, timeout=30, transport=transport)
 

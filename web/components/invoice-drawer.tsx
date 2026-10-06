@@ -23,10 +23,14 @@ export function InvoiceDrawer({
   // factura abierta AHORA se aplica. Cambiar rápido de factura ya no pinta el
   // folio/monto de otra.
   const runIdRef = useRef(0);
+  // Invalida el fetch en curso: su respuesta, si llega, ya no se aplica.
+  const invalidar = useCallback(() => {
+    runIdRef.current++;
+  }, []);
 
   const load = useCallback(() => {
     if (!invoiceId) {
-      runIdRef.current++;
+      invalidar();
       setData(null);
       setError(null);
       return;
@@ -47,17 +51,15 @@ export function InvoiceDrawer({
       .finally(() => {
         if (runId === runIdRef.current) setLoading(false);
       });
-  }, [invoiceId]);
+  }, [invoiceId, invalidar]);
 
   useEffect(() => {
     // Nueva factura: pizarra limpia para no mostrar el detalle de la anterior.
     setData(null);
     setError(null);
     load();
-    return () => {
-      runIdRef.current++; // invalida el fetch en curso al cambiar de factura o desmontar
-    };
-  }, [load]);
+    return invalidar; // al cambiar de factura o desmontar
+  }, [load, invalidar]);
 
   // Refresca el detalle y avisa al padre (la lista) para que también se actualice.
   const refresh = useCallback(() => {
@@ -88,7 +90,7 @@ export function InvoiceDrawer({
             <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">
               <path d="M2 7v3h3M10 5V2H7M10 2 6.5 5.5M2 10l3.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Abrir vista completa
+            Abrir la factura completa
           </Link>
           <InvoiceDetailContent data={data} onChanged={refresh} />
         </div>

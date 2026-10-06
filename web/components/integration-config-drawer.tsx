@@ -3,16 +3,22 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api, type SourceCap, type WhatsappStatus } from "@/lib/api";
-import { oficioDe } from "@/lib/oficios";
 import { Drawer } from "@/components/drawer";
-import { SIN_ESTRENAR_NOTA, SinEstrenar } from "@/components/ui";
+import {
+  SIN_ESTRENAR_NOTA,
+  SinEstrenar,
+  inputCls,
+  Estado,
+  PrimaryButton,
+  QuietButton,
+} from "@/components/ui";
 import { toast } from "@/components/toast";
 import { INTEGRATION_HELP } from "@/lib/integration-help";
 import { fieldsFor, EMAIL_PRESETS } from "@/lib/integration-fields";
 import { ConnectionTester } from "@/components/connection-tester";
 
-// El drawer solo necesita estos campos: así sirve tanto para el catálogo de
-// Integraciones como para un sistema del mapa de un agente.
+// El panel solo necesita estos campos: así sirve tanto para la lista de Conexiones
+// como para un sistema visto desde la ficha de un ayudante.
 export type ConfigNode = {
   key: string;
   name: string;
@@ -59,7 +65,20 @@ const WA_VINCULADO: Record<string, { titulo: string; texto: string; ok: boolean 
   },
 };
 
-function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: string | null }) {
+/** Instalar el conector, vincular el número con un código y ver cómo está la sesión.
+ *  Es LA forma de conectar WhatsApp: vive en el panel de Conexiones y en el cierre
+ *  del asistente de primer arranque. `discreto` pinta su acción sin relleno, para
+ *  cuando la pantalla que lo aloja ya tiene su propio botón principal. */
+export function WhatsAppPairing({
+  onChange,
+  aviso,
+  discreto = false,
+}: {
+  onChange: () => void;
+  aviso?: string | null;
+  discreto?: boolean;
+}) {
+  const boton = discreto ? "btn btn-secondary" : "btn btn-primary";
   const [st, setSt] = useState<WhatsappStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [instalando, setInstalando] = useState(false);
@@ -147,24 +166,24 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
   if (st.connected) {
     const v = WA_VINCULADO[st.estado] ?? WA_VINCULADO.conectando;
     return (
-      <div
-        className={`rounded-lg border px-4 py-4 ${
-          v.ok ? "border-ok/30 bg-ok-soft/40" : "border-warn/40 bg-warn-soft"
-        }`}
-      >
-        <p className={`text-cuerpo font-medium ${v.ok ? "text-ok" : "text-warn"}`}>{v.titulo}</p>
+      <div className={`rounded-2xl px-5 py-4 ${v.ok ? "bg-panel" : "bg-panel"}`}>
+        <p
+          className="mark !text-cuerpo !font-semibold !text-ink"
+          style={
+            { "--mark": v.ok ? "var(--color-ok)" : "var(--color-warn)" } as React.CSSProperties
+          }
+        >
+          {v.titulo}
+        </p>
         <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">
           {st.telefono ? `Número vinculado: +${st.telefono}. ` : ""}
           {v.texto}
         </p>
-        <div className="mt-3 flex flex-wrap items-start gap-2">
+        <div className="mt-4 flex flex-wrap items-start gap-2">
           <ConnectionTester intKey="whatsapp" />
-          <button
-            onClick={logout}
-            className="rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
-          >
+          <QuietButton onClick={logout}>
             Desvincular
-          </button>
+          </QuietButton>
         </div>
       </div>
     );
@@ -176,7 +195,7 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
     // no arregla nada. Hace falta un aiuda más nuevo.
     const sinNadaQueInstalar = actualizar && st.version === st.version_fijada;
     return (
-      <div className="rounded-lg border border-line bg-surface px-4 py-5 text-center">
+      <div className="rounded-2xl bg-panel px-5 py-5">
         {st.no_se_puede || sinNadaQueInstalar ? (
           <p className="text-cuerpo leading-relaxed text-ink-2">
             {st.no_se_puede ??
@@ -187,19 +206,19 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
             <p className="text-cuerpo leading-relaxed text-ink-2">
               {actualizar
                 ? "WhatsApp pidió una versión más nueva del conector. Actualízalo para volver a conectar."
-                : "Para conectar tu WhatsApp, esta computadora necesita un conector. Se instala solo, en menos de un minuto."}
+                : "Para conectar tu WhatsApp, esta computadora necesita un conector. Se instala solo, en menos de un minuto. Después escaneas un código con tu teléfono, como en WhatsApp Web."}
             </p>
-            <button
-              onClick={instalar}
-              disabled={instalando}
-              className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
-            >
-              {instalando ? "Instalando…" : actualizar ? "Actualizar" : "Instalar"}
+            <button onClick={instalar} disabled={instalando} className={`${boton} mt-4`}>
+              {instalando
+                ? "Instalando…"
+                : actualizar
+                  ? "Actualizar el conector"
+                  : "Instalar el conector"}
             </button>
-            <p className="mt-3 text-apoyo leading-relaxed text-ink-3">
-              El conector es wacli (github.com/openclaw/wacli), software libre de terceros con
-              licencia MIT y componentes GPL-3.0. Se descarga de su página oficial y se verifica
-              antes de guardarse.
+            <p className="mt-4 text-apoyo leading-relaxed text-ink-3">
+              El conector se llama wacli (github.com/openclaw/wacli). Es software libre de
+              terceros, con licencia MIT y componentes GPL-3.0. Se descarga de su página oficial y
+              se verifica antes de guardarse.
             </p>
           </>
         )}
@@ -210,9 +229,12 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
   return (
     <div>
       {st.qr ? (
-        <div className="flex flex-col items-center rounded-lg border border-line bg-surface px-4 py-5 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={st.qr} alt="Código QR de WhatsApp" className="h-44 w-44" />
+        <div className="flex flex-col items-center rounded-2xl bg-panel px-5 py-5 text-center">
+          <img
+            src={st.qr}
+            alt="Código QR de WhatsApp"
+            className="h-44 w-44 rounded-lg bg-surface p-2"
+          />
           <p className="mt-3 text-cuerpo font-medium text-ink">Escanea para vincular</p>
           <ol className="mx-auto mt-2 max-w-xs space-y-0.5 text-left text-apoyo leading-relaxed text-ink-3">
             <li>1. Abre WhatsApp en tu teléfono</li>
@@ -231,27 +253,23 @@ function WhatsAppPairing({ onChange, aviso }: { onChange: () => void; aviso?: st
           </button>
         </div>
       ) : (
-        <div className="rounded-lg border border-line bg-surface px-4 py-5 text-center">
+        <div className="rounded-2xl bg-panel px-5 py-5">
           <p className="text-cuerpo leading-relaxed text-ink-2">
             {st.estado === "sesion_cerrada"
               ? "WhatsApp cerró la sesión de esta computadora, casi siempre porque se quitó desde el teléfono en Dispositivos vinculados. Vuelve a escanear el código QR."
-              : "Vincula tu número de WhatsApp escaneando un código QR, como WhatsApp Web. Tu número, tu sesión; aiuda actúa encima."}
+              : "Vincula tu número de WhatsApp escaneando un código con tu teléfono, como en WhatsApp Web. Es tu número y tu sesión; aiuda trabaja encima."}
           </p>
           {st.aviso && st.estado !== "sesion_cerrada" && (
             <p className="mt-2 text-cuerpo leading-relaxed text-danger">{st.aviso}</p>
           )}
           {/* Lo que hay que saber antes de vincular. Solo aquí: ya conectado no se repite. */}
           {aviso && (
-            <p className="mt-3 rounded-md border border-warn/40 bg-warn-soft px-3 py-2 text-left text-apoyo leading-relaxed text-ink-2">
-              <span className="font-semibold text-warn">Antes de conectar.</span> {aviso}
+            <p className="mt-3 text-apoyo leading-relaxed text-ink-2">
+              <span className="font-semibold text-ink">Antes de conectar.</span> {aviso}
             </p>
           )}
-          <button
-            onClick={startQr}
-            disabled={loading}
-            className="mt-3 rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
-          >
-            {loading ? "Generando QR…" : "Mostrar código QR"}
+          <button onClick={startQr} disabled={loading} className={`${boton} mt-4`}>
+            {loading ? "Preparando el código…" : "Conectar mi WhatsApp"}
           </button>
         </div>
       )}
@@ -274,8 +292,11 @@ export function IntegrationConfigDrawer({
   const [saving, setSaving] = useState(false);
   const [caps, setCaps] = useState<SourceCap[]>([]);
 
+  const llave = node?.key ?? "";
   useEffect(() => {
-    if (!node) return;
+    if (!llave) return;
+    // Por LLAVE y no por objeto: quien monta el panel le pasa el nodo fresco tras
+    // cada recarga, y eso no debe vaciar lo que el dueño va escribiendo.
     // Guarda estilo useApi: si el usuario cambia de fuente antes de que llegue la
     // respuesta, `cancelado` (que el cleanup activa antes de re-disparar el efecto)
     // impide que la config de la fuente vieja pise las credenciales de la nueva.
@@ -284,11 +305,11 @@ export function IntegrationConfigDrawer({
     setCaps([]);
     setLoading(true);
     api
-      .integrationConfig(node.key)
+      .integrationConfig(llave)
       .then((c) => {
         if (cancelado) return;
         // El correo arranca en IMAP genérico salvo que ya se haya guardado otro proveedor.
-        const base: Record<string, string> = node.key === "email" ? { provider: "imap" } : {};
+        const base: Record<string, string> = llave === "email" ? { provider: "imap" } : {};
         setValues({ ...base, ...(c.values ?? {}) });
         setConfigured(c.configured);
       })
@@ -297,7 +318,7 @@ export function IntegrationConfigDrawer({
         if (!cancelado) setLoading(false);
       });
     api
-      .integrationDetail(node.key)
+      .integrationDetail(llave)
       .then((d) => {
         if (cancelado) return;
         setCaps(d.capabilities ?? []);
@@ -306,7 +327,7 @@ export function IntegrationConfigDrawer({
     return () => {
       cancelado = true;
     };
-  }, [node]);
+  }, [llave]);
 
   async function toggleCap(cap: string) {
     if (!node) return;
@@ -355,9 +376,10 @@ export function IntegrationConfigDrawer({
       await api.saveIntegration(node.key, values);
       // Honesto: guardar credenciales no es haber conectado. La conexión se afirma
       // cuando "Probar conexión" pasa (semáforo verified), no antes.
-      toast("Credenciales guardadas. Prueba la conexión.", "success");
+      // El panel se queda abierto: lo que sigue es probarla, y el botón está aquí.
+      toast("Credenciales guardadas. Ahora prueba la conexión.", "success");
+      setConfigured(true);
       onSaved();
-      onClose();
     } catch (e) {
       toast(`No se pudo guardar: ${(e as Error).message}`, "error");
     } finally {
@@ -380,121 +402,74 @@ export function IntegrationConfigDrawer({
   return (
     <Drawer open={!!node} onClose={onClose} title={node.name} subtitle={node.rol}>
       <div className="space-y-5">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-surface">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fill">
             {node.logo ? (
-              <img src={node.logo} alt="" className="h-6 w-6 object-contain" />
+              <img src={node.logo} alt="" className="h-5 w-5 object-contain" />
             ) : (
-              <span className="text-seccion font-bold" style={{ color: node.color }}>
-                {node.name.slice(0, 2)}
-              </span>
+              <span className="text-rotulo font-semibold text-ink-2">{node.name.slice(0, 2)}</span>
             )}
           </span>
           {node.verified === "error" ? (
-            <span
-              title={node.last_error ?? undefined}
-              className="flex items-center gap-1.5 rounded-full bg-danger-soft px-2.5 py-1 text-sello font-medium text-danger"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+            <Estado tono="falla">
               Revisar
-            </span>
+            </Estado>
           ) : node.connected ? (
-            <span className="flex items-center gap-1.5 rounded-full bg-ok-soft px-2.5 py-1 text-sello font-medium text-ok">
-              <span className="h-1.5 w-1.5 rounded-full bg-ok" />
-              {node.verified === "ok" ? "Verificado" : "Conectado"}
-            </span>
+            <Estado tono="ok">
+              Conectado
+            </Estado>
           ) : (
-            <span className="rounded-full bg-panel px-2.5 py-1 text-sello font-medium text-ink-2">
-              Sin conectar
-            </span>
+            <Estado>Sin conectar</Estado>
           )}
           {node.estrenada === false && <SinEstrenar />}
-          <Link
-            href={`/integraciones/detalle?key=${node.key}`}
-            onClick={onClose}
-            className="ml-auto text-cuerpo font-medium text-accent-ink transition-colors hover:underline"
-          >
-            Abrir vista completa
-          </Link>
         </div>
 
+        {node.verified === "error" && node.last_error && (
+          <p className="text-cuerpo leading-relaxed text-ink-2">
+            La última prueba falló: {node.last_error}
+          </p>
+        )}
+
         {node.does && (
-          <div className="rounded-lg border border-line bg-panel/40 px-3.5 py-3">
-            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
-              ¿Cómo <span className="italic">aiuda</span>?
-            </p>
-            <p className="mt-1 text-cuerpo leading-relaxed text-ink-2">{node.does}</p>
+          <div>
+            <p className="text-cuerpo leading-relaxed text-ink-2">{node.does}</p>
             {node.estrenada === false && (
-              <p className="mt-2 text-cuerpo leading-relaxed text-ink-2">{SIN_ESTRENAR_NOTA}</p>
-            )}
-            {node.live === false && (
-              <p className="mt-2 text-apoyo leading-relaxed text-ink-3">
-                Guarda tus credenciales para dejarla conectada. La sincronización automática
-                por negocio se habilita contigo en el alta del piloto.
-              </p>
+              <p className="mt-2 text-apoyo leading-relaxed text-ink-3">{SIN_ESTRENAR_NOTA}</p>
             )}
           </div>
         )}
 
         {!isExcel && node.key !== "whatsapp" && caps.length > 0 && (
-          <div className="rounded-lg border border-line bg-surface px-3.5 py-3">
-            <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
-              Qué obtener de {node.name}
-            </p>
-            <p className="mt-1 text-apoyo leading-relaxed text-ink-3">
-              Elige qué le da esta fuente a tu equipo. Empieza a obtenerse cuando la conectes.
-            </p>
-            <ul className="mt-2.5 space-y-2.5">
+          <div>
+            <p className="text-cuerpo font-semibold text-ink">Qué quieres traer de {node.name}</p>
+            <ul className="mt-2 divide-y divide-line border-y border-line">
               {caps.map((c) => (
-                <li key={c.cap} className="flex items-start gap-2.5">
+                <li key={c.cap} className="flex items-start gap-3 py-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-cuerpo text-ink">{c.label}</span>
+                    {c.agents.length > 0 && (
+                      <span className="mt-0.5 block text-apoyo text-ink-3">
+                        Lo usa {c.agents.map((a) => a.name).join(", ")}
+                      </span>
+                    )}
+                  </span>
                   <button
                     type="button"
                     role="switch"
                     aria-checked={c.enabled}
-                    aria-label={c.label}
+                    aria-label={`${c.enabled ? "Dejar de traer" : "Traer"} ${c.label}`}
                     disabled={!c.toggleable}
                     onClick={() => toggleCap(c.cap)}
-                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors ${
-                      c.enabled
-                        ? "bg-accent text-surface"
-                        : c.toggleable
-                          ? "border border-line-strong"
-                          : "border border-dashed border-line"
-                    } ${c.toggleable ? "cursor-pointer" : "cursor-default"}`}
+                    className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                      c.enabled ? "bg-accent" : "bg-line-strong"
+                    }`}
                   >
-                    {c.enabled && (
-                      <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none">
-                        <path
-                          d="m2.5 6 2.5 2.5 4.5-5"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-surface shadow transition-transform ${
+                        c.enabled ? "translate-x-6" : "translate-x-1"
+                      }`}
+                    />
                   </button>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-cuerpo font-medium text-ink">
-                      {c.label}
-                      {!c.live && <span className="font-normal text-ink-3"> · por conectar</span>}
-                    </p>
-                    {c.agents.length > 0 && (
-                      <div className="mt-1 flex flex-wrap items-center gap-1">
-                        <span className="text-apoyo text-ink-3">→</span>
-                        {c.agents.map((ag) => (
-                          <span
-                            key={ag.slug}
-                            className="flex items-center gap-1 rounded-full bg-panel px-1.5 py-0.5 text-sello text-ink-2"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={ag.avatar} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
-                            {oficioDe(ag.slug)}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </li>
               ))}
             </ul>
@@ -504,15 +479,12 @@ export function IntegrationConfigDrawer({
         {node.key === "whatsapp" ? (
           <WhatsAppPairing onChange={onSaved} aviso={node.warning} />
         ) : isExcel ? (
-          <div className="rounded-lg border border-line bg-panel/40 px-4 py-4 text-cuerpo leading-relaxed text-ink-2">
-            Excel y CSV no necesitan credenciales. Sube cualquier hoja (clientes, productos,
-            facturas, citas o prospectos) y la IA detecta qué es y la carga sola.
-            <div className="mt-3">
-              <Link
-                href="/importar"
-                className="inline-block rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface hover:bg-accent-strong"
-              >
-                Ir a Importar
+          <div className="rounded-2xl bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
+            No hay nada que conectar: subes tu hoja (clientes, productos, facturas, citas o
+            prospectos) y tu IA reconoce qué es y la carga.
+            <div className="mt-4">
+              <Link href="/importar" onClick={onClose} className="btn btn-primary">
+                Subir un archivo
               </Link>
             </div>
           </div>
@@ -522,30 +494,29 @@ export function IntegrationConfigDrawer({
           // Una fuente que no declara campos no se conecta desde aquí (sat vive en su
           // propia pantalla). Antes caía al formulario genérico y pedía un secreto
           // inventado que se guardaba sin cifrar.
-          <div className="rounded-lg border border-line bg-panel/40 px-4 py-4 text-cuerpo leading-relaxed text-ink-2">
-            Esta fuente no se conecta capturando credenciales aquí.
+          <div className="rounded-2xl bg-panel px-5 py-4 text-cuerpo leading-relaxed text-ink-2">
+            {node.key === "sat"
+              ? "El SAT tiene su propia pantalla: ahí cargas tu e.firma, importas tus XML y ves tu bóveda."
+              : "Esta conexión no se hace capturando datos aquí."}
             {node.key === "sat" && (
-              <div className="mt-3">
-                <Link
-                  href="/sat"
-                  className="inline-block rounded-md bg-accent px-3 py-1.5 text-cuerpo font-medium text-surface hover:bg-accent-strong"
-                >
-                  Ir a SAT
+              <div className="mt-4">
+                <Link href="/sat" onClick={onClose} className="btn btn-primary">
+                  Abrir el SAT
                 </Link>
               </div>
             )}
           </div>
         ) : (
           <>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {fields.map((f) => (
                 <div key={f.key}>
-                  <label className="text-cuerpo font-medium text-ink">{f.label}</label>
+                  <label className="block text-cuerpo font-semibold text-ink">{f.label}</label>
                   {f.type === "select" ? (
                     <select
                       value={values[f.key] ?? f.options?.[0]?.value ?? ""}
                       onChange={(e) => setField(f.key, e.target.value)}
-                      className="mt-1 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-rotulo text-ink focus:border-accent focus:outline-none"
+                      className={`${inputCls} mt-2`}
                     >
                       {f.options?.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -559,38 +530,32 @@ export function IntegrationConfigDrawer({
                       value={values[f.key] ?? ""}
                       placeholder={f.placeholder}
                       onChange={(e) => setField(f.key, e.target.value)}
-                      className="mt-1 w-full rounded-md border border-line bg-surface px-2.5 py-1.5 text-rotulo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+                      className={`${inputCls} mt-2`}
                     />
                   )}
-                  {f.hint && <p className="mt-1 text-apoyo leading-relaxed text-ink-3">{f.hint}</p>}
+                  {f.hint && <p className="mt-1.5 text-apoyo leading-relaxed text-ink-3">{f.hint}</p>}
                 </div>
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={save}
-                disabled={saving}
-                className="rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong disabled:opacity-50"
-              >
+            <div className="flex flex-wrap items-start gap-2">
+              <PrimaryButton onClick={save} disabled={saving}>
                 {saving ? "Guardando…" : configured ? "Guardar cambios" : "Conectar"}
-              </button>
-              <ConnectionTester intKey={node.key} disabled={!configured} />
+              </PrimaryButton>
+              <ConnectionTester intKey={node.key} disabled={!configured} onProbada={onSaved} />
               {configured && (
-                <button
-                  onClick={disconnect}
-                  className="ml-auto rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-danger hover:text-danger"
-                >
+                <button onClick={disconnect} className="btn btn-quiet ml-auto">
                   Desconectar
                 </button>
               )}
             </div>
 
             {node.key === "whatsapp_cloud" && configured && (
-              <div className="rounded-lg border border-line bg-panel/40 px-3.5 py-3">
+              <div className="rounded-2xl bg-panel px-5 py-4">
                 <p className="text-cuerpo leading-relaxed text-ink-2">
                   Con las credenciales guardadas, activa esta vía oficial como TU canal de
-                  WhatsApp: recordatorios y respuestas saldrán por aquí (y no por wacli).
+                  WhatsApp: recordatorios y respuestas saldrán por aquí, y no por tu número
+                  vinculado.
                 </p>
                 <button
                   onClick={async () => {
@@ -602,15 +567,15 @@ export function IntegrationConfigDrawer({
                       toast(`No se pudo activar: ${(e as Error).message}`, "error");
                     }
                   }}
-                  className="mt-2 rounded-md border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink transition-colors hover:border-accent hover:text-accent-ink"
+                  className="btn btn-secondary mt-3"
                 >
                   Usar como mi canal de WhatsApp
                 </button>
               </div>
             )}
 
-            <p className="border-t border-line/60 pt-3 text-apoyo leading-relaxed text-ink-3">
-              Tus credenciales se guardan cifradas en esta instalación y solo se usan para
+            <p className="text-apoyo leading-relaxed text-ink-3">
+              Tus credenciales se guardan cifradas en esta computadora y solo se usan para
               conectar este sistema.
             </p>
           </>
@@ -627,10 +592,11 @@ function IntegrationHelp({ nodeKey, name }: { nodeKey: string; name: string }) {
   const [open, setOpen] = useState(false);
   if (!help) return null;
   return (
-    <div className="border-t border-line/60 pt-3">
+    <div className="border-t border-line pt-4">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-cuerpo font-medium text-ink transition-colors hover:text-accent-ink"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between text-cuerpo font-medium text-ink hover:text-accent-ink"
       >
         Cómo conectar {name}
         <svg viewBox="0 0 12 12" className={`h-3 w-3 text-ink-3 transition-transform ${open ? "rotate-90" : ""}`} fill="none">
@@ -651,8 +617,8 @@ function IntegrationHelp({ nodeKey, name }: { nodeKey: string; name: string }) {
             </ol>
           )}
           {help.credentials.length > 0 && (
-            <div className="rounded-md border border-line bg-panel/40 p-3">
-              <p className="text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">Dónde obtener cada dato</p>
+            <div className="rounded-2xl bg-panel px-5 py-4">
+              <p className="eyebrow">dónde obtener cada dato</p>
               <ul className="mt-1.5 space-y-1.5">
                 {help.credentials.map((c) => (
                   <li key={c.field} className="text-apoyo leading-relaxed text-ink-2">

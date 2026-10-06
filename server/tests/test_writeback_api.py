@@ -84,6 +84,42 @@ def test_pagar_encola_y_la_ficha_ve_el_estado(client, db_session, tenant):
     assert ajeno["entries"] == []
 
 
+def test_pagar_manda_el_pago_a_su_sistema_sin_esperar_la_revision_horaria(
+    client, db_session, tenant, monkeypatch
+):
+    import aiuda_server.worker.main as worker
+
+    corridas: list[str] = []
+    monkeypatch.setattr(worker, "process_writebacks_blocking", lambda tid: corridas.append(tid))
+    inv = _factura_odoo(db_session, tenant)
+
+    res = client.post(f"/v1/invoices/{inv.id}/pay", headers=HEADERS)
+
+    assert res.status_code == 200
+    assert corridas == [tenant.id]  # se disparó en segundo plano, fuera de la respuesta
+    [entrada] = client.get(f"/v1/writeback?invoice_id={inv.id}", headers=HEADERS).json()["entries"]
+    assert res.json()["writeback_id"] == entrada["id"]
+
+
+def test_pagar_una_factura_que_no_regresa_a_ningun_sistema_no_dispara_nada(
+    client, db_session, tenant, monkeypatch
+):
+    import aiuda_server.worker.main as worker
+
+    corridas: list[str] = []
+    monkeypatch.setattr(worker, "process_writebacks_blocking", lambda tid: corridas.append(tid))
+    inv = _factura_odoo(db_session, tenant)
+    inv.source = "excel"
+    inv.presence = {"excel": {"file": "cartera.xlsx"}}
+    db_session.flush()
+
+    res = client.post(f"/v1/invoices/{inv.id}/pay", headers=HEADERS)
+
+    assert res.status_code == 200
+    assert res.json()["writeback_id"] is None
+    assert corridas == []
+
+
 def test_la_ficha_avisa_a_donde_regresa_el_pago_antes_de_confirmar(client, db_session, tenant):
     """La confirmación de pago necesita saberlo ANTES del clic: una factura de Odoo
     también escribe el pago en Odoo; una de Excel no regresa a ningún lado."""

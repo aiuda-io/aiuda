@@ -3,11 +3,12 @@
 import { type ReactNode } from "react";
 import { Drawer } from "@/components/drawer";
 import { ProvenanceBar } from "@/components/provenance";
+import { etiquetaDato } from "@/lib/format";
 
 type Field = { label: string; value: ReactNode };
 
-/** Detalle genérico de un registro (producto, cita, etc.): sus campos + datos
- *  extra + de dónde viene. Cualquier registro es clickeable y abre esto. */
+/** El detalle de un producto o de una cita: sus datos, lo demás que traía tu
+ *  archivo y de dónde viene. */
 export function RecordDrawer({
   open,
   onClose,
@@ -28,27 +29,27 @@ export function RecordDrawer({
   const metaEntries = Object.entries(meta ?? {});
   return (
     <Drawer open={open} onClose={onClose} title={title} subtitle={subtitle}>
-      <div className="space-y-5">
-        <ProvenanceBar presence={presence} nativeLabel="Creado en aiuda" masterHint="vive allá" />
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-line bg-surface p-4">
+      <div className="space-y-8">
+        <ProvenanceBar presence={presence} nativeLabel="Dado de alta en aiuda" masterHint="vive allá" />
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-5">
           {fields.map((f) => (
-            <div key={f.label}>
-              <p className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{f.label}</p>
-              <p className="mt-0.5 text-cuerpo text-ink">
-                {f.value ?? <span className="text-ink-3">·</span>}
-              </p>
+            <div key={f.label} className="min-w-0">
+              <dt className="text-rotulo text-ink-3">{f.label}</dt>
+              <dd className="mt-1 break-words text-cuerpo text-ink">
+                {f.value ?? <span className="text-ink-3">Sin dato</span>}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
 
         {metaEntries.length > 0 && (
           <section>
-            <h3 className="text-cuerpo font-semibold text-ink">Datos extra</h3>
-            <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
+            <h3 className="text-cuerpo font-semibold text-ink">Otros datos</h3>
+            <dl className="mt-2">
               {metaEntries.map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-3 text-cuerpo">
-                  <dt className="text-ink-3">{k}</dt>
-                  <dd className="font-medium text-ink">{v}</dd>
+                <div key={k} className="flex justify-between gap-4 border-b border-line py-2.5 text-cuerpo last:border-0">
+                  <dt className="max-w-[45%] shrink-0 break-words text-ink-3">{etiquetaDato(k)}</dt>
+                  <dd className="min-w-0 break-words text-right font-medium text-ink">{v}</dd>
                 </div>
               ))}
             </dl>

@@ -5,7 +5,7 @@ solicitudes de por vida para esos parámetros) ni se repite una solicitud
 idéntica (una al día por empresa y dirección), el incremental arranca en la
 última fecha menos 2 días, corre emitidas y recibidas por empresa, y una
 empresa rota no tumba a las otras. El cliente es fake (misma interfaz que
-SatDescargaClient); el SAT vivo queda para scripts/prueba-sat.sh.
+SatDescargaClient); el SAT vivo queda para scripts/prueba-sat.py.
 """
 
 import io

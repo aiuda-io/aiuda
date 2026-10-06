@@ -513,9 +513,9 @@ def test_recordar_con_ia_que_falla_no_filtra_la_excepcion(
 
 
 def test_espera_tu_ok_es_un_solo_numero(client, db_session, tenant):
-    """El globo del menú y la columna del Centro cuentan lo mismo: por aprobar +
-    pagos por conciliar + promesas VENCIDAS de facturas abiertas. Antes el globo
-    contaba solo recordatorios y la columna sumaba todas las promesas activas."""
+    """El globo del menú y "Por aprobar (N)" de Hoy cuentan lo mismo: mensajes por
+    aprobar de facturas abiertas (o sin factura) + pagos por confirmar + promesas
+    VENCIDAS de facturas abiertas. Antes el menú decía un número y el inicio otro."""
     from datetime import datetime, timedelta, timezone
 
     from aiuda_core.models import Payment, PaymentPromise
@@ -542,18 +542,29 @@ def test_espera_tu_ok_es_un_solo_numero(client, db_session, tenant):
         db_session.flush()
         return inv
 
+    def _mensaje(invoice_id, status, bucket="vencida", **extra):
+        db_session.add(
+            Reminder(
+                tenant_id=tenant.id,
+                invoice_id=invoice_id,
+                bucket=bucket,
+                tone="firme",
+                message="Recordatorio",
+                status=status,
+                **extra,
+            )
+        )
+
     otra = _otra("F-2", "open")
     pagada = _otra("F-3", "paid")
-    db_session.add(
-        Reminder(
-            tenant_id=tenant.id,
-            invoice_id=abierta.id,
-            bucket="vencida",
-            tone="firme",
-            message="Recordatorio",
-            status="pending_approval",
-        )
-    )
+    cancelada = _otra("F-4", "cancelled")
+    _mensaje(abierta.id, "pending_approval")  # cuenta
+    _mensaje(None, "pending_approval", bucket="cotizacion", title="Cotización")  # cuenta
+    _mensaje(pagada.id, "pending_approval")  # la factura ya se pagó: no pide nada
+    _mensaje(cancelada.id, "pending_approval")  # ya no se cobra: tampoco
+    # Lo que ya tuvo veredicto no espera decisión, aunque la factura siga abierta.
+    for status in ("approved", "sent", "rejected", "failed"):
+        _mensaje(otra.id, status)
     db_session.add(
         Payment(
             tenant_id=tenant.id,
@@ -575,20 +586,36 @@ def test_espera_tu_ok_es_un_solo_numero(client, db_session, tenant):
     db_session.flush()
 
     cartera = client.get("/v1/cartera", headers=headers).json()
-    # 1 por aprobar + 1 pago por conciliar + 1 promesa vencida. Ni la de hoy, ni la
+    # 2 mensajes por aprobar + 1 pago por confirmar + 1 promesa vencida. Ni los
+    # mensajes de la factura pagada o cancelada, ni la promesa de hoy, ni la
     # futura, ni la de la factura ya pagada.
-    assert cartera["espera_tu_ok"] == 3
-    assert cartera["pending_approvals"] == 1  # el campo viejo no cambia de sentido
+    assert cartera["espera_tu_ok"] == 4
+    assert cartera["pending_approvals"] == 4  # el campo viejo no cambia de sentido
 
     promesas = client.get("/v1/promises", headers=headers).json()
     assert len(promesas) == 4
     assert sum(1 for p in promesas if p["vencida"]) == 1
     assert sum(1 for p in promesas if not p["factura_abierta"]) == 1
-    # La columna arma su lista con las mismas tres fuentes: cuadra con el globo.
-    por_aprobar = client.get("/v1/reminders?status=pending_approval", headers=headers).json()
+
+    pendientes = client.get("/v1/reminders?status=pending_approval", headers=headers).json()
+    assert len(pendientes) == 4
+    assert {p["factura_abierta"] for p in pendientes} == {True, False, None}
+    for p in pendientes:
+        assert p["pide_decision"] is (p["factura_abierta"] is not False)
+        assert p["updated_at"]
+    # Fuera de "pending_approval" nada pide decisión.
+    for status in ("approved", "sent", "rejected", "failed"):
+        otros = client.get(f"/v1/reminders?status={status}", headers=headers).json()
+        assert len(otros) == 1 and otros[0]["pide_decision"] is False
+
+    # Hoy arma su lista con las mismas tres fuentes: pinta exactamente N renglones.
     conciliar = client.get("/v1/reconciliation", headers=headers).json()["pending"]
-    columna = len(por_aprobar) + len(conciliar) + sum(1 for p in promesas if p["vencida"])
-    assert columna == cartera["espera_tu_ok"]
+    renglones = (
+        sum(1 for p in pendientes if p["pide_decision"])
+        + len(conciliar)
+        + sum(1 for p in promesas if p["vencida"])
+    )
+    assert renglones == cartera["espera_tu_ok"]
 
 
 def test_reminders_y_promises_traen_customer_id(client, db_session, tenant):
@@ -749,18 +776,3 @@ def test_editar_cliente_telefono_duplicado_409(client, db_session, tenant):
     db_session.flush()
     res = client.put(f"/v1/customers/{b.id}", headers=headers, json={"phone": "5215500001111"})
     assert res.status_code == 409
-
-
-def test_systems_del_ayudante(client, tenant):
-    """A qué sistemas llega un ayudante. Sale de sus aiuditas, no de un rol de fábrica."""
-    a = client.post(
-        "/v1/ayudantes",
-        json={"name": "Male", "aiuditas": ["cobranza.consultar_cartera"]},
-        headers={"X-API-Key": "k-demo"},
-    ).json()
-    res = client.get(f"/v1/ayudantes/{a['id']}/systems", headers={"X-API-Key": "k-demo"})
-    assert res.status_code == 200
-    body = res.json()
-    assert body["name"] == "Male"
-    assert any(s["key"] == "odoo" for s in body["systems"])
-    assert client.get("/v1/ayudantes/zzz/systems", headers={"X-API-Key": "k-demo"}).status_code == 404

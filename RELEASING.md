@@ -10,16 +10,25 @@ Se publican dos cosas distintas:
 
 ## Versión
 
-La misma versión en cinco archivos, más el changelog:
+La misma versión en estos archivos, más el changelog:
 
-- `core/pyproject.toml`
+- `core/pyproject.toml` y `core/aiuda_core/__init__.py` (`__version__`, la que
+  dicen `aiuda version`, `aiuda doctor` y el API)
 - `server/pyproject.toml`
+- `pyproject.toml` de la raíz (no se publica, es solo el workspace, pero va igual)
 - `desktop/src-tauri/tauri.conf.json`
-- `desktop/src-tauri/Cargo.toml`
+- `desktop/src-tauri/Cargo.toml` (y `Cargo.lock`, que se actualiza al construir)
 - `desktop/package.json`
+- `web/package.json`
 - `CHANGELOG.md`
 
-El `pyproject.toml` de la raíz no se publica (es solo el workspace).
+Después, `uv lock` y `npm install --package-lock-only` en `web/` y en `desktop/`
+para que los candados digan lo mismo.
+
+Un prelanzamiento se escribe distinto en cada mundo y los dos son el mismo
+corte: Python lo quiere como `0.1.0a2` (PEP 440) y Tauri, Cargo y npm como
+`0.1.0-alpha.2` (SemVer). El ejemplo de `aiuda doctor` en `docs/PROBLEMAS.md`
+cita la versión de Python.
 
 ## Wheels
 
@@ -94,7 +103,7 @@ Después de un release firmado, `codesign -dv` debe decir Developer ID y no adho
 
 ## Publicar
 
-1. Subir la versión en los cinco archivos de arriba.
+1. Subir la versión en los archivos de arriba.
 2. Commit, tag `vX.Y.Z`, push del tag.
 3. `.github/workflows/release.yml` se dispara: construye los instaladores para
    macOS (arm64 e Intel), crea el GitHub Release en **borrador**

@@ -24,7 +24,7 @@ Extras opcionales: `uv sync --extra cua` más
 `.venv/bin/playwright install chromium` para el CUA. Para la app de escritorio
 necesitas además node y Rust: `scripts/build-app.sh`.
 
-La IA se conecta desde la consola (/proveedor): API key, el Claude Code o Codex
+La IA se conecta desde la consola (Ajustes, Tu IA): API key, el Claude Code o Codex
 que ya tengas instalado, o un modelo local con Ollama. Los tests no necesitan ninguna (el LLM va mockeado).
 
 ## Antes de abrir un PR
@@ -60,8 +60,8 @@ cd web && npm run lint && npx tsc --noEmit && npm run export
   catálogo en `server/aiuda_server/api/integrations.py`.
 - Estrenar con una cuenta real los conectores que la consola marca "Sin
   estrenar" (`estrenada: False` en el catálogo) y aportar los fixtures. Los
-  cuatro marcados `oculta` (Mercado Pago, Clip, Conekta y WhatsApp Business
-  oficial) no se ofrecen en la consola hasta que alguien los estrene.
+  seis marcados `oculta` (Stripe, Belvo, Mercado Pago, Clip, Conekta y WhatsApp
+  Business oficial) no se ofrecen en la consola hasta que alguien los estrene.
 - Notarización del instalador de macOS.
 
 ## Licencia

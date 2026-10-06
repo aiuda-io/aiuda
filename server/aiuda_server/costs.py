@@ -13,12 +13,15 @@ limite=None → sin tope.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
 from aiuda_core.models import UsageEvent
+
+log = logging.getLogger(__name__)
 
 MX_TZ = ZoneInfo("America/Mexico_City")
 
@@ -77,20 +80,6 @@ def tokens_this_month(db, tenant_id: str) -> int:
     return int(total or 0)
 
 
-def ia_month_cost_usd(db, tenant_id: str) -> float:
-    """Costo estimado (USD) del consumo de IA del mes, por la tabla de precios."""
-    rows = db.execute(
-        select(
-            UsageEvent.model,
-            func.sum(UsageEvent.input_tokens),
-            func.sum(UsageEvent.output_tokens),
-        )
-        .where(UsageEvent.tenant_id == tenant_id, UsageEvent.created_at >= month_start())
-        .group_by(UsageEvent.model)
-    ).all()
-    return sum(cost_usd(model, int(inp or 0), int(out or 0)) for model, inp, out in rows)
-
-
 def _limite_de(config: dict | None) -> tuple[int | None, str | None]:
     """(limite, fuente) a partir de la config del negocio.
 
@@ -135,13 +124,15 @@ def ia_budget_message(verdict: dict) -> str:
     usados = verdict.get("usados") or 0
     if verdict.get("fuente") == "default":
         cual = (
-            f"Se alcanzó el tope de fábrica de IA de este mes ({usados:,} de {limite:,} tokens). "
-            "Es el freno que trae aiuda para que un mes raro no te sorprenda en el recibo de tu "
-            "proveedor de IA; puedes subirlo o quitarlo con ia_tope_tokens_mes."
+            "Tu IA llegó al tope de fábrica de este mes. Es el freno que trae aiuda para "
+            "que un mes raro no te sorprenda en el recibo de tu IA; el manual explica cómo "
+            "subirlo o quitarlo."
         )
     else:
-        cual = f"Se alcanzó tu tope personal de IA de este mes ({usados:,} de {limite:,} tokens)."
+        cual = "Tu IA llegó a tu tope personal de este mes."
+    # Las cifras van al registro, no a la pantalla: el dueño no cuenta tokens.
+    log.info("tope de IA alcanzado: %s de %s tokens (%s)", usados, limite, verdict.get("fuente"))
     return (
-        f"{cual} Ninguna corrida volverá a llamar a la IA hasta el próximo mes o hasta "
-        "subir el tope."
+        f"{cual} Tus ayudantes no redactan nada nuevo hasta el mes que entra o hasta "
+        "que subas el tope."
     )

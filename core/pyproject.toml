@@ -1,6 +1,6 @@
 [project]
 name = "aiuda-core"
-version = "0.1.0"
+version = "0.1.0a2"
 description = "aiuda core — motor de agentes, lógica de cartera y conectores"
 requires-python = ">=3.11"
 authors = [{ name = "Hanova Consulting", email = "consulting@hanova.mx" }]

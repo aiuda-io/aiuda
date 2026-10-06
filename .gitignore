@@ -28,10 +28,9 @@ out/
 
 # Datos locales
 *.sqlite3
-.astro/
-dist/
-build/
-*.spec.bak
+*.db
+*.db-shm
+*.db-wal
 
 # App de escritorio
 desktop/src-tauri/target/
@@ -42,3 +41,6 @@ desktop/src-tauri/gen/
 server/aiuda_server/static/
 # El manual, armado desde docs/ antes de cada build (web/scripts/manual.mjs)
 web/public/manual/
+
+# Árboles de trabajo de agentes
+.claude/worktrees/

@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
       // useApi acepta dependencias de quien lo llama, igual que useEffect.
       "react-hooks/use-memo": "off",
+      // La consola es un export estático sin optimizador de imágenes
+      // (`images.unoptimized` en next.config.ts): `next/image` no aporta nada
+      // sobre un `<img>` y la regla solo generaba excepciones renglón por renglón.
+      "@next/next/no-img-element": "off",
       // Ningún tamaño de letra clavado en píxeles. Llegamos a tener 1012 de
       // estos, repartidos en 55 archivos, y el resultado era una consola que el
       // dueño de una taquería no podía leer. La escala vive en globals.css y la

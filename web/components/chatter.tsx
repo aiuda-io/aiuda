@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { SecondaryButton } from "@/components/ui";
 import { WaText } from "@/components/wa-text";
 import { fechaHora } from "@/lib/format";
 
@@ -26,7 +27,7 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
       </span>
     );
   return (
-    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-panel text-sello font-semibold text-ink-2">
+    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fill text-sello font-semibold text-ink-2">
       {name.slice(0, 2).toUpperCase()}
     </span>
   );
@@ -45,6 +46,7 @@ export function Chatter({
   thinkingLabel,
   sendLabel = "Enviar",
   fill = false,
+  recientes = 6,
 }: {
   messages: ChatterMessage[];
   onSend: (body: string) => Promise<void>;
@@ -64,10 +66,14 @@ export function Chatter({
   /** Llena la altura del contenedor (el hilo crece con él) en vez del tope fijo de 420px.
    *  Para la superficie de trabajo del ayudante, donde el chat es el centro. */
   fill?: boolean;
+  /** Fuera de `fill` (la ficha de un cliente) el hilo NO es una caja con scroll
+   *  propio: se ven los últimos mensajes sobre la página y los anteriores quedan en
+   *  Mensajes, a un enlace. Cuántos se ven. */
+  recientes?: number;
 }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
-  const endRef = useRef<HTMLDivElement>(null);
+  const hiloRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -84,9 +90,17 @@ export function Chatter({
     }
   }
 
+  // Baja al último mensaje moviendo SOLO el hilo. Antes usaba scrollIntoView, que
+  // también arrastraba la página: abrir la ficha de un cliente la dejaba a media
+  // pantalla, con el encabezado fuera de vista.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length, thinking]);
+    const hilo = hiloRef.current;
+    if (hilo && fill) hilo.scrollTop = hilo.scrollHeight;
+  }, [messages.length, thinking, fill]);
+
+  // En la ficha, solo los últimos: sin tope de alto y sin scroll dentro de la página.
+  const visibles = fill ? messages : messages.slice(-recientes);
+  const anteriores = messages.length - visibles.length;
 
   async function enviar(texto: string) {
     const body = texto.trim();
@@ -107,42 +121,48 @@ export function Chatter({
   };
 
   return (
-    <div className={`flex flex-col overflow-hidden rounded-xl border border-line bg-surface ${fill ? "h-full" : ""}`}>
+    // Sin caja: el hilo va sobre el papel y una raya fina lo separa del campo donde
+    // se escribe. Lo que llega va sobre gris pálido; lo que sale, con contorno. El
+    // acento se guarda para el botón de enviar.
+    <div className={`flex min-w-0 flex-col ${fill ? "h-full" : ""}`}>
       {/* Hilo */}
       <div
-        className={`space-y-3 overflow-y-auto px-4 py-4 ${
-          fill ? "min-h-0 flex-1" : "max-h-[420px] min-h-[180px] flex-1"
-        }`}
+        ref={hiloRef}
+        className={`space-y-4 py-4 ${fill ? "min-h-0 flex-1 overflow-y-auto pr-1" : ""}`}
       >
+        {anteriores > 0 && (
+          <p className="text-apoyo text-ink-3">
+            {anteriores === 1 ? "Hay 1 mensaje anterior." : `Hay ${anteriores} mensajes anteriores.`}{" "}
+            Aquí se ven los últimos {visibles.length}.
+          </p>
+        )}
         {messages.length === 0 && !thinking && (
           <div className="flex h-full min-h-[140px] flex-col items-center justify-center px-2 text-center">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-panel text-ink-3">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.4">
-                <path d="M4 5.5h16v10H9l-4 3v-3H4z" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <p className="mt-3 text-cuerpo font-medium text-ink">{emptyTitle}</p>
+            <p className="text-cuerpo font-medium text-ink">{emptyTitle}</p>
             {emptyHint && (
               <p className="mt-1 max-w-sm text-cuerpo leading-relaxed text-ink-3">{emptyHint}</p>
             )}
             {suggestions.length > 0 && (
-              <div className="mt-4 flex flex-wrap justify-center gap-1.5">
+              <div className="mt-4 flex max-w-full flex-wrap justify-center gap-1.5">
                 {suggestions.map((s) => (
-                  <button
+                  <SecondaryButton
                     key={s}
                     type="button"
                     onClick={() => enviar(s)}
                     disabled={sending}
-                    className="rounded-full border border-line bg-surface px-3 py-1.5 text-cuerpo font-medium text-ink-2 transition-colors hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:opacity-50"
+                    size="sm"
+                    // Una pregunta larga se dobla dentro de su botón: en teléfono se
+                    // salía de la pantalla por los dos lados.
+                    className="max-w-full whitespace-normal py-1.5 text-left"
                   >
                     {s}
-                  </button>
+                  </SecondaryButton>
                 ))}
               </div>
             )}
           </div>
         )}
-        {messages.map((m) => {
+        {visibles.map((m) => {
           const mine = m.side === "me";
           return (
             <div key={m.id} className={`flex items-end gap-2 ${mine ? "flex-row-reverse" : ""}`}>
@@ -150,8 +170,8 @@ export function Chatter({
               <div className={`max-w-[78%] ${mine ? "items-end text-right" : ""}`}>
                 {m.label && <p className="mb-0.5 px-1 text-sello font-medium text-ink-3">{m.label}</p>}
                 <div
-                  className={`inline-block rounded-2xl px-3.5 py-2 text-left ${
-                    mine ? "bg-accent text-surface" : "bg-panel text-ink"
+                  className={`inline-block rounded-2xl px-3.5 py-2 text-left text-ink ${
+                    mine ? "bg-surface shadow-[inset_0_0_0_1px_var(--color-line-strong)]" : "bg-fill"
                   }`}
                 >
                   <WaText className="text-cuerpo leading-relaxed">{m.body}</WaText>
@@ -173,7 +193,7 @@ export function Chatter({
               {thinkingLabel && (
                 <p className="mb-0.5 px-1 text-sello font-medium text-ink-3">{thinkingLabel}</p>
               )}
-              <div className="flex items-center gap-2 rounded-2xl bg-panel px-3.5 py-2.5">
+              <div className="flex items-center gap-2 rounded-2xl bg-fill px-3.5 py-2.5">
                 <span className="chatter-dots inline-flex gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-ink-3" />
                   <span className="h-1.5 w-1.5 rounded-full bg-ink-3" />
@@ -184,14 +204,13 @@ export function Chatter({
             </div>
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       {/* Compositor */}
-      <div className="border-t border-line bg-panel/40 px-3 py-3">
+      <div className="border-t border-line pt-3">
         {channel && (
           <div className="mb-2 flex items-center gap-1.5">
-            <span className="flex items-center gap-1 rounded-full border border-accent/40 bg-accent-soft px-2 py-0.5 text-sello font-medium text-accent-ink">
+            <span className="sello gap-1">
               {CHANNEL_LOGO[channel.active] && (
                 <img src={CHANNEL_LOGO[channel.active]} alt="" className="h-3 w-3" />
               )}
@@ -201,7 +220,7 @@ export function Chatter({
               <span
                 key={opt}
                 title="Disponible al conectar este canal"
-                className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-sello text-ink-3"
+                className="sello gap-1 text-ink-3"
               >
                 {CHANNEL_LOGO[opt] && <img src={CHANNEL_LOGO[opt]} alt="" className="h-3 w-3 grayscale" />}
                 {opt === "email" ? "Correo" : opt}
@@ -231,7 +250,7 @@ export function Chatter({
                 disabled={sending}
                 aria-label="Adjuntar PDF o imagen"
                 title="Adjuntar PDF o imagen"
-                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-ink-3 transition-colors hover:border-line-strong hover:text-ink disabled:opacity-40"
+                className="btn btn-secondary w-10 shrink-0 px-0"
               >
                 <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
                   <path
@@ -256,13 +275,13 @@ export function Chatter({
             }}
             rows={1}
             placeholder={placeholder}
-            className="max-h-28 min-h-[38px] flex-1 resize-none rounded-lg border border-line bg-surface px-3 py-2 text-cuerpo text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none"
+            className="field max-h-28 flex-1 resize-none focus:border-accent focus:outline-none"
           />
           <button
             type="submit"
             disabled={sending || !draft.trim()}
             aria-label={sendLabel}
-            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg bg-accent text-surface transition-colors hover:bg-accent-strong disabled:opacity-40"
+            className="btn btn-primary w-10 shrink-0 px-0"
           >
             <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none">
               <path d="M2 8 14 2l-4 12-2.5-4.5L2 8Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />

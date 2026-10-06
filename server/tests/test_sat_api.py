@@ -214,7 +214,12 @@ def test_boveda_y_estado_dicen_lo_cancelado_en_el_sat(client, db_session, demo):
     estado = client.get("/v1/sat/estado").json()
     assert estado["boveda"]["canceladas"] == 1
     # la cancelada salió de la cartera: solo queda la de 500
-    assert estado["cartera"]["todo_junto"] == {"abiertas": 1, "total": 500.0}
+    assert estado["cartera"]["todo_junto"] == {
+        "abiertas": 1,
+        "total": 500.0,
+        "moneda": "MXN",
+        "por_moneda": [{"moneda": "MXN", "open_total": 500.0, "open_count": 1}],
+    }
     assert estado["empresas"][0]["sync"]["emitidas"]["cancelaciones_hasta"] == "2026-10-05"
     inv = db_session.scalar(select(Invoice).where(Invoice.folio == "F-1"))
     assert client.get(f"/v1/invoices/{inv.id}").json()["motivo_cierre"] == "cancelada en el SAT"

@@ -35,7 +35,9 @@ export function ProvenanceBar({
   const info = src ? (presence?.[src] ?? {}) : {};
   const label = src ? (SOURCE_LABEL[src] ?? src) : "";
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg border border-line bg-panel/50 px-3.5 py-2 text-cuerpo">
+    // Una línea de texto con su marca. Sin caja y sin relleno: es un dato del registro,
+    // no un aviso, y arriba del nombre de un cliente no debe pesar más que el nombre.
+    <div className="mb-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-apoyo">
       {src ? (
         <>
           <span className="flex items-center gap-1.5 font-medium text-ink-2">

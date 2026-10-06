@@ -20,6 +20,29 @@ router = APIRouter()
 ESTADO = {"pending": "pendiente", "done": "inyectada", "failed": "falló"}
 
 
+def _procesar_sin_tronar(tenant_id: str) -> None:
+    import logging
+
+    from aiuda_server.worker import main as worker
+
+    try:
+        worker.process_writebacks_blocking(tenant_id)
+    except Exception:
+        # No es un error para quien registró el pago: la entrada sigue en la cola
+        # y la revisión de cada hora la vuelve a intentar.
+        logging.getLogger("aiuda.writeback").exception(
+            "no se pudo mandar lo encolado al momento; lo reintenta la revisión horaria"
+        )
+
+
+def mandar_ya(background: BackgroundTasks, tenant_id: str) -> None:
+    """Procesa la cola de escritura de regreso en cuanto termina la respuesta, en
+    vez de esperar a la revisión de cada hora. Quien llama ya hizo `db.commit()`:
+    las BackgroundTasks corren antes del teardown de la sesión. Si falla, no
+    truena: la cola se queda como estaba y la revisión horaria la retoma."""
+    background.add_task(_procesar_sin_tronar, tenant_id)
+
+
 def _entry_json(e: OutboxEntry) -> dict:
     payload = e.payload or {}
     # El destino con el nombre que ve el dueño: una conexión a la medida se llama

@@ -8,7 +8,7 @@ const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
  *  otra pestaña). En dev lleva /api; en la consola empaquetada va sin prefijo. */
 export const apiUrl = (path: string) => `${API_URL}${path}`;
 
-export type AgingLine = { bucket: string; count: number; total: number };
+type AgingLine = { bucket: string; count: number; total: number };
 
 export type Cartera = {
   business_name: string;
@@ -24,6 +24,23 @@ export type Cartera = {
   active_promises: number;
   payment_reports: number;
   by_source: Record<string, number>;
+  aging: AgingLine[];
+  /** La moneda de la cifra grande: pesos si hay, si no la que más facturas tenga.
+   *  `open_total`, `open_count`, `aging` y `recovered_this_month` hablan SOLO de ella. */
+  moneda_principal: string;
+  /** El desglose por moneda. Pesos y dólares nunca se suman. */
+  por_moneda: CarteraMoneda[];
+  /** Facturas abiertas en cualquier moneda. */
+  open_count_todas: number;
+};
+
+/** Una moneda del desglose de `GET /v1/cartera` (`por_moneda`). */
+export type CarteraMoneda = {
+  moneda: string;
+  open_total: number;
+  open_count: number;
+  overdue_total: number;
+  recovered_this_month: number;
   aging: AgingLine[];
 };
 
@@ -61,10 +78,16 @@ export type ReminderItem = {
   retirado?: string | null;
   /** Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…"). */
   pendiente?: string | null;
+  /** Cuenta en "Por aprobar": la regla vive en el server (`_recordatorio_pide_decision`). */
+  pide_decision?: boolean;
+  /** null = no va ligado a una factura. */
+  factura_abierta?: boolean | null;
+  /** Cuándo cambió de estado por última vez. */
+  updated_at?: string | null;
 };
 
 /** Procedencia de un dato: qué es + de qué fuente(s) viene, con su presencia. */
-export type Procedencia = {
+type Procedencia = {
   que?: string;
   source: string;
   sources?: string[];
@@ -98,6 +121,8 @@ export type PromiseItem = {
   customer: string;
   customer_id: string;
   amount: number;
+  /** La moneda de la factura prometida. */
+  currency?: string;
   promised_date: string;
   note: string | null;
   days_left: number;
@@ -107,6 +132,9 @@ export type PromiseItem = {
   vencida: boolean;
   /** false = la factura ya se pagó o se canceló: la promesa ya no pide nada. */
   factura_abierta: boolean;
+  /** El dueño ya la dio por incumplida ("No cumplió"): sigue sin cumplir, pero ya no
+   *  cuenta en "Por aprobar". */
+  incumplida?: boolean;
 };
 
 export type ChatMessage = {
@@ -136,7 +164,10 @@ export type CustomerDetail = {
   meta: Record<string, string>;
   // El cliente pidió no recibir mensajes (BAJA/STOP); null = puede recibir.
   opt_out: { at: string; via: string } | null;
+  /** SOLO de `moneda`; el desglose completo va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   open_count: number;
   conversation_id: string | null;
   human_takeover: boolean;
@@ -145,13 +176,14 @@ export type CustomerDetail = {
     id: string;
     folio: string;
     amount: number;
+    currency: string;
     status: string;
     bucket: string;
     days_overdue: number;
   }[];
   reminders: { id: string; folio: string | null; status: string; channel: string; bucket: string; created_at: string }[];
   promises: { id: string; folio: string | null; promised_date: string; fulfilled: boolean }[];
-  payments: { id: string; amount: number; paid_at: string; source: string; folio: string | null; status: string }[];
+  payments: { id: string; amount: number; currency: string; paid_at: string; source: string; folio: string | null; status: string }[];
   citas: { id: string; title: string; starts_at: string | null }[];
 };
 
@@ -235,12 +267,19 @@ export type WritebackEntry = {
   done_at: string | null;
 };
 
+/** Lo que se debe en UNA moneda. Pesos y dólares nunca se suman. */
+export type SaldoMoneda = { moneda: string; open_total: number; open_count: number };
+
 export type CustomerItem = {
   id: string;
   name: string;
   phone: string | null;
+  /** Facturas abiertas en cualquier moneda. */
   open_invoices: number;
+  /** SOLO de `moneda` (pesos si debe algo en pesos). El resto va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   tags: string[];
   kind: string;
   meta: Record<string, string>;
@@ -289,7 +328,7 @@ export type EntidadInyectable = "cliente" | "producto" | "factura" | "cita";
 export type InyectarDestinos = Record<EntidadInyectable, InyectarDestino[]>;
 
 /** Una factura candidata que propone el ayudante de conciliación para un pago. */
-export type ReconcileCandidate = {
+type ReconcileCandidate = {
   invoice_id: string;
   folio: string;
   customer: string;
@@ -305,7 +344,7 @@ export type ReconcileCandidate = {
 };
 
 /** Varias facturas del MISMO cliente cuyos saldos suman el pago (una transferencia, varias facturas). */
-export type ReconcileGroup = {
+type ReconcileGroup = {
   invoice_ids: string[];
   folios: string[];
   customer: string;
@@ -355,7 +394,7 @@ export type DichoPago = {
 };
 
 /** Estado honesto de una fuente de confirmación de pago (Belvo/Stripe). */
-export type FuenteConfirmacion = { configurada: boolean; verificada_en_vivo: boolean };
+type FuenteConfirmacion = { configurada: boolean; verificada_en_vivo: boolean };
 
 export type ReconcileConfig = { tolerancia_pct: number; tolerancia_abs: number };
 
@@ -397,7 +436,7 @@ export type Tag = { id: string; name: string; color: string; count?: number };
 export type ConversationStatus = "identificado" | "por_identificar" | "descartado";
 
 /** Hilo de correo: quién escribe y de qué va (la clave técnica vive en remote_phone). */
-export type CorreoHilo = { de: string; nombre: string; asunto: string };
+type CorreoHilo = { de: string; nombre: string; asunto: string };
 
 export type ConversationItem = {
   id: string;
@@ -438,28 +477,12 @@ export type ConversationDetail = {
 
 /** Plan de carrera: el nivel lo calcula el BACKEND a partir de acciones reales
  *  (filas de trabajo derivadas en cada lectura, no un contador). Aquí solo se pinta. */
-export type Nivel = {
+type Nivel = {
   nivel: string;
   /** Umbral de acciones del siguiente nivel; null en el máximo. */
   siguiente: number | null;
   /** Progreso [0..1] hacia el siguiente nivel. */
   progreso: number;
-};
-
-export type AgentState = {
-  slug: string;
-  active: boolean;
-  actions: number;
-  pending: number;
-  sent: number;
-  nivel: Nivel;
-};
-
-export type AgentConfig = {
-  slug: string;
-  user_rules: string[];
-  auto_send_buckets: string[];
-  business_context: string;
 };
 
 export type ImportResult = {
@@ -483,19 +506,6 @@ export type ImportAnalysis = {
   fields: Record<string, string>; // campo -> descripción
   types: { key: string; label: string }[];
   row_count: number;
-};
-
-export type UsageSummary = {
-  month: string;
-  total_cost_usd: number;
-  by_model: { model: string; input_tokens: number; output_tokens: number; cost_usd: number }[];
-  activity: {
-    recordatorios_redactados: number;
-    recordatorios_enviados: number;
-    conversaciones_atendidas: number;
-    mensajes_respondidos: number;
-    promesas_registradas: number;
-  };
 };
 
 
@@ -559,7 +569,7 @@ export class ApiError extends Error {
 }
 
 /** ¿El error se arregla en Tu IA? (no hay IA conectada, o la que hay no respondió).
- *  Quien lo pinta pone la liga a /proveedor junto al mensaje. */
+ *  Quien lo pinta pone la liga a Tu IA junto al mensaje. */
 export function errorDeIA(e: unknown): boolean {
   return e instanceof ApiError && (e.code === "ia_no_conectada" || e.code === "ia_fallo");
 }
@@ -621,24 +631,32 @@ export type ExportEntidad =
 export type WorkspaceInfo = {
   business_name: string;
   role: string;
+  /** La versión de aiuda que corre en esta computadora. */
+  version?: string;
+};
+
+/** Modo de prueba. `retenidos` = lo aprobado que no ha salido: lo que se iría a
+ *  clientes reales al apagarlo. */
+export type ModoPrueba = { modo_sombra: boolean; retenidos: number };
+
+export type ModoPruebaCambio = ModoPrueba & {
+  retenidos_accion: "enviando" | "no_enviados" | null;
+};
+
+/** Lo que responde registrar un pago. */
+export type PagoRegistrado = {
+  id: string;
+  status: string;
+  paid_source: string;
+  promesas_cumplidas?: number;
+  recordatorios_retirados?: number;
+  /** La entrada de la cola que lleva el pago a su sistema de origen; null si no
+   *  regresa a ninguno. Se manda al momento: su estado real está en /v1/writeback. */
+  writeback_id?: string | null;
 };
 
 export type SearchResponse = {
   groups: { title: string; items: { label: string; sublabel: string; href: string }[] }[];
-};
-
-/** Un hito del embudo de activación; `done` se deriva del estado real en backend. */
-export type OnboardingStep = {
-  key: string;
-  label: string;
-  done: boolean;
-  href: string;
-};
-
-export type OnboardingState = {
-  steps: OnboardingStep[];
-  done_count: number;
-  total: number;
 };
 
 /** GET /v1/setup/estado: lo que aiuda encontró en ESTA computadora en el primer
@@ -659,6 +677,9 @@ export type SetupEstado = {
   ayudantes: { total: number; listo: boolean };
   extras: { wacli: boolean };
   terminado: boolean;
+  /** El negocio sigue en modo de prueba (toda instalación nueva nace así). */
+  modo_prueba?: boolean;
+  cerrado_por_el_dueno?: boolean;
 };
 
 /** Un modelo que aiuda recomienda para ESTA computadora. `cabe` es el veredicto
@@ -722,13 +743,13 @@ export type SetupRed = {
   aviso: string;
 };
 
-export type IntegrationFlow = "read" | "writeback" | "channel" | "confirm" | "action";
+type IntegrationFlow = "read" | "writeback" | "channel" | "confirm" | "action";
 
 /** Una capacidad que una fuente provee (lo que el aiudante realmente usa). */
-export type ProvidedCap = { cap: string; label: string; live: boolean };
+type ProvidedCap = { cap: string; label: string; live: boolean };
 
 /** La declaración de una conexión a la medida: URL, auth, paginación y mapeo. */
-export type CustomConnectorConfig = {
+type CustomConnectorConfig = {
   base_url: string;
   list_path?: string;
   root?: string;
@@ -780,7 +801,7 @@ export type CustomTestResult = {
 };
 
 /** Capacidad de negocio, independiente de la fuente que la cumple. */
-export type Capability = {
+type Capability = {
   key: string;
   label: string;
   desc: string;
@@ -842,13 +863,20 @@ export type SatEstado = {
     desconocida: number;
     canceladas: number;
   };
+  /** `total` es SOLO de `moneda`; `por_moneda` trae el desglose. */
   cartera: {
-    por_empresa: { rfc: string; abiertas: number; total: number }[];
-    todo_junto: { abiertas: number; total: number };
+    por_empresa: {
+      rfc: string;
+      abiertas: number;
+      total: number;
+      moneda: string;
+      por_moneda: SaldoMoneda[];
+    }[];
+    todo_junto: { abiertas: number; total: number; moneda: string; por_moneda: SaldoMoneda[] };
   };
 };
 
-export type SatCfdi = {
+type SatCfdi = {
   uuid: string;
   tipo: string | null;
   metodo_pago: string | null;
@@ -920,7 +948,7 @@ export type IntegrationDetail = {
   capabilities: SourceCap[];
 };
 
-export type IntegrationAgent = {
+type IntegrationAgent = {
   slug: string;
   name: string;
   role: string;
@@ -938,32 +966,6 @@ export type IntegrationsGraph = {
   capabilities: Capability[];
   connected_count: number;
   available_count: number;
-};
-
-export type AgentSystem = {
-  key: string;
-  name: string;
-  group: string;
-  logo: string | null;
-  color: string;
-  flows: IntegrationFlow[];
-  rol: string;
-  live: boolean;
-  does: string;
-  connected: boolean;
-  provides: ProvidedCap[];
-};
-
-export type AgentSystems = {
-  slug: string;
-  name: string;
-  role: string;
-  avatar: string;
-  systems: AgentSystem[];
-  capabilities: Capability[];
-  needs: string[];
-  gaps: string[];
-  connected_count: number;
 };
 
 // "codex" = OpenAI. Se conecta simétrico a Claude: con la API key (sk-...) del dueño.
@@ -1047,7 +1049,7 @@ export type RunTurno = {
   error: string | null;
 };
 
-/** Estado del proveedor de IA conectado (panel /proveedor). */
+/** Estado de la IA conectada (Ajustes > Tu IA). */
 export type ProviderState = {
   name: ProviderName;
   mode: ProviderMode;
@@ -1071,9 +1073,9 @@ export type ProviderTest =
 
 // --- Aiuditas (catálogo capability-first) + ayudantes del dueño ---
 
-export type PerillaTipo = "enum" | "numero" | "bool" | "texto" | "hora";
+type PerillaTipo = "enum" | "numero" | "bool" | "texto" | "hora";
 
-export type PerillaOpcion = { value: string; label: string };
+type PerillaOpcion = { value: string; label: string };
 
 export type Perilla = {
   key: string;
@@ -1116,6 +1118,10 @@ export type AiuditaSpec = {
   /** Fuentes posibles para esa capacidad. Aquí el dueño define DE DÓNDE lee. */
   fuentes?: Fuente[];
   perillas: Perilla[];
+  /** Cuándo trabaja, dicho para el dueño ("Cada hora", "Cuando se lo pides"). */
+  cuando?: string;
+  /** Si lo que hace pasa por la aprobación del dueño, dicho para él. */
+  aprobacion?: string;
 };
 
 export type PerfilSpec = { slug: string; name: string; desc: string };
@@ -1193,6 +1199,8 @@ export type CuaCapacidad = {
   estrenada: boolean;
   tiene_sesion: boolean;
   sesion_guardada_en: string | null;
+  /** Lo registró el dueño, o le puso dirección o sesión a uno de fábrica. */
+  del_dueno?: boolean;
 };
 
 /** Un portal a la medida que el dueño registró por URL. */
@@ -1238,7 +1246,7 @@ export type CuaEstado = {
 
 /** Un documento oficial bajado de un portal (opinión 32-D, constancia). El PDF se
  *  abre con apiUrl(`/v1/documentos/${id}.pdf`). */
-export type Documento = {
+type Documento = {
   id: string;
   rfc: string;
   tipo: string;
@@ -1483,9 +1491,6 @@ export const api = {
     request<WhatsappInstalacion>("/v1/integrations/whatsapp/instalar", { method: "POST" }),
   whatsappLogout: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/session", { method: "DELETE" }),
   workspace: () => request<WorkspaceInfo>("/v1/workspace"),
-  // Activación: progreso derivado del estado real (no flags persistidos). Lo
-  // consume el bloque "Primeros pasos" del Resumen.
-  onboardingState: () => request<OnboardingState>("/v1/onboarding/state"),
   // Primer arranque: qué encontró aiuda en la computadora y qué falta para trabajar.
   // Los aparatos del dueño y la puerta que da a la red de la oficina. El QR se
   // arma con lo que devuelve `crearInvitacion`; el token completo del aparato
@@ -1506,12 +1511,6 @@ export const api = {
     }),
   cancelarInvitacion: () =>
     request<{ cancelada: boolean }>("/v1/dispositivos/invitacion", { method: "DELETE" }),
-  cambiarDispositivo: (id: string, cambio: Partial<Pick<Dispositivo, "nombre" | "papel" | "tope_aprobacion">>) =>
-    request<Dispositivo>(`/v1/dispositivos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cambio),
-    }),
   revocarDispositivo: (id: string) =>
     request<Dispositivo>(`/v1/dispositivos/${id}/revocar`, { method: "POST" }),
   setupEstado: () => request<SetupEstado>("/v1/setup/estado"),
@@ -1545,12 +1544,14 @@ export const api = {
     request<{ aviso: { mes: string; desde: string | null } | null }>("/v1/avisos/tope-ia"),
   descartarAvisoTopeIa: () =>
     request<{ aviso: null }>("/v1/avisos/tope-ia/descartar", { method: "POST" }),
-  shadowMode: () => request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra"),
-  setShadowMode: (activo: boolean) =>
-    request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra", {
+  shadowMode: () => request<ModoPrueba>("/v1/settings/modo-sombra"),
+  /** `retenidos` solo cuenta al apagar: mandar ya lo aprobado que no ha salido, o
+   *  dejarlo en "No salió" para que no se vaya solo a clientes reales. */
+  setShadowMode: (activo: boolean, retenidos?: "enviar" | "no_enviar") =>
+    request<ModoPruebaCambio>("/v1/settings/modo-sombra", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activo }),
+      body: JSON.stringify({ activo, retenidos: retenidos ?? null }),
     }),
   ventanaEnvio: () => request<{ ventana: string }>("/v1/settings/ventana-envio"),
   setVentanaEnvio: (ventana: string) =>
@@ -1782,7 +1783,6 @@ export const api = {
         }),
       },
     ),
-  usage: () => request<UsageSummary>("/v1/usage"),
   approve: (id: string, channel = "whatsapp", message?: string) =>
     // La respuesta dice el estado FINAL honesto: delivery "encolado" (canal listo, el
     // envío corre en segundo plano) o "pendiente_canal" (aprobado; `aviso` trae el
@@ -1812,7 +1812,8 @@ export const api = {
         ? `/v1/learning/summary?ayudante_id=${encodeURIComponent(ayudanteId)}`
         : `/v1/learning/summary`,
     ),
-  pay: (invoiceId: string) => request(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
+  pay: (invoiceId: string) =>
+    request<PagoRegistrado>(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
   remind: (invoiceId: string) =>
     request<{ id: string; status: string; message: string }>(
       `/v1/invoices/${invoiceId}/remind`,
@@ -1820,6 +1821,12 @@ export const api = {
     ),
   fulfill: (promiseId: string) =>
     request(`/v1/promises/${promiseId}/fulfill`, { method: "POST" }),
+  /** Dar una promesa vencida por incumplida: sale de Hoy; la factura sigue abierta. */
+  promesaNoCumplio: (promiseId: string) =>
+    request<{ id: string; fulfilled: boolean; incumplida: boolean }>(
+      `/v1/promises/${promiseId}/no-cumplio`,
+      { method: "POST" },
+    ),
   reconciliation: () => request<ReconcileBandeja>("/v1/reconciliation"),
   // Acepta una factura o varias (un pago puede liquidar un grupo).
   confirmReconcile: (paymentId: string, invoiceIds: string | string[]) =>
@@ -1842,7 +1849,6 @@ export const api = {
     }),
   reconcileResueltos: () =>
     request<{ resueltos: ReconcileResuelto[]; count: number }>("/v1/reconciliation/resueltos"),
-  reconcileConfig: () => request<ReconcileConfig>("/v1/reconciliation/config"),
   saveReconcileConfig: (body: ReconcileConfig) =>
     request<ReconcileConfig>("/v1/reconciliation/config", {
       method: "PUT",
@@ -1867,10 +1873,9 @@ export const api = {
       body: JSON.stringify(body),
     }),
   // Son DOS prompts porque el interlocutor cambia: `chat` cuando el dueño le
-  // pregunta, `corrida` cuando redacta para un cliente. `system` es alias de `chat`
-  // y se conserva por compatibilidad.
+  // pregunta, `corrida` cuando redacta para un cliente.
   ayudantePrompt: (id: string) =>
-    request<{ system: string; chat: string; corrida: string }>(
+    request<{ chat: string; corrida: string }>(
       `/v1/ayudantes/${id}/prompt`,
     ),
   cuaEstado: () => request<CuaEstado>("/v1/cua/estado"),
@@ -1899,8 +1904,6 @@ export const api = {
     }),
   cuaBorrarRutina: (id: string) =>
     request<void>(`/v1/cua/rutinas/${id}`, { method: "DELETE" }),
-  // Portales a la medida (registrar por URL) y direcciones de los built-in.
-  cuaPortales: () => request<CuaPortal[]>("/v1/cua/portales"),
   cuaCrearPortal: (body: { nombre: string; url: string; notas?: string }) =>
     request<CuaPortal>("/v1/cua/portales", {
       method: "POST",
@@ -2006,11 +2009,6 @@ export const api = {
     const qs = params.toString();
     return requestBlob(`/v1/export/${entidad}.xlsx${qs ? `?${qs}` : ""}`);
   },
-  importFile: (file: globalThis.File) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request<ImportResult>("/v1/import", { method: "POST", body: form });
-  },
   analyzeImport: (file: globalThis.File, entity?: string) => {
     const form = new FormData();
     form.append("file", file);
@@ -2046,7 +2044,7 @@ export const api = {
 };
 
 /** Un movimiento leído del estado de cuenta (cargo o abono, nunca ambos). */
-export type BancoMovimiento = {
+type BancoMovimiento = {
   fecha: string;
   concepto: string;
   referencia: string;
@@ -2088,11 +2086,11 @@ export const mxn = (value: number) =>
 // Antigüedad de cartera: única fuente de verdad para etiqueta, color de badge (fg/bg)
 // y color de la barra (bar). No redefinir estos tramos en las páginas.
 export const BUCKET_META: Record<string, { label: string; fg: string; bg: string; bar: string }> = {
-  por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-ok" },
+  por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-line-strong" },
   vence_pronto: { label: "Vence pronto", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },
-  vencida_reciente: { label: "Vencida 1–15 d", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
-  vencida: { label: "Vencida 16–45 d", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
-  critica: { label: "Vencida +45 d", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
+  vencida_reciente: { label: "Vencida 1 a 15 días", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
+  vencida: { label: "Vencida 16 a 45 días", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
+  critica: { label: "Vencida más de 45 días", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
   // No es antigüedad de cartera: es una respuesta de correo propuesta por el
   // ayudante que espera tu aprobación (misma pill en el Centro).
   respuesta_correo: { label: "Respuesta de correo", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },

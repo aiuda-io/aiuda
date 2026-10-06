@@ -1,24 +1,25 @@
-import Link from "next/link";
+"use client";
+
+import { PrimaryLink } from "@/components/ui";
+import { useSinRegreso } from "@/components/rastro";
 
 // La página para una dirección que no existe. Sin este archivo Next pone la suya,
 // en inglés ("This page could not be found"), y es lo que veía el dueño al abrir
-// un enlace viejo o mal escrito.
+// un enlace viejo o mal escrito. Vive dentro del marco: el menú sigue ahí.
 export default function NoEncontrada() {
+  // Una sola salida: el botón de abajo. El "Volver a Hoy" del marco decía lo mismo
+  // encima de él.
+  useSinRegreso();
   return (
-    <div className="max-w-md py-10">
-      <h1 className="text-seccion font-semibold tracking-tight text-ink">
-        Esta página no existe
-      </h1>
-      <p className="mt-2 text-cuerpo leading-relaxed text-ink-2">
+    <div className="max-w-md pt-10">
+      <h1 className="text-titulo font-semibold text-ink">Esta pantalla no existe</h1>
+      <p className="mt-3 text-cuerpo text-ink-2">
         La dirección está mal escrita o esa pantalla ya no está en aiuda. Tus datos siguen
         donde estaban.
       </p>
-      <Link
-        href="/"
-        className="mt-4 inline-block rounded-md bg-accent px-3.5 py-1.5 text-cuerpo font-medium text-surface transition-colors hover:bg-accent-strong"
-      >
-        Ir al Resumen
-      </Link>
+      <div className="mt-8">
+        <PrimaryLink href="/">Ir a Hoy</PrimaryLink>
+      </div>
     </div>
   );
 }

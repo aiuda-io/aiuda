@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { SHADOW_EVENT, useApagarModoPrueba } from "@/components/modo-prueba";
 
-// Evento que dispara Configuración al prender/apagar el modo sombra, para que el
-// banner se actualice sin recargar.
-export const SHADOW_EVENT = "shadow-mode-changed";
-
-// Franja persistente mientras el modo sombra está activo: deja claro que NADA sale a
-// clientes reales (semana de validación con datos reales). Se apaga en Configuración.
+// LA franja del modo de prueba, y la única: mientras está encendido, nada sale a
+// los clientes. Se queda pegada arriba al hacer scroll, porque una advertencia que
+// se va de la vista deja de advertir. Se apaga aquí mismo, pasando por el mismo
+// diálogo que Ajustes (components/modo-prueba.tsx): lo ya aprobado no se va solo.
 export function ShadowBanner() {
   const [on, setOn] = useState(false);
+  const { apagar, apagando, dialogo } = useApagarModoPrueba();
 
   useEffect(() => {
     api
@@ -22,12 +22,26 @@ export function ShadowBanner() {
     return () => window.removeEventListener(SHADOW_EVENT, handler);
   }, []);
 
-  if (!on) return null;
+  if (!on) return dialogo;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-line-strong bg-panel px-4 py-1.5 text-center text-cuerpo text-ink-2">
-      <span className="font-semibold text-ink">Modo sombra activo.</span>
-      <span>Tu ayudante redacta y deja todo en Aprobaciones, pero no envía nada a clientes reales.</span>
-    </div>
+    <>
+      <div
+        role="status"
+        className="franja sticky top-0 z-30 flex min-h-10 flex-wrap items-center justify-center gap-x-4 gap-y-0.5 bg-warn-band px-5 py-1.5 text-center text-apoyo text-ink"
+      >
+        <span>
+          <span className="font-semibold">Modo de prueba:</span> nada sale a tus clientes
+        </span>
+        <button
+          onClick={apagar}
+          disabled={apagando}
+          className="font-semibold underline decoration-ink/40 underline-offset-[3px] hover:decoration-ink disabled:opacity-50"
+        >
+          Apagar
+        </button>
+      </div>
+      {dialogo}
+    </>
   );
 }

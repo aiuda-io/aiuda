@@ -60,9 +60,18 @@ Principios que mandan sobre cualquier feature:
   cualquier otro número no se lee, no se guarda y no recibe respuesta. Correo
   IMAP/SMTP; la Cloud API oficial requiere una URL pública que la instalación
   local no trae, y está oculta del catálogo hasta estrenarla.
-- **Integraciones:** el catálogo (`server/aiuda_server/api/integrations.py`) declara
-  `estrenada` por integración; `False` = nadie la ha usado con una cuenta real y la
-  consola le pone el sello "Sin estrenar". `oculta` = no se ofrece hasta probarse.
+- **Conexiones** (en el código, integraciones): el catálogo
+  (`server/aiuda_server/api/integrations.py`) declara `estrenada` por integración;
+  `False` = nadie la ha usado con una cuenta real y la consola le pone el sello "Sin
+  estrenar". `oculta` = no se ofrece hasta probarse.
+- **La consola tiene seis destinos:** Hoy (`/`, el inicio y la pantalla de trabajo),
+  Cartera (`/facturas`, con Promesas y Pagos como pestañas), Mensajes, Clientes,
+  Ayudantes (de ahí se entra a Portales) y Ajustes (Negocio, Conexiones, Tu IA,
+  Teléfono y equipo). Productos y Agenda aparecen solo si hay un ayudante de Ventas
+  o de Recepción. Nombres y rutas salen de `web/lib/sections.ts`; las reglas
+  visuales, de `web/DESIGN.md`. Las rutas viejas (`/centro`, `/proveedor`,
+  `/integraciones`, `/promesas`…) son redirecciones para enlaces de fuera: dentro
+  del código no se enlaza a ellas.
 - **Teléfono:** la app de iPhone vive en un repo aparte (`aiuda-ios`). Se empareja por
   QR con la segunda puerta de la red local (`server/aiuda_server/red_local.py`); cada
   endpoint nuevo se declara en `server/aiuda_server/api/permisos.py`.
@@ -75,6 +84,10 @@ Principios que mandan sobre cualquier feature:
 uv sync && uv run python scripts/seed.py
 uv run aiuda start --no-token          # todo en 127.0.0.1:4747
 # o con recarga: scripts/dev.sh  (API :8000 + Next :3000)
+# OJO: lo de arriba corre sobre TU ~/.aiuda y tu WhatsApp. Para probar sin tocarlos:
+#   export HOME=$(mktemp -d) AIUDA_DATABASE_URL=sqlite:///$HOME/p.db   (en la MISMA
+#   llamada que arranca el server). Con una base que no es ~/.aiuda/aiuda.db, aiuda
+#   nunca usa ~/.wacli: el store de WhatsApp vive junto a esa base.
 # extras: uv sync --extra cua && .venv/bin/playwright install chromium
 ```
 

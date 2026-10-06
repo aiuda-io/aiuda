@@ -238,7 +238,7 @@ class RunRecorder:
 
     def cortar(self, motivo: str) -> None:
         """Terminó sin error pero sin hacer el trabajo: se acabó el tope de IA, no hay
-        proveedor, quedó fuera de la ventana de envío. Antes esto se perdía."""
+        proveedor, quedó fuera de la ventana de envío."""
         self._fila.status = "cortado"
         self._fila.error = motivo
 

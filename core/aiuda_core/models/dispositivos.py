@@ -20,9 +20,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from aiuda_core.models.base import Base, TenantMixin, TimestampMixin, new_id
 
-PAPELES = ("dueno", "invitado")
-
-
 class Dispositivo(Base, TenantMixin, TimestampMixin):
     __tablename__ = "dispositivos"
     __table_args__ = (

@@ -1,13 +1,12 @@
 """WhatsApp entrante (wacli) DENTRO del proceso de `aiuda start`.
 
-wacli no empuja mensajes: hay que sondearlos. Antes eso era un daemon aparte
-(scripts/wacli_inbound.py + systemd/launchd); en local-first el sondeo vive en
-un hilo del mismo proceso, así que UN comando recibe y procesa WhatsApp.
+wacli no empuja mensajes: hay que sondearlos. El sondeo vive en un hilo del
+mismo proceso, así que UN comando recibe y procesa WhatsApp.
 
 La ingesta es LA MISMA que la del webhook (conversación + dedupe por
 wa_message_id + procesamiento del agente): ``ingresar_entrante`` es la función
-compartida. El estado "qué ya vi" persiste en ~/.aiuda/ igual que el daemon
-viejo, así que actualizar no re-importa historia.
+compartida. El estado "qué ya vi" persiste en ~/.aiuda/, así que reiniciar no
+re-importa historia.
 """
 
 from __future__ import annotations
@@ -81,7 +80,7 @@ def _wacli_tenants(db) -> list[tuple[str, str]]:
 
 
 def _state_path(instance: str) -> Path:
-    # Misma convención que el daemon viejo: el estado sobrevive la migración.
+    # El nombre no se cambia: es el archivo que ya tienen las instalaciones.
     name = f"wacli_inbound.{instance}.json" if settings.wacli_store_root else "wacli_inbound.json"
     return default_data_dir() / name
 

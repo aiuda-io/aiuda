@@ -1,7 +1,7 @@
 # Conectar tu IA
 
 aiuda no incluye ni revende inferencia. Tú traes el modelo. Todo se conecta desde
-la consola, en **/proveedor**, y el secreto queda cifrado en tu computadora
+la consola, en **Ajustes**, sección **Tu IA**, y el secreto queda cifrado en tu computadora
 ([DATOS.md](DATOS.md)).
 
 Sin IA conectada, aiuda arranca y sincroniza, pero no redacta nada. `aiuda
@@ -49,7 +49,7 @@ ves con una versión nueva, cuéntalo en un issue.
 
 La vía recomendada: es la que los proveedores contemplan para uso programático.
 
-- **Claude:** crea una llave en console.anthropic.com y pégala en /proveedor.
+- **Claude:** crea una llave en console.anthropic.com y pégala en Ajustes, en Tu IA.
 - **OpenAI:** una llave `sk-...` de platform.openai.com, igual.
 
 aiuda usa dos modelos: uno chico para clasificar y hacer triage, uno grande para
@@ -172,8 +172,8 @@ hasta ese equipo. Se queda en tu oficina, pero ya no es solo tu máquina.
 
 ## Probar que quedó
 
-En /proveedor hay un botón que hace una llamada real y regresa el modo, el
-modelo y la latencia, o el error exacto (auth, permiso, rate limit, red). Desde
+En Ajustes, en Tu IA, el botón **Probar que responde** hace una llamada real y
+dice si tu IA contestó o, si no, por qué (la llave, el permiso, el límite, la red). Desde
 la terminal, `aiuda doctor` dice si hay proveedor conectado, si ya tienes Claude
 Code o Codex instalados y si Ollama responde.
 
@@ -194,12 +194,12 @@ abajo aplica igual. Cuánto de tu plan llevas gastado lo dice ChatGPT, en
 También existe un tope mensual de tokens, y viene puesto de fábrica: 5 millones
 de tokens al mes. No es un cobro nuestro (nosotros no cobramos nada y nunca vemos
 tu llave): es el freno para que un mes raro, o una corrida que se atore, no te
-sorprenda en el recibo de tu proveedor de IA. Un negocio normal no lo toca: una
+sorprenda en el recibo de tu IA. Un negocio normal no lo toca: una
 corrida de cobranza gasta miles de tokens, no millones.
 
 Cuando se agota, aiuda deja de llamar a la IA: no se cuelga a media iteración,
-la corrida sigue sin IA, y el aviso queda en la bitácora y arriba del Centro de
-mando, donde lo ves al abrir y lo puedes descartar. Para moverlo se escribe
+la revisión sigue sin IA, y el aviso queda en la bitácora y arriba de Hoy, donde
+lo ves al abrir y lo puedes descartar. Para moverlo se escribe
 `ia_tope_tokens_mes` en la configuración del negocio (todavía no hay pantalla
 para eso); con `0` te quedas sin tope, bajo tu propio riesgo.
 
@@ -209,7 +209,7 @@ hora). También se mueve, con `max_borradores_corrida`.
 
 ## Cambiar o desconectar
 
-En /proveedor puedes reemplazar el secreto o desconectar. Al desconectar se
+En Ajustes, en Tu IA, puedes reemplazar el secreto o desconectar. Al desconectar se
 borra la credencial cifrada; nada más se pierde.
 
 Si lo conectado era tu cuenta de ChatGPT, al desconectar aiuda le avisa a OpenAI

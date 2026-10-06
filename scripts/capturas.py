@@ -31,13 +31,15 @@ RAIZ = Path(__file__).resolve().parent.parent
 # Qué vale la pena enseñar, en el orden en que se cuenta la historia.
 PANTALLAS = [
     ("bienvenida", "/", "El primer arranque: lo primero que se ve"),
-    ("aprobaciones", "/aprobaciones", "Lo que el ayudante propone y tú apruebas"),
+    ("hoy", "/", "Hoy: lo que el ayudante propone y tú apruebas"),
     ("cartera", "/facturas", "Tu cartera, con quién debe y desde cuándo"),
+    ("promesas", "/facturas?vista=promesas", "Las promesas de pago, dentro de Cartera"),
+    ("pagos", "/facturas?vista=pagos", "Los pagos por confirmar, dentro de Cartera"),
+    ("mensajes", "/conversaciones", "Los mensajes, con su procedencia"),
     ("cliente", "/clientes/detalle", "Un cliente: su historia y sus promesas"),
     ("ayudantes", "/ayudantes", "Los ayudantes del negocio"),
-    ("conversaciones", "/conversaciones", "Las conversaciones, con su procedencia"),
-    ("proveedor", "/proveedor", "Tu propia IA, conectada en un clic"),
-    ("centro", "/centro", "El centro: qué pasó hoy"),
+    ("conexiones", "/configuracion?seccion=conexiones", "De dónde lee y por dónde escribe"),
+    ("tu-ia", "/configuracion?seccion=ia", "Tu propia IA, conectada en un clic"),
 ]
 
 
@@ -83,7 +85,24 @@ def main() -> int:
     salida.mkdir(parents=True, exist_ok=True)
 
     casa = Path(tempfile.mkdtemp(prefix="aiuda-capturas-"))
-    entorno = {**os.environ, "HOME": str(casa), "AIUDA_SCHEDULER_ENABLED": "0"}
+    entorno = {
+        **os.environ,
+        "HOME": str(casa),
+        "AIUDA_SCHEDULER_ENABLED": "0",
+        # Las capturas no necesitan WhatsApp: ni se ejecuta el wacli de esta
+        # computadora ni se usa otro store que el de la carpeta desechable.
+        "WACLI_BIN": "/sin-wacli/wacli",
+        "WACLI_STORE_ROOT": str(casa / "wacli"),
+    }
+    entorno.pop("WACLI_STORE_DIR", None)
+    entorno["AIUDA_ABRIR_NAVEGADOR"] = "false"
+    # La consola recién exportada (`cd web && npm run export`), si existe: sin esto
+    # el servidor sirve la que viene empaquetada, que puede ser de otro día.
+    exportada = RAIZ / "web" / "out"
+    if (exportada / "index.html").exists():
+        entorno["AIUDA_CONSOLE_DIR"] = str(exportada)
+    entorno.pop("AIUDA_DATABASE_URL", None)
+    entorno.pop("DATABASE_URL", None)
     puerto = puerto_libre()
     servidor = None
 
@@ -127,10 +146,19 @@ def main() -> int:
                 if nombre != "bienvenida" and not cerrado[0]:
                     pagina.request.post(f"{base}/v1/setup/terminar")
                     cerrado[0] = True
+                if nombre == "cliente":
+                    # La ficha necesita a quién enseñar: el cliente que más debe.
+                    clientes = pagina.request.get(f"{base}/v1/customers").json()
+                    if not clientes:
+                        continue
+                    mayor = max(clientes, key=lambda c: c.get("open_total") or 0)
+                    ruta = f"{ruta}?id={mayor['id']}"
                 pagina.goto(f"{base}{ruta}", wait_until="networkidle")
                 pagina.wait_for_timeout(700)  # que terminen las animaciones
                 destino = salida / f"{nombre}.png"
-                pagina.screenshot(path=str(destino), full_page=args.completa)
+                pagina.screenshot(
+                    path=str(destino), full_page=args.completa, animations="disabled"
+                )
                 print(f"  {destino.name:22} {descripcion}")
             navegador.close()
 

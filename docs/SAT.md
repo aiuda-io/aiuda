@@ -5,7 +5,7 @@ ingresos a crédito. Admite hasta tres RFCs del mismo negocio.
 
 ## Empezar sin e.firma
 
-1. Abre **Integraciones > SAT · Bóveda fiscal**.
+1. Abre **Ajustes > Conexiones > SAT · Bóveda fiscal**.
 2. Registra cada RFC y el plazo de pago que normalmente usas.
 3. Sube un XML o el ZIP que descargaste del SAT.
 
@@ -146,14 +146,14 @@ aiuda solo usa la e.firma. No hay descarga con contraseña CIEC.
 Con la e.firma conectada, aiuda también puede bajarte del portal del SAT estos
 dos documentos en PDF:
 
-1. Abre **Rutinas**. Hay un bloque por cada RFC con e.firma.
+1. Abre **Ayudantes** y entra a **Portales**. Hay un bloque por cada RFC con e.firma.
 2. La primera vez te pide permiso, una sola vez por RFC: para bajarlos, aiuda
    entra al portal con la e.firma que guardaste y escribe su contraseña por ti.
    La firma se hace en esta computadora; la llave y la contraseña no se mandan a
    nadie.
 3. Pulsa **Bajar ahora** en el documento que quieras. Tarda cerca de un minuto.
 
-El PDF queda guardado en esta computadora. Lo ves en Rutinas y en esta misma
+El PDF queda guardado en esta computadora. Lo ves en Portales y en esta misma
 pantalla del SAT, en el bloque **Documentos**, con la fecha y, en la opinión, su
 sentido (Positivo o Negativo).
 

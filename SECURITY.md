@@ -48,8 +48,10 @@ aiuda corre en tu computadora, así que la mayor parte del perímetro es tuyo:
   con permisos 0600, y se genera sola. Si la pierdes, esas credenciales ya no se
   pueden leer: no hay puerta trasera. Ver [docs/DATOS.md](docs/DATOS.md).
 - aiuda nunca guarda ni pide la contraseña de tus portales. Para operarlos, el
-  login lo haces tú y solo se guarda la sesión ya autenticada, cifrada. Ver
-  [docs/CUA.md](docs/CUA.md).
+  login lo haces tú y solo se guarda la sesión ya autenticada, cifrada. La única
+  excepción es la e.firma del SAT, que tú cargas y queda cifrada: con tu permiso,
+  dado una vez por RFC, las dos rutinas del SAT escriben su contraseña en el
+  portal del SAT y en ningún otro lado. Ver [docs/CUA.md](docs/CUA.md).
 - Nada sale a tus clientes sin tu aprobación, y cada aprobación queda en la
   bitácora.
 

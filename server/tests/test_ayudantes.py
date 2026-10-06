@@ -128,7 +128,7 @@ def test_instrucciones_persisten_y_entran_al_prompt(client, demo_tenant, demo_lo
     # el detalle las devuelve
     assert client.get(f"/v1/ayudantes/{aid}").json()["instructions"] == instr
     # y la vista previa del prompt REAL las incluye (fuente única de verdad)
-    prompt = client.get(f"/v1/ayudantes/{aid}/prompt").json()["system"]
+    prompt = client.get(f"/v1/ayudantes/{aid}/prompt").json()["chat"]
     assert instr in prompt
     assert "abi" in prompt  # persona + capacidades ensambladas de verdad
     # limpiar con "" borra
@@ -153,7 +153,7 @@ def test_chat_sin_proveedor_responde_gracioso(client, demo_tenant, monkeypatch, 
     res = client.post(f"/v1/ayudantes/{aid}/chat", json={"message": "¿cómo va la cartera?"})
     assert res.status_code == 200
     reply = res.json()["reply"]
-    assert "abi" in reply and "proveedor" in reply.lower()
+    assert "abi" in reply and "tu ia" in reply.lower()
 
 
 def test_chat_mensaje_vacio_400(client, demo_tenant, demo_login):
@@ -394,7 +394,7 @@ def test_correr_sin_credencial_409(client, demo_tenant, monkeypatch, demo_login)
     ).json()
     res = client.post(f"/v1/ayudantes/{a['id']}/correr")
     assert res.status_code == 409
-    assert "proveedor" in res.json()["detail"].lower()
+    assert "tu ia" in res.json()["detail"].lower()
 
 
 def test_correr_sin_aiuditas_corribles_es_honesto(client, demo_tenant, monkeypatch, demo_login):
@@ -413,7 +413,7 @@ def test_correr_sin_aiuditas_corribles_es_honesto(client, demo_tenant, monkeypat
     assert body["corrio"] == []
     assert body["propuestas"] == 0
     assert body["sin_corrida"] == ["ventas.consultar_catalogo"]
-    assert "no tiene aiuditas que corran solas" in body["detalle"]
+    assert "no tiene tareas que trabajen solas" in body["detalle"]
 
 
 def test_nivel_sube_de_verdad_y_se_deriva_de_filas(client, demo_tenant, db_session, demo_login):

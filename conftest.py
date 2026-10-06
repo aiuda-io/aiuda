@@ -32,7 +32,7 @@ _HOME_PRUEBAS = tempfile.mkdtemp(prefix="aiuda-pruebas-home-")
 os.environ["HOME"] = _HOME_PRUEBAS
 # El wacli de quien desarrolla tampoco entra por su entorno (lo que venga de un
 # .env lo neutraliza el fixture de abajo).
-for _var in ("WACLI_BIN", "WACLI_STORE_ROOT"):
+for _var in ("WACLI_BIN", "WACLI_STORE_ROOT", "WACLI_STORE_DIR"):
     os.environ.pop(_var, None)
 
 os.environ.setdefault("AIUDA_ENCRYPTION_KEYS", "wSx0BOg9oU_8IgSyWCAAsA12q0gWwYFGGrW3ABK34UU=")

@@ -2,23 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { api, type AppointmentItem } from "@/lib/api";
-import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, SecondaryLink, Skeleton, SOURCE_LABEL, useApi } from "@/components/ui";
+import { EmptyState, ErrorState, PageHeader, PrimaryButton, PrimaryLink, SearchInput, Skeleton, SOURCE_LABEL, useApi } from "@/components/ui";
 import { RailLayout, RailRow, RailSection, RailStat } from "@/components/rail";
 import { RecordDrawer } from "@/components/record-drawer";
 import { AgregarSheet } from "@/components/agregar-sheet";
 import { ExportButton } from "@/components/export-button";
-
-function formatWhen(iso: string | null): string {
-  if (!iso) return "Sin fecha";
-  const d = new Date(iso);
-  return d.toLocaleString("es-MX", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { deReloj, fechaCita } from "@/lib/format";
 
 export default function CitasPage() {
   const { data, error, loading, refetch } = useApi<AppointmentItem[]>(api.appointments);
@@ -52,12 +41,12 @@ export default function CitasPage() {
     const todayStr = now.toDateString();
     const weekEnd = now.getTime() + 7 * 864e5;
     const upcoming = (data ?? [])
-      .filter((a) => a.starts_at && new Date(a.starts_at).getTime() >= now.getTime())
-      .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime());
+      .filter((a) => a.starts_at && (deReloj(a.starts_at)?.getTime() ?? 0) >= now.getTime())
+      .sort((a, b) => (deReloj(a.starts_at)?.getTime() ?? 0) - (deReloj(b.starts_at)?.getTime() ?? 0));
     return {
       total: (data ?? []).length,
-      hoy: upcoming.filter((a) => new Date(a.starts_at!).toDateString() === todayStr).length,
-      semana: upcoming.filter((a) => new Date(a.starts_at!).getTime() <= weekEnd).length,
+      hoy: upcoming.filter((a) => deReloj(a.starts_at)?.toDateString() === todayStr).length,
+      semana: upcoming.filter((a) => (deReloj(a.starts_at)?.getTime() ?? 0) <= weekEnd).length,
       proximas: upcoming.slice(0, 5),
     };
   }, [data]);
@@ -67,33 +56,28 @@ export default function CitasPage() {
   return (
     <div className="min-w-0">
       <PageHeader
-        title="Citas"
-        subtitle="Tu agenda. La atiende tu ayudante de recepción. Súbela desde Excel."
+        title="Agenda"
+        subtitle="Tus citas. De aquí lee tu ayudante de Recepción."
         right={
-          <div className="flex items-center gap-2">
-            <ExportButton entidad="citas" filtros={{ q: query }} count={rows.length} />
-            <PrimaryButton onClick={() => setAgregar(true)}>Agregar cita</PrimaryButton>
-          </div>
+          agenda.total > 0 ? (
+            <>
+              <ExportButton entidad="citas" filtros={{ q: query }} count={rows.length} />
+              <PrimaryButton onClick={() => setAgregar(true)}>Agregar cita</PrimaryButton>
+            </>
+          ) : undefined
         }
       />
       <AgregarSheet open={agregar} onClose={() => setAgregar(false)} tipo="citas" label="cita" onCreated={refetch} />
 
-      {loading && <Skeleton className="h-32 w-full" />}
+      {loading && <Skeleton className="h-40 w-full" />}
 
       {!loading && agenda.total === 0 && (
         <EmptyState
-          title="Aún no hay citas"
-          action={
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <PrimaryLink href="/importar">Subir mi agenda</PrimaryLink>
-              <SecondaryLink href="/integraciones/detalle?key=googlecalendar">
-                Conectar Google Calendar
-              </SecondaryLink>
-            </div>
-          }
+          title="Tu agenda está vacía"
+          action={<PrimaryLink href="/importar">Subir mi agenda</PrimaryLink>}
         >
-          Sube tu agenda desde un Excel (la IA detecta el asunto, el cliente y la fecha) o,
-          más adelante, entran desde Google Calendar.
+          Faltan tus citas. Súbelas en un Excel, tal como las llevas: aiuda reconoce el asunto, el
+          cliente y la fecha.
         </EmptyState>
       )}
 
@@ -102,7 +86,7 @@ export default function CitasPage() {
           rail={
             <>
               <RailSection label="Agenda">
-                <RailStat label="Citas" value={String(agenda.total)} strong />
+                <RailStat label="En tu agenda" value={String(agenda.total)} strong />
                 <RailStat label="Hoy" value={String(agenda.hoy)} />
                 <RailStat label="Próximos 7 días" value={String(agenda.semana)} />
               </RailSection>
@@ -112,10 +96,10 @@ export default function CitasPage() {
                   {agenda.proximas.map((a) => (
                     <RailRow key={a.id}>
                       <button onClick={() => setSelected(a)} className="min-w-0 text-left">
-                        <span className="block truncate text-cuerpo text-ink-2 transition-colors hover:text-accent-ink">
+                        <span className="block truncate text-cuerpo text-ink-2 hover:text-accent-ink">
                           {a.title}
                         </span>
-                        <span className="text-apoyo text-ink-3">{formatWhen(a.starts_at)}</span>
+                        <span className="text-apoyo text-ink-3">{fechaCita(a.starts_at)}</span>
                       </button>
                     </RailRow>
                   ))}
@@ -124,35 +108,34 @@ export default function CitasPage() {
             </>
           }
         >
-          <div className="mb-3">
-            <SearchInput value={query} onChange={setQuery} placeholder="Buscar por asunto o cliente…" />
+          <div className="mb-5">
+            <SearchInput value={query} onChange={setQuery} placeholder="Buscar por asunto o cliente" />
           </div>
-          <ul className="reveal-stagger overflow-hidden rounded-lg border border-line bg-surface">
+          <ul>
             {rows.map((a) => (
               <li
                 key={a.id}
                 onClick={() => setSelected(a)}
-                className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 border-b border-line/60 px-4 py-3 last:border-0 hover:bg-panel/40"
+                className="flex cursor-pointer flex-col gap-y-0.5 border-b border-line py-3.5 last:border-0 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4 sm:gap-y-1"
               >
-                {/* Botón real (no solo li onClick): el detalle se abre con teclado. */}
+                {/* Botón real (no solo li onClick): el detalle se abre con teclado. En
+                    teléfono el asunto va completo y la fecha debajo, a la izquierda. */}
                 <button
                   onClick={() => setSelected(a)}
-                  className="text-left text-cuerpo font-medium text-ink hover:text-accent-ink"
+                  className="min-w-0 text-left text-cuerpo font-medium text-ink hover:text-accent-ink sm:truncate"
                 >
                   {a.title}
                 </button>
                 {a.customer_name && (
-                  <span className="text-cuerpo text-ink-2">· {a.customer_name}</span>
+                  <span className="min-w-0 text-cuerpo text-ink-2 sm:truncate">{a.customer_name}</span>
                 )}
-                <span className="tnum ml-auto text-cuerpo text-ink-3">{formatWhen(a.starts_at)}</span>
-                {a.notes && (
-                  <p className="w-full text-apoyo leading-relaxed text-ink-3">{a.notes}</p>
-                )}
+                <span className="tnum shrink-0 text-apoyo text-ink-3 sm:ml-auto">{fechaCita(a.starts_at)}</span>
+                {a.notes && <p className="w-full text-apoyo text-ink-3">{a.notes}</p>}
               </li>
             ))}
             {rows.length === 0 && (
-              <li className="px-4 py-10 text-center text-cuerpo text-ink-3">
-                Sin resultados para tu búsqueda.
+              <li className="px-4 py-12 text-center text-cuerpo text-ink-3">
+                Ninguna cita coincide con lo que buscas.
               </li>
             )}
           </ul>
@@ -163,18 +146,18 @@ export default function CitasPage() {
         open={selected !== null}
         onClose={() => setSelected(null)}
         title={selected?.title ?? ""}
-        subtitle={selected ? formatWhen(selected.starts_at) : undefined}
+        subtitle={selected ? fechaCita(selected.starts_at) : undefined}
         fields={
           selected
             ? [
                 { label: "Cliente", value: selected.customer_name },
                 { label: "Teléfono", value: selected.customer_phone },
-                { label: "Cuándo", value: formatWhen(selected.starts_at) },
+                { label: "Cuándo", value: fechaCita(selected.starts_at) },
                 { label: "Notas", value: selected.notes },
                 // Tras inyectarse, la cita queda LIGADA a su copia en el destino
                 // (meta.inyectada_en[destino] = ref + url): texto y salto directo.
                 ...Object.entries(selected.meta?.inyectada_en ?? {}).map(([destino, liga]) => ({
-                  label: `Inyectada en ${SOURCE_LABEL[destino] ?? destino}`,
+                  label: `También está en ${SOURCE_LABEL[destino] ?? destino}`,
                   value: liga?.url ? (
                     <a
                       href={liga.url}
@@ -182,10 +165,10 @@ export default function CitasPage() {
                       rel="noreferrer"
                       className="font-medium text-accent-ink hover:underline"
                     >
-                      {liga.ref ? `${liga.ref} ↗` : "Abrir ↗"}
+                      {liga.ref ? `Abrir ${liga.ref}` : "Abrir"}
                     </a>
                   ) : (
-                    (liga?.ref ?? "creada allá")
+                    (liga?.ref ?? "Creada allá")
                   ),
                 })),
               ]

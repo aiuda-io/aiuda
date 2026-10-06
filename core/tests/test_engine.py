@@ -290,7 +290,7 @@ def test_daily_summary_es_deterministico(session, tenant, customer, invoice, fak
     fake = fake_client_factory()  # el resumen no usa LLM
     engine = make_engine(session, tenant, fake)
     summary = engine.daily_summary(TODAY)
-    assert "Vencidas 1–15 días: 1 facturas" in summary
+    assert "Vencidas 1 a 15 días: 1 facturas" in summary
     assert "$12,500.50" in summary
 
 

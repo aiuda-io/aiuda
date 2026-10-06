@@ -9,6 +9,7 @@ con aiuda. La detección de "conectado" combina tres señales reales:
 Así el grafo refleja la verdad del negocio, no un catálogo estático.
 """
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,6 +31,58 @@ from aiuda_core.models import (
 )
 
 router = APIRouter()
+log = logging.getLogger(__name__)
+
+
+def explicar_fallo_conexion(exc: BaseException) -> str:
+    """Por qué no conectó una fuente, en español y para el dueño.
+
+    Las librerías fallan en inglés y para quien programa ("[Errno 61] Connection
+    refused", "401 Client Error: Unauthorized for url…"). Eso no le dice al dueño
+    qué revisar, y a veces arrastra la dirección completa con datos de la cuenta.
+    El crudo se queda en el log; a la consola sale qué pasó y qué hacer."""
+    import socket
+    import ssl
+    import xmlrpc.client
+
+    log.warning("integraciones: la prueba de conexión falló: %r", exc)
+    inicio = "No se pudo conectar. "
+    codigo = getattr(getattr(exc, "response", None), "status_code", None)
+    if codigo is None and isinstance(exc, xmlrpc.client.ProtocolError):
+        codigo = exc.errcode
+    if isinstance(exc, PermissionError) or codigo in (401, 403):
+        return inicio + (
+            "El sistema no aceptó tus credenciales. Revisa que estén bien copiadas, "
+            "que sigan vigentes y que tengan permiso de lectura."
+        )
+    if isinstance(exc, xmlrpc.client.Fault):
+        return inicio + (
+            "El sistema rechazó la consulta. Revisa el nombre de la base de datos, "
+            "el usuario y su clave."
+        )
+    if codigo == 404:
+        return inicio + "Esa dirección no existe en el sistema. Revisa que esté bien escrita."
+    if codigo == 429:
+        return inicio + "El sistema pidió esperar por demasiadas consultas. Intenta en unos minutos."
+    if isinstance(codigo, int) and codigo >= 500:
+        return inicio + "El sistema está fallando de su lado. Intenta más tarde."
+    if isinstance(codigo, int) and codigo >= 400:
+        return inicio + "El sistema no aceptó la consulta. Revisa los datos que capturaste."
+    nombre = type(exc).__name__.lower()
+    if isinstance(exc, ssl.SSLError) or "ssl" in nombre or "certificate" in str(exc).lower():
+        return inicio + (
+            "La dirección no ofrece una conexión segura válida. Revisa que empiece "
+            "con https y que esté bien escrita."
+        )
+    if isinstance(exc, TimeoutError | socket.timeout) or "timeout" in nombre:
+        return inicio + "El sistema no respondió a tiempo. Revisa tu internet y la dirección."
+    if isinstance(exc, socket.gaierror | ConnectionError | OSError) or "connect" in nombre:
+        return inicio + (
+            "No se pudo llegar a esa dirección. Revisa que esté bien escrita y que "
+            "esta computadora tenga internet."
+        )
+    return inicio + "Revisa los datos que capturaste y vuelve a intentar."
+
 
 # Campos que se ocultan al devolver la config (credenciales). La definición vive en
 # core (connectors/credentials.py) y se importa: tenerla duplicada aquí fue parte del
@@ -55,6 +108,9 @@ SECRET_HINT = cred.SECRET_HINT
 # oculta = no se ofrece en la consola hasta probarla con una cuenta real. El código,
 #      sus pruebas y sus endpoints se quedan; y a quien YA la tiene conectada se le
 #      sigue mostrando (ver `ocultas_para`): no se esconde algo que el dueño usa.
+#      Regla: TODO conector de pago (banco o pasarela) va oculto hasta estrenarse con
+#      una cuenta real, cobre por link o solo confirme: Belvo, Stripe, Mercado Pago,
+#      Clip y Conekta. Un pago mal confirmado cierra una factura que no se cobró.
 CATALOG = [
     {"key": "whatsapp", "name": "WhatsApp (tu número)", "estrenada": True, "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#25D366", "flows": ["channel"], "rol": "Tu número, en tu computadora", "does": "Tus clientes te escriben y tú respondes y apruebas desde la consola. Se conecta con QR como WhatsApp Web, con tu propio número.", "warning": UNOFFICIAL_WHATSAPP_WARNING},
     {"key": "whatsapp_cloud", "name": "WhatsApp Business (oficial)", "estrenada": False, "oculta": True, "group": "canal", "logo": "/brand/int/whatsapp.png", "color": "#075E54", "flows": ["channel"], "rol": "La API oficial de Meta, para volumen", "does": "Envía y recibe por la Cloud API oficial de Meta: texto libre dentro de la ventana de 24 horas y plantillas aprobadas fuera de ella. Necesita un servidor con URL pública para recibir webhooks (no aplica corriendo solo local)."},
@@ -67,11 +123,11 @@ CATALOG = [
     {"key": "google_sheets", "name": "Google Sheets", "estrenada": False, "group": "datos", "logo": None, "color": "#0F9D58", "flows": ["read"], "rol": "Una hoja compartida como fuente", "does": "Lee una hoja de Google Sheets compartida ('cualquiera con el enlace · lector'): declaras el rango y qué trae (facturas, clientes o productos) y aiuda mapea las columnas por su nombre y las carga. Solo lectura por API key; OAuth para hojas privadas queda por cablear."},
     {"key": "mercadolibre", "name": "Mercado Libre", "estrenada": False, "group": "datos", "logo": None, "color": "#FFE600", "flows": ["read"], "rol": "Tus ventas de Mercado Libre a tu cartera", "does": "Trae tus ventas con pago pendiente a la cartera, tu catálogo (publicaciones con precio y existencia) y los compradores recientes al directorio. API oficial (api.mercadolibre.com) con refresco de token OAuth."},
 
-    {"key": "belvo", "name": "Belvo", "estrenada": False, "group": "fiscal", "logo": "/brand/int/belvo.svg", "color": "#0663F9", "flows": ["confirm"], "rol": "Confirma pagos viendo tu banco", "does": "Detecta en tu banco los depósitos que confirman tus facturas."},
-    {"key": "stripe", "name": "Stripe", "estrenada": False, "group": "fiscal", "logo": "/brand/int/stripe.png", "color": "#635BFF", "flows": ["confirm"], "rol": "Confirma cobros con tarjeta", "does": "Detecta tus cobros con tarjeta para confirmar pagos."},
+    {"key": "belvo", "name": "Belvo", "estrenada": False, "oculta": True, "group": "fiscal", "logo": "/brand/int/belvo.svg", "color": "#0663F9", "flows": ["confirm"], "rol": "Confirma pagos viendo tu banco", "does": "Detecta en tu banco los depósitos que confirman tus facturas."},
+    {"key": "stripe", "name": "Stripe", "estrenada": False, "oculta": True, "group": "fiscal", "logo": "/brand/int/stripe.png", "color": "#635BFF", "flows": ["confirm"], "rol": "Confirma cobros con tarjeta", "does": "Detecta tus cobros con tarjeta para confirmar pagos."},
     {"key": "mercadopago", "name": "Mercado Pago", "estrenada": False, "oculta": True, "group": "fiscal", "logo": None, "color": "#00B1EA", "flows": ["confirm", "action"], "rol": "Cobra por link de WhatsApp y confirma", "does": "Genera un link de pago (Checkout Pro) que tu ayudante manda con el recordatorio; el cliente paga con un clic. Y detecta los pagos aprobados para confirmar tus facturas."},
     {"key": "clip", "name": "Clip", "estrenada": False, "oculta": True, "group": "fiscal", "logo": None, "color": "#FF5A2D", "flows": ["confirm", "action"], "rol": "Link de pago para changarros y PyMEs", "does": "Crea un link de pago que tu ayudante envía por WhatsApp con el recordatorio, y detecta los pagos ya cobrados para confirmar facturas. La vía más difundida en el changarro mexicano."},
-    {"key": "conekta", "name": "Conekta", "estrenada": False, "oculta": True, "group": "fiscal", "logo": None, "color": "#01203E", "flows": ["confirm", "action"], "rol": "Cobra en OXXO, SPEI o tarjeta", "does": "Crea un link de pago que acepta tarjeta, OXXO Pay (efectivo) y SPEI (transferencia) — clave para quien no usa tarjeta. Tu ayudante lo manda por WhatsApp y confirma cuando el pago entra."},
+    {"key": "conekta", "name": "Conekta", "estrenada": False, "oculta": True, "group": "fiscal", "logo": None, "color": "#01203E", "flows": ["confirm", "action"], "rol": "Cobra en OXXO, SPEI o tarjeta", "does": "Crea un link de pago que acepta tarjeta, OXXO Pay (efectivo) y SPEI (transferencia), clave para quien no usa tarjeta. Tu ayudante lo manda por WhatsApp y confirma cuando el pago entra."},
     {"key": "sat", "name": "SAT · Bóveda fiscal", "estrenada": True, "group": "fiscal", "logo": None, "color": "#6B1F3A", "flows": ["read"], "rol": "Tus CFDI y cartera fiscal, hasta 3 RFCs", "does": "Importa XML o ZIP y descarga CFDI con e.firma cifrada. Clasifica PPD, PUE, pagos, egresos e intercompañía. La descarga con e.firma se usó contra el SAT real en octubre de 2026: facturas emitidas y recibidas, un pago recibido, nómina y la lista de cancelados. Falta verla en vivo con una factura descargada que después se cancela, con complementos de pago y notas de crédito emitidos y con periodos de más de un paquete."},
     {"key": "facturama", "name": "Facturama", "estrenada": False, "group": "fiscal", "logo": "/brand/int/facturama.jpg", "color": "#C4453A", "flows": ["read"], "rol": "Lee tus CFDI como respaldo fiscal", "does": "Lee tus CFDI del SAT como respaldo fiscal (el conector aún no timbra)."},
     {"key": "facturapi", "name": "Facturapi", "estrenada": False, "group": "fiscal", "logo": "/brand/int/facturapi.png", "color": "#3B82C4", "flows": ["read"], "rol": "Lee tus CFDI como respaldo fiscal", "does": "Lee tus CFDI del SAT como respaldo fiscal (el conector aún no timbra)."},
@@ -276,7 +332,8 @@ def fuentes_de_capacidad(cap: str, ocultas: set[str] | frozenset[str] = frozense
         out.append(
             {
                 "key": CUA_FUENTE,
-                "name": "CUA (experimental)",
+                # El nombre que ve el dueño; la consola le pone el sello "Sin estrenar".
+                "name": "Entrando al portal",
                 "logo": "",
                 "color": "#5B6B7A",
                 "live": False,
@@ -446,7 +503,39 @@ def _is_configured(db, tenant: Tenant, key: str) -> bool:
     return cred.has_credential(db, tenant.id, key) or _saved_int(tenant, key) is not None
 
 
+def _tiene_acceso(db, system: str, tenant: Tenant, whatsapp_vivo: bool) -> bool:
+    """¿aiuda puede entrar HOY a este sistema? Credenciales guardadas o una sesión
+    viva, y nada más. Es lo único que la consola llama "Conectado".
+
+    Que haya datos que alguna vez vinieron de ahí NO cuenta: una factura con
+    `source="odoo"` (de un respaldo, de un Excel exportado de Odoo, de una conexión
+    que ya se quitó) hacía que la consola dijera "Odoo conectado" sin una sola
+    credencial. Con una cartera importada salían "3 conectadas" sin nada conectado."""
+    if system == "whatsapp":
+        return whatsapp_vivo
+    if system == "excel":
+        return False  # se sube un archivo: no hay nada que tener conectado
+    if system == "sat":
+        # Un RFC anotado no es acceso al SAT: lo es la e.firma cargada.
+        return bool(
+            db.scalar(
+                select(IntegrationCredential.id).where(
+                    IntegrationCredential.tenant_id == tenant.id,
+                    IntegrationCredential.provider.like("sat_efirma:%"),
+                    IntegrationCredential.status != "disabled",
+                ).limit(1)
+            )
+        )
+    return _is_connected(db, system, tenant, set())
+
+
 def _is_connected(db, system: str, tenant: Tenant, active: set[str]) -> bool:
+    """¿Este sistema ALIMENTA al negocio? Acceso vivo O datos que ya entraron de ahí.
+
+    Es la definición amplia y sirve para dos cosas: saber si una capacidad ya tiene
+    de dónde leer (un ayudante de cobranza con la cartera subida por Excel no tiene
+    un hueco) y no esconder una integración oculta que el negocio ya usa. Para el
+    sello "Conectado" de la consola se usa `_tiene_acceso`, que es estricta."""
     cfg = tenant.config or {}
     if system in active:
         return True
@@ -521,15 +610,20 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
     connected_keys = {
         item["key"] for item in CATALOG if _is_connected(db, item["key"], tenant, active)
     }
+    # Lo que la consola llama "Conectado": acceso de verdad, no datos que ya entraron.
+    whatsapp_vivo = "whatsapp" in active
+    con_acceso = {
+        item["key"] for item in CATALOG if _tiene_acceso(db, item["key"], tenant, whatsapp_vivo)
+    }
     # Lo que no se ofrece hasta probarse con cuenta real, salvo que ya esté conectado.
     ocultas = {item["key"] for item in CATALOG if item.get("oculta")} - connected_keys
 
     # Cuántas facturas trae cada fuente, para mostrar volumen en el nodo.
     counts: dict[str, int] = {}
     for inv in db.scalars(select(Invoice).where(Invoice.tenant_id == tenant.id)).all():
-        if inv.source:
-            counts[inv.source] = counts.get(inv.source, 0) + 1
-        for k in (inv.presence or {}):
+        # Una factura cuenta UNA vez por sistema: la que vino de Odoo trae `source`
+        # y también su `presence`, y sumaba doble ("294 registros" de 147 facturas).
+        for k in {inv.source, *(inv.presence or {})} - {None, ""}:
             counts[k] = counts.get(k, 0) + 1
     counts["sat"] = len(
         db.scalars(
@@ -573,7 +667,7 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
     for item in CATALOG:
         if item["key"] in ocultas:
             continue
-        connected = item["key"] in connected_keys
+        connected = item["key"] in con_acceso
         configured = _is_configured(db, tenant, item["key"])
         st = status_map.get(item["key"])
         # Semáforo: ok = la última prueba pasó; error = falló (con motivo); untested =
@@ -612,71 +706,6 @@ def integrations_graph(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
         "capabilities": _capabilities_overview(connected_keys, ocultas),
         "connected_count": connected_count,
         "available_count": len(systems) - connected_count,
-    }
-
-
-@router.get("/v1/ayudantes/{ayudante_id}/systems")
-def ayudante_systems(
-    ayudante_id: str, tenant: Tenant = Depends(get_tenant), db=Depends(get_db)
-):
-    """Sistemas a los que llega un ayudante: a cuáles ya está conectado y a cuáles se
-    podría conectar. Las capacidades salen de las aiuditas que su dueño le activó."""
-    a = db.get(Ayudante, ayudante_id)
-    if a is None or a.tenant_id != tenant.id:
-        raise HTTPException(status_code=404, detail="Ese ayudante no existe.")
-    active = _active_systems(db, tenant)
-    connected_keys = {
-        item["key"] for item in CATALOG if _is_connected(db, item["key"], tenant, active)
-    }
-    ocultas = {item["key"] for item in CATALOG if item.get("oculta")} - connected_keys
-    by_key = {item["key"]: item for item in CATALOG if item["key"] not in ocultas}
-    needs = capacidades_de(a)
-    _n, gaps = _caps_detail(needs, connected_keys)
-    name = a.name
-    role = ", ".join(CAPABILITIES.get(c, {}).get("label", c) for c in needs) or "Sin oficio"
-    alcanza = sorted(
-        {s2 for cap in needs for s2 in _CAP_PROVIDERS.get(cap, []) if s2 in by_key}
-    )
-    systems = []
-    for key in alcanza:
-        item = by_key.get(key)
-        if not item:
-            continue
-        # Sólo las capacidades de esta fuente que este agente realmente usa.
-        relevant = [p for p in _provides(key) if p["cap"] in needs]
-        systems.append(
-            {
-                **item,
-                "connected": key in connected_keys,
-                "provides": relevant,
-            }
-        )
-
-    # Capacidades del agente con qué fuente (conectada) las cumple.
-    capabilities = []
-    for cap in needs:
-        providers = [s for s in _CAP_PROVIDERS.get(cap, []) if s in by_key]
-        capabilities.append(
-            {
-                "key": cap,
-                "label": CAPABILITIES[cap]["label"],
-                "desc": CAPABILITIES[cap]["desc"],
-                "live": _CAP_LIVE.get(cap, False),
-                "providers": providers,
-                "connected": any(s in connected_keys for s in providers),
-            }
-        )
-
-    return {
-        "slug": a.id,
-        "name": name,
-        "role": role,
-        "appearance": a.appearance or {},
-        "systems": systems,
-        "capabilities": capabilities,
-        "needs": needs,
-        "gaps": gaps,
-        "connected_count": sum(1 for s in systems if s["connected"]),
     }
 
 
@@ -726,10 +755,9 @@ def integration_detail(key: str, tenant: Tenant = Depends(get_tenant), db=Depend
     item = next((i for i in CATALOG if i["key"] == key), None)
     if item is None:
         raise HTTPException(status_code=404, detail="Integración desconocida.")
-    active = _active_systems(db, tenant)
     return {
         **item,
-        "connected": _is_connected(db, key, tenant, active),
+        "connected": _tiene_acceso(db, key, tenant, key == "whatsapp" and whatsapp_en_vivo(tenant)),
         "configured": _is_configured(db, tenant, key),
         "capabilities": _source_capabilities(db, tenant, key),
     }
@@ -1015,7 +1043,7 @@ def _test_odoo(creds: dict) -> dict:
             },
         }
     except Exception as exc:  # red, credenciales, db inexistente, etc.
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_email(creds: dict) -> dict:
@@ -1045,7 +1073,7 @@ def _test_email(creds: dict) -> dict:
     except CorreoNoDisponible as exc:  # OAuth guardado pero no cableado: honesto
         return {"ok": False, "message": str(exc)}
     except Exception as exc:  # red, credenciales, IMAP/SMTP apagado, etc.
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
     details = {"Buzones": detalles.get("buzones", 0)}
     details["Envío (SMTP)"] = (
         "listo" if detalles.get("smtp") == "listo"
@@ -1085,7 +1113,7 @@ def _test_mercadolibre(creds: dict) -> dict:
             "details": {"Publicaciones": info.get("items", 0), "ID de vendedor": info.get("seller_id")},
         }
     except Exception as exc:  # token vencido sin refresh, credenciales malas, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_google_sheets(creds: dict) -> dict:
@@ -1114,7 +1142,7 @@ def _test_google_sheets(creds: dict) -> dict:
             "details": details,
         }
     except Exception as exc:  # API key inválida, hoja no compartida, ID malo, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_mercadopago(creds: dict) -> dict:
@@ -1132,7 +1160,7 @@ def _test_mercadopago(creds: dict) -> dict:
             "details": {"Pagos recientes": info.get("pagos_recientes", 0)},
         }
     except Exception as exc:  # token inválido, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_clip(creds: dict) -> dict:
@@ -1145,7 +1173,7 @@ def _test_clip(creds: dict) -> dict:
         info = ClipClient(**cred.ctor_kwargs("clip", creds)).test_connection()
         return {"ok": True, "message": "Conectado a Clip.", "details": {"Pagos visibles": info.get("pagos_visibles", 0)}}
     except Exception as exc:  # API key inválida, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_conekta(creds: dict) -> dict:
@@ -1158,7 +1186,7 @@ def _test_conekta(creds: dict) -> dict:
         info = ConektaClient(**cred.ctor_kwargs("conekta", creds)).test_connection()
         return {"ok": True, "message": "Conectado a Conekta.", "details": {"Órdenes visibles": info.get("ordenes_visibles", 0)}}
     except Exception as exc:  # private key inválida, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_shopify(creds: dict) -> dict:
@@ -1179,7 +1207,7 @@ def _test_shopify(creds: dict) -> dict:
             },
         }
     except Exception as exc:  # token inválido, dominio malo, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_woocommerce(creds: dict) -> dict:
@@ -1200,7 +1228,7 @@ def _test_woocommerce(creds: dict) -> dict:
             },
         }
     except Exception as exc:  # llaves inválidas, URL mala, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_hubspot(creds: dict) -> dict:
@@ -1221,7 +1249,7 @@ def _test_hubspot(creds: dict) -> dict:
             },
         }
     except Exception as exc:  # token inválido, permisos faltantes, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_googlecalendar(creds: dict) -> dict:
@@ -1251,7 +1279,7 @@ def _test_googlecalendar(creds: dict) -> dict:
             },
         }
     except Exception as exc:  # token inválido/expirado, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_facturama(creds: dict) -> dict:
@@ -1269,7 +1297,7 @@ def _test_facturama(creds: dict) -> dict:
             "details": {"CFDI en la muestra": info.get("cfdi_muestra", 0)},
         }
     except Exception as exc:  # credenciales malas, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_facturapi(creds: dict) -> dict:
@@ -1287,7 +1315,7 @@ def _test_facturapi(creds: dict) -> dict:
             "details": {"Facturas": info.get("facturas", 0)},
         }
     except Exception as exc:  # API key inválida, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_belvo(creds: dict) -> dict:
@@ -1305,7 +1333,7 @@ def _test_belvo(creds: dict) -> dict:
             details["Cuentas del link"] = info["cuentas"]
         return {"ok": True, "message": "Conectado a Belvo.", "details": details}
     except Exception as exc:  # llaves inválidas, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_stripe(creds: dict) -> dict:
@@ -1324,7 +1352,7 @@ def _test_stripe(creds: dict) -> dict:
             "details": {"Saldo disponible": saldo, "Cargos recientes": info.get("cargos_recientes", 0)},
         }
     except Exception as exc:  # API key inválida, red
-        return {"ok": False, "message": f"No se pudo conectar: {exc}"}
+        return {"ok": False, "message": explicar_fallo_conexion(exc)}
 
 
 def _test_whatsapp(tenant: Tenant) -> dict:
@@ -1432,8 +1460,15 @@ def test_integration(
         }
     try:
         creds = cred.get_credential(db, tenant.id, key)
-    except Exception as exc:
-        return {"ok": False, "message": f"No se pudieron leer las credenciales: {exc}"}
+    except Exception:  # noqa: BLE001 — llave de cifrado cambiada, fila dañada
+        log.exception("integraciones: no se pudieron leer las credenciales de %s", key)
+        return {
+            "ok": False,
+            "message": (
+                "No se pudieron leer las credenciales guardadas. Vuelve a capturarlas "
+                "y guarda de nuevo."
+            ),
+        }
     if not creds:
         return {"ok": False, "message": "Primero guarda las credenciales."}
     result = tester(creds)

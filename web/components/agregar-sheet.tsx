@@ -18,8 +18,7 @@ import {
 } from "@/lib/api";
 import { Drawer } from "@/components/drawer";
 import { toast } from "@/components/toast";
-import { PrimaryButton } from "@/components/ui";
-import { settingsInputCls } from "@/components/settings";
+import { PrimaryButton, inputCls } from "@/components/ui";
 
 type Tipo = "clientes" | "productos" | "facturas" | "citas";
 
@@ -40,7 +39,7 @@ type ObjSource = {
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-rotulo uppercase tracking-[0.06em] text-ink-3">{label}</span>
+      <span className="text-rotulo text-ink-3">{label}</span>
       <div className="mt-1">{children}</div>
     </label>
   );
@@ -237,14 +236,14 @@ export function AgregarSheet({
           {tipo === "clientes" && (
             <>
               <Campo label="Nombre">
-                <input className={settingsInputCls} value={v("name")} onChange={set("name")} placeholder="Ferretería El Martillo" />
+                <input className={inputCls} value={v("name")} onChange={set("name")} placeholder="Ferretería El Martillo" />
               </Campo>
               <div className="grid grid-cols-2 gap-3">
                 <Campo label="WhatsApp">
-                  <input className={settingsInputCls} value={v("phone")} onChange={set("phone")} placeholder="229 123 4567" />
+                  <input className={inputCls} value={v("phone")} onChange={set("phone")} placeholder="229 123 4567" />
                 </Campo>
                 <Campo label="Correo">
-                  <input className={settingsInputCls} type="email" value={v("email")} onChange={set("email")} placeholder="opcional" />
+                  <input className={inputCls} type="email" value={v("email")} onChange={set("email")} placeholder="opcional" />
                 </Campo>
               </div>
             </>
@@ -253,20 +252,20 @@ export function AgregarSheet({
           {tipo === "productos" && (
             <>
               <Campo label="Nombre">
-                <input className={settingsInputCls} value={v("name")} onChange={set("name")} placeholder="Tornillo 3/4" />
+                <input className={inputCls} value={v("name")} onChange={set("name")} placeholder="Tornillo 3/4" />
               </Campo>
               <div className="grid grid-cols-2 gap-3">
                 <Campo label="SKU">
-                  <input className={settingsInputCls} value={v("sku")} onChange={set("sku")} placeholder="opcional" />
+                  <input className={inputCls} value={v("sku")} onChange={set("sku")} placeholder="opcional" />
                 </Campo>
                 <Campo label="Precio">
-                  <input className={settingsInputCls} inputMode="decimal" value={v("price")} onChange={set("price")} placeholder="0.00" />
+                  <input className={inputCls} inputMode="decimal" value={v("price")} onChange={set("price")} placeholder="0.00" />
                 </Campo>
                 <Campo label="Existencia">
-                  <input className={settingsInputCls} inputMode="decimal" value={v("stock")} onChange={set("stock")} placeholder="opcional" />
+                  <input className={inputCls} inputMode="decimal" value={v("stock")} onChange={set("stock")} placeholder="opcional" />
                 </Campo>
                 <Campo label="Unidad">
-                  <input className={settingsInputCls} value={v("unit")} onChange={set("unit")} placeholder="pza, kg…" />
+                  <input className={inputCls} value={v("unit")} onChange={set("unit")} placeholder="pza, kg…" />
                 </Campo>
               </div>
             </>
@@ -277,7 +276,7 @@ export function AgregarSheet({
               <Campo label="Cliente">
                 <div className="relative">
                   <input
-                    className={settingsInputCls}
+                    className={inputCls}
                     value={clienteQuery}
                     onChange={(e) => {
                       setClienteQuery(e.target.value);
@@ -320,16 +319,16 @@ export function AgregarSheet({
               )}
               <div className="grid grid-cols-2 gap-3">
                 <Campo label="Folio">
-                  <input className={settingsInputCls} value={v("folio")} onChange={set("folio")} placeholder="F-104" />
+                  <input className={inputCls} value={v("folio")} onChange={set("folio")} placeholder="F-104" />
                 </Campo>
                 <Campo label="Monto">
-                  <input className={settingsInputCls} inputMode="decimal" value={v("amount")} onChange={set("amount")} placeholder="0.00" />
+                  <input className={inputCls} inputMode="decimal" value={v("amount")} onChange={set("amount")} placeholder="0.00" />
                 </Campo>
                 <Campo label="Vence">
-                  <input className={settingsInputCls} type="date" value={v("due_date")} onChange={set("due_date")} />
+                  <input className={inputCls} type="date" value={v("due_date")} onChange={set("due_date")} />
                 </Campo>
                 <Campo label="Concepto">
-                  <input className={settingsInputCls} value={v("concepto")} onChange={set("concepto")} placeholder="opcional" />
+                  <input className={inputCls} value={v("concepto")} onChange={set("concepto")} placeholder="opcional" />
                 </Campo>
               </div>
             </>
@@ -338,18 +337,18 @@ export function AgregarSheet({
           {tipo === "citas" && (
             <>
               <Campo label="Título">
-                <input className={settingsInputCls} value={v("title")} onChange={set("title")} placeholder="Revisión anual" />
+                <input className={inputCls} value={v("title")} onChange={set("title")} placeholder="Revisión anual" />
               </Campo>
               <div className="grid grid-cols-2 gap-3">
                 <Campo label="Fecha y hora">
-                  <input className={settingsInputCls} type="datetime-local" value={v("starts_at")} onChange={set("starts_at")} />
+                  <input className={inputCls} type="datetime-local" value={v("starts_at")} onChange={set("starts_at")} />
                 </Campo>
                 <Campo label="Cliente">
-                  <input className={settingsInputCls} value={v("customer_name")} onChange={set("customer_name")} placeholder="opcional" />
+                  <input className={inputCls} value={v("customer_name")} onChange={set("customer_name")} placeholder="opcional" />
                 </Campo>
               </div>
               <Campo label="Notas">
-                <textarea className={`${settingsInputCls} min-h-16 resize-y`} value={v("notes")} onChange={set("notes")} placeholder="opcional" />
+                <textarea className={`${inputCls} min-h-16 resize-y`} value={v("notes")} onChange={set("notes")} placeholder="opcional" />
               </Campo>
             </>
           )}
@@ -378,7 +377,7 @@ export function AgregarSheet({
               </label>
               {inyectar && destinos.length > 1 && (
                 <select
-                  className={`${settingsInputCls} mt-2`}
+                  className={`${inputCls} mt-2`}
                   value={destinoIdx}
                   onChange={(e) => setDestinoIdx(Number(e.target.value))}
                 >
@@ -408,7 +407,7 @@ export function AgregarSheet({
         </div>
 
         {/* Los caminos de siempre, ahora secundarios. */}
-        <p className="pt-2 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+        <p className="pt-2 eyebrow">
           O si prefieres…
         </p>
 
@@ -431,7 +430,7 @@ export function AgregarSheet({
           desc="Trae muchos de golpe; la IA detecta qué es y los carga. Re-subir no duplica."
         />
         <OptionCard
-          href="/integraciones"
+          href="/configuracion?seccion=conexiones"
           onClose={onClose}
           title="Conecta una fuente"
           desc="Odoo, tu tienda y más: entran solos, cada uno con su procedencia marcada."

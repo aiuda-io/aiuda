@@ -128,6 +128,15 @@ def _capacidad_publica(tenant: Tenant, capacidad: str, sistema: str, objetivo: s
         "url": (portal or {}).get("url") or "",
         "url_configurada": bool((portal or {}).get("url")),
         "editable": capacidad.startswith(PORTAL_PREFIX),
+        # ¿El dueño ya hizo suyo este portal? Los que registró por URL siempre; los tres
+        # de fábrica solo si les puso dirección o les conectó acceso. Los de fábrica sin
+        # tocar nada más se han corrido contra portales de prueba, y la consola no se
+        # los enseña al dueño.
+        "del_dueno": (
+            capacidad.startswith(PORTAL_PREFIX)
+            or bool(((tenant.config or {}).get(CUA_PORTALES_KEY) or {}).get(capacidad))
+            or tiene_sesion(tenant, capacidad)
+        ),
         # Nadie ha operado todavía un portal real con el asistente de IA (solo los
         # portales de prueba locales). La consola le pone el sello "Sin estrenar".
         "estrenada": False,
@@ -177,7 +186,7 @@ def detalle(
 ) -> dict:
     m = db.get(CuaMission, mission_id)
     if m is None or m.tenant_id != tenant.id:
-        raise HTTPException(status_code=404, detail="Recado no encontrado")
+        raise HTTPException(status_code=404, detail="Ese registro no existe.")
     return _serialize(m, with_evidence=True)
 
 
@@ -398,7 +407,7 @@ def guardar_rutina(
     instrucción). Devuelve la rutina creada."""
     nombre = (body.nombre or "").strip()
     if not nombre:
-        raise HTTPException(status_code=400, detail="Ponle un nombre a la rutina.")
+        raise HTTPException(status_code=400, detail="Ponle un nombre para guardarlo.")
     portal = portal_efectivo(tenant, body.capacidad)
     if portal is None:
         raise HTTPException(status_code=400, detail="Ese portal no está disponible.")
@@ -423,7 +432,7 @@ def borrar_rutina(
     rutinas = _rutinas(tenant)
     quedan = [r for r in rutinas if r.get("id") != rutina_id]
     if len(quedan) == len(rutinas):
-        raise HTTPException(status_code=404, detail="Esa rutina no existe.")
+        raise HTTPException(status_code=404, detail="Eso que guardaste ya no existe.")
     _guardar_rutinas(db, tenant, quedan)
 
 
@@ -454,12 +463,6 @@ class NuevoPortal(BaseModel):
     nombre: str
     url: str
     notas: str | None = None
-
-
-@router.get("/v1/cua/portales")
-def listar_portales(tenant: Tenant = Depends(get_tenant)) -> list[dict]:
-    """Los portales a la medida que el dueño registró."""
-    return portales_url(tenant)
 
 
 @router.post("/v1/cua/portales", status_code=201)
