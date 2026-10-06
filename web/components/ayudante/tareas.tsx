@@ -15,7 +15,7 @@ import { rutaAjustes } from "@/lib/ajustes";
 
 /** El catálogo ya trae estas dos frases por tarea (`aiuditas/catalog.py`). Vacías en
  *  las que todavía no funcionan. */
-export type Tarea = AiuditaSpec;
+type Tarea = AiuditaSpec;
 
 type Valor = string | number | boolean;
 

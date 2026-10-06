@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useApi, SecondaryLink } from "@/components/ui";
-import { SettingsField, SettingsSection, settingsInputCls } from "@/components/settings";
+import { useApi, SecondaryLink, inputCls } from "@/components/ui";
+import { SettingsField, SettingsSection } from "@/components/settings";
 
 import { TagManager } from "@/components/tags";
 import { api } from "@/lib/api";
@@ -131,7 +131,7 @@ function ContextoNegocio() {
   return (
     <SettingsField label="Lo que tus ayudantes deben saber" hint={ayuda}>
       <textarea
-        className={settingsInputCls}
+        className={inputCls}
         rows={3}
         value={actual}
         disabled={loading}
@@ -185,7 +185,7 @@ function HorarioEnvio() {
       hint="De qué hora a qué hora, en hora de México. Por ejemplo 09:00-20:00. Vacío: a cualquier hora. Si un ayudante tiene su propio horario de cobranza, ese manda."
     >
       <input
-        className={`${settingsInputCls} max-w-[14rem]`}
+        className={`${inputCls} max-w-[14rem]`}
         value={actual}
         disabled={loading}
         placeholder="09:00-20:00"

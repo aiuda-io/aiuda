@@ -114,7 +114,7 @@ const SELF_NAV_SUBTREES = ["/conversaciones"];
 // El paso anterior del camino: a dónde regresa "Volver" de verdad. Solo en páginas de
 // DETALLE: en un destino de menú (sección) o en el Resumen no hay "de dónde venías" honesto
 // —ahí manda la barra lateral, no un "volver" que apunte falsamente a Resumen.
-export function useRastroBack(): { href: string; label: string } | null {
+function useRastroBack(): { href: string; label: string } | null {
   const ctx = useContext(RastroContext);
   const pathname = usePathname();
   if (!ctx || ctx.trail.length < 2) return null;

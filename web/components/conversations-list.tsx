@@ -25,11 +25,11 @@ const TAB_LABEL: Record<TabKey, string> = {
 };
 
 /** ¿El último mensaje es del cliente y llegó hoy (hora de esta computadora)? */
-export function contestoHoy(c: ConversationItem): boolean {
+function contestoHoy(c: ConversationItem): boolean {
   return c.last_direction === "in" && esDeHoy(c.last_at);
 }
 
-export function tituloDe(c: ConversationItem): string {
+function tituloDe(c: ConversationItem): string {
   if (c.customer) return c.customer;
   if (c.channel === "correo") return c.correo?.nombre || c.correo?.de || "Correo sin remitente";
   return telefonoMx(c.remote_phone) || c.remote_phone;

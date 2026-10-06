@@ -14,7 +14,7 @@ import { RastroProvider, RastroBack, PageTransition } from "@/components/rastro"
  *  hereda este. Adentro sí puede acotar un bloque de lectura (`max-w-xl` en un
  *  párrafo), pero no la página. La barra superior usa el mismo contenedor, para
  *  que sus bordes y los del contenido caigan en la misma vertical. */
-export const ANCHO_CONTENIDO = "mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10";
+const ANCHO_CONTENIDO = "mx-auto w-full max-w-[1200px] px-5 sm:px-8 lg:px-10";
 
 export function Shell({ children }: { children: React.ReactNode }) {
   // Una sola bienvenida: el asistente de primer arranque.

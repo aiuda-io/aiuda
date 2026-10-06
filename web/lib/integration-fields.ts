@@ -19,7 +19,7 @@ export const EMAIL_PRESETS: Record<string, Record<string, string>> = {
   imap: {},
 };
 
-export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
+const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
   // WhatsApp con tu número se conecta por QR (como WhatsApp Web), no capturando
   // credenciales: por eso aquí no hay campos.
   whatsapp: [],

@@ -38,13 +38,8 @@
   --color-accent-soft: oklch(0.962 0.016 236);
   --color-accent-ink: oklch(0.4 0.1 239); /* 8.9:1 sobre el papel */
 
-  /* Marca: el azul del wordmark (#2596be) y las superficies oscuras de entrada.
-     Solo para la marca, no UI. */
+  /* Marca: el azul del wordmark (#2596be). Solo para la marca, no UI. */
   --color-brand: oklch(0.62 0.105 228);
-  --color-navy: oklch(0.23 0.045 235);
-  --color-navy-2: oklch(0.285 0.05 238);
-  --color-navy-line: oklch(0.4 0.04 238);
-  --color-sky: oklch(0.8 0.07 222);
 
   /* Estado: apagados. Oscuros para que el texto pase AA; los -soft casi no tienen
      croma, para que una banda de aviso no grite. */
@@ -81,7 +76,6 @@
   --radius-lg: 10px;
   --radius-xl: 16px;
   --radius-2xl: 16px;
-  --radius-3xl: 16px;
 
   /* SF Pro, la letra del sistema: viene en toda Mac, no se reparte ni se descarga
      nada. El wordmark conserva Avenir Next (también del sistema) para seguir
@@ -128,12 +122,11 @@
   --text-sello--line-height: 1.35;
 }
 
-/* Tokens de movimiento: tres duraciones y dos curvas para TODA la app. El
+/* Tokens de movimiento: dos duraciones y dos curvas para TODA la app. El
    movimiento solo cuenta un cambio de estado; llega rápido y frena suave. */
 :root {
   --dur-fast: 140ms; /* micro-feedback: hover, press, foco */
   --dur-base: 220ms; /* entradas de contenido (reveal) */
-  --dur-slow: 360ms; /* expandir/colapsar, paneles */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* ease-out-quint: desacelera al llegar */
   --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1); /* mover/redimensionar */
 }
@@ -148,7 +141,6 @@
 }
 
 /* Utilidades de elevación (uso deliberado, no por defecto). */
-.elev-sm { box-shadow: var(--shadow-sm); }
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
 
@@ -600,10 +592,7 @@ input[type="search"]::-webkit-search-cancel-button {
     border-width: 0;
   }
 }
-/* Doble clase a propósito: le gana en especificidad a `.reveal-stagger > *` (que
-   también fija `animation` sobre sus hijos) sin recurrir a !important, para que la
-   salida realmente corra cuando la fila vive en una lista con entrada escalonada. */
-.row-leaving.row-leaving {
+.row-leaving {
   overflow: hidden;
   animation: row-out 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
@@ -634,22 +623,12 @@ input[type="search"]::-webkit-search-cancel-button {
   }
 }
 
-/* Reveal: el contenido no aparece de golpe · sube 8px y se desvanece al entrar.
-   `.reveal-stagger` lo hace en cascada suave (listas, grids de tarjetas). El retardo
-   se topa a los primeros elementos para no arrastrar listas largas. */
+/* Reveal: el contenido no aparece de golpe · sube 8px y se desvanece al entrar. */
 @keyframes reveal-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 .reveal { animation: reveal-up var(--dur-base) var(--ease-out) both; }
-.reveal-stagger > * { animation: reveal-up var(--dur-base) var(--ease-out) both; }
-.reveal-stagger > *:nth-child(1) { animation-delay: 0ms; }
-.reveal-stagger > *:nth-child(2) { animation-delay: 45ms; }
-.reveal-stagger > *:nth-child(3) { animation-delay: 90ms; }
-.reveal-stagger > *:nth-child(4) { animation-delay: 135ms; }
-.reveal-stagger > *:nth-child(5) { animation-delay: 180ms; }
-.reveal-stagger > *:nth-child(6) { animation-delay: 225ms; }
-.reveal-stagger > *:nth-child(n + 7) { animation-delay: 270ms; }
 
 /* Un latido suave para estados "vivos" (trabajando, presencia). Sobrio, no parpadea. */
 @keyframes breathe {
@@ -657,11 +636,3 @@ input[type="search"]::-webkit-search-cancel-button {
   50% { opacity: 0.55; }
 }
 .breathe { animation: breathe 1.8s var(--ease-in-out) infinite; }
-
-/* Confirmación silenciosa: al aprobar/guardar, un check que se dibuja (no confeti). */
-@keyframes check-pop {
-  0% { transform: scale(0.6); opacity: 0; }
-  60% { transform: scale(1.08); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-.check-pop { animation: check-pop var(--dur-base) var(--ease-out) both; }

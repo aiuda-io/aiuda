@@ -42,30 +42,6 @@ import { WhatsAppPairing } from "@/components/integration-config-drawer";
 import { toast } from "@/components/toast";
 
 // --- Compuerta compartida con el Shell -------------------------------------
-// Mientras el asistente esté pendiente, el tour y la checklist de activación no
-// deben pintarse debajo: dos capas de bienvenida a la vez es ruido. Store mínimo
-// (module-level + suscriptores), igual que lib/ayudantes-store.
-let pendiente: boolean | null = null; // null = todavía no sabemos
-const subs = new Set<() => void>();
-
-function setPendiente(v: boolean) {
-  pendiente = v;
-  for (const fn of subs) fn();
-}
-
-/** true mientras el primer arranque siga sin resolverse o sin terminar. */
-export function useSetupPendiente(): boolean {
-  const [, force] = useState(0);
-  useEffect(() => {
-    const fn = () => force((n) => n + 1);
-    subs.add(fn);
-    return () => {
-      subs.delete(fn);
-    };
-  }, []);
-  return pendiente !== false;
-}
-
 // --- Memoria de la sesión ---------------------------------------------------
 // Recargar la ventana a media configuración retoma el paso en el que iba.
 const PASO_KEY = "aiuda-setup-paso";
@@ -161,11 +137,10 @@ export function SetupWizard() {
         const aMedias = PASOS.includes(guardado);
         const sale = !(e as Estado).cerrado_por_el_dueno && (!e.terminado || aMedias);
         setVisible(sale);
-        setPendiente(sale);
         if (sale && aMedias) setPaso(guardado);
         if (!sale) escribir(PASO_KEY, "");
       })
-      .catch(() => setPendiente(false)); // sin backend: la consola se ve igual
+      .catch(() => null); // sin backend: la consola se ve igual
   }, []);
 
   const irA = useCallback((p: Paso) => {
@@ -191,7 +166,6 @@ export function SetupWizard() {
   async function terminar(destino = "/") {
     await api.setupTerminar().catch(() => null);
     escribir(PASO_KEY, "");
-    setPendiente(false);
     setVisible(false);
     // Recarga dura: el nombre del negocio, el ayudante recién creado y el estado
     // de la IA los tienen guardados varias pantallas. Entrar a una consola que
@@ -643,7 +617,6 @@ function PasoCartera({
         <li className="py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex min-w-0 flex-1 items-center gap-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/int/odoo.svg" alt="" aria-hidden="true" className="h-6 w-6 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-cuerpo font-semibold text-ink">Conectar Odoo</p>

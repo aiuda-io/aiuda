@@ -4,7 +4,7 @@
 
 import { ApiError } from "@/lib/api";
 
-export const MONEDA_BASE = "MXN";
+const MONEDA_BASE = "MXN";
 
 /** A dónde se manda al dueño (rutas del contrato del paquete B). */
 export const RUTA = {
@@ -19,7 +19,7 @@ export const RUTA = {
   portales: "/rutinas",
 } as const;
 
-export function moneda(codigo?: string | null): string {
+function moneda(codigo?: string | null): string {
   return (codigo ?? "").trim().toUpperCase() || MONEDA_BASE;
 }
 

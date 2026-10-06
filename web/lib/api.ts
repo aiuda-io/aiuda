@@ -8,7 +8,7 @@ const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
  *  otra pestaña). En dev lleva /api; en la consola empaquetada va sin prefijo. */
 export const apiUrl = (path: string) => `${API_URL}${path}`;
 
-export type AgingLine = { bucket: string; count: number; total: number };
+type AgingLine = { bucket: string; count: number; total: number };
 
 export type Cartera = {
   business_name: string;
@@ -87,7 +87,7 @@ export type ReminderItem = {
 };
 
 /** Procedencia de un dato: qué es + de qué fuente(s) viene, con su presencia. */
-export type Procedencia = {
+type Procedencia = {
   que?: string;
   source: string;
   sources?: string[];
@@ -328,7 +328,7 @@ export type EntidadInyectable = "cliente" | "producto" | "factura" | "cita";
 export type InyectarDestinos = Record<EntidadInyectable, InyectarDestino[]>;
 
 /** Una factura candidata que propone el ayudante de conciliación para un pago. */
-export type ReconcileCandidate = {
+type ReconcileCandidate = {
   invoice_id: string;
   folio: string;
   customer: string;
@@ -344,7 +344,7 @@ export type ReconcileCandidate = {
 };
 
 /** Varias facturas del MISMO cliente cuyos saldos suman el pago (una transferencia, varias facturas). */
-export type ReconcileGroup = {
+type ReconcileGroup = {
   invoice_ids: string[];
   folios: string[];
   customer: string;
@@ -394,7 +394,7 @@ export type DichoPago = {
 };
 
 /** Estado honesto de una fuente de confirmación de pago (Belvo/Stripe). */
-export type FuenteConfirmacion = { configurada: boolean; verificada_en_vivo: boolean };
+type FuenteConfirmacion = { configurada: boolean; verificada_en_vivo: boolean };
 
 export type ReconcileConfig = { tolerancia_pct: number; tolerancia_abs: number };
 
@@ -436,7 +436,7 @@ export type Tag = { id: string; name: string; color: string; count?: number };
 export type ConversationStatus = "identificado" | "por_identificar" | "descartado";
 
 /** Hilo de correo: quién escribe y de qué va (la clave técnica vive en remote_phone). */
-export type CorreoHilo = { de: string; nombre: string; asunto: string };
+type CorreoHilo = { de: string; nombre: string; asunto: string };
 
 export type ConversationItem = {
   id: string;
@@ -477,28 +477,12 @@ export type ConversationDetail = {
 
 /** Plan de carrera: el nivel lo calcula el BACKEND a partir de acciones reales
  *  (filas de trabajo derivadas en cada lectura, no un contador). Aquí solo se pinta. */
-export type Nivel = {
+type Nivel = {
   nivel: string;
   /** Umbral de acciones del siguiente nivel; null en el máximo. */
   siguiente: number | null;
   /** Progreso [0..1] hacia el siguiente nivel. */
   progreso: number;
-};
-
-export type AgentState = {
-  slug: string;
-  active: boolean;
-  actions: number;
-  pending: number;
-  sent: number;
-  nivel: Nivel;
-};
-
-export type AgentConfig = {
-  slug: string;
-  user_rules: string[];
-  auto_send_buckets: string[];
-  business_context: string;
 };
 
 export type ImportResult = {
@@ -522,19 +506,6 @@ export type ImportAnalysis = {
   fields: Record<string, string>; // campo -> descripción
   types: { key: string; label: string }[];
   row_count: number;
-};
-
-export type UsageSummary = {
-  month: string;
-  total_cost_usd: number;
-  by_model: { model: string; input_tokens: number; output_tokens: number; cost_usd: number }[];
-  activity: {
-    recordatorios_redactados: number;
-    recordatorios_enviados: number;
-    conversaciones_atendidas: number;
-    mensajes_respondidos: number;
-    promesas_registradas: number;
-  };
 };
 
 
@@ -688,20 +659,6 @@ export type SearchResponse = {
   groups: { title: string; items: { label: string; sublabel: string; href: string }[] }[];
 };
 
-/** Un hito del embudo de activación; `done` se deriva del estado real en backend. */
-export type OnboardingStep = {
-  key: string;
-  label: string;
-  done: boolean;
-  href: string;
-};
-
-export type OnboardingState = {
-  steps: OnboardingStep[];
-  done_count: number;
-  total: number;
-};
-
 /** GET /v1/setup/estado: lo que aiuda encontró en ESTA computadora en el primer
  *  arranque. El asistente (components/setup-wizard.tsx) lo usa para proponer el
  *  camino más corto: si ya hay un modelo local corriendo, conectarlo es un clic. */
@@ -786,13 +743,13 @@ export type SetupRed = {
   aviso: string;
 };
 
-export type IntegrationFlow = "read" | "writeback" | "channel" | "confirm" | "action";
+type IntegrationFlow = "read" | "writeback" | "channel" | "confirm" | "action";
 
 /** Una capacidad que una fuente provee (lo que el aiudante realmente usa). */
-export type ProvidedCap = { cap: string; label: string; live: boolean };
+type ProvidedCap = { cap: string; label: string; live: boolean };
 
 /** La declaración de una conexión a la medida: URL, auth, paginación y mapeo. */
-export type CustomConnectorConfig = {
+type CustomConnectorConfig = {
   base_url: string;
   list_path?: string;
   root?: string;
@@ -844,7 +801,7 @@ export type CustomTestResult = {
 };
 
 /** Capacidad de negocio, independiente de la fuente que la cumple. */
-export type Capability = {
+type Capability = {
   key: string;
   label: string;
   desc: string;
@@ -919,7 +876,7 @@ export type SatEstado = {
   };
 };
 
-export type SatCfdi = {
+type SatCfdi = {
   uuid: string;
   tipo: string | null;
   metodo_pago: string | null;
@@ -991,7 +948,7 @@ export type IntegrationDetail = {
   capabilities: SourceCap[];
 };
 
-export type IntegrationAgent = {
+type IntegrationAgent = {
   slug: string;
   name: string;
   role: string;
@@ -1009,32 +966,6 @@ export type IntegrationsGraph = {
   capabilities: Capability[];
   connected_count: number;
   available_count: number;
-};
-
-export type AgentSystem = {
-  key: string;
-  name: string;
-  group: string;
-  logo: string | null;
-  color: string;
-  flows: IntegrationFlow[];
-  rol: string;
-  live: boolean;
-  does: string;
-  connected: boolean;
-  provides: ProvidedCap[];
-};
-
-export type AgentSystems = {
-  slug: string;
-  name: string;
-  role: string;
-  avatar: string;
-  systems: AgentSystem[];
-  capabilities: Capability[];
-  needs: string[];
-  gaps: string[];
-  connected_count: number;
 };
 
 // "codex" = OpenAI. Se conecta simétrico a Claude: con la API key (sk-...) del dueño.
@@ -1142,9 +1073,9 @@ export type ProviderTest =
 
 // --- Aiuditas (catálogo capability-first) + ayudantes del dueño ---
 
-export type PerillaTipo = "enum" | "numero" | "bool" | "texto" | "hora";
+type PerillaTipo = "enum" | "numero" | "bool" | "texto" | "hora";
 
-export type PerillaOpcion = { value: string; label: string };
+type PerillaOpcion = { value: string; label: string };
 
 export type Perilla = {
   key: string;
@@ -1315,7 +1246,7 @@ export type CuaEstado = {
 
 /** Un documento oficial bajado de un portal (opinión 32-D, constancia). El PDF se
  *  abre con apiUrl(`/v1/documentos/${id}.pdf`). */
-export type Documento = {
+type Documento = {
   id: string;
   rfc: string;
   tipo: string;
@@ -1560,9 +1491,6 @@ export const api = {
     request<WhatsappInstalacion>("/v1/integrations/whatsapp/instalar", { method: "POST" }),
   whatsappLogout: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/session", { method: "DELETE" }),
   workspace: () => request<WorkspaceInfo>("/v1/workspace"),
-  // Activación: progreso derivado del estado real (no flags persistidos). Lo
-  // consume el bloque "Primeros pasos" del Resumen.
-  onboardingState: () => request<OnboardingState>("/v1/onboarding/state"),
   // Primer arranque: qué encontró aiuda en la computadora y qué falta para trabajar.
   // Los aparatos del dueño y la puerta que da a la red de la oficina. El QR se
   // arma con lo que devuelve `crearInvitacion`; el token completo del aparato
@@ -1583,12 +1511,6 @@ export const api = {
     }),
   cancelarInvitacion: () =>
     request<{ cancelada: boolean }>("/v1/dispositivos/invitacion", { method: "DELETE" }),
-  cambiarDispositivo: (id: string, cambio: Partial<Pick<Dispositivo, "nombre" | "papel" | "tope_aprobacion">>) =>
-    request<Dispositivo>(`/v1/dispositivos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cambio),
-    }),
   revocarDispositivo: (id: string) =>
     request<Dispositivo>(`/v1/dispositivos/${id}/revocar`, { method: "POST" }),
   setupEstado: () => request<SetupEstado>("/v1/setup/estado"),
@@ -1861,7 +1783,6 @@ export const api = {
         }),
       },
     ),
-  usage: () => request<UsageSummary>("/v1/usage"),
   approve: (id: string, channel = "whatsapp", message?: string) =>
     // La respuesta dice el estado FINAL honesto: delivery "encolado" (canal listo, el
     // envío corre en segundo plano) o "pendiente_canal" (aprobado; `aviso` trae el
@@ -1928,7 +1849,6 @@ export const api = {
     }),
   reconcileResueltos: () =>
     request<{ resueltos: ReconcileResuelto[]; count: number }>("/v1/reconciliation/resueltos"),
-  reconcileConfig: () => request<ReconcileConfig>("/v1/reconciliation/config"),
   saveReconcileConfig: (body: ReconcileConfig) =>
     request<ReconcileConfig>("/v1/reconciliation/config", {
       method: "PUT",
@@ -1985,8 +1905,6 @@ export const api = {
     }),
   cuaBorrarRutina: (id: string) =>
     request<void>(`/v1/cua/rutinas/${id}`, { method: "DELETE" }),
-  // Portales a la medida (registrar por URL) y direcciones de los built-in.
-  cuaPortales: () => request<CuaPortal[]>("/v1/cua/portales"),
   cuaCrearPortal: (body: { nombre: string; url: string; notas?: string }) =>
     request<CuaPortal>("/v1/cua/portales", {
       method: "POST",
@@ -2092,11 +2010,6 @@ export const api = {
     const qs = params.toString();
     return requestBlob(`/v1/export/${entidad}.xlsx${qs ? `?${qs}` : ""}`);
   },
-  importFile: (file: globalThis.File) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request<ImportResult>("/v1/import", { method: "POST", body: form });
-  },
   analyzeImport: (file: globalThis.File, entity?: string) => {
     const form = new FormData();
     form.append("file", file);
@@ -2132,7 +2045,7 @@ export const api = {
 };
 
 /** Un movimiento leído del estado de cuenta (cargo o abono, nunca ambos). */
-export type BancoMovimiento = {
+type BancoMovimiento = {
   fecha: string;
   concepto: string;
   referencia: string;

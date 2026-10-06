@@ -7,10 +7,9 @@
 // Fiel al open-core: una receta declarativa, sin código. Tu clave se cifra en el backend.
 
 import { useEffect, useState, type ReactNode } from "react";
-import { PrimaryButton } from "@/components/ui";
+import { PrimaryButton, inputCls } from "@/components/ui";
 import { api, type CustomConnector, type CustomTestResult } from "@/lib/api";
 import { Drawer } from "@/components/drawer";
-import { settingsInputCls } from "@/components/settings";
 import { toast } from "@/components/toast";
 
 export const CAP_LABEL: Record<string, string> = {
@@ -235,17 +234,17 @@ export function CustomConnectorDrawer({
         </p>
 
         <Campo label="Nombre">
-          <input className={settingsInputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Mi ERP" />
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Mi ERP" />
         </Campo>
         <Campo label="URL base" hint="dónde vive tu API">
-          <input className={settingsInputCls} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://miapi.com/api" />
+          <input className={inputCls} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://miapi.com/api" />
         </Campo>
         <Campo label="Ruta de la lista" hint="se agrega a la URL base (opcional)">
-          <input className={settingsInputCls} value={listPath} onChange={(e) => setListPath(e.target.value)} placeholder="clientes" />
+          <input className={inputCls} value={listPath} onChange={(e) => setListPath(e.target.value)} placeholder="clientes" />
         </Campo>
 
         <Campo label="Autenticación" hint="cómo se identifica aiuda ante tu API">
-          <select className={settingsInputCls} value={authType} onChange={(e) => setAuthType(e.target.value)}>
+          <select className={inputCls} value={authType} onChange={(e) => setAuthType(e.target.value)}>
             {AUTH_OPTIONS.map((o) => (
               <option key={o.v} value={o.v}>
                 {o.label}
@@ -256,10 +255,10 @@ export function CustomConnectorDrawer({
         {authType === "oauth2_cc" && (
           <div className="grid grid-cols-2 gap-3">
             <Campo label="Dirección donde se pide el acceso" hint="la que da tu API para OAuth2">
-              <input className={settingsInputCls} value={tokenUrl} onChange={(e) => setTokenUrl(e.target.value)} placeholder="https://miapi.com/oauth/token" />
+              <input className={inputCls} value={tokenUrl} onChange={(e) => setTokenUrl(e.target.value)} placeholder="https://miapi.com/oauth/token" />
             </Campo>
             <Campo label="Client ID">
-              <input className={settingsInputCls} value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="mi-app" />
+              <input className={inputCls} value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="mi-app" />
             </Campo>
           </div>
         )}
@@ -268,7 +267,7 @@ export function CustomConnectorDrawer({
             {necesitaNombreAuth && (
               <Campo label={authType === "query" ? "Nombre del parámetro" : "Nombre del header"}>
                 <input
-                  className={settingsInputCls}
+                  className={inputCls}
                   value={authName}
                   onChange={(e) => setAuthName(e.target.value)}
                   placeholder={authType === "query" ? "api_key" : "X-API-Key"}
@@ -281,7 +280,7 @@ export function CustomConnectorDrawer({
             >
               <input
                 type="password"
-                className={settingsInputCls}
+                className={inputCls}
                 value={authValue}
                 onChange={(e) => setAuthValue(e.target.value)}
                 placeholder={authType === "basic" ? "usuario:contraseña" : "••••••"}
@@ -291,7 +290,7 @@ export function CustomConnectorDrawer({
         )}
 
         <Campo label="Ruta al arreglo" hint="dónde está la lista en el JSON (ej. data); vacío si el cuerpo ya es la lista">
-          <input className={settingsInputCls} value={root} onChange={(e) => setRoot(e.target.value)} placeholder="data" />
+          <input className={inputCls} value={root} onChange={(e) => setRoot(e.target.value)} placeholder="data" />
         </Campo>
 
         <div>
@@ -304,7 +303,7 @@ export function CustomConnectorDrawer({
               <div key={f} className="flex items-center gap-2">
                 <span className="w-24 shrink-0 text-cuerpo text-ink-2">{FIELD_LABEL[f] ?? f}</span>
                 <input
-                  className={settingsInputCls}
+                  className={inputCls}
                   value={mapping[f] ?? ""}
                   onChange={(e) => setMapping((m) => ({ ...m, [f]: e.target.value }))}
                   placeholder={f}
@@ -328,7 +327,7 @@ export function CustomConnectorDrawer({
           {avanzado && (
             <div className="space-y-3 border-t border-line px-3.5 py-3">
               <Campo label="Paginación" hint="cómo pide aiuda la siguiente página">
-                <select className={settingsInputCls} value={paging} onChange={(e) => setPaging(e.target.value)}>
+                <select className={inputCls} value={paging} onChange={(e) => setPaging(e.target.value)}>
                   {PAGING_OPTIONS.map((o) => (
                     <option key={o.v} value={o.v}>
                       {o.label}
@@ -339,35 +338,35 @@ export function CustomConnectorDrawer({
               {paging === "offset" && (
                 <div className="grid grid-cols-3 gap-3">
                   <Campo label="Param. corrimiento">
-                    <input className={settingsInputCls} value={pageParam} onChange={(e) => setPageParam(e.target.value)} placeholder="offset" />
+                    <input className={inputCls} value={pageParam} onChange={(e) => setPageParam(e.target.value)} placeholder="offset" />
                   </Campo>
                   <Campo label="Param. tamaño">
-                    <input className={settingsInputCls} value={sizeParam} onChange={(e) => setSizeParam(e.target.value)} placeholder="limit" />
+                    <input className={inputCls} value={sizeParam} onChange={(e) => setSizeParam(e.target.value)} placeholder="limit" />
                   </Campo>
                   <Campo label="Por página">
-                    <input className={settingsInputCls} inputMode="numeric" value={pageSize} onChange={(e) => setPageSize(e.target.value)} />
+                    <input className={inputCls} inputMode="numeric" value={pageSize} onChange={(e) => setPageSize(e.target.value)} />
                   </Campo>
                 </div>
               )}
               {paging === "cursor" && (
                 <div className="grid grid-cols-2 gap-3">
                   <Campo label="Ruta al cursor" hint="en la respuesta (ej. meta.next)">
-                    <input className={settingsInputCls} value={cursorPath} onChange={(e) => setCursorPath(e.target.value)} placeholder="meta.next" />
+                    <input className={inputCls} value={cursorPath} onChange={(e) => setCursorPath(e.target.value)} placeholder="meta.next" />
                   </Campo>
                   <Campo label="Param. del cursor" hint="cómo se manda de regreso">
-                    <input className={settingsInputCls} value={cursorParam} onChange={(e) => setCursorParam(e.target.value)} placeholder="cursor" />
+                    <input className={inputCls} value={cursorParam} onChange={(e) => setCursorParam(e.target.value)} placeholder="cursor" />
                   </Campo>
                 </div>
               )}
               <div className="grid grid-cols-3 gap-3">
                 <Campo label="Timeout (s)">
-                  <input className={settingsInputCls} inputMode="numeric" value={timeout_} onChange={(e) => setTimeout_(e.target.value)} />
+                  <input className={inputCls} inputMode="numeric" value={timeout_} onChange={(e) => setTimeout_(e.target.value)} />
                 </Campo>
                 <Campo label="Reintentos">
-                  <input className={settingsInputCls} inputMode="numeric" value={retries} onChange={(e) => setRetries(e.target.value)} />
+                  <input className={inputCls} inputMode="numeric" value={retries} onChange={(e) => setRetries(e.target.value)} />
                 </Campo>
                 <Campo label="Pausa entre páginas (ms)">
-                  <input className={settingsInputCls} inputMode="numeric" value={pauseMs} onChange={(e) => setPauseMs(e.target.value)} />
+                  <input className={inputCls} inputMode="numeric" value={pauseMs} onChange={(e) => setPauseMs(e.target.value)} />
                 </Campo>
               </div>
               <p className="text-apoyo leading-relaxed text-ink-3">
@@ -378,10 +377,10 @@ export function CustomConnectorDrawer({
                   (aparece como destino en "Crear también en..." e "Inyectar a..."). */}
               <div className="grid grid-cols-2 gap-3 border-t border-line/60 pt-3">
                 <Campo label="Ruta para dar de alta" hint="a dónde manda aiuda un registro nuevo; vacío = solo lee">
-                  <input className={settingsInputCls} value={writePath} onChange={(e) => setWritePath(e.target.value)} placeholder="clientes" />
+                  <input className={inputCls} value={writePath} onChange={(e) => setWritePath(e.target.value)} placeholder="clientes" />
                 </Campo>
                 <Campo label="Dónde viene el id creado" hint="el campo de la respuesta que lo trae (ej. data.id)">
-                  <input className={settingsInputCls} value={writeIdPath} onChange={(e) => setWriteIdPath(e.target.value)} placeholder="id" />
+                  <input className={inputCls} value={writeIdPath} onChange={(e) => setWriteIdPath(e.target.value)} placeholder="id" />
                 </Campo>
               </div>
             </div>

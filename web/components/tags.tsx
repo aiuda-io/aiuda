@@ -9,7 +9,7 @@ import { useConfirm, PrimaryButton, SecondaryButton } from "@/components/ui";
 // literal, así respetan el tema). Los tintas verde/ámbar/rojo y los pares morado/rosa/
 // gris no tienen token equivalente exacto, así que quedan como literal para no correr
 // el color.
-export const TAG_COLORS: Record<string, { bg: string; fg: string }> = {
+const TAG_COLORS: Record<string, { bg: string; fg: string }> = {
   azul: { bg: "var(--color-accent-soft)", fg: "var(--color-accent-ink)" },
   verde: { bg: "var(--color-ok-soft)", fg: "oklch(0.5 0.12 161)" },
   ambar: { bg: "var(--color-warn-soft)", fg: "oklch(0.55 0.13 68)" },
@@ -19,7 +19,7 @@ export const TAG_COLORS: Record<string, { bg: string; fg: string }> = {
   gris: { bg: "oklch(0.94 0.005 230)", fg: "oklch(0.46 0.02 232)" },
 };
 
-export const PALETTE = ["azul", "verde", "ambar", "rojo", "morado", "rosa", "gris"];
+const PALETTE = ["azul", "verde", "ambar", "rojo", "morado", "rosa", "gris"];
 
 function colorOf(color: string) {
   return TAG_COLORS[color] ?? TAG_COLORS.gris;

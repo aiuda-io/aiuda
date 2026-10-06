@@ -318,7 +318,7 @@ function Renglon({ inv, onOpen }: { inv: InvoiceItem; onOpen: () => void }) {
 }
 
 /** Estado y atraso, juntos: un punto con el color del tramo y la frase que lo dice. */
-export function EstadoFactura({ inv }: { inv: InvoiceItem }) {
+function EstadoFactura({ inv }: { inv: InvoiceItem }) {
   if (inv.status === "paid") {
     return (
       <Estado tono="ok">

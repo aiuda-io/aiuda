@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { inputCls } from "@/components/ui";
 
 /**
  * Patrón de página de ajustes moderno (Linear/Vercel/Stripe): el título y la explicación
@@ -57,8 +56,3 @@ export function SettingsField({
 export function SettingsPage({ children }: { children: ReactNode }) {
   return <div className="min-w-0">{children}</div>;
 }
-
-/** El input canónico ahora vive en components/ui (`inputCls` / `<TextInput>`). Este
- *  alias mantiene el mismo estilo desde el primitivo compartido y evita romper a los
- *  importadores; migrar al primitivo directo cuando se toquen esos archivos. */
-export const settingsInputCls = inputCls;

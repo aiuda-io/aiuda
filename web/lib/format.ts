@@ -87,17 +87,6 @@ export function fechaCita(iso: string | null | undefined): string {
   return `${dia} ${diaMes(d)}, ${hora(d)}`;
 }
 
-/** junio 2026: mes y año (periodos como "Plan y uso"). Sin arg = mes actual. */
-export function periodo(iso?: string | null): string {
-  const d = iso === undefined ? new Date() : parse(iso);
-  return d ? d.toLocaleDateString(MX, { month: "long", year: "numeric" }) : "·";
-}
-
-/** 14,851: número con separador de miles. */
-export function num(value: number): string {
-  return Number(value).toLocaleString(MX);
-}
-
 // "Otros datos" de un cliente: lo que no cupo en nombre, teléfono y correo. La llave
 // viene de donde vino el dato (una columna de su Excel, un campo de su sistema), y
 // muchas veces es de máquina: "municipio", "dias_credito", "codigo_postal".

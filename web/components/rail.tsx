@@ -58,7 +58,7 @@ export function RailSection({ label, children }: { label: string; children: Reac
   );
 }
 
-export function RailLabel({ children }: { children: ReactNode }) {
+function RailLabel({ children }: { children: ReactNode }) {
   return (
     <p className="eyebrow">{children}</p>
   );

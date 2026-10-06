@@ -33,7 +33,7 @@ export type Destino = {
   fuera?: true;
 };
 
-export const DESTINOS: Destino[] = [
+const DESTINOS: Destino[] = [
   // ── El menú ───────────────────────────────────────────────────────────────
   {
     href: "/",
@@ -212,7 +212,7 @@ export function puertaDe(pathname: string): string | null {
 /** ¿Hay algún ayudante que haga este oficio? Las aiuditas se llaman
  *  `oficio.tarea` (`ventas.generar_cotizacion`), así que basta el prefijo de las
  *  que tiene puestas. Recibe la lista de `useAyudantes()`. */
-export function hayOficio(
+function hayOficio(
   ayudantes: { aiuditas: Record<string, unknown> }[],
   oficio: Oficio,
 ): boolean {

@@ -10,10 +10,6 @@ export const SECCIONES = [
 
 export type Seccion = (typeof SECCIONES)[number]["key"];
 
-export function esSeccion(v: string | null): v is Seccion {
-  return SECCIONES.some((s) => s.key === v);
-}
-
 /** La dirección de una sección de Ajustes. `abrir` deja abierto el panel de una
  *  conexión (solo tiene sentido en Conexiones). */
 export function rutaAjustes(seccion: Seccion, abrir?: string): string {
