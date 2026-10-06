@@ -49,7 +49,9 @@ EJECUTABLE=""
 limpiar() {
   [ -n "$EJECUTABLE" ] && pkill -f "$EJECUTABLE" 2>/dev/null
   sleep 1
-  pkill -f "aiuda-server" 2>/dev/null
+  # Solo el servidor de la copia de prueba: un `pkill -f "aiuda-server"` a secas
+  # apagaría también el aiuda que el dueño tenga abierto.
+  [ -n "$COPIA" ] && pkill -f "$COPIA/.*aiuda-server" 2>/dev/null
   [ -n "$MONTAJE" ] && hdiutil detach "$MONTAJE" -quiet 2>/dev/null
   [ -n "$COPIA" ] && rm -rf "$(dirname "$COPIA")"
   [ -n "$CASA" ] && rm -rf "$CASA"
