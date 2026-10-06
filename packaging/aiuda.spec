@@ -42,7 +42,20 @@ a = Analysis(
     binaries=[],
     datas=datos,
     hiddenimports=ocultos,
-    excludes=["tkinter", "matplotlib", "pytest", "playwright"],
+    excludes=[
+        "tkinter",
+        "matplotlib",
+        "pytest",
+        "playwright",
+        # Unos 7 MB que el análisis arrastra y la app nunca importa al correr:
+        # pygments solo lo pide la línea de comandos de httpx (`httpx/_main.py`),
+        # setuptools entra por los ganchos de empaquetado de cffi y pytz, y
+        # pydoc_data son los temas de `help()`.
+        "pygments",
+        "setuptools",
+        "_distutils_hack",
+        "pydoc_data",
+    ],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
