@@ -43,7 +43,6 @@ function Logo({ node }: { node: IntegrationNode }) {
   return (
     <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fill">
       {node.logo ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
         <img src={node.logo} alt="" className="h-5 w-5 object-contain" />
       ) : (
         <span className="text-rotulo font-semibold text-ink-2">{node.name.slice(0, 2)}</span>

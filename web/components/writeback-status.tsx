@@ -135,7 +135,6 @@ export function WritebackStatus({
             <li key={e.id}>
               <div className="flex items-start gap-3">
                 {SOURCE_LOGO[e.target] && (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={SOURCE_LOGO[e.target]} alt="" className="mt-1 h-4 w-4 shrink-0" />
                 )}
                 <div className="min-w-0 flex-1">

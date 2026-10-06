@@ -331,7 +331,6 @@ export function InvoiceDetailContent({
             const cuerpo = (
               <>
                 {SOURCE_LOGO[sys] && (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={SOURCE_LOGO[sys]} alt="" className="h-4 w-4 shrink-0" />
                 )}
                 <span className="min-w-0 flex-1">

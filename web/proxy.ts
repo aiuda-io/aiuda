@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
 // Headers de seguridad para toda respuesta de la consola. Conservadores a
 // propósito: nada que rompa Next (sin CSP estricta todavía). HSTS solo aplica
@@ -21,7 +20,7 @@ function harden(response: NextResponse): NextResponse {
 
 // Sin login wall: la consola corre local (127.0.0.1) y el aislamiento vive en
 // el bind del API + token de sesión por arranque. Aquí solo endurecemos headers.
-export function proxy(_request: NextRequest) {
+export function proxy() {
   return harden(NextResponse.next());
 }
 

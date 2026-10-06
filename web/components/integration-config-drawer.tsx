@@ -230,7 +230,6 @@ export function WhatsAppPairing({
     <div>
       {st.qr ? (
         <div className="flex flex-col items-center rounded-2xl bg-panel px-5 py-5 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={st.qr}
             alt="Código QR de WhatsApp"
@@ -406,7 +405,6 @@ export function IntegrationConfigDrawer({
         <div className="flex flex-wrap items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-fill">
             {node.logo ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={node.logo} alt="" className="h-5 w-5 object-contain" />
             ) : (
               <span className="text-rotulo font-semibold text-ink-2">{node.name.slice(0, 2)}</span>

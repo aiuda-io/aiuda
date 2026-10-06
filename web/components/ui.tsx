@@ -52,7 +52,7 @@ export function SinEstrenar() {
  *  píldora de la consola: si lo que quieres decir es cómo VA algo, es un `Estado`.
  *  Regla de uso: a lo más un sello por renglón, y nunca uno que repita lo que ya
  *  dice el título de la sección donde está. */
-export function Sello({ children, title }: { children: React.ReactNode; title?: string }) {
+function Sello({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
     <span title={title} className="sello">
       {children}
@@ -472,7 +472,6 @@ export function SourceBadge({
             className="inline-flex items-center gap-1 transition-opacity hover:opacity-70"
           >
             {logo ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={logo} alt="" className="h-2.5 w-2.5 opacity-45 grayscale" />
             ) : (
               <span className="h-1 w-1 rounded-full bg-ink-3/60" />
@@ -694,6 +693,10 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const runIdRef = useRef(0);
+  // Invalida el fetch en curso: su respuesta, si llega, ya no se aplica.
+  const invalidar = useCallback(() => {
+    runIdRef.current++;
+  }, []);
 
   // `silent`: refresca sin encender `loading` (sin flash de skeletons). Para recargar
   // tras una acción cuando la lista YA está en pantalla. Devuelve la promesa para poder
@@ -732,10 +735,8 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
 
   useEffect(() => {
     load(false);
-    return () => {
-      runIdRef.current++; // invalida el fetch en curso al desmontar o cambiar deps
-    };
-  }, [load]);
+    return invalidar; // al desmontar o cambiar deps
+  }, [load, invalidar]);
 
   return { data, error, loading, refetch, refetchQuiet };
 }

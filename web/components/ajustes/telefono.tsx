@@ -271,7 +271,6 @@ export function AjustesTelefono() {
             ) : invitacion ? (
               <div className="space-y-3">
                 <div className="inline-block rounded-2xl bg-surface p-3 elev-md">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={invitacion.qr_svg}
                     alt="Código para emparejar un aparato"

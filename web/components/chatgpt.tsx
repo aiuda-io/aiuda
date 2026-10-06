@@ -26,7 +26,6 @@ async function abrirUso() {
 /** La marca que ya vive en el repo. `invertido` = en blanco, para el botón negro. */
 function LogoChatGPT({ invertido = true }: { invertido?: boolean }) {
   return (
-    /* eslint-disable-next-line @next/next/no-img-element */
     <img
       src="/brand/openai.svg"
       alt=""

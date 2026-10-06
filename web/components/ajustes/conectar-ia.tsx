@@ -133,7 +133,6 @@ function LogoVia({ via, grande = false }: { via: Via; grande?: boolean }) {
   return (
     <span className={`flex shrink-0 items-center justify-center bg-fill ${caja}`}>
       {logo ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
         <img src={logo} alt="" aria-hidden="true" className={grande ? "h-6 w-6" : "h-5 w-5"} />
       ) : (
         <svg viewBox="0 0 24 24" className={`${grande ? "h-6 w-6" : "h-5 w-5"} text-ink-2`} fill="none" aria-hidden="true">

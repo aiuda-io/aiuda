@@ -23,10 +23,14 @@ export function InvoiceDrawer({
   // factura abierta AHORA se aplica. Cambiar rápido de factura ya no pinta el
   // folio/monto de otra.
   const runIdRef = useRef(0);
+  // Invalida el fetch en curso: su respuesta, si llega, ya no se aplica.
+  const invalidar = useCallback(() => {
+    runIdRef.current++;
+  }, []);
 
   const load = useCallback(() => {
     if (!invoiceId) {
-      runIdRef.current++;
+      invalidar();
       setData(null);
       setError(null);
       return;
@@ -47,17 +51,15 @@ export function InvoiceDrawer({
       .finally(() => {
         if (runId === runIdRef.current) setLoading(false);
       });
-  }, [invoiceId]);
+  }, [invoiceId, invalidar]);
 
   useEffect(() => {
     // Nueva factura: pizarra limpia para no mostrar el detalle de la anterior.
     setData(null);
     setError(null);
     load();
-    return () => {
-      runIdRef.current++; // invalida el fetch en curso al cambiar de factura o desmontar
-    };
-  }, [load]);
+    return invalidar; // al cambiar de factura o desmontar
+  }, [load, invalidar]);
 
   // Refresca el detalle y avisa al padre (la lista) para que también se actualice.
   const refresh = useCallback(() => {

@@ -84,7 +84,6 @@ function PieDeAjustes() {
           rel="noreferrer"
           className="inline-flex items-center gap-2 hover:text-ink"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/hanova-icon-blue.svg" alt="" className="h-3 w-3 opacity-60 grayscale" />
           Un proyecto de Hanova Consulting
         </a>

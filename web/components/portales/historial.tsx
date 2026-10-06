@@ -204,7 +204,6 @@ function Terminada({ m }: { m: CuaMision }) {
               ) : (
                 <div className="mt-1.5 flex flex-wrap gap-2">
                   {(capturas ?? []).map((b64, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       key={i}
                       src={`data:image/png;base64,${b64}`}
