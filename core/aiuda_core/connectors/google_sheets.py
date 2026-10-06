@@ -32,9 +32,6 @@ from aiuda_core.config import settings
 
 SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
 
-# Tipos de hoja que aiuda sabe ingerir hoy (cada uno cae a un lector custom).
-TIPOS = ("facturas", "clientes", "productos")
-
 # Convenciones de encabezado -> campo de aiuda, por tipo. Las llaves de salida son
 # EXACTAMENTE las que esperan los lectores custom (engine/sync._custom_cartera /
 # _custom_directorio / _custom_catalogo). Los alias van normalizados (minúsculas,

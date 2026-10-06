@@ -10,16 +10,11 @@ en el chat. Así un aiudante deja de ser de cartón sin abrir riesgo: aterriza s
 respuestas en datos reales del negocio, pero no actúa por su cuenta.
 """
 
-from collections.abc import Callable
 from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
 from aiuda_core.models import Tenant
-
-# Un ejecutor de herramientas: recibe (nombre, args) y devuelve texto para el modelo.
-ToolFn = Callable[[str, dict], str]
-
 
 class ToolExecutor:
     """Despacha cada tool a un método `_<nombre>`. El tenant es obligatorio en toda

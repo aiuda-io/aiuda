@@ -479,8 +479,6 @@ def test_sesion_vencida_se_ve_en_el_estado_y_la_prueba_lo_dice(
     assert client.get("/v1/provider").json()["env_fallback"] is False
     ia = client.get("/v1/setup/estado").json()["ia"]
     assert ia["conectada"] is False and ia["proveedor"] == "chatgpt"
-    pasos = {p["key"]: p["done"] for p in client.get("/v1/onboarding/state").json()["steps"]}
-    assert pasos["ia_conectada"] is False
     monkeypatch.setattr(settings, "anthropic_api_key", "")
 
     # Volver a entrar la revive con el mismo registro.

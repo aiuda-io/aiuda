@@ -11,7 +11,6 @@ Escritura (write-back, ejecutada por engine/writeback.py):
     -------------------  ------------------------  -------------------------
     registrar_pago       account.payment.register  register_invoice_payment()
     alta/act. cliente    res.partner               upsert_partner()
-    constancia (nota)    account.move (chatter)    add_invoice_note()
 
 El transporte `_execute(model, method, ...)` es genérico: crecer NO toca la
 plomería, se agrega un método tipado y se declara en SOURCE_CAPS
@@ -287,11 +286,6 @@ class OdooConnector:
         if not ids:
             raise LookupError(f"Factura {folio} no encontrada en Odoo")
         return int(ids[0])
-
-    def add_invoice_note(self, folio: str, note: str) -> None:
-        """Write-back mínimo: deja constancia en el chatter de la factura."""
-        move_id = self._find_move_id(folio)
-        self._execute("account.move", "message_post", [move_id], body=note)
 
     def register_invoice_payment(
         self,

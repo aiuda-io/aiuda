@@ -465,12 +465,6 @@ class NuevoPortal(BaseModel):
     notas: str | None = None
 
 
-@router.get("/v1/cua/portales")
-def listar_portales(tenant: Tenant = Depends(get_tenant)) -> list[dict]:
-    """Los portales a la medida que el dueño registró."""
-    return portales_url(tenant)
-
-
 @router.post("/v1/cua/portales", status_code=201)
 def crear_portal(
     body: NuevoPortal, db=Depends(get_db), tenant: Tenant = Depends(get_tenant)

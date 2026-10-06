@@ -50,15 +50,3 @@ def config_de(ayudante: Ayudante, aiudita_id: str) -> dict | None:
 def config_or_none(session: Session, tenant: Tenant, aiudita_id: str) -> dict | None:
     a = ayudante_con_aiudita(session, tenant, aiudita_id)
     return config_de(a, aiudita_id) if a is not None else None
-
-
-def instructions_or_none(session: Session, tenant: Tenant, prefix: str = "") -> str | None:
-    """Instrucciones libres del primer ayudante (por antigüedad) que tenga una aiudita del
-    prefijo dado (p.ej. "cobranza."). Sin prefijo, el primero con instrucciones. Devuelve
-    None si nadie las tiene — el motor cae a su comportamiento previo sin romper nada."""
-    for a in _ayudantes(session, tenant):
-        if prefix and not any(str(aid).startswith(prefix) for aid in (a.aiuditas or {})):
-            continue
-        if a.instructions and a.instructions.strip():
-            return a.instructions.strip()
-    return None

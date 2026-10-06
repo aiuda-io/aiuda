@@ -332,34 +332,6 @@ def emparejar(
     return {"token": token, "dispositivo": _payload(aparato), "negocio": tenant.name}
 
 
-class CambioDispositivo(BaseModel):
-    nombre: str | None = Field(default=None, min_length=1, max_length=80)
-    papel: str | None = Field(default=None, pattern="^(dueno|invitado)$")
-    tope_aprobacion: float | None = Field(default=None, ge=0)
-
-
-@router.patch("/v1/dispositivos/{dispositivo_id}")
-def cambiar(
-    dispositivo_id: str,
-    cuerpo: CambioDispositivo,
-    request: Request,
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-) -> dict:
-    _solo_el_dueno(request, db, "Solo el dueño cambia los papeles.")
-    aparato = db.get(Dispositivo, dispositivo_id)
-    if aparato is None or aparato.tenant_id != tenant.id:
-        raise HTTPException(404, "Ese aparato no está en tu lista.")
-    if cuerpo.nombre is not None:
-        aparato.nombre = cuerpo.nombre.strip()
-    if cuerpo.papel is not None:
-        aparato.papel = cuerpo.papel
-    if cuerpo.tope_aprobacion is not None:
-        aparato.tope_aprobacion = cuerpo.tope_aprobacion
-    db.flush()
-    return _payload(aparato)
-
-
 @router.post("/v1/dispositivos/{dispositivo_id}/revocar")
 def revocar(
     dispositivo_id: str,

@@ -408,7 +408,6 @@ AIUDITAS: tuple[Aiudita, ...] = (
 # --- Índices y lookups ------------------------------------------------------
 
 _AIUDITA_POR_ID: dict[str, Aiudita] = {a.id: a for a in AIUDITAS}
-_PERFIL_POR_SLUG: dict[str, Perfil] = {p.slug: p for p in PERFILES}
 
 
 def aiudita_por_id(aiudita_id: str) -> Aiudita | None:

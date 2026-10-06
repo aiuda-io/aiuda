@@ -80,20 +80,6 @@ def tokens_this_month(db, tenant_id: str) -> int:
     return int(total or 0)
 
 
-def ia_month_cost_usd(db, tenant_id: str) -> float:
-    """Costo estimado (USD) del consumo de IA del mes, por la tabla de precios."""
-    rows = db.execute(
-        select(
-            UsageEvent.model,
-            func.sum(UsageEvent.input_tokens),
-            func.sum(UsageEvent.output_tokens),
-        )
-        .where(UsageEvent.tenant_id == tenant_id, UsageEvent.created_at >= month_start())
-        .group_by(UsageEvent.model)
-    ).all()
-    return sum(cost_usd(model, int(inp or 0), int(out or 0)) for model, inp, out in rows)
-
-
 def _limite_de(config: dict | None) -> tuple[int | None, str | None]:
     """(limite, fuente) a partir de la config del negocio.
 

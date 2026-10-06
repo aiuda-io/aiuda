@@ -31,9 +31,6 @@ MAX_PAGES = 50
 MAX_PAUSE_MS = 5000
 MAX_ROWS = 5000
 
-AUTH_TYPES = ("", "header", "bearer", "query", "basic", "oauth2_cc")
-PAGING_TYPES = ("", "offset", "cursor")
-
 
 def dig(obj, path: str):
     """Navega un JSON por un path con puntos: dig(o, 'data.items') o dig(item, 'customer.name').

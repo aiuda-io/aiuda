@@ -776,18 +776,3 @@ def test_editar_cliente_telefono_duplicado_409(client, db_session, tenant):
     db_session.flush()
     res = client.put(f"/v1/customers/{b.id}", headers=headers, json={"phone": "5215500001111"})
     assert res.status_code == 409
-
-
-def test_systems_del_ayudante(client, tenant):
-    """A qué sistemas llega un ayudante. Sale de sus aiuditas, no de un rol de fábrica."""
-    a = client.post(
-        "/v1/ayudantes",
-        json={"name": "Male", "aiuditas": ["cobranza.consultar_cartera"]},
-        headers={"X-API-Key": "k-demo"},
-    ).json()
-    res = client.get(f"/v1/ayudantes/{a['id']}/systems", headers={"X-API-Key": "k-demo"})
-    assert res.status_code == 200
-    body = res.json()
-    assert body["name"] == "Male"
-    assert any(s["key"] == "odoo" for s in body["systems"])
-    assert client.get("/v1/ayudantes/zzz/systems", headers={"X-API-Key": "k-demo"}).status_code == 404

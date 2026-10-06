@@ -337,25 +337,6 @@ def test_probar_conexion_fuentes_cableadas_piden_credenciales(client, demo_tenan
         assert "credenciales" in body["message"].lower(), key
 
 
-def test_systems_del_ayudante_solo_trae_lo_que_ese_ayudante_usa(client, demo_tenant, demo_login):
-    demo_login(client)
-    a = client.post(
-        "/v1/ayudantes",
-        json={"name": "Male", "aiuditas": ["cobranza.consultar_cartera"]},
-    ).json()
-    body = client.get(f"/v1/ayudantes/{a['id']}/systems").json()
-
-    assert body["name"] == "Male"
-    assert "cuentas_por_cobrar" in body["needs"]
-    # Cada sistema sólo muestra las capacidades que ESTE ayudante usa.
-    by_key = {s["key"]: s for s in body["systems"]}
-    assert all(p["cap"] in body["needs"] for p in by_key["odoo"]["provides"])
-
-
-def test_systems_de_un_ayudante_ajeno_da_404(client, demo_tenant, demo_login):
-    demo_login(client)
-    assert client.get("/v1/ayudantes/no-existe/systems").status_code == 404
-
 def test_instalacion_nueva_no_presume_fuentes_conectadas(client, db_session):
     """Un negocio recién instalado NO tiene ninguna fuente conectada.
 

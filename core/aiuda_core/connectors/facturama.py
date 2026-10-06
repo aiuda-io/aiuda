@@ -70,9 +70,3 @@ class FacturamaClient:
         response.raise_for_status()
         data = response.json()
         return {"cfdi_muestra": len(data) if isinstance(data, list) else 0}
-
-    def download_xml(self, cfdi_id: str) -> bytes:
-        """XML del CFDI — la evidencia fiscal que respalda una factura."""
-        response = self._http.get(f"/cfdi/xml/issuedLite/{cfdi_id}")
-        response.raise_for_status()
-        return response.content

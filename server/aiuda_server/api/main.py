@@ -176,7 +176,7 @@ if settings.sentry_dsn:
 
 app = FastAPI(title="aiuda API", version="0.1.0a2", lifespan=lifespan)
 
-from aiuda_server.api.onboarding import router as onboarding_router  # noqa: E402
+from aiuda_server.api.workspace import router as workspace_router  # noqa: E402
 from aiuda_server.api.setup import router as setup_router  # noqa: E402
 from aiuda_server import audit  # noqa: E402
 from aiuda_server.api.audit import router as audit_router  # noqa: E402
@@ -208,7 +208,7 @@ from aiuda_server.api.whatsapp import router as whatsapp_router  # noqa: E402
 from aiuda_server.api.writeback import router as writeback_router  # noqa: E402
 
 app.include_router(audit_router)
-app.include_router(onboarding_router)
+app.include_router(workspace_router)
 app.include_router(setup_router)
 app.include_router(ayudantes_router)
 app.include_router(banco_router)
@@ -1333,41 +1333,6 @@ def _errores_de_importacion(errores: list[str]) -> list[str]:
             "leer y no se cargaron. Revisa que la fecha y el monto estén bien escritos.",
         )
     return avisos[:5]
-
-
-@app.post("/v1/import")
-async def smart_import_endpoint(
-    file: UploadFile = File(...),
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-):
-    """Importador universal: detecta si el archivo trae facturas, clientes,
-    productos, citas o prospectos, y lo carga a su lugar."""
-    from aiuda_server.metering import BudgetExceeded, tenant_runner
-    from aiuda_core.connectors.smart_import import smart_import
-
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Archivo mayor a 5 MB")
-
-    runner = tenant_runner(db, tenant)
-    try:
-        report = smart_import(db, tenant.id, content, file.filename or "archivo.csv", runner=runner)
-    except BudgetExceeded:
-        raise tope_de_ia("leer tu archivo")
-    except Exception:
-        _exigir_ia_para_importar(db, tenant)
-        log.exception("importar: no se pudo leer %s", file.filename)
-        raise HTTPException(status_code=400, detail="No pude leer el archivo (¿es CSV o XLSX?)")
-    return {
-        "filename": file.filename,
-        "entity": report.entity,
-        "entity_label": report.entity_label,
-        "mapping": report.mapping,
-        "created": report.created,
-        "skipped": report.skipped,
-        "errors": _errores_de_importacion(report.errors),
-    }
 
 
 @app.post("/v1/import/analyze")

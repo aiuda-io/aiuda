@@ -62,9 +62,3 @@ class FacturapiClient:
         if total is None:
             total = len(body.get("data", []))
         return {"facturas": int(total)}
-
-    def download_xml(self, invoice_id: str) -> bytes:
-        """XML del CFDI — la evidencia fiscal que respalda una factura."""
-        response = self._http.get(f"/v2/invoices/{invoice_id}/xml")
-        response.raise_for_status()
-        return response.content
