@@ -10,9 +10,9 @@
 # ayudante vaya a poder trabajar: son dos caminos distintos del código y el
 # segundo es el que le importa al negocio.
 #
-# Usa TU entorno de verdad (por eso el CLI encuentra su sesión) pero una base de
-# datos desechable, así que tu cartera no se toca. Al terminar borra la base de
-# prueba y la nota de sesión que deja el servidor.
+# Corre sobre una casa desechable (un $HOME temporal con su propia base): no toca
+# ~/.aiuda, ni tu cartera, ni tu WhatsApp. Lo único tuyo que usa es la sesión de
+# tu CLI de IA, que se le presta por enlace. Al terminar borra la casa completa.
 
 set -uo pipefail
 set +m
@@ -36,9 +36,8 @@ limpiar() {
     kill "$SERVIDOR" 2>/dev/null
   fi
   sleep 1   # que suelte la base antes de borrar
+  # Los enlaces a la sesión de los CLIs se borran como enlaces: lo enlazado no se toca.
   [ -n "$CASA" ] && rm -rf "$CASA" 2>/dev/null
-  # El servidor anota su sesión en ~/.aiuda aunque la base esté en otro lado.
-  rm -f "$HOME/.aiuda/sesion.json" 2>/dev/null
 }
 trap limpiar EXIT
 
@@ -48,30 +47,42 @@ if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
 fi
 
 CASA=$(mktemp -d "$BASE/aiuda-ia.XXXXXX")
-titulo "Tu entorno de verdad, con una base desechable"
-# Aquí NO se aísla el HOME, y es a propósito. Los CLIs guardan su sesión en el
-# HOME real (Claude Code además en el llavero del sistema), así que con una casa
-# prestada contestan "no has iniciado sesión" y esta prueba mediría el
-# aislamiento en vez de la IA. Se aísla lo que de verdad importa: la BASE.
+titulo "Una casa desechable, con la sesión de tu IA prestada"
+# La casa es desechable: el servidor escribe su llave y su nota de sesión en
+# $HOME/.aiuda, y con el HOME de verdad esa nota caía en la del dueño (y al
+# terminar se la borrábamos). A la casa prestada solo se le enlaza lo que los CLIs
+# de IA necesitan para encontrar su sesión, igual que scripts/prueba-app.sh
+# --con-mi-ia. Codex la guarda en ~/.codex. Claude Code en Mac la guarda en el
+# llavero del sistema: si con la casa prestada pide iniciar sesión, la falla es
+# de este aislamiento y no de aiuda.
+CASA_REAL="$HOME"
+for c in .claude .claude.json .codex .local .nvm; do
+  [ -e "$CASA_REAL/$c" ] && ln -s "$CASA_REAL/$c" "$CASA/$c"
+done
+# El entorno de Python se resuelve antes de cambiar de casa: uv guarda su caché
+# en el HOME y con uno vacío volvería a bajar todo.
+[ -x .venv/bin/aiuda ] || uv sync --quiet
+PY="$PWD/.venv/bin/python"
+AIUDA="$PWD/.venv/bin/aiuda"
+export HOME="$CASA"
 export AIUDA_DATABASE_URL="sqlite:///$CASA/prueba.db"
-# El WhatsApp tampoco es el de verdad: con el HOME real, wacli caería a ~/.wacli.
-# aiuda ya lo impide con una base que no es la del dueño; aquí se dice además a
-# las claras, para que no dependa de esa regla.
+# El WhatsApp tampoco es el de verdad: ni su store ni su programa.
 export WACLI_STORE_ROOT="$CASA/wacli"
+export WACLI_BIN="$CASA/sin-wacli"
 
 # Se comprueba el aislamiento ANTES de escribir nada. Ya pasó una vez que esta
 # variable se ignoraba en silencio y se acabó escribiendo en la base del dueño.
-REAL=$(uv run python -c "from aiuda_core.db import resolved_database_url; print(resolved_database_url())" 2>/dev/null)
+REAL=$("$PY" -c "from aiuda_core.db import resolved_database_url; print(resolved_database_url())" 2>/dev/null)
 case "$REAL" in
   *"$CASA"*) paso "base aislada: $(basename "$CASA")/prueba.db" ;;
   *) falla "la base NO quedó aislada (apunta a $REAL). No sigo."; exit 1 ;;
 esac
-nota "tu ~/.aiuda/aiuda.db no se toca; el CLI sí usa tu sesión de verdad"
+nota "tu ~/.aiuda no se toca; el CLI sí usa tu sesión de verdad"
 
-uv run python scripts/seed.py >/dev/null 2>&1 \
+"$PY" scripts/seed.py >/dev/null 2>&1 \
   && paso "cartera de prueba sembrada" || { falla "no se pudo sembrar"; exit 1; }
 
-uv run aiuda start --no-browser --quiet --port $PORT >"$CASA/log" 2>&1 &
+"$AIUDA" start --no-browser --quiet --port $PORT >"$CASA/log" 2>&1 &
 SERVIDOR=$!
 for _ in $(seq 1 40); do curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; sleep 1; done
 TOK=$(python3 -c "import json,pathlib;print(json.load(open(pathlib.Path.home()/'.aiuda/sesion.json'))['token'])" 2>/dev/null)
