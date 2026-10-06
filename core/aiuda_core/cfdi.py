@@ -59,7 +59,12 @@ def parse_cfdi(xml: bytes | str) -> dict:
         "pagos": [],
     }
     tipo_relacion = None  # el atributo vive en CfdiRelacionados (el padre)
-    for e in root.iter():
+    # Emisor y Receptor se leen SOLO como hijos directos del Comprobante. Varios
+    # complementos traen nodos con el mismo nombre local (nomina12:Emisor,
+    # nomina12:Receptor, los de comercio exterior) sin RFC ni nombre: leídos por
+    # nombre a cualquier profundidad pisaban a los del comprobante y un recibo de
+    # nómina real quedaba sin emisor ni receptor (visto con CFDI reales del SAT).
+    for e in root:
         lt = _local(e.tag)
         if lt == "Emisor":
             out["emisor"] = {
@@ -73,7 +78,9 @@ def parse_cfdi(xml: bytes | str) -> dict:
                 "nombre": e.attrib.get("Nombre"),
                 "uso": e.attrib.get("UsoCFDI"),
             }
-        elif lt == "TimbreFiscalDigital":
+    for e in root.iter():
+        lt = _local(e.tag)
+        if lt == "TimbreFiscalDigital":
             out["uuid"] = e.attrib.get("UUID")
             out["fecha_timbrado"] = e.attrib.get("FechaTimbrado")
         elif lt == "Impuestos" and e.attrib.get("TotalImpuestosTrasladados") is not None:

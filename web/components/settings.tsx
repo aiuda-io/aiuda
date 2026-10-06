@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { inputCls } from "@/components/ui";
 
 /**
  * Patrón de página de ajustes moderno (Linear/Vercel/Stripe): el título y la explicación
@@ -10,19 +9,24 @@ import { inputCls } from "@/components/ui";
 export function SettingsSection({
   title,
   desc,
+  ancho,
   children,
 }: {
   title: string;
   desc?: ReactNode;
+  /** El contenido es una lista o una tabla y usa todo el ancho de la columna. Sin
+   *  esto la columna se queda en medida de lectura, que es lo que piden un
+   *  formulario y un texto corrido. */
+  ancho?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-x-10 gap-y-4 border-t border-line py-7 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+    <section className="grid gap-x-16 gap-y-5 border-t border-line py-10 first:border-t-0 first:pt-0 md:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
       <div>
         <h2 className="text-seccion font-semibold text-ink">{title}</h2>
         {desc && <div className="mt-1.5 text-cuerpo text-ink-2">{desc}</div>}
       </div>
-      <div className="min-w-0 max-w-2xl">{children}</div>
+      <div className={`min-w-0 ${ancho ? "" : "max-w-2xl"}`}>{children}</div>
     </section>
   );
 }
@@ -38,7 +42,7 @@ export function SettingsField({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <label className="block text-cuerpo font-semibold text-ink">{label}</label>
       {hint && <p className="text-apoyo text-ink-3">{hint}</p>}
       {children}
@@ -46,12 +50,9 @@ export function SettingsField({
   );
 }
 
-/** Contenedor de una página de ajustes: ancho cómodo, centrado, con aire. */
+/** Contenedor de una página de ajustes. No define ancho: hereda el de la consola
+ *  (`ANCHO_CONTENIDO` en components/shell.tsx), como cualquier otra pantalla. Lo
+ *  que se acota es el texto corrido y los campos, en `SettingsSection`. */
 export function SettingsPage({ children }: { children: ReactNode }) {
-  return <div className="mx-auto max-w-5xl">{children}</div>;
+  return <div className="min-w-0">{children}</div>;
 }
-
-/** El input canónico ahora vive en components/ui (`inputCls` / `<TextInput>`). Este
- *  alias mantiene el mismo estilo desde el primitivo compartido y evita romper a los
- *  importadores; migrar al primitivo directo cuando se toquen esos archivos. */
-export const settingsInputCls = inputCls;

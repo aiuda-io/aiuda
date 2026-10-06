@@ -168,14 +168,6 @@ PROVIDERS: dict[str, dict] = {
         "legacy": ["integrations.googlecalendar"],
         "gate": "token",
     },
-    "denue": {
-        "secret": ["token"],
-        "public": [],
-        "ctor": ["token"],
-        "settings": {"token": "denue_token"},
-        "legacy": ["integrations.denue"],
-        "gate": "token",
-    },
     # Google Sheets · solo la API key es secreto; spreadsheet_id/range/tipo son
     # operativos (públicos) y NO van al ctor (el cliente solo recibe la api_key; el
     # rango y el tipo los usa el lector engine/sync.sync_google_sheets).
@@ -209,26 +201,6 @@ PROVIDERS: dict[str, dict] = {
         "legacy": ["integrations.mercadolibre"],
         "gate": "access_token",
     },
-    # Generación de imágenes (plantilla de Contenido). Solo la api_key es secreto; provider
-    # (fal/openai/custom), base_url (self-host) y model son operativos/públicos. El ctor los
-    # recibe todos para armar el cliente agnóstico (connectors/image_gen.ImageGenClient).
-    "image_gen": {
-        "secret": ["api_key"],
-        "public": ["provider", "base_url", "model"],
-        "ctor": ["provider", "api_key", "base_url", "model"],
-        "settings": {},
-        "legacy": ["integrations.image_gen"],
-        "gate": "api_key",
-    },
-    # El canal es a dónde salen los avisos internos (aviso_al_equipo); no es secreto.
-    "slack": {
-        "secret": ["bot_token"],
-        "public": ["channel"],
-        "ctor": ["bot_token"],
-        "settings": {"bot_token": "slack_bot_token", "channel": "slack_channel"},
-        "legacy": ["integrations.slack"],
-        "gate": "bot_token",
-    },
     # API OFICIAL de WhatsApp Business (Cloud API de Meta). El token se cifra; el
     # phone_number_id queda público (rutea el webhook al tenant sin descifrar). La
     # plantilla aprobada (nombre + idioma) es config del canal, no secreto.
@@ -239,29 +211,6 @@ PROVIDERS: dict[str, dict] = {
         "settings": {},
         "legacy": ["integrations.whatsapp_cloud"],
         "gate": "access_token",
-    },
-    "evolution": {
-        "secret": ["api_key"],
-        "public": ["base_url"],
-        "ctor": ["base_url", "api_key"],
-        "settings": {
-            "api_key": "evolution_api_key",
-            "base_url": "evolution_base_url",
-        },
-        "legacy": ["integrations.evolution"],
-        "gate": "api_key",
-    },
-    # Llamadas de voz (Twilio). El auth_token se cifra; account_sid y from_number quedan
-    # públicos (el account_sid rutea el StatusCallback al tenant sin descifrar). El
-    # conector se construye vía TwilioVozInstance.client() (channel.resolve_voz), no por
-    # ctor_kwargs: el canal necesita también el número de origen.
-    "twilio_voz": {
-        "secret": ["auth_token"],
-        "public": ["account_sid", "from_number"],
-        "ctor": ["account_sid", "auth_token"],
-        "settings": {},
-        "legacy": ["integrations.twilio_voz"],
-        "gate": "account_sid",
     },
     # Correo del negocio por IMAP/SMTP: sirve a IMAP genérico, Gmail y Outlook (todos
     # hablan IMAP con contraseña de aplicación — la vía COMPLETA hoy). `provider` guarda
@@ -298,7 +247,7 @@ PROVIDERS: dict[str, dict] = {
         "gate": "key",
     },
     # Proveedor de IA. NO es un conector de sync (sin ctor): es el secreto del
-    # modelo que el dueño conecta en /proveedor. Vive aquí para CIFRARLO con la
+    # modelo que el dueño conecta en Ajustes, Tu IA. Vive aquí para CIFRARLO con la
     # misma maquinaria por tenant; la resolución a cliente Anthropic sigue en
     # aiuda_core.engine.provider. `legacy=['provider']` lee el texto plano viejo
     # (tenant.config['provider'] = {name, mode, secret}) como fallback de transición.

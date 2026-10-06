@@ -3,10 +3,14 @@ opera el portal web como lo haría un humano. El dueño lo elige como cualquier 
 fuente ("de dónde lee" = CUA) y el motor de sync enruta aquí. Solo-lectura, con evidencia.
 
 El runner corre de verdad con un Chromium local (extra `cua`, Playwright) y la IA del
-tenant. Honesto en cada faltante: sin el extra instalado, sin credencial de IA o sin la
-URL del portal, el recado queda `failed` con la razón exacta — nunca inventa datos. La
+tenant, que hoy tiene que ser una llave de Anthropic (ver `ia_para_cua`). Honesto en cada
+faltante: sin el extra instalado, sin una IA que sirva para esto o sin la URL del portal,
+el recado queda `failed` con la razón exacta y nunca inventa datos. La
 URL del portal la aporta el tenant (`tenant.config["cua_portales"]`, por capacidad),
 porque la banca o el juzgado de cada negocio son suyos. Ver docs/CUA.md.
+
+Aparte están las rutinas DETERMINISTAS (`RUTINAS_DETERMINISTAS`): un guion fijo, sin IA,
+que corre por el mismo recado. No pasan por el CuaRunner ni piden credencial de IA.
 """
 
 from __future__ import annotations
@@ -15,8 +19,9 @@ import asyncio
 import base64
 import json
 import logging
+import threading
 from dataclasses import replace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,6 +45,32 @@ CUA_TEMPLATES: dict[str, str] = {
     "cfdi": "sat_cfdi_recibidos",
     "confirmacion_pago": "banca_movimientos",
     "expedientes": "tribunal_acuerdos",
+}
+
+# capacidad -> rutina DETERMINISTA: un guion fijo de Playwright, sin IA en el camino.
+# Corren con cualquier vía de IA conectada y sin ninguna. Las dos entran al SAT con la
+# e.firma que el dueño ya guardó para la Descarga Masiva (`sat_efirma:<RFC>`), así que
+# el recado lleva el RFC en `data["_rfc"]`. `documento` es el de
+# `cua/deterministas/sat_documentos.py` y el `tipo` con que se guarda el Documento.
+# `estrenada`: False mientras nadie la haya corrido contra el portal real del SAT POR
+# EL CAMINO DEL PRODUCTO (servidor, e.firma guardada, permiso, recado); con False la
+# consola le pone "Sin estrenar". Las dos se estrenaron el 5 de octubre de 2026 con la
+# e.firma vigente de una persona moral: la constancia a la primera y la opinión (salió
+# Positivo, con folio) al segundo intento, porque en el primero el SAT contestó un error
+# 500 antes de mostrar el acceso y la rutina se detuvo como debe. Ver docs/CUA.md.
+RUTINAS_DETERMINISTAS: dict[str, dict] = {
+    "sat_opinion_32d": {
+        "sistema": "SAT · Opinión de cumplimiento",
+        "nombre": "Opinión de cumplimiento (32-D)",
+        "documento": "opinion_32d",
+        "estrenada": True,
+    },
+    "sat_constancia": {
+        "sistema": "SAT · Constancia de situación fiscal",
+        "nombre": "Constancia de situación fiscal",
+        "documento": "constancia",
+        "estrenada": True,
+    },
 }
 
 # Llave en tenant.config con la URL del portal de cada capacidad (sin migración):
@@ -199,38 +230,86 @@ def borrar_sesion(session: Session, tenant: Tenant, capacidad: str) -> bool:
     return True
 
 
-def _runner_para_tenant(session: Session, tenant: Tenant, storage_state: dict | None = None):
-    """CuaRunner que corre con la PROPIA IA del tenant (suscripción o API key), resuelta
-    igual que la redacción. Con la suscripción combina la beta OAuth con la de computer-use
-    en un solo header `anthropic-beta`. Sin credencial del tenant, cae al CuaRunner por
-    defecto (env/settings), que es no-op honesto si tampoco hay ninguna. `storage_state`:
-    sesión ya autenticada del portal (del handoff) para arrancar logueado."""
-    import anthropic
+class CuaSinIA(Exception):
+    """La IA conectada no sirve para operar portales. El mensaje es para el dueño."""
 
-    from aiuda_core.config import settings
-    from aiuda_core.cua.runner import _COMPUTER_BETA, CuaRunner
-    from aiuda_core.engine.provider import CLAUDE_CODE_IDENTITY, OAUTH_BETA, resolve_credential
+
+# Qué le pide el CUA al modelo: VER una captura de pantalla y contestar una acción de
+# ratón o teclado, decenas de veces seguidas. Hoy eso solo lo da la herramienta de
+# computer-use de Anthropic, que se llama con la llave del dueño. Las demás vías de
+# aiuda intercambian texto (`complete` y `run_tool_loop`): no reciben la captura. Por
+# eso aquí no se intenta "a ver si sale": se dice por qué no, en palabras del dueño.
+_PORQUE_NO = {
+    "codex": (
+        "Tu IA conectada es una llave de OpenAI. aiuda todavía no sabe operar un "
+        "portal con OpenAI"
+    ),
+    "claude_cli": (
+        "Tu IA conectada es el Claude Code instalado en esta computadora, que con "
+        "aiuda solo intercambia texto y no puede ver la pantalla del portal"
+    ),
+    "codex_cli": (
+        "Tu IA conectada es el Codex instalado en esta computadora, que con aiuda "
+        "solo intercambia texto y no puede ver la pantalla del portal"
+    ),
+    "chatgpt": (
+        "Tu IA conectada es tu plan de ChatGPT, que con aiuda solo intercambia texto "
+        "y no puede ver la pantalla del portal"
+    ),
+    "local": (
+        "Tu IA conectada es un modelo local, que no puede ver la pantalla del portal "
+        "ni moverse en ella"
+    ),
+}
+_QUE_HACER = (
+    "Para las rutinas de portales hace falta una llave de Anthropic (Claude); "
+    "conéctala en Tu IA. El resto de aiuda sigue funcionando igual."
+)
+
+
+def ia_para_cua(session: Session, tenant: Tenant) -> tuple[bool, str]:
+    """¿La IA que conectó el dueño puede operar portales? (sí/no, razón para él).
+    Una sola regla para el aviso de la consola y para el corte del recado."""
+    from aiuda_core.cua.runner import MSG_SIN_IA
+    from aiuda_core.engine.provider import resolve_credential
 
     cred = resolve_credential(session=session, tenant_id=tenant.id)
     if cred is None:
-        return CuaRunner(storage_state=storage_state)
-    if cred.mode == "subscription":
-        # La suscripción topa sonnet con 429: el CUA corre con el modelo que su token deja
-        # pasar (haiku), la beta OAuth junto a computer-use, y el prefijo de identidad que
-        # OAuth exige en `system`.
-        client = anthropic.AsyncAnthropic(auth_token=cred.secret, max_retries=0)
-        return CuaRunner(
-            client=client,
-            model=settings.model_redaccion_suscripcion,
-            betas=[OAUTH_BETA, _COMPUTER_BETA],
-            system=CLAUDE_CODE_IDENTITY,
-            storage_state=storage_state,
-        )
-    return CuaRunner(
-        client=anthropic.AsyncAnthropic(api_key=cred.secret),
-        betas=[_COMPUTER_BETA],
-        storage_state=storage_state,
+        return False, MSG_SIN_IA
+    if cred.name != "claude":
+        porque = _PORQUE_NO.get(cred.name, "Tu IA conectada no puede ver la pantalla del portal")
+        return False, f"{porque}. {_QUE_HACER}"
+    return True, "Tu llave de Anthropic puede operar portales."
+
+
+def _runner_para_tenant(
+    session: Session, tenant: Tenant, storage_state: dict | None = None, ia=None
+):
+    """CuaRunner que corre con la IA del dueño por la misma vía que todo lo demás:
+    la credencial de `resolve_credential` y el runner de `make_runner`.
+
+    `ia`: fábrica del runner ya armado (en la capa HTTP/worker es `tenant_runner`,
+    que trae el tope de gasto y el registro de uso). Sin ella se arma con
+    `make_runner` a secas, que es lo que hay cuando no existe capa de servidor.
+    `storage_state`: sesión ya autenticada del portal (del handoff).
+
+    Lanza CuaSinIA, con el motivo en palabras del dueño, si la IA conectada no puede
+    operar portales. Se corta ANTES de abrir el navegador."""
+    from aiuda_core.cua.runner import ClienteDelMotor, CuaRunner
+    from aiuda_core.engine.provider import resolve_credential
+    from aiuda_core.engine.runner import make_runner
+
+    sirve, detalle = ia_para_cua(session, tenant)
+    if not sirve:
+        raise CuaSinIA(detalle)
+    motor = ia() if ia is not None else make_runner(
+        resolve_credential(session=session, tenant_id=tenant.id)
     )
+    if not hasattr(motor, "computer_use"):
+        # Red de seguridad: un runner envuelto o nuevo que no trae computer-use no
+        # debe llegar al loop y tronar a media misión con un AttributeError.
+        raise CuaSinIA(f"Tu IA conectada no puede ver la pantalla del portal. {_QUE_HACER}")
+    return CuaRunner(client=ClienteDelMotor(motor), storage_state=storage_state)
 
 
 def _run(runner, mission: Mission) -> MissionResult:
@@ -251,20 +330,30 @@ def _evidencia_b64(paths: list[str]) -> list[str]:
 
 
 def enqueue_cua_mission(
-    session: Session, tenant: Tenant, capacidad: str, instruccion: str | None = None
+    session: Session,
+    tenant: Tenant,
+    capacidad: str,
+    instruccion: str | None = None,
+    rfc: str | None = None,
 ) -> CuaMission:
     """Encola un trabajo (queued) y lo devuelve al instante, para que aparezca en el log
     antes de correr. `ejecutar_recado` lo corre después (en segundo plano). La instrucción
     del dueño (si la hay) se guarda en `data['_instruccion']`: sin migración, y desde ahí
-    se inyecta al objetivo del agente y se preserva para mostrarla en el log."""
-    portal = portal_efectivo(tenant, capacidad)
-    sistema = portal["sistema"] if portal else ""
+    se inyecta al objetivo del agente y se preserva para mostrarla en el log. Una rutina
+    determinista no lleva instrucción: lleva el RFC en `data['_rfc']`."""
+    if capacidad in RUTINAS_DETERMINISTAS:
+        sistema = RUTINAS_DETERMINISTAS[capacidad]["sistema"]
+        data = {"_rfc": (rfc or "").upper()}
+    else:
+        portal = portal_efectivo(tenant, capacidad)
+        sistema = portal["sistema"] if portal else ""
+        data = {"_instruccion": instruccion} if instruccion else {}
     recado = CuaMission(
         tenant_id=tenant.id,
         capacidad=capacidad,
         sistema=sistema,
         status="queued",
-        data={"_instruccion": instruccion} if instruccion else {},
+        data=data,
     )
     session.add(recado)
     session.flush()
@@ -272,11 +361,21 @@ def enqueue_cua_mission(
 
 
 def ejecutar_recado(
-    session: Session, recado: CuaMission, runner=None, now: datetime | None = None
+    session: Session,
+    recado: CuaMission,
+    runner=None,
+    now: datetime | None = None,
+    ia=None,
 ) -> CuaMission:
     """Corre un recado encolado y registra estado, datos, bitácora y evidencia. Honesto:
-    sin credencial/backend queda 'failed' con la razón, nunca inventa datos."""
+    sin credencial/backend queda 'failed' con la razón, nunca inventa datos.
+
+    `ia`: fábrica del runner de IA con tope y registro de uso (`tenant_runner` en la
+    capa HTTP/worker). `runner`: un CuaRunner ya armado (tests y el guion sin IA)."""
     tenant = session.get(Tenant, recado.tenant_id)
+    if recado.capacidad in RUTINAS_DETERMINISTAS:
+        # Guion fijo: ni CuaRunner ni credencial de IA.
+        return _ejecutar_determinista(session, tenant, recado, now)
     mission = mission_para_recado(tenant, recado)
     if mission is None:
         # La capacidad no existe (portal a la medida borrado, o built-in inválida).
@@ -299,7 +398,15 @@ def ejecutar_recado(
         # Reusa la sesión autenticada guardada del handoff (si la hay): el asistente
         # arranca ya logueado en vez de chocar contra la pantalla de acceso.
         storage_state = sesion_de_capacidad(tenant, recado.capacidad)
-        runner = _runner_para_tenant(session, tenant, storage_state=storage_state)
+        try:
+            runner = _runner_para_tenant(session, tenant, storage_state=storage_state, ia=ia)
+        except CuaSinIA as exc:
+            # La IA conectada no puede operar portales: el recado lo dice tal cual y
+            # no se abre navegador ni se gasta nada.
+            recado.status = "failed"
+            recado.error = str(exc)
+            session.flush()
+            return recado
     recado.status = "running"
     recado.started_at = now or datetime.now(timezone.utc)
     session.flush()
@@ -323,17 +430,209 @@ def ejecutar_recado(
     return recado
 
 
+# El permiso del dueño para que aiuda escriba la contraseña de su e.firma en el portal
+# del SAT. Se pide UNA vez por RFC, antes de la primera corrida, y se guarda con fecha y
+# con el texto exacto que aceptó: tenant.config[CONSENTIMIENTO_SAT_KEY][rfc]. Sin él,
+# ninguna rutina determinista del SAT corre (se revisa al despachar y otra vez al correr).
+CONSENTIMIENTO_SAT_KEY = "sat_rutinas_consentimiento"
+CONSENTIMIENTO_SAT_TEXTO = (
+    "Para bajar estos documentos aiuda entra al portal del SAT con la e.firma que ya "
+    "guardaste y escribe su contraseña por ti. La firma se hace en esta computadora; "
+    "la llave y la contraseña no se mandan a nadie. aiuda solo consulta y descarga: no "
+    "presenta, no firma ni acepta nada."
+)
+MSG_FALTA_CONSENTIMIENTO = (
+    "Falta tu permiso para que aiuda entre al portal del SAT con tu e.firma. "
+    "Dalo una vez en Portales, junto a ese RFC."
+)
+
+
+def consentimiento_sat(tenant: Tenant, rfc: str) -> str | None:
+    """Cuándo aceptó el dueño (ISO) para ese RFC, o None si no ha aceptado."""
+    dado = ((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {}).get(rfc.upper())
+    return dado.get("aceptado_en") if isinstance(dado, dict) else None
+
+
+def aceptar_consentimiento_sat(session: Session, tenant: Tenant, rfc: str) -> str:
+    """Guarda el permiso del dueño para ese RFC. Una vez: si ya estaba, no se mueve."""
+    ya = consentimiento_sat(tenant, rfc)
+    if ya:
+        return ya
+    ahora = datetime.now(timezone.utc).isoformat()
+    dados = dict((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {})
+    dados[rfc.upper()] = {"aceptado_en": ahora, "texto": CONSENTIMIENTO_SAT_TEXTO}
+    tenant.config = {**(tenant.config or {}), CONSENTIMIENTO_SAT_KEY: dados}
+    flag_modified(tenant, "config")
+    session.add(tenant)
+    return ahora
+
+
+def olvidar_consentimiento_sat(session: Session, tenant: Tenant, rfc: str) -> None:
+    """Al borrar la e.firma: el permiso era para ESA e.firma guardada."""
+    dados = dict((tenant.config or {}).get(CONSENTIMIENTO_SAT_KEY) or {})
+    if dados.pop(rfc.upper(), None) is not None:
+        tenant.config = {**(tenant.config or {}), CONSENTIMIENTO_SAT_KEY: dados}
+        flag_modified(tenant, "config")
+        session.add(tenant)
+
+
+def efirmas_guardadas(session: Session, tenant: Tenant) -> list[str]:
+    """Los RFC del negocio que tienen e.firma guardada (los que pueden correr las
+    rutinas deterministas del SAT)."""
+    from aiuda_core.engine.sync import sat_empresas
+
+    return [e["rfc"] for e in sat_empresas(session, tenant) if e.get("efirma")]
+
+
+# Revisar si una rutina del SAT ya corre y apartarla es UN solo paso: dos peticiones a la
+# vez (dos pestañas, la Mac y el teléfono) no deben entrar las dos al portal con la misma
+# e.firma. aiuda es un solo proceso, así que basta un candado de proceso.
+CANDADO_SAT = threading.Lock()
+# El guion, sumando todas sus esperas, no pasa de unos diez minutos. Una corrida que
+# lleva más que esto "en curso" se quedó colgada (se cerró aiuda a media corrida) y no
+# debe bloquear la siguiente.
+CORRIDA_COLGADA = timedelta(minutes=15)
+MSG_YA_CORRIENDO = "Ese documento ya se está bajando para ese RFC. Espera a que termine."
+
+
+def corrida_viva(m: CuaMission | None) -> bool:
+    """En cola o corriendo, y no colgada. La edad se mide desde que empezó a correr."""
+    if m is None or m.status not in ("queued", "running"):
+        return False
+    desde = m.started_at or m.created_at
+    if desde.tzinfo is None:
+        desde = desde.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - desde < CORRIDA_COLGADA
+
+
+def corrida_sat_en_curso(
+    session: Session,
+    tenant: Tenant,
+    capacidad: str,
+    rfc: str,
+    *,
+    excepto: str | None = None,
+    estados: tuple[str, ...] = ("queued", "running"),
+) -> bool:
+    """¿Hay otra corrida viva de esa rutina para ese RFC? Llamar con `CANDADO_SAT`."""
+    filas = session.scalars(
+        select(CuaMission).where(
+            CuaMission.tenant_id == tenant.id,
+            CuaMission.capacidad == capacidad,
+            CuaMission.status.in_(estados),
+        )
+    ).all()
+    return any(
+        m.id != excepto
+        and str((m.data or {}).get("_rfc") or "").upper() == rfc.upper()
+        and corrida_viva(m)
+        for m in filas
+    )
+
+
+def _ejecutar_determinista(
+    session: Session, tenant: Tenant, recado: CuaMission, now: datetime | None
+) -> CuaMission:
+    """Corre una rutina determinista del SAT: abre la e.firma guardada EN MEMORIA, baja
+    el documento con el guion fijo y lo guarda como `Documento`. La contraseña vive solo
+    en esta función y en el guion; nunca llega al recado."""
+    from aiuda_core.connectors import credentials as cred
+    from aiuda_core.connectors.sat_descarga import SatCredencialInvalida, validar_efirma
+    from aiuda_core.cua.computer import estado_navegador
+    from aiuda_core.cua.deterministas import sat_documentos
+    from aiuda_core.engine.sync import SAT_EFIRMA_PREFIX
+    from aiuda_core.models import Documento
+
+    spec = RUTINAS_DETERMINISTAS[recado.capacidad]
+    rfc = str((recado.data or {}).get("_rfc") or "").upper()
+
+    def no_pudo(motivo: str) -> CuaMission:
+        recado.status = "failed"
+        recado.error = motivo
+        recado.finished_at = now or datetime.now(timezone.utc)
+        session.flush()
+        logger.info("Rutina %s no corrió: %s", recado.capacidad, motivo)
+        return recado
+
+    if not rfc or not consentimiento_sat(tenant, rfc):
+        return no_pudo(MSG_FALTA_CONSENTIMIENTO)
+    try:
+        datos = cred.get_credential(session, tenant.id, f"{SAT_EFIRMA_PREFIX}{rfc}") if rfc else None
+        cer = base64.b64decode(datos["cer"])
+        key = base64.b64decode(datos["key"])
+        password = datos["password"]
+    except Exception:
+        return no_pudo(
+            f"No hay una e.firma guardada que se pueda abrir para {rfc or 'ese RFC'}. "
+            "Cárgala en SAT · Bóveda fiscal."
+        )
+    # Antes de tocar el SAT: que la e.firma siga vigente y que haya navegador.
+    try:
+        validar_efirma(cer, key, password)
+    except (SatCredencialInvalida, RuntimeError) as exc:
+        return no_pudo(str(exc))
+    if not estado_navegador()[0]:
+        return no_pudo(sat_documentos.MSG_SIN_NAVEGADOR)
+
+    # Última revisión antes de abrir el navegador, en el mismo paso que marcarla como
+    # corriendo: nunca dos navegadores en el SAT con la misma e.firma y el mismo documento.
+    with CANDADO_SAT:
+        if corrida_sat_en_curso(
+            session, tenant, recado.capacidad, rfc, excepto=recado.id, estados=("running",)
+        ):
+            return no_pudo(MSG_YA_CORRIENDO)
+        recado.status = "running"
+        recado.started_at = now or datetime.now(timezone.utc)
+        # Se confirma ya: la corrida tarda cerca de un minuto y no debe tener la base
+        # tomada ni esconderle a la consola que está adentro del portal.
+        session.commit()
+
+    try:
+        resultado = sat_documentos.bajar_documento(cer, key, password, rfc, spec["documento"])
+    except Exception as exc:  # el guion no debe lanzar; si lo hace, el recado no se queda colgado
+        logger.warning("Rutina %s falló fuera del guion: %s", recado.capacidad, type(exc).__name__)
+        return no_pudo("La rutina se detuvo por un error interno y no bajó nada.")
+    recado.finished_at = now or datetime.now(timezone.utc)
+    recado.steps = resultado.pasos[:40]
+    recado.evidence = [
+        base64.b64encode(png).decode("ascii") for png in resultado.capturas[-_MAX_EVIDENCIA:]
+    ]
+    if not resultado.ok or not resultado.pdf:
+        return no_pudo(resultado.error or "El SAT no entregó el documento.")
+
+    meta = {k: v for k, v in resultado.meta.items() if v}
+    documento = Documento(
+        tenant_id=tenant.id,
+        rfc=rfc,
+        tipo=spec["documento"],
+        folio=meta.get("folio"),
+        sentido=meta.get("sentido"),
+        fecha=recado.finished_at,
+        pdf=resultado.pdf,
+        mission_id=recado.id,
+    )
+    session.add(documento)
+    session.flush()
+    recado.status = "done"
+    recado.data = {"_rfc": rfc, "documento_id": documento.id, "tipo": documento.tipo, **meta}
+    sentido = f": {documento.sentido}" if documento.sentido else ""
+    recado.resumen = f"{spec['nombre']} de {rfc}{sentido}. PDF guardado."
+    session.flush()
+    return recado
+
+
 def run_cua_mission(
     session: Session,
     tenant: Tenant,
     capacidad: str,
     runner=None,
     now: datetime | None = None,
+    ia=None,
 ) -> CuaMission:
     """Encola y corre un recado en una llamada (camino del sync diario y de tests). Es lo
     que el dueño ve en el log; nunca mira el navegador."""
     recado = enqueue_cua_mission(session, tenant, capacidad)
-    return ejecutar_recado(session, recado, runner=runner, now=now)
+    return ejecutar_recado(session, recado, runner=runner, now=now, ia=ia)
 
 
 def sync_cua(
@@ -342,6 +641,7 @@ def sync_cua(
     capacidad: str,
     runner=None,
     today: date | None = None,
+    ia=None,
 ) -> SyncReport:
     """Corre la misión CUA de una capacidad (registrando el recado) y mapea lo extraído a
     la cartera, con procedencia `cua:<sistema>` y evidencia. Sin credencial/backend es
@@ -349,7 +649,7 @@ def sync_cua(
     report = SyncReport()
     if capacidad not in CUA_TEMPLATES:
         return report
-    recado = run_cua_mission(session, tenant, capacidad, runner=runner)
+    recado = run_cua_mission(session, tenant, capacidad, runner=runner, ia=ia)
     if recado.status != "done":
         return report
     report.fuentes.append(f"{CUA_FUENTE}:{recado.sistema}")

@@ -34,11 +34,7 @@ entonces sí es que el archivo se corrompió al bajarlo: vuelve a descargarlo.
 
 ### Windows y Linux
 
-El flujo de release construye el instalador `.exe` (NSIS) de Windows y el `.deb`
-y `.AppImage` de Linux, pero nadie los ha probado todavía. En Windows,
-SmartScreen mostrará "Windows protegió tu PC":
-**Más información** y luego **Ejecutar de todas formas**. Si algo no funciona
-ahí, es información útil para un issue.
+aiuda es solo para Mac: no hay instalador para Windows ni Linux.
 
 ### Construir la app
 
@@ -103,12 +99,34 @@ uv run python scripts/seed.py --wipe      # borrar solo lo sembrado
 
 Instalar no basta: aiuda necesita una IA y una fuente de datos.
 
-- **IA:** el Claude Code o el Codex que ya tengas instalado, una llave, tu
-  suscripción o un modelo local. Ver [IA.md](IA.md).
+- **IA:** el Claude Code o el Codex que ya tengas instalado, una llave o un
+  modelo local. Ver [IA.md](IA.md).
 - **Fuente:** tu Odoo, un Excel o cualquier API con el conector a la medida. Se
   conecta desde la consola.
-- **Canal (opcional):** WhatsApp con tu número (necesita
-  [wacli](https://github.com/steipete/wacli)) o correo IMAP/SMTP.
+- **Canal (opcional):** WhatsApp con tu número o el correo del negocio. Para
+  WhatsApp, la consola instala con un clic el conector
+  ([wacli](https://github.com/openclaw/wacli), software libre de terceros) y
+  lo vinculas escaneando un código QR. Necesita macOS 15 o más nuevo. Es una
+  vía no oficial: queda fuera de las condiciones de uso de Meta y Meta puede
+  suspender el número. aiuda solo atiende a tus clientes: lo que te escriben
+  tu familia y tus amigos a ese número no entra a aiuda ni recibe respuesta.
+- **Teléfono (opcional):** la app de iPhone, dentro del WiFi de tu oficina. Ver
+  [APARATOS.md](APARATOS.md).
+
+## Empiezas en modo de prueba
+
+La primera vez que abres aiuda, un asistente te pregunta el nombre de tu negocio,
+conecta tu IA y carga tu cartera, todo en la misma ventana. Al terminar, tu
+negocio queda en **modo de prueba**: tu ayudante redacta y tú apruebas, pero
+nada sale a tus clientes. Sirve para ver cómo escribe antes de mandar de verdad.
+
+Se apaga en **Ajustes**, sección **Negocio**. Si para entonces ya aprobaste
+mensajes, aiuda te pregunta qué hacer con ellos: mandarlos en ese momento, o no
+mandarlos. Los que no mandes quedan en Hoy, en "No salió", y puedes reintentar
+el que quieras.
+
+Esto es solo para instalaciones nuevas. Si ya usabas aiuda y ya enviabas, nada
+cambia: sigues enviando.
 
 ## El manual va adentro
 

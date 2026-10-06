@@ -1,7 +1,7 @@
 """Conector WooCommerce — tienda WordPress del negocio.
 
 Para qué lo usa aiuda: traer los pedidos pendientes de pago del negocio
-para que Mariana tenga su cartera completa, incluyendo a quienes compraron
+para que cobranza tenga la cartera completa, incluyendo a quienes compraron
 en la tienda propia (WordPress) y no han pagado. Complementa Shopify cuando
 el negocio migró o tiene ambas plataformas.
 
@@ -49,11 +49,11 @@ class WooCommerceClient:
         secret = consumer_secret or settings.woocommerce_consumer_secret
         if not url:
             raise RuntimeError(
-                "WOOCOMMERCE_BASE_URL no configurado — ver .env.example"
+                "WOOCOMMERCE_BASE_URL no configurado. Captura ese dato al conectar."
             )
         if not key:
             raise RuntimeError(
-                "WOOCOMMERCE_CONSUMER_KEY no configurado — ver .env.example"
+                "WOOCOMMERCE_CONSUMER_KEY no configurado. Captura ese dato al conectar."
             )
         self.base_url = url.rstrip("/")
         self._http = httpx.Client(

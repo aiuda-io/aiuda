@@ -243,6 +243,17 @@ class FakeImportRunner:
         raise AssertionError(f"tarea inesperada en import: {task}")
 
 
+def test_importar_sin_ia_dice_que_falta_la_ia_no_que_el_archivo_esta_mal(client, tenant):
+    """Sin IA conectada el archivo está bien: lo que falta es la IA, y eso se dice."""
+    res = client.post(
+        "/v1/import/analyze",
+        headers=HEADERS,
+        files={"file": ("cartera.csv", CSV_FACTURAS, "text/csv")},
+    )
+    assert res.status_code == 409
+    assert "Conecta tu IA" in res.json()["detail"]
+
+
 def test_importar_hoja_llega_a_cartera(client, db_session, tenant, monkeypatch):
     import aiuda_server.metering as metering
 

@@ -11,7 +11,6 @@ Nada aquí decide por el usuario: propone el camino más corto y él elige.
 from __future__ import annotations
 
 import json
-import shutil
 import urllib.error
 import urllib.request
 
@@ -20,14 +19,26 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from aiuda_core.config import settings
+from aiuda_core.connectors import wacli_bin
 from aiuda_core.engine.maquina import (
     descargar_modelo,
     detectar_maquina,
     progreso_descarga,
 )
 from aiuda_core.engine.openai_compat import DEFAULT_BASE_URL
-from aiuda_core.engine.provider import credential_from_config, credential_from_store
-from aiuda_core.models import Ayudante, Customer, IntegrationCredential, Invoice, Tenant
+from aiuda_core.engine.provider import (
+    credential_from_config,
+    credential_from_store,
+    esta_conectada,
+)
+from aiuda_core.models import (
+    Ayudante,
+    Customer,
+    IntegrationCredential,
+    Invoice,
+    Reminder,
+    Tenant,
+)
 from aiuda_server.api.deps import DEFAULT_WORKSPACE_NAME, get_db, get_tenant
 
 router = APIRouter()
@@ -106,7 +117,8 @@ def estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
         "negocio": {"nombre": tenant.name, "listo": negocio_listo},
         # La IA: si hay un modelo local corriendo, es el camino sin fricción.
         "ia": {
-            "conectada": ia is not None,
+            # Un ChatGPT con la sesión vencida sigue siendo el proveedor, pero no conecta.
+            "conectada": esta_conectada(ia),
             "proveedor": ia.name if ia else None,
             "ollama_corriendo": modelos is not None,
             "modelos_locales": modelos or [],
@@ -123,8 +135,16 @@ def estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
         },
         "ayudantes": {"total": int(ayudantes or 0), "listo": ayudantes_listo},
         # Extras que aiuda detecta pero no exige.
-        "extras": {"wacli": shutil.which(settings.wacli_bin) is not None},
+        "extras": {"wacli": wacli_bin.resolver() is not None},
+        # Para que el cierre del asistente diga la verdad: el negocio está en modo de
+        # prueba, o lo va a estar al cerrar (quien saltó el paso del nombre todavía
+        # no lo tiene escrito; se le escribe en `terminar`).
+        "modo_prueba": bool(config.get("modo_sombra")) or _es_instalacion_nueva(db, tenant),
         "terminado": terminado,
+        # `terminado` también se cumple solo (negocio, IA, datos y ayudante). Esto es
+        # otra cosa: el dueño llegó al final y entró a su consola. El asistente lo usa
+        # para no esfumarse a medio paso cuando lo primero se cumple antes del cierre.
+        "cerrado_por_el_dueno": bool(config.get("setup_terminado")),
     }
 
 
@@ -149,6 +169,7 @@ def descargar_modelo_local(body: ModeloBody) -> dict:
     try:
         return descargar_modelo(body.modelo)
     except ValueError as e:
+        # El mensaje lo escribe `descargar_modelo` en español y para el dueño.
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
@@ -188,6 +209,26 @@ def buscar_ia_en_la_red() -> dict:
     }
 
 
+def _es_instalacion_nueva(db, tenant: Tenant) -> bool:
+    """¿Este negocio se está dando de alta ahora mismo, por primera vez?
+
+    Tres candados, y hacen falta los tres: el asistente no había pasado por aquí, el
+    dueño nunca decidió nada sobre el modo de prueba (ni prenderlo ni apagarlo), y
+    no ha salido un solo mensaje. Con cualquiera de ellos en falso, el negocio ya
+    venía trabajando y encenderle el modo de prueba le apagaría los envíos."""
+    config = tenant.config or {}
+    if config.get("setup_negocio") or config.get("setup_terminado"):
+        return False
+    if "modo_sombra" in config:
+        return False
+    ya_envio = db.scalar(
+        select(Reminder.id)
+        .where(Reminder.tenant_id == tenant.id, Reminder.sent_at.is_not(None))
+        .limit(1)
+    )
+    return ya_envio is None
+
+
 class NegocioBody(BaseModel):
     nombre: str
     telefono: str | None = None
@@ -197,13 +238,23 @@ class NegocioBody(BaseModel):
 def guardar_negocio(
     body: NegocioBody, tenant: Tenant = Depends(get_tenant), db=Depends(get_db)
 ) -> dict:
-    """Paso 1: el nombre del negocio (y opcionalmente el WhatsApp del dueño)."""
+    """Paso 1: el nombre del negocio (y opcionalmente el WhatsApp del dueño).
+
+    Aquí NACE el negocio, y nace en modo de prueba: el primer "Aprobar" de un dueño
+    nuevo no le manda nada a un cliente de verdad. Se escribe una sola vez y solo en
+    una instalación nueva (`_es_instalacion_nueva`). El default de lectura de
+    `tenant.config` no se toca: quien ya envía de verdad y no trae la llave sigue
+    enviando."""
     nombre = (body.nombre or "").strip()
     if nombre:
         tenant.name = nombre
     if body.telefono is not None:
         tenant.owner_phone = body.telefono.strip()
-    tenant.config = {**(tenant.config or {}), "setup_negocio": True}
+    config = dict(tenant.config or {})
+    if _es_instalacion_nueva(db, tenant):
+        config["modo_sombra"] = True
+    config["setup_negocio"] = True
+    tenant.config = config
     db.add(tenant)
     db.flush()
     return {"nombre": tenant.name}
@@ -211,8 +262,15 @@ def guardar_negocio(
 
 @router.post("/v1/setup/terminar")
 def terminar(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
-    """El dueño cerró el asistente: no vuelve a salir de arranque."""
-    tenant.config = {**(tenant.config or {}), "setup_terminado": True}
+    """El dueño cerró el asistente: no vuelve a salir de arranque.
+
+    Quien saltó el paso del negocio no pasó por donde se enciende el modo de prueba,
+    y también es una instalación nueva: se le enciende aquí, con los mismos candados."""
+    config = dict(tenant.config or {})
+    if _es_instalacion_nueva(db, tenant):
+        config["modo_sombra"] = True
+    config["setup_terminado"] = True
+    tenant.config = config
     db.add(tenant)
     db.flush()
     return {"terminado": True}

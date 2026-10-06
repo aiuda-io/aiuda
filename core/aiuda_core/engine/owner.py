@@ -27,13 +27,26 @@ class OwnerReply:
 
 
 def _pending(session: Session, tenant: Tenant) -> list[Reminder]:
-    return list(
-        session.scalars(
-            select(Reminder)
-            .where(Reminder.tenant_id == tenant.id, Reminder.status == "pending_approval")
-            .order_by(Reminder.created_at)
-        )
-    )
+    """Lo que espera aprobación. Lo de una factura que ya no se cobra (cancelada
+    en el SAT, por nota de crédito o por ser entre tus empresas) no se ofrece: se
+    retira aquí mismo, igual que en la consola y en el envío. Este camino aprueba
+    y envía sin pasar por esas dos puertas."""
+    from aiuda_core.engine.sync import retirar_recordatorios  # perezoso: evita el ciclo
+
+    pendientes = session.scalars(
+        select(Reminder)
+        .where(Reminder.tenant_id == tenant.id, Reminder.status == "pending_approval")
+        .order_by(Reminder.created_at)
+    ).all()
+    vivos: list[Reminder] = []
+    for reminder in pendientes:
+        invoice = session.get(Invoice, reminder.invoice_id) if reminder.invoice_id else None
+        if invoice is not None and invoice.status == "cancelled":
+            motivo = (invoice.meta or {}).get("cerrada_por") or "cancelada"
+            retirar_recordatorios(session, invoice, f"La factura ya no se cobra: {motivo}.")
+            continue
+        vivos.append(reminder)
+    return vivos
 
 
 def _describe(session: Session, reminder: Reminder, index: int) -> str:

@@ -10,7 +10,6 @@ import asyncio
 import pytest
 
 from aiuda_core.cua import fallback, handoff
-from aiuda_core.cua.mission import MissionResult
 
 
 class FakeComputer:
@@ -153,35 +152,8 @@ def test_sesion_cifrada_round_trip(session, tenant):
     assert fallback.sesion_de_capacidad(tenant, "portal:x") is None
 
 
-def test_recado_reusa_la_sesion_guardada(session, tenant, monkeypatch):
-    """ejecutar_recado carga la sesión guardada del portal y se la pasa al runner, para
-    que el asistente arranque ya logueado."""
-    tenant.config = {
-        **(tenant.config or {}),
-        fallback.CUA_PORTALES_URL_KEY: [
-            {"id": "x", "nombre": "Proveedor", "url": "https://prov.example/"}
-        ],
-    }
-    session.flush()
-    state = {"cookies": [{"name": "sid", "value": "abc"}]}
-    fallback.guardar_sesion(session, tenant, "portal:x", state)
-    session.flush()
-
-    recibido = {}
-
-    class FakeRunner:
-        async def run(self, mission):
-            return MissionResult(success=True, data={"resultado": "ok"}, evidence=[])
-
-    def fake_runner_para_tenant(sess, ten, storage_state=None):
-        recibido["storage_state"] = storage_state
-        return FakeRunner()
-
-    monkeypatch.setattr(fallback, "_runner_para_tenant", fake_runner_para_tenant)
-    recado = fallback.enqueue_cua_mission(session, tenant, "portal:x")
-    fallback.ejecutar_recado(session, recado)
-    assert recado.status == "done"
-    assert recibido["storage_state"] == state
+# Que el recado reusa la sesión guardada se prueba en test_cua_ia.py, por el camino
+# real (`_runner_para_tenant` sin parchar) y con un navegador falso que recibe la sesión.
 
 
 def test_runner_pasa_storage_state_al_computer():

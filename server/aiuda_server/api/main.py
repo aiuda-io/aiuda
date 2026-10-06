@@ -7,12 +7,14 @@ tarea abre su propia sesión). La corrida horaria la dispara el scheduler local
 """
 
 import logging
+import re
 import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
 
 from datetime import date, datetime, timezone
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import (
@@ -32,9 +34,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
+from aiuda_core import __version__
 from aiuda_core.cartera.aging import aging_summary, classify
 from aiuda_core.config import settings
-from aiuda_core.connectors.evolution import parse_webhook
 from aiuda_core.connectors.channel import (
     CHANNELS,
     LIVE_CHANNELS,
@@ -74,15 +76,21 @@ async def lifespan(app: FastAPI):
     # entrantes, envíos) corre INLINE con BackgroundTasks en este mismo proceso,
     # y la corrida horaria la dispara el scheduler local (un hilo, sin Redis).
     from aiuda_core.db import create_all
-    from aiuda_server import scheduler
+    from aiuda_server import scheduler, wacli_sync
 
     create_all()
     _purgar_secretos_en_claro()
     if settings.scheduler_enabled:
         scheduler.start()
+        # El sync de WhatsApp de cada negocio vinculado, en su hilo: preguntarle a
+        # wacli no debe retrasar que abra la consola.
+        threading.Thread(
+            target=wacli_sync.arrancar_conectados, name="aiuda-wacli-arranque", daemon=True
+        ).start()
     _reabrir_red_local(app)
     yield
     scheduler.stop()
+    wacli_sync.detener_todo()
     from aiuda_server import red_local
 
     red_local.escucha.apagar(app)
@@ -110,7 +118,7 @@ def _purgar_secretos_en_claro() -> None:
             if borrados:
                 log.warning(
                     "Se borraron %d credenciales que estaban en texto plano en la config. "
-                    "Vuelve a capturarlas desde Integraciones: ahora se guardan cifradas.",
+                    "Vuelve a capturarlas desde Ajustes, Conexiones: ahora se guardan cifradas.",
                     borrados,
                 )
             if movidas:
@@ -167,9 +175,9 @@ if settings.sentry_dsn:
     except ImportError:
         log.warning("SENTRY_DSN definido pero sentry-sdk no está instalado; sin captura.")
 
-app = FastAPI(title="aiuda API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="aiuda API", version=__version__, lifespan=lifespan)
 
-from aiuda_server.api.onboarding import router as onboarding_router  # noqa: E402
+from aiuda_server.api.workspace import router as workspace_router  # noqa: E402
 from aiuda_server.api.setup import router as setup_router  # noqa: E402
 from aiuda_server import audit  # noqa: E402
 from aiuda_server.api.audit import router as audit_router  # noqa: E402
@@ -179,6 +187,8 @@ from aiuda_server.api.cobro import router as cobro_router  # noqa: E402
 from aiuda_server.api.cua import router as cua_router  # noqa: E402
 from aiuda_server.api.custom_connectors import router as custom_router  # noqa: E402
 from aiuda_server.api.deps import (  # noqa: E402  (re-export para tests)
+    ErrorConCodigo,
+    tope_de_ia,
     Principal,
     get_db,
     get_principal,
@@ -187,36 +197,34 @@ from aiuda_server.api.deps import (  # noqa: E402  (re-export para tests)
     solo_el_dueno,
 )
 from aiuda_server.api.dispositivos import router as dispositivos_router  # noqa: E402
+from aiuda_server.api.documentos import router as documentos_router  # noqa: E402
 from aiuda_server.api.export import router as export_router  # noqa: E402
 from aiuda_server.api.integrations import router as integrations_router  # noqa: E402
-from aiuda_server.api.prospeccion import router as prospeccion_router  # noqa: E402
 from aiuda_server.api.provider import router as provider_router  # noqa: E402
 from aiuda_server.api.reconciliation import router as reconciliation_router  # noqa: E402
 from aiuda_server.api.sat import router as sat_router  # noqa: E402
 from aiuda_server.api.search import router as search_router  # noqa: E402
 from aiuda_server.api.tags import router as tags_router  # noqa: E402
-from aiuda_server.api.twilio_voz import router as twilio_voz_router  # noqa: E402
 from aiuda_server.api.whatsapp import router as whatsapp_router  # noqa: E402
 from aiuda_server.api.writeback import router as writeback_router  # noqa: E402
 
 app.include_router(audit_router)
-app.include_router(onboarding_router)
+app.include_router(workspace_router)
 app.include_router(setup_router)
 app.include_router(ayudantes_router)
 app.include_router(banco_router)
 app.include_router(cobro_router)
 app.include_router(cua_router)
 app.include_router(dispositivos_router)
+app.include_router(documentos_router)
 app.include_router(custom_router)
 app.include_router(export_router)
 app.include_router(integrations_router)
-app.include_router(prospeccion_router)
 app.include_router(provider_router)
 app.include_router(reconciliation_router)
 app.include_router(sat_router)
 app.include_router(search_router)
 app.include_router(tags_router)
-app.include_router(twilio_voz_router)
 app.include_router(whatsapp_router)
 app.include_router(writeback_router)
 
@@ -258,6 +266,31 @@ _SIN_LLAVE = frozenset({"/health", "/v1/emparejar"})
 # ponen dos frenos: cuerpo chico y pocos intentos. El código en sí no se puede
 # adivinar (72 bits), pero sin esto se puede tumbar la herramienta del negocio.
 _MAX_CUERPO_EMPAREJAR = 2048
+
+# El regreso de "Entrar con ChatGPT". Llega desde el navegador del sistema, que no trae
+# la cookie de la consola, así que pasa sin ella, pero SOLO por la puerta de esta
+# computadora: no está en _SIN_LLAVE a propósito, para que la puerta de la red no lo
+# conteste. Lo valida la propia ruta, con el `state` del intento (api/provider.py).
+_REGRESO_CHATGPT = "/auth/callback"
+
+
+class _RegresoSinQuery(logging.Filter):
+    """El regreso trae en la URL el código de un solo uso y el `state`. Ya gastados no
+    sirven de nada, pero no tienen por qué quedar escritos en el log de accesos."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if (
+            isinstance(args, tuple)
+            and len(args) >= 3
+            and isinstance(args[2], str)
+            and args[2].startswith(_REGRESO_CHATGPT + "?")
+        ):
+            record.args = (*args[:2], _REGRESO_CHATGPT + "?…", *args[3:])
+        return True
+
+
+logging.getLogger("uvicorn.access").addFilter(_RegresoSinQuery())
 _INTENTOS_POR_MINUTO = 10
 _intentos: dict[str, list[float]] = {}
 _candado_intentos = threading.Lock()
@@ -359,7 +392,7 @@ async def local_session_guard(request: Request, call_next):
         return await call_next(request)
 
     token = settings.session_token
-    if not token or request.url.path in _SIN_LLAVE:
+    if not token or request.url.path in _SIN_LLAVE or request.url.path == _REGRESO_CHATGPT:
         return await call_next(request)
     import hmac as _hmac
 
@@ -421,6 +454,11 @@ Cierra aiuda por completo y vuelve a abrirlo: entrarás directo.</p>
 </main></body></html>"""
 
 
+@app.exception_handler(ErrorConCodigo)
+async def error_con_codigo(request: Request, exc: ErrorConCodigo):
+    return JSONResponse({"detail": exc.detail, "code": exc.code}, status_code=exc.status_code)
+
+
 @app.exception_handler(Exception)
 async def unhandled_error(request: Request, exc: Exception):
     """Errores no controlados: se registran completos en el servidor, pero al
@@ -437,27 +475,14 @@ def health():
     return {"status": "ok", "service": "aiuda-api"}
 
 
-@app.post("/v1/daily/run", status_code=202)
-async def daily_run(background: BackgroundTasks):
-    """Dispara la corrida de cobranza AHORA (el scheduler local ya la corre cada
-    hora; esto es el "no quiero esperar"). Encola y responde de inmediato; el
-    trabajo corre en segundo plano y degrada con gracia si no hay canal de envío
-    (redacta y deja en Aprobaciones)."""
-    from aiuda_server.worker.main import run_daily_blocking
-
-    background.add_task(run_daily_blocking)
-    log.info("corrida manual aceptada, corre en segundo plano")
-    return {"status": "encolado", "ts": datetime.now(MX_TZ).isoformat()}
-
-
 def _tenant_de_instancia(db, instance: str) -> Tenant | None:
     """El tenant dueño de una instancia de canal (Tenant.evolution_instance, única)."""
     return db.scalar(select(Tenant).where(Tenant.evolution_instance == instance))
 
 
 def _tenant_con_whatsapp(db) -> Tenant:
-    """Routing legado SIN instancia en el payload (poller viejo, self-host de un solo
-    número): exactamente UN tenant con WhatsApp conectado recibe los entrantes; si no
+    """Routing SIN instancia en el payload (instalación de un solo número):
+    exactamente UN tenant con WhatsApp conectado recibe los entrantes; si no
     hay ninguno conectado pero solo existe un tenant, es él. Con más de un candidato
     NO se adivina: entregar la conversación de un cliente al negocio equivocado es
     fuga cross-tenant, así que se rechaza y se pide poller con instancia."""
@@ -490,8 +515,10 @@ async def wacli_webhook(
     """Mensajes entrantes de WhatsApp vía wacli.
 
     Contrato: {"phone": "5215...", "message": "texto", "id": "opcional",
-    "instance": "opcional"}. El daemon de entrada (scripts/wacli_inbound.py) postea
-    aquí cada mensaje recibido; con `instance` el mensaje entra al workspace dueño
+    "instance": "opcional"}. aiuda ya no llama esta ruta: el sondeo corre dentro
+    del proceso (aiuda_server.inbound). Queda para quien sondee desde fuera, y es
+    la puerta por la que las pruebas ejercitan la ingesta. Con `instance` el
+    mensaje entra al workspace dueño
     de esa instancia. Sin ella se resuelve el único número disponible y se rechaza
     si sería ambiguo.
     """
@@ -523,7 +550,7 @@ async def wacli_webhook(
     wa_id = str(payload.get("id") or "") or None
     message = ingresar_entrante(db, tenant, phone=phone, body=body, wa_id=wa_id)
     if message is None:
-        return {"status": "duplicate"}
+        return {"status": "ignored"}  # repetido, o de un número que no es cliente
     background.add_task(process_incoming_message_blocking, tenant.id, message.id)
     return {"status": "accepted", "message_id": message.id}
 
@@ -535,9 +562,13 @@ def sync_now(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     from aiuda_server.api.integrations import fuentes_preferidas
     from aiuda_core.engine.sync import sync_fuentes
     from aiuda_core.observabilidad import abrir_run, contar_sync
+    from aiuda_server.metering import tenant_runner
 
     with abrir_run(db, tenant, disparo="sincronizacion") as run:
-        r = sync_fuentes(db, tenant, fuente_prefs=fuentes_preferidas(db, tenant))
+        r = sync_fuentes(
+            db, tenant, fuente_prefs=fuentes_preferidas(db, tenant),
+            ia_cua=lambda: tenant_runner(db, tenant),
+        )
         contar_sync(run, r)
     return {
         "pedidos_importados": r.pedidos_importados,
@@ -547,63 +578,6 @@ def sync_now(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         # Fuentes que no respondieron o leyeron parcial: se dice, no se esconde.
         "avisos": r.avisos,
     }
-
-
-@app.post("/v1/webhooks/evolution")
-async def evolution_webhook(
-    request: Request,
-    background: BackgroundTasks,
-    token: str = Query(default=""),
-    db=Depends(get_db),
-):
-    if not settings.evolution_webhook_token or token != settings.evolution_webhook_token:
-        raise HTTPException(status_code=401, detail="Token de webhook inválido")
-
-    payload = await request.json()
-    incoming = parse_webhook(payload)
-    if incoming is None or incoming.from_me:
-        return {"status": "ignored"}
-
-    tenant = db.scalar(select(Tenant).where(Tenant.evolution_instance == incoming.instance))
-    if tenant is None:
-        raise HTTPException(status_code=404, detail="Instancia sin tenant asignado")
-
-    conversation = db.scalar(
-        select(Conversation).where(
-            Conversation.tenant_id == tenant.id,
-            Conversation.remote_phone == incoming.remote_phone,
-        )
-    )
-    if conversation is None:
-        conversation = Conversation(tenant_id=tenant.id, remote_phone=incoming.remote_phone)
-        db.add(conversation)
-        db.flush()
-
-    # Idempotencia: WhatsApp reintenta si no respondemos <5s
-    if incoming.wa_message_id:
-        duplicate = db.scalar(
-            select(Message).where(
-                Message.tenant_id == tenant.id,
-                Message.wa_message_id == incoming.wa_message_id,
-            )
-        )
-        if duplicate is not None:
-            return {"status": "duplicate"}
-
-    message = Message(
-        tenant_id=tenant.id,
-        conversation_id=conversation.id,
-        direction="in",
-        body=incoming.body,
-        wa_message_id=incoming.wa_message_id or None,
-    )
-    db.add(message)
-    db.flush()
-
-    from aiuda_server.worker.main import process_incoming_message_blocking
-
-    background.add_task(process_incoming_message_blocking, tenant.id, message.id)
-    return {"status": "accepted", "message_id": message.id}
 
 
 def _available_channels(
@@ -681,8 +655,17 @@ def list_reminders(
             "sent_at": r.sent_at.isoformat() if r.sent_at else None,
             # Si el envío se intentó y tronó: el motivo visible (canal caído, sin contacto).
             "motivo_fallo": (r.meta or {}).get("motivo_fallo"),
+            # Si aiuda lo sacó de la bandeja porque la factura ya no se cobra.
+            "retirado": (r.meta or {}).get("retirado"),
             # Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…").
             "pendiente": (r.meta or {}).get("pendiente_canal"),
+            # Cuenta en "Por aprobar" (misma regla que el número del menú): espera
+            # aprobación y su factura, si tiene, sigue abierta.
+            "pide_decision": _recordatorio_pide_decision(r, inv),
+            # None = no va ligado a una factura (cotización, respuesta de correo).
+            "factura_abierta": (inv.status == "open") if inv else None,
+            # Cuándo cambió de estado por última vez (rechazado, fallido, aprobado).
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
         }
         for r, inv, cust in rows
     ]
@@ -736,6 +719,20 @@ async def approve_reminder(
     if reminder.invoice_id:
         inv = db.get(Invoice, reminder.invoice_id)
         cust = db.get(Customer, inv.customer_id) if inv else None
+
+    if inv is not None and inv.status == "cancelled":
+        motivo = (inv.meta or {}).get("cerrada_por") or "cancelada"
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta factura ya no se cobra ({motivo}). El recordatorio no se envía.",
+        )
+    if inv is not None and inv.status == "paid":
+        # Aprobar (o reintentar un fallido) de una factura que ya se pagó sería
+        # cobrarle a quien ya pagó.
+        raise HTTPException(
+            status_code=409,
+            detail="Esta factura ya se pagó. El recordatorio no se envía.",
+        )
 
     # El tope del aparato, aplicado donde de verdad importa. Antes vivía solo en
     # el modelo y en la pantalla: un invitado podía aprobar cualquier monto.
@@ -881,25 +878,119 @@ def reject_reminder(
 
 @app.get("/v1/learning/summary")
 def learning_summary_endpoint(
-    agent: str = Query(default="mariana"),
+    agent: str | None = Query(default=None),
     ayudante_id: str | None = Query(default=None),
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
 ):
     """Qué está aprendiendo el ayudante: tasa de aprobación sin editar y últimas
     correcciones. Con ``ayudante_id`` son las de ESE ayudante (atribución real por
-    Reminder.meta); sin él, las del slug de runtime."""
+    Reminder.meta); sin él, las de todo el equipo del negocio (así lo pide la app del
+    teléfono). ``agent`` filtra por el slug interno del runtime y solo queda por
+    compatibilidad."""
     return learning_summary(db, tenant, agent=agent, ayudante_id=ayudante_id)
+
+
+# ---------- "Por aprobar": UN número, definido aquí ----------
+#
+# Lo que HOY necesita la decisión del dueño. Es la suma de tres cosas y nada más:
+#
+#   1. mensajes redactados que esperan su aprobación (recordatorios de cobro,
+#      cotizaciones, respuestas de correo: Reminder.status == "pending_approval"),
+#      salvo los de una factura que ya no está abierta: si ya se pagó o se
+#      canceló, no hay nada que decidir y aprobarlo sería cobrarle a quien no debe;
+#   2. pagos detectados que esperan que confirme a qué factura van
+#      (Payment.status == "pendiente");
+#   3. promesas de pago VENCIDAS: la fecha prometida ya pasó, no se cumplió y la
+#      factura sigue abierta. Una promesa que todavía no vence no le pide nada al
+#      dueño. Una de una factura ya cerrada, tampoco.
+#
+# El globo del menú y el encabezado "Por aprobar (N)" de Hoy salen de aquí: los dos
+# leen `espera_tu_ok` de /v1/cartera, y Hoy arma su lista con las mismas tres
+# fuentes, tomando de /v1/reminders solo los que traen `pide_decision` y de
+# /v1/promises solo las que traen `vencida`. Si la definición cambia, cambia en
+# estas tres funciones y en ningún otro lado.
+
+
+def _recordatorio_pide_decision(recordatorio: Reminder, factura: Invoice | None) -> bool:
+    return recordatorio.status == "pending_approval" and (
+        factura is None or factura.status == "open"
+    )
+
+
+# Promesas que el dueño ya dio por incumplidas ("No cumplió"): {id: fecha ISO}.
+# Vive en Tenant.config porque el modelo de la promesa solo sabe si se cumplió, y
+# marcarla cumplida para sacarla de Hoy sería mentir. La promesa sigue SIN cumplir
+# (el motor la sigue viendo como rota al redactar el siguiente recordatorio); solo
+# deja de pedirle una decisión al dueño.
+PROMESAS_INCUMPLIDAS_KEY = "promesas_incumplidas"
+
+
+def _promesas_incumplidas(tenant: Tenant) -> dict[str, str]:
+    return dict((tenant.config or {}).get(PROMESAS_INCUMPLIDAS_KEY) or {})
+
+
+def _promesa_vencida(
+    promesa: PaymentPromise, factura: Invoice, today, incumplidas: dict | None = None
+) -> bool:
+    return (
+        not promesa.fulfilled
+        and factura.status == "open"
+        and promesa.promised_date < today
+        and promesa.id not in (incumplidas or {})
+    )
+
+
+def _espera_tu_ok(db, tenant: Tenant, today) -> int:
+    pendientes = db.execute(
+        select(Reminder, Invoice)
+        .outerjoin(Invoice, Reminder.invoice_id == Invoice.id)
+        .where(Reminder.tenant_id == tenant.id, Reminder.status == "pending_approval")
+    ).all()
+    por_aprobar = sum(1 for r, inv in pendientes if _recordatorio_pide_decision(r, inv))
+    pagos = db.scalar(
+        select(func.count())
+        .select_from(Payment)
+        .where(Payment.tenant_id == tenant.id, Payment.status == "pendiente")
+    )
+    promesas = db.execute(
+        select(PaymentPromise, Invoice)
+        .join(Invoice, PaymentPromise.invoice_id == Invoice.id)
+        .where(PaymentPromise.tenant_id == tenant.id, PaymentPromise.fulfilled.is_(False))
+    ).all()
+    incumplidas = _promesas_incumplidas(tenant)
+    vencidas = sum(1 for p, inv in promesas if _promesa_vencida(p, inv, today, incumplidas))
+    return por_aprobar + int(pagos or 0) + vencidas
+
+
+from aiuda_server.api.monedas import (  # noqa: E402
+    moneda_de,
+    saldos_por_moneda,
+    total_principal,
+)
+from aiuda_server.api.monedas import moneda_principal as _moneda_principal  # noqa: E402
+
+
+def _moneda(invoice: Invoice) -> str:
+    return moneda_de(invoice.currency)
 
 
 @app.get("/v1/cartera")
 def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Resumen para el dashboard: aging + métrica estrella ($ recuperado del mes)."""
+    """Resumen de la cartera: antigüedad + métrica estrella ($ recuperado del mes).
+
+    Pesos y dólares NO se suman. Antes `open_total`, `recovered_this_month` y
+    `aging` metían todas las monedas en una sola cifra pintada como pesos: una
+    factura de 10,000 USD contaba como 10,000 MXN. Ahora esos tres campos (y
+    `open_count`) hablan solo de la moneda principal, y `por_moneda` trae el
+    desglose completo, una entrada por moneda, la principal primero."""
     today = datetime.now(MX_TZ).date()
     open_invoices = db.scalars(
         select(Invoice).where(Invoice.tenant_id == tenant.id, Invoice.status == "open")
     ).all()
-    summary = aging_summary(open_invoices, today)
+    abiertas: dict[str, list[Invoice]] = {}
+    for inv in open_invoices:
+        abiertas.setdefault(_moneda(inv), []).append(inv)
 
     # $ recuperado este mes = facturas pagadas este mes que recibieron ≥1 recordatorio enviado
     paid_this_month = db.execute(
@@ -909,7 +1000,7 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             Invoice.paid_at.isnot(None),
         )
     ).scalars()
-    recovered = 0.0
+    recuperado: dict[str, float] = {}
     for inv in paid_this_month:
         if inv.paid_at.year != today.year or inv.paid_at.month != today.month:
             continue
@@ -921,7 +1012,27 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             )
         )
         if sent is not None:
-            recovered += float(inv.amount)
+            recuperado[_moneda(inv)] = recuperado.get(_moneda(inv), 0.0) + float(inv.amount)
+
+    principal = _moneda_principal({m: len(lista) for m, lista in abiertas.items()})
+    monedas = [principal] + sorted((set(abiertas) | set(recuperado)) - {principal})
+    por_moneda = []
+    for moneda in monedas:
+        lista = abiertas.get(moneda, [])
+        por_moneda.append(
+            {
+                "moneda": moneda,
+                "open_total": sum(float(i.amount) for i in lista),
+                "open_count": len(lista),
+                "overdue_total": sum(float(i.amount) for i in lista if i.due_date < today),
+                "recovered_this_month": recuperado.get(moneda, 0.0),
+                "aging": [
+                    {"bucket": str(b), "count": line.count, "total": line.total}
+                    for b, line in aging_summary(lista, today).items()
+                ],
+            }
+        )
+    base = por_moneda[0]
 
     pending_count = db.scalars(
         select(Reminder).where(
@@ -942,17 +1053,23 @@ def cartera(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     return {
         "business_name": tenant.name,
         "today": today.isoformat(),
-        "recovered_this_month": recovered,
-        "open_total": sum(float(i.amount) for i in open_invoices),
-        "open_count": len(open_invoices),
+        # Los cuatro que siguen son SOLO de la moneda principal (ver docstring).
+        "recovered_this_month": base["recovered_this_month"],
+        "open_total": base["open_total"],
+        "open_count": base["open_count"],
+        "aging": base["aging"],
+        "moneda_principal": principal,
+        # Desglose por moneda: [{moneda, open_total, open_count, overdue_total,
+        # recovered_this_month, aging}], la principal primero y luego alfabético.
+        "por_moneda": por_moneda,
+        # Facturas abiertas en CUALQUIER moneda (para saber si hay cartera).
+        "open_count_todas": len(open_invoices),
         "pending_approvals": len(pending_count),
+        # El número del globo del menú y de "Por aprobar" en Hoy (ver arriba).
+        "espera_tu_ok": _espera_tu_ok(db, tenant, today),
         "active_promises": len(promises),
         "payment_reports": reported,
         "by_source": by_source,
-        "aging": [
-            {"bucket": str(b), "count": line.count, "total": line.total}
-            for b, line in summary.items()
-        ],
     }
 
 
@@ -967,6 +1084,32 @@ def _update_config(db, tenant: Tenant, **changes) -> None:
     # Las columnas JSON no trackean mutación in-place: reasignar siempre.
     tenant.config = {**(tenant.config or {}), **changes}
     db.add(tenant)
+
+
+@app.get("/v1/avisos/tope-ia")
+def get_aviso_tope_ia(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
+    """El aviso de que la IA se pausó por el tope de gasto del mes. Lo deja el worker
+    (`_aviso_tope`) la primera vez que un trabajo se corta; Hoy lo pinta. Se calla solo si el dueño lo descartó, si cambió el mes o si el tope ya
+    no está agotado (lo subió o lo quitó)."""
+    from aiuda_server.costs import ia_budget
+
+    aviso = (tenant.config or {}).get("ia_tope_aviso") or {}
+    mes = datetime.now(MX_TZ).strftime("%Y-%m")
+    if aviso.get("mes") != mes or aviso.get("descartado"):
+        return {"aviso": None}
+    if not ia_budget(db, tenant)["agotado"]:
+        return {"aviso": None}
+    return {"aviso": {"mes": mes, "desde": aviso.get("at")}}
+
+
+@app.post("/v1/avisos/tope-ia/descartar")
+def descartar_aviso_tope_ia(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
+    """El dueño ya lo leyó. Se guarda en el mismo aviso para que no reaparezca este
+    mes; el del mes que entra es otro aviso y vuelve a salir."""
+    aviso = (tenant.config or {}).get("ia_tope_aviso")
+    if aviso:
+        _update_config(db, tenant, ia_tope_aviso={**aviso, "descartado": True})
+    return {"aviso": None}
 
 
 # Aquí vivía el equipo de fábrica: ocho slugs fijos (mariana, carlos, lupita, valeria,
@@ -987,9 +1130,8 @@ class ContextoBody(BaseModel):
 def get_business_context(tenant: Tenant = Depends(get_tenant)):
     """El contexto del negocio: giro, políticas de pago, datos para depósito.
 
-    Es del NEGOCIO, no de un ayudante: entra al system prompt de todos. Se leía por
-    /v1/agents/mariana/config, o sea colgado de un slug de runtime que el dueño nunca
-    creó; por eso ahora vive con los demás ajustes."""
+    Es del NEGOCIO, no de un ayudante: entra al system prompt de todos, y por eso
+    vive con los demás ajustes."""
     return {"business_context": (tenant.config or {}).get("business_context", "")}
 
 
@@ -1007,24 +1149,74 @@ def put_business_context(
 
 class ShadowBody(BaseModel):
     activo: bool
+    # Solo al APAGAR: qué hacer con lo que se aprobó en modo de prueba y no salió.
+    # "enviar" lo manda ya; "no_enviar" lo deja en "No salió" para que no se vaya
+    # solo. Sin decirlo, se queda aprobado y la siguiente revisión horaria lo envía.
+    retenidos: Literal["enviar", "no_enviar"] | None = None
+
+
+MOTIVO_NO_ENVIADO_EN_PRUEBA = (
+    "Lo aprobaste en modo de prueba y elegiste no mandarlo al apagarlo. "
+    "Si todavía aplica, reinténtalo."
+)
+
+
+def _retenidos_en_prueba(db, tenant: Tenant) -> list[Reminder]:
+    """Lo aprobado que no ha salido. Con el modo de prueba encendido, eso es
+    exactamente lo que está retenido: al apagarlo, saldría a clientes reales."""
+    return list(
+        db.scalars(
+            select(Reminder)
+            .where(
+                Reminder.tenant_id == tenant.id,
+                Reminder.status == "approved",
+                Reminder.sent_at.is_(None),
+            )
+            .order_by(Reminder.created_at)
+        ).all()
+    )
 
 
 @app.get("/v1/settings/modo-sombra")
-def get_shadow_mode(tenant: Tenant = Depends(get_tenant)):
-    """Modo sombra: el negocio redacta y aprueba pero NO envía a clientes reales."""
-    return {"modo_sombra": bool((tenant.config or {}).get("modo_sombra"))}
+def get_shadow_mode(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
+    """Modo de prueba: el negocio redacta y aprueba pero NO envía a clientes reales.
+    `retenidos` es cuánto hay aprobado sin salir: lo que se iría al apagarlo."""
+    activo = bool((tenant.config or {}).get("modo_sombra"))
+    return {
+        "modo_sombra": activo,
+        "retenidos": len(_retenidos_en_prueba(db, tenant)) if activo else 0,
+    }
 
 
 @app.put("/v1/settings/modo-sombra")
 def put_shadow_mode(
     body: ShadowBody,
     request: Request,
+    background: BackgroundTasks,
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
     principal: Principal = Depends(require_role("admin")),
 ):
-    """Activa/desactiva el modo sombra. Con él encendido nada sale por WhatsApp: lo
-    redactado queda en Aprobaciones para revisar (semana de validación con datos reales)."""
+    """Activa/desactiva el modo de prueba. Con él encendido nada sale a clientes: lo
+    aprobado se queda retenido.
+
+    Al apagarlo, lo retenido deja de estarlo, y eso son mensajes a clientes reales que
+    el dueño aprobó creyendo que no salían. Por eso se le pregunta (`retenidos`):
+    mandarlos ya, o no mandarlos. "No mandarlos" los pasa a `failed` con su motivo
+    (approved a failed es transición válida; nada se borra y cada uno se puede
+    reintentar), que es lo único que los saca del barrido horario de aprobados."""
+    estaba = bool((tenant.config or {}).get("modo_sombra"))
+    retenidos = _retenidos_en_prueba(db, tenant) if estaba and not body.activo else []
+    hecho = None
+    if retenidos and body.retenidos == "no_enviar":
+        for reminder in retenidos:
+            approval.advance(reminder, "failed")
+            reminder.meta = {
+                **(reminder.meta or {}),
+                "motivo_fallo": MOTIVO_NO_ENVIADO_EN_PRUEBA,
+            }
+            db.add(reminder)
+        hecho = "no_enviados"
     _update_config(db, tenant, modo_sombra=body.activo)
     audit.record(
         db,
@@ -1033,10 +1225,27 @@ def put_shadow_mode(
         entity_type="tenant",
         entity_id=tenant.id,
         principal=principal,
-        after={"modo_sombra": body.activo},
+        after={
+            "modo_sombra": body.activo,
+            "retenidos": len(retenidos),
+            "retenidos_accion": body.retenidos if retenidos else None,
+        },
         ip=request.client.host if request.client else None,
     )
-    return {"modo_sombra": body.activo}
+    if retenidos and body.retenidos == "enviar":
+        # El envío relee la config: tiene que encontrar el modo de prueba YA apagado.
+        db.commit()
+        from aiuda_server.worker.main import send_reminder_blocking
+
+        for reminder in retenidos:
+            background.add_task(send_reminder_blocking, tenant.id, reminder.id)
+        hecho = "enviando"
+    return {
+        "modo_sombra": body.activo,
+        "retenidos": len(retenidos),
+        # enviando | no_enviados | None (no había nada, o se quedó aprobado).
+        "retenidos_accion": hecho,
+    }
 
 
 class VentanaEnvioBody(BaseModel):
@@ -1085,37 +1294,46 @@ def put_ventana_envio(
 # ---------- Import inteligente: nos adaptamos a tu Excel ----------
 
 
-@app.post("/v1/import")
-async def smart_import_endpoint(
-    file: UploadFile = File(...),
-    tenant: Tenant = Depends(get_tenant),
-    db=Depends(get_db),
-):
-    """Importador universal: detecta si el archivo trae facturas, clientes,
-    productos, citas o prospectos, y lo carga a su lugar."""
-    from aiuda_server.metering import BudgetExceeded, tenant_runner
-    from aiuda_core.connectors.smart_import import smart_import
+def _exigir_ia_para_importar(db, tenant: Tenant) -> None:
+    """Entender una hoja (qué trae y qué columna es qué) lo hace la IA del dueño. Si la
+    lectura falló y no hay IA conectada, el archivo no tiene nada de malo: antes se le
+    decía "no pude leer el archivo" y el dueño se iba a revisar un Excel que estaba bien."""
+    from aiuda_core.engine.provider import resolve_credential
 
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Archivo mayor a 5 MB")
+    if resolve_credential(session=db, tenant_id=tenant.id) is None:
+        raise ErrorConCodigo(
+            409,
+            "Conecta tu IA en Tu IA para que pueda entender tu archivo. "
+            "Tu archivo está bien; todavía no se importó nada.",
+            code="ia_no_conectada",
+        )
 
-    runner = tenant_runner(db, tenant)
-    try:
-        report = smart_import(db, tenant.id, content, file.filename or "archivo.csv", runner=runner)
-    except BudgetExceeded as exc:
-        raise HTTPException(status_code=402, detail=str(exc))
-    except Exception:
-        raise HTTPException(status_code=400, detail="No pude leer el archivo (¿es CSV o XLSX?)")
-    return {
-        "filename": file.filename,
-        "entity": report.entity,
-        "entity_label": report.entity_label,
-        "mapping": report.mapping,
-        "created": report.created,
-        "skipped": report.skipped,
-        "errors": report.errors[:5],
-    }
+
+_FILA_RE = re.compile(r"^Fila (\d+): ")
+
+
+def _errores_de_importacion(errores: list[str]) -> list[str]:
+    """Lo que el importador reporta, listo para el dueño. Las filas que no se
+    pudieron leer traen pegado el texto de la excepción ("could not convert string
+    to float..."): se juntan en UN renglón que dice cuáles filas revisar. Los avisos
+    que ya vienen redactados para él (clientes sin teléfono, etc.) pasan tal cual."""
+    filas: list[str] = []
+    avisos: list[str] = []
+    for error in errores:
+        m = _FILA_RE.match(error)
+        if m:
+            filas.append(m.group(1))
+        else:
+            avisos.append(error)
+    if filas:
+        cuales = ", ".join(filas[:8]) + (" y otras" if len(filas) > 8 else "")
+        una = len(filas) == 1
+        avisos.insert(
+            0,
+            f"{'La fila' if una else 'Las filas'} {cuales} no se {'pudo' if una else 'pudieron'} "
+            "leer y no se cargaron. Revisa que la fecha y el monto estén bien escritos.",
+        )
+    return avisos[:5]
 
 
 @app.post("/v1/import/analyze")
@@ -1137,9 +1355,11 @@ async def import_analyze(
     runner = tenant_runner(db, tenant)
     try:
         result = analyze(content, file.filename or "archivo.csv", runner=runner, entity=entity or None)
-    except BudgetExceeded as exc:
-        raise HTTPException(status_code=402, detail=str(exc))
+    except BudgetExceeded:
+        raise tope_de_ia("leer tu archivo")
     except Exception:
+        _exigir_ia_para_importar(db, tenant)
+        log.exception("importar: no se pudo analizar %s", file.filename)
         raise HTTPException(status_code=400, detail="No pude leer el archivo (¿es CSV o XLSX?)")
     result["filename"] = file.filename
     result["types"] = [{"key": k, "label": ENTITY_LABEL[k]} for k in ENTITY_FIELDS]
@@ -1177,7 +1397,7 @@ async def import_commit(
         "entity_label": report.entity_label,
         "created": report.created,
         "skipped": report.skipped,
-        "errors": report.errors[:5],
+        "errors": _errores_de_importacion(report.errors),
     }
 
 
@@ -1278,11 +1498,13 @@ def send_human_message(
     )
     from aiuda_server.worker.main import send_correo_reply_blocking, send_human_message_blocking
 
+    # Commit explícito ANTES de agendar: la tarea re-lee el mensaje en su propia
+    # sesión y las BackgroundTasks corren antes del commit del teardown de get_db
+    # (FastAPI 0.136). Sin esto el correo leería el estado viejo, y el WhatsApp no
+    # encontraría el mensaje para marcarlo: se quedaba en 'pending' para siempre y
+    # el barrido de pendientes lo volvía a mandar.
+    db.commit()
     if conv.channel == "correo":
-        # Commit explícito ANTES de agendar: la tarea re-lee el mensaje en su propia
-        # sesión y las BackgroundTasks corren antes del commit del teardown de get_db
-        # (FastAPI 0.136) — sin esto, leería el estado viejo.
-        db.commit()
         background.add_task(send_correo_reply_blocking, tenant.id, conv.id, message.id)
     else:
         background.add_task(
@@ -1313,20 +1535,88 @@ def resend_message(
         raise HTTPException(status_code=404, detail="Mensaje no encontrado")
     if message.direction != "out" or message.author != "human":
         raise HTTPException(status_code=400, detail="Solo puedes reintentar tus propios mensajes.")
+    if not _entrega(tenant, message)["reintentable"]:
+        raise HTTPException(
+            status_code=400,
+            detail="El archivo ya no está guardado. Vuelve a adjuntarlo desde la ficha del cliente.",
+        )
     conv = db.get(Conversation, conversation_id)
     message.delivery = "pending"
     db.add(message)
     db.flush()
     from aiuda_server.worker.main import send_correo_reply_blocking, send_human_message_blocking
 
+    db.commit()  # la tarea re-lee el mensaje; ver send_human_message
     if conv.channel == "correo":
-        db.commit()  # la tarea re-lee el mensaje; ver send_human_message
         background.add_task(send_correo_reply_blocking, tenant.id, conv.id, message.id)
     else:
         background.add_task(
             send_human_message_blocking, tenant.id, conv.remote_phone, message.body, message.id
         )
     return {"id": message.id, "delivery": "pending"}
+
+
+def _entrega(tenant: Tenant, m: Message) -> dict:
+    """Estado de entrega de un mensaje para la consola y el teléfono. `delivery`:
+    sent | failed | pending | sending (adjunto en camino) | held (modo sombra) |
+    null (entrante o sin rastreo). Si falló, POR QUÉ, y si se puede reintentar (un
+    adjunto no: su archivo ya no existe)."""
+    from aiuda_server.worker.main import motivo_de_fallo
+
+    fallo = (motivo_de_fallo(tenant, m.id) or {}) if m.delivery == "failed" else {}
+    return {
+        "delivery": m.delivery,
+        "motivo_fallo": (
+            fallo.get("motivo") or "No se pudo enviar. Intenta de nuevo."
+            if m.delivery == "failed"
+            else None
+        ),
+        # El texto "[archivo] nombre" es el de un adjunto sin nota: aunque su
+        # motivo guardado ya no esté, reenviarlo mandaría esas palabras al cliente.
+        "reintentable": not fallo.get("adjunto") and not m.body.startswith("[archivo] "),
+    }
+
+
+@app.get("/v1/mensajes/fallidos")
+def mensajes_fallidos(
+    limit: int = Query(default=50, ge=1, le=200),
+    tenant: Tenant = Depends(get_tenant),
+    db=Depends(get_db),
+):
+    """Los mensajes escritos a mano que NO salieron, del más reciente al más viejo,
+    con su motivo. Para que el teléfono los muestre sin recorrer cada conversación.
+    (Los recordatorios fallidos ya vienen en GET /v1/reminders con su motivo.)"""
+    rows = db.execute(
+        select(Message, Conversation)
+        .join(Conversation, Message.conversation_id == Conversation.id)
+        .where(
+            Message.tenant_id == tenant.id,
+            Message.direction == "out",
+            Message.author == "human",
+            Message.delivery == "failed",
+        )
+        .order_by(Message.created_at.desc())
+        .limit(limit)
+    ).all()
+    fallidos = []
+    for m, conv in rows:
+        customer = _customer_de_conversacion(db, tenant, conv)
+        entrega = _entrega(tenant, m)
+        fallidos.append(
+            {
+                "id": m.id,
+                "conversation_id": conv.id,
+                "channel": conv.channel or "whatsapp",
+                "remote_phone": conv.remote_phone,
+                "customer": customer.name if customer else None,
+                "customer_id": customer.id if customer else None,
+                "body": m.body,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "motivo_fallo": entrega["motivo_fallo"],
+                "reintentable": entrega["reintentable"],
+            }
+        )
+    return {"fallidos": fallidos}
 
 
 @app.get("/v1/conversations/{conversation_id}")
@@ -1362,7 +1652,7 @@ def get_conversation(
                 "direction": m.direction,
                 "author": m.author,
                 "body": m.body,
-                "delivery": m.delivery,  # sent | failed | pending | null (entrante/sin rastreo)
+                **_entrega(tenant, m),
                 "created_at": m.created_at.isoformat(),
             }
             for m in messages
@@ -1373,6 +1663,7 @@ def get_conversation(
 @app.post("/v1/invoices/{invoice_id}/pay")
 def register_payment(
     invoice_id: str,
+    background: BackgroundTasks,
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
     principal: Principal = Depends(get_principal),
@@ -1398,10 +1689,46 @@ def register_payment(
     invoice.paid_source = "manual"  # confirmado por el negocio; "banco" cuando esté Belvo
     invoice.payment_reported = False
     # Write-back: el pago se inyecta de regreso al sistema de origen
+    from aiuda_core.engine.sync import cerrar_pendientes_por_pago
     from aiuda_core.engine.writeback import queue_payment_writeback
 
-    queue_payment_writeback(db, tenant, invoice)
-    return {"id": invoice.id, "status": invoice.status, "paid_source": invoice.paid_source}
+    entrada = queue_payment_writeback(db, tenant, invoice)
+    # Pagada: sus promesas abiertas quedan cumplidas y lo que aún no salía se retira.
+    promesas, retirados = cerrar_pendientes_por_pago(db, invoice, invoice.paid_at)
+    if entrada is not None:
+        # El pago regresa a su sistema de origen AHORA, sin esperar a la revisión de
+        # cada hora y sin detener esta respuesta. Si el sistema no contesta o no
+        # está conectado, la entrada se queda en la cola y la revisión horaria la
+        # reintenta: la consola lee el estado real (GET /v1/writeback) antes de
+        # decir que ya llegó.
+        db.commit()  # durable antes del background (las BackgroundTasks corren pre-teardown)
+        from aiuda_server.api.writeback import mandar_ya
+
+        mandar_ya(background, tenant.id)
+    return {
+        "id": invoice.id,
+        "status": invoice.status,
+        "paid_source": invoice.paid_source,
+        "promesas_cumplidas": promesas,
+        "recordatorios_retirados": retirados,
+        # La entrada de la cola que lleva este pago a su sistema (None: no regresa
+        # a ninguno). Con ella la consola pregunta si ya llegó.
+        "writeback_id": entrada.id if entrada is not None else None,
+    }
+
+
+def _exigir_ia_para_redactar(db, tenant: Tenant) -> None:
+    """Redactar lo hace la IA del dueño. Si falló y no hay IA conectada, eso es lo que
+    hay que decirle (mismo criterio que ``_exigir_ia_para_importar``), con un código
+    para que la consola ponga la liga a Tu IA."""
+    from aiuda_core.engine.provider import resolve_credential
+
+    if resolve_credential(session=db, tenant_id=tenant.id) is None:
+        raise ErrorConCodigo(
+            409,
+            "Conecta tu IA en Tu IA para que tu ayudante pueda redactar el recordatorio.",
+            code="ia_no_conectada",
+        )
 
 
 @app.post("/v1/invoices/{invoice_id}/remind")
@@ -1411,7 +1738,7 @@ def draft_reminder_now(
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
 ):
-    """Pide a Mariana redactar un recordatorio para esta factura ahora.
+    """Pide al ayudante de cobranza redactar un recordatorio para esta factura ahora.
 
     MVP: redacta síncrono en el request. Si algún día hace falta encolarlo,
     el contrato no cambia (ver ARCHITECTURE.md).
@@ -1443,10 +1770,19 @@ def draft_reminder_now(
     engine.runner.budget_check = budget_check(db, tenant)
     try:
         reminder = engine.draft_reminder(invoice, customer, today)
-    except BudgetExceeded as exc:
-        raise HTTPException(status_code=402, detail=str(exc))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"No pude redactar: {exc}")
+    except BudgetExceeded:
+        raise tope_de_ia("redactar el recordatorio")
+    except Exception:
+        # Al dueño nunca le llega el texto de la excepción (venía en inglés, del SDK
+        # del proveedor): el detalle se queda en el log y él recibe qué hacer.
+        _exigir_ia_para_redactar(db, tenant)
+        log.exception("recordar: no se pudo redactar para la factura %s", invoice.id)
+        raise ErrorConCodigo(
+            502,
+            "No se pudo redactar el recordatorio. Inténtalo de nuevo; si sigue "
+            "fallando, revisa tu conexión en Tu IA.",
+            code="ia_fallo",
+        )
     # Si el auto-envío del tenant lo dejó ya aprobado, hay que encolar el envío: si no,
     # la corrida diaria lo ve "activo" y lo salta, y queda approved para siempre sin salir.
     if reminder.status == "approved":
@@ -1475,6 +1811,45 @@ def fulfill_promise(
     return {"id": promise.id, "fulfilled": True}
 
 
+@app.post("/v1/promises/{promise_id}/no-cumplio")
+def promise_not_kept(
+    promise_id: str,
+    tenant: Tenant = Depends(get_tenant),
+    db=Depends(get_db),
+    principal: Principal = Depends(get_principal),
+):
+    """El dueño da una promesa vencida por incumplida: sale de "Por aprobar" sin
+    registrar un pago que no existe. No toca la factura (sigue abierta y se sigue
+    cobrando) ni marca la promesa como cumplida."""
+    promise = db.scalar(
+        select(PaymentPromise).where(
+            PaymentPromise.tenant_id == tenant.id, PaymentPromise.id == promise_id
+        )
+    )
+    if promise is None:
+        raise HTTPException(status_code=404, detail="Promesa no encontrada")
+    if promise.fulfilled:
+        raise HTTPException(status_code=409, detail="Esta promesa ya está cumplida.")
+    if promise.promised_date >= datetime.now(MX_TZ).date():
+        raise HTTPException(
+            status_code=409,
+            detail="Esta promesa todavía no vence: no se puede dar por incumplida.",
+        )
+    incumplidas = _promesas_incumplidas(tenant)
+    incumplidas.setdefault(promise.id, datetime.now(timezone.utc).date().isoformat())
+    _update_config(db, tenant, **{PROMESAS_INCUMPLIDAS_KEY: incumplidas})
+    audit.record(
+        db,
+        tenant_id=tenant.id,
+        action="promise.no_cumplio",
+        entity_type="promise",
+        entity_id=promise.id,
+        principal=principal,
+        after={"incumplida": True},
+    )
+    return {"id": promise.id, "fulfilled": False, "incumplida": True}
+
+
 @app.get("/v1/promises")
 def list_promises(
     status: str = Query(default="active"),  # active | fulfilled
@@ -1482,6 +1857,7 @@ def list_promises(
     db=Depends(get_db),
 ):
     today = datetime.now(MX_TZ).date()
+    incumplidas = _promesas_incumplidas(tenant)
     query = (
         select(PaymentPromise, Invoice, Customer)
         .join(Invoice, PaymentPromise.invoice_id == Invoice.id)
@@ -1500,10 +1876,17 @@ def list_promises(
             "customer": cust.name,
             "customer_id": cust.id,
             "amount": float(inv.amount),
+            "currency": inv.currency,
             "promised_date": p.promised_date.isoformat(),
             "note": p.note,
             "days_left": (p.promised_date - today).days,
             "fulfilled_at": p.fulfilled_at.isoformat() if p.fulfilled_at else None,
+            # Cuenta en "Por aprobar" (misma regla que el globo del menú).
+            "vencida": _promesa_vencida(p, inv, today, incumplidas),
+            # El dueño ya la dio por incumplida: sigue sin cumplir, pero no le pide nada.
+            "incumplida": not p.fulfilled and p.id in incumplidas,
+            # Una promesa de una factura ya cerrada no le pide nada al dueño.
+            "factura_abierta": inv.status == "open",
         }
         for p, inv, cust in db.execute(query).all()
     ]
@@ -1521,26 +1904,35 @@ def list_customers(
     customers = db.scalars(query.order_by(Customer.name)).all()
     from aiuda_core.optout import claves_dadas_de_baja, contact_key
 
-    # En una consulta, no una por cliente: esta lista ya arrastra un N+1 por el conteo
-    # de facturas y no hay por qué agregarle otro.
+    # En una consulta, no una por cliente.
     bajas = claves_dadas_de_baja(db, tenant)
+    # Lo abierto de todos, también en UNA consulta (antes era una por cliente), y
+    # separado por moneda: pesos y dólares no se suman.
+    abiertas: dict[str, list[tuple[str | None, float]]] = {}
+    for customer_id, currency, amount in db.execute(
+        select(Invoice.customer_id, Invoice.currency, Invoice.amount).where(
+            Invoice.tenant_id == tenant.id, Invoice.status == "open"
+        )
+    ):
+        abiertas.setdefault(customer_id, []).append((currency, float(amount or 0)))
 
     out = []
     for cust in customers:
-        open_rows = db.execute(
-            select(func.count(Invoice.id), func.coalesce(func.sum(Invoice.amount), 0)).where(
-                Invoice.tenant_id == tenant.id,
-                Invoice.customer_id == cust.id,
-                Invoice.status == "open",
-            )
-        ).one()
+        suyas = abiertas.get(cust.id, [])
+        principal, por_moneda = saldos_por_moneda(suyas)
         out.append(
             {
                 "id": cust.id,
                 "name": cust.name,
                 "phone": cust.phone,
-                "open_invoices": int(open_rows[0]),
-                "open_total": float(open_rows[1]),
+                # Facturas abiertas en cualquier moneda.
+                "open_invoices": len(suyas),
+                # `open_total` habla SOLO de `moneda` (pesos si debe algo en pesos;
+                # si no, la moneda en la que más facturas tiene). El resto, en
+                # `por_moneda`: [{moneda, open_total, open_count}].
+                "open_total": total_principal(principal, por_moneda),
+                "moneda": principal,
+                "por_moneda": por_moneda,
                 "tags": cust.tags or [],
                 "kind": cust.kind or "cliente",
                 # Quién pidió que no lo contacten. Sin esto, la lista no tiene
@@ -1627,7 +2019,7 @@ def create_quote(
 
 @app.get("/v1/appointments")
 def list_appointments(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Agenda del negocio. La atiende Valeria. La alimenta el importador (y
+    """Agenda del negocio. La alimenta el importador (y
     después Google Calendar)."""
     rows = db.scalars(
         select(Appointment)
@@ -1665,7 +2057,7 @@ def _conversation_messages(db, tenant: Tenant, conv: Conversation | None) -> lis
             "direction": m.direction,
             "author": m.author,
             "body": m.body,
-            "delivery": m.delivery,  # sent | failed | pending | null (entrante/sin rastreo)
+            **_entrega(tenant, m),
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
         for m in msgs
@@ -1693,7 +2085,11 @@ def customer_detail(
         .order_by(Invoice.due_date)
     ).all()
     conv = find_conversation_by_phone(db, tenant.id, cust.phone)
-    open_total = sum(float(i.amount) for i in invoices if i.status == "open")
+    # Lo que debe, por moneda: una factura en dólares no se suma a las de pesos.
+    principal, por_moneda = saldos_por_moneda(
+        (i.currency, float(i.amount)) for i in invoices if i.status == "open"
+    )
+    open_total = total_principal(principal, por_moneda)
 
     # El 360: todo lo que cuelga del cliente, no solo sus facturas. Colgado de sus facturas
     # (recordatorios, promesas, pagos conciliados) y de su nombre (citas).
@@ -1747,7 +2143,10 @@ def customer_detail(
         # El cliente pidió no recibir mensajes (BAJA/STOP): {"at", "via"} o None.
         # Bloquea los envíos automatizados; el dueño puede reactivarlo desde aquí.
         "opt_out": opted_out(db, tenant, cust.phone),
+        # `open_total` es SOLO de `moneda`; el desglose completo va en `por_moneda`.
         "open_total": open_total,
+        "moneda": principal,
+        "por_moneda": por_moneda,
         "open_count": sum(1 for i in invoices if i.status == "open"),
         "reminders": [
             {
@@ -1773,6 +2172,7 @@ def customer_detail(
             {
                 "id": p.id,
                 "amount": float(p.amount),
+                "currency": moneda_de(p.currency),
                 "paid_at": p.paid_at.isoformat(),
                 "source": p.source,
                 "folio": folio_by_id.get(p.invoice_id),
@@ -1796,6 +2196,7 @@ def customer_detail(
                 "id": i.id,
                 "folio": i.folio,
                 "amount": float(i.amount),
+                "currency": moneda_de(i.currency),
                 "status": i.status,
                 "bucket": str(classify(i.due_date, today)),
                 "days_overdue": (today - i.due_date).days,
@@ -1993,6 +2394,7 @@ def message_customer(
     )
     from aiuda_server.worker.main import send_human_message_blocking
 
+    db.commit()  # la tarea marca el mensaje en su propia sesión; ver send_human_message
     background.add_task(
         send_human_message_blocking, tenant.id, cust.phone, message.body, message.id
     )
@@ -2052,7 +2454,14 @@ def attach_to_customer(
 
     body = caption.strip() or f"[archivo] {safe_name}"
     message = Message(
-        tenant_id=tenant.id, conversation_id=conv.id, direction="out", author="human", body=body
+        tenant_id=tenant.id,
+        conversation_id=conv.id,
+        direction="out",
+        author="human",
+        body=body,
+        # 'sending' y no 'pending': el barrido de pendientes reenvía el TEXTO del
+        # mensaje, y de un adjunto solo sabría mandar "[archivo] nombre".
+        delivery="sending",
     )
     db.add(message)
     db.flush()
@@ -2074,8 +2483,15 @@ def attach_to_customer(
         fh.write(raw)
     from aiuda_server.worker.main import send_human_file_blocking
 
+    db.commit()  # la tarea marca el mensaje en su propia sesión; ver send_human_message
     background.add_task(
-        send_human_file_blocking, tenant.id, cust.phone, tmp_path, caption.strip(), safe_name
+        send_human_file_blocking,
+        tenant.id,
+        cust.phone,
+        tmp_path,
+        caption.strip(),
+        safe_name,
+        message.id,
     )
     return {
         "id": message.id,
@@ -2102,7 +2518,7 @@ def list_conversations(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
     """La bandeja unificada: lista sobre Conversation (lo que llena el webhook, la única
     verdad de entrantes) y clasifica cada hilo cruzándolo con el directorio por match_key:
     identificado (cruza a un cliente), por_identificar (no cruza) o descartado (el dueño
-    lo sacó). Antes esto vivía en dos mundos separados que nunca se cruzaban."""
+    lo sacó)."""
     descartadas = _conversaciones_descartadas(tenant)
     conversations = db.scalars(
         select(Conversation)
@@ -2346,6 +2762,8 @@ def invoice_detail(
 ):
     """Detalle de una factura: sus datos, presencia multi-sistema y la
     actividad del equipo (recordatorios redactados, promesas registradas)."""
+    from aiuda_core.engine.writeback import payment_writeback_preview
+
     today = datetime.now(MX_TZ).date()
     row = db.execute(
         select(Invoice, Customer)
@@ -2387,6 +2805,14 @@ def invoice_detail(
         "verified": inv.verified,
         "payment_reported": inv.payment_reported,
         "paid_source": inv.paid_source,
+        # A dónde se escribirá el pago si el dueño lo registra ({fuente, conectada}),
+        # o None si no regresa a ningún sistema. La confirmación de pago lo enseña
+        # ANTES del clic: registrar un pago de Odoo también escribe en Odoo.
+        "pago_regresa_a": payment_writeback_preview(db, tenant.id, inv)
+        if inv.status == "open"
+        else None,
+        # Por qué se cerró sin pago (ej. "cancelada en el SAT"); None si no aplica.
+        "motivo_cierre": (inv.meta or {}).get("cerrada_por"),
         # Comprobante fiscal: datos parseados + si hay archivos para ver/descargar.
         "cfdi": inv.cfdi or {},
         "has_xml": inv.cfdi_xml is not None,
@@ -2403,6 +2829,9 @@ def invoice_detail(
                 "bucket": r.bucket,
                 "status": r.status,
                 "message": r.message,
+                # Por qué aiuda lo sacó de lo pendiente (la factura se pagó o se
+                # canceló): sin esto la ficha lo pintaría como rechazado por el dueño.
+                "retirado": (r.meta or {}).get("retirado"),
                 "sent_at": r.sent_at.isoformat() if r.sent_at else None,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
@@ -2456,7 +2885,7 @@ def invoice_cfdi_pdf(invoice_id: str, tenant: Tenant = Depends(get_tenant), db=D
     )
 
 
-# La conciliación (Diego) vive en su propio router: aiuda_server/api/reconciliation.py
+# La conciliación vive en su propio router: aiuda_server/api/reconciliation.py
 
 
 # --------------------------------------------------------------------------- #
@@ -2788,7 +3217,7 @@ class PaymentCreateBody(BaseModel):
     paid_at: date | None = None
     reference: str | None = None
     counterparty: str | None = None
-    invoice_id: str | None = None  # pista para Diego; conciliar sigue siendo HITL
+    invoice_id: str | None = None  # pista para la conciliación; sigue siendo HITL
 
 
 @app.post("/v1/payments", status_code=201)
@@ -2800,7 +3229,7 @@ def create_payment(
     principal: Principal = Depends(get_principal),
 ):
     """Pago registrado A MANO (source="manual"): entra a la bandeja de conciliación
-    como cualquier depósito detectado — Diego propone, tú confirmas y la factura se
+    como cualquier depósito detectado — aiuda propone, tú confirmas y la factura se
     cierra por el flujo normal (con write-back). Distinto de POST /v1/invoices/{id}/pay,
     que cierra directo sin rastro de pago."""
     if body.amount is None or body.amount <= 0:

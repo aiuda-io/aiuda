@@ -18,7 +18,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from aiuda_server.api.deps import get_db, get_tenant
-from aiuda_server.api.integrations import fuente_default, fuente_valida, fuentes_de_capacidad
+from aiuda_server.api.integrations import (
+    fuente_default,
+    fuente_valida,
+    fuentes_de_capacidad,
+    ocultas_para,
+)
 from aiuda_server.api.text import plain_text
 from aiuda_core.aiuditas import (
     aiudita_por_id,
@@ -35,17 +40,20 @@ router = APIRouter()
 # --- Catálogo ---------------------------------------------------------------
 
 @router.get("/v1/aiuditas/catalog")
-def get_catalog() -> dict:
+def get_catalog(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)) -> dict:
     """El catálogo de aiuditas con sus perillas. Una sola fuente para el frontend.
 
     Cada aiudita que lee datos trae sus `fuentes` posibles (de dónde puede jalar),
     derivadas de su capacidad: ahí es donde el dueño define la fuente, lo que
     diferencia a aiuda de un ERP (en un ERP la fuente es fija)."""
     payload = catalog_payload()
+    # Las fuentes que no se ofrecen hasta probarse con una cuenta real no se listan
+    # como opción, salvo que este negocio ya las tenga conectadas.
+    ocultas = ocultas_para(db, tenant)
     for a in payload["aiuditas"]:
         cap = a.get("capacidad")
         if cap:
-            a["fuentes"] = fuentes_de_capacidad(cap)
+            a["fuentes"] = fuentes_de_capacidad(cap, ocultas)
     return payload
 
 
@@ -202,8 +210,7 @@ def prompt_preview(
         ayudante_name=a.name,
         persona=(a.instructions or "").strip() or None,
     )
-    # `system` se conserva por compatibilidad con quien ya consuma el endpoint.
-    return {"system": chat, "chat": chat, "corrida": corrida}
+    return {"chat": chat, "corrida": corrida}
 
 
 @router.put("/v1/ayudantes/{ayudante_id}")
@@ -300,8 +307,8 @@ def correr(
             "sin_corrida": sin_corrida,
             "propuestas": 0,
             "detalle": (
-                f"{a.name} no tiene aiuditas que corran solas todavía. Las de consulta "
-                "responden en su chat; cotizar vive en Ventas y conciliar en Conciliación."
+                f"{a.name} no tiene tareas que trabajen solas. Pregúntale lo que necesites "
+                "en Platicar."
             ),
         }
 
@@ -310,7 +317,7 @@ def correr(
     if resolve_credential(session=db, tenant_id=tenant.id) is None:
         raise HTTPException(
             status_code=409,
-            detail="Conecta tu proveedor de IA para correr a este ayudante.",
+            detail="Falta conectar tu IA. Hazlo en Ajustes, en Tu IA.",
         )
 
     from datetime import datetime
@@ -328,7 +335,7 @@ def correr(
         except Exception as exc:
             import logging
             logging.getLogger("aiuda.api").exception("correr falló")
-            raise HTTPException(status_code=502, detail="No pude correr al ayudante ahora.") from exc
+            raise HTTPException(status_code=502, detail="No se pudo poner a trabajar al ayudante. Intenta de nuevo.") from exc
         run.contar(propuestos=len(drafted))
         for r in drafted:
             run.liga("reminder", r.id, rol="propuso")
@@ -343,9 +350,13 @@ def correr(
         "propuestas": len(drafted),
         "pendientes": sum(1 for r in drafted if r.status == "pending_approval"),
         "detalle": (
-            "Sin facturas accionables ahora: nada que proponer."
+            "Revisó tu cartera y no encontró a quién escribirle ahora."
             if not drafted
-            else f"{len(drafted)} propuesta{'s' if len(drafted) != 1 else ''} en el Centro, esperando tu aprobación."
+            else (
+                "1 recordatorio queda en Hoy para que lo apruebes."
+                if len(drafted) == 1
+                else f"{len(drafted)} recordatorios quedan en Hoy para que los apruebes."
+            )
         ),
     }
 
@@ -384,8 +395,8 @@ def chat(
     credential = resolve_credential(session=db, tenant_id=tenant.id)
     if credential is None:
         return {
-            "reply": f"Soy {a.name}. Para que pueda responderte, conecta tu proveedor de IA "
-            "en Proveedor de IA. Mientras, tu config queda guardada."
+            "reply": f"Soy {a.name}. Para contestarte falta conectar tu IA en Ajustes. "
+            "Lo que ya ajustaste quedó guardado."
         }
 
     active = a.aiuditas or {}
@@ -423,7 +434,14 @@ def chat(
             # Corte honesto: el tope del mes se alcanzó; no se llamó a la IA.
             run.cortar(str(exc))
             raise HTTPException(status_code=402, detail=str(exc))
-        except Exception:
+        except Exception as exc:
+            # Un fallo con salida concreta (el plan de ChatGPT llegó a su límite, la
+            # sesión venció) trae su `code` y un mensaje ya escrito para el dueño: se
+            # le dice eso, que es lo que puede arreglar, y no un "no disponible".
+            from aiuda_core.engine.codex import CodexError
+
+            if isinstance(exc, CodexError) and exc.code:
+                raise HTTPException(status_code=502, detail=str(exc))
             raise HTTPException(status_code=502, detail="El ayudante no está disponible ahora.")
         run.contar(respuestas=1)
     db.flush()

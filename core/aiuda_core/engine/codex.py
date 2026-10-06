@@ -11,8 +11,13 @@ en un proyecto Apache-2.0 le transfiere el riesgo a quien lo instale y a cada fo
 ello se fueron el device flow ("Iniciar sesion con ChatGPT"), el refresh de tokens y el
 `~/.codex/auth.json`.
 
-Quien quiera usar su suscripcion tiene la via legitima: instalar `codex` y elegirlo como
-proveedor (`codex_cli`). Ese binario se autentica con SU sesion y aiuda nunca ve el token.
+Quien quiera usar su suscripcion tiene dos vias legitimas. Una: instalar `codex` y
+elegirlo como proveedor (`codex_cli`); ese binario se autentica con SU sesion y aiuda nunca
+ve el token. Dos: "Entrar con ChatGPT" (engine/chatgpt_auth.py), el flujo oficial donde
+aiuda se registra con su propio nombre. Esa segunda via usa ESTE runner: mismo endpoint
+publico, mismos headers, y el token de acceso en el lugar de la llave. Lo unico que
+cambia es de donde sale el Bearer, el modelo (el que esa cuenta tenga) y que se exige
+`response.completed`, como pide su documentacion.
 
 Protocolo verificado en vivo (2026-07): `stream:true` obligatorio, sin `max_output_tokens`,
 texto por deltas, tool calls como items function_call.
@@ -29,6 +34,7 @@ from typing import Any
 import httpx
 
 from aiuda_core.config import settings
+from aiuda_core.engine import chatgpt_auth
 from aiuda_core.engine.llm import BudgetCheck, UsageCallback
 from aiuda_core.engine.provider import ProviderCredential
 
@@ -54,13 +60,65 @@ def _to_openai_tool(tool: dict) -> dict:
     }
 
 
+# En la via "Entrar con ChatGPT" las herramientas de funcion no van sueltas: su
+# documentacion (preview-limitations) pide agruparlas en un namespace. No trae ejemplo;
+# esta es la forma `namespace` de la Responses API publica. SIN VERIFICAR con una cuenta
+# real: si OpenAI la rechaza llega como `subscription_sharing_unsupported_capability`.
+ESPACIO_TOOLS = "aiuda"
+
+
+def _en_espacio(tools: list[dict]) -> list[dict]:
+    return [
+        {
+            "type": "namespace",
+            "name": ESPACIO_TOOLS,
+            "description": "Herramientas de aiuda para consultar los datos del negocio.",
+            "tools": tools,
+        }
+    ]
+
+
+# La herramienta minima con la que se prueba la conexion en esa via.
+_TOOL_DE_PRUEBA = {
+    "type": "function",
+    "name": "ping",
+    "description": "No hace nada. Existe solo para probar la conexion.",
+    "parameters": {"type": "object", "properties": {}},
+}
+
+
 class CodexError(Exception):
-    """Fallo hablando con la Responses API (llave, red, o respuesta invalida)."""
+    """Fallo hablando con la Responses API (llave, red, o respuesta invalida). `code`
+    viaja a la consola cuando el fallo tiene una salida concreta (p. ej. "limite")."""
+
+    def __init__(self, mensaje: str, code: str | None = None):
+        super().__init__(mensaje)
+        self.code = code
+
+
+# Con lo que se registra el uso de la via "Entrar con ChatGPT": lo cubre el plan del
+# dueno, asi que no lleva precio por token aunque el modelo de fondo si lo tenga con llave.
+USO_PLAN_CHATGPT = "chatgpt-plan"
+
+
+def _codigo_de(cuerpo: bytes | str) -> str:
+    """El `error.code` de un rechazo, si lo trae. Antes de abrir el stream OpenAI tambien
+    puede contestar {"detail": "..."}: eso es texto de diagnostico, no un codigo."""
+    try:
+        data = json.loads(cuerpo)
+    except ValueError:
+        return ""
+    err = data.get("error") if isinstance(data, dict) else None
+    return str(err.get("code") or "") if isinstance(err, dict) else ""
 
 
 class CodexRunner:
     """ProviderRunner sobre la Responses API de OpenAI con la API key del dueno. Espeja la
-    interfaz de ClaudeRunner (model_for/complete/classify/run_tool_loop) en streaming."""
+    interfaz de ClaudeRunner (model_for/complete/classify/run_tool_loop) en streaming.
+
+    Con `token_source` es la via "Entrar con ChatGPT": el Bearer se le pide a esa funcion
+    antes de cada llamada (ella lo renueva si esta por vencer) y, si OpenAI lo rechaza con
+    401, se le pide otro UNA vez y se reintenta UNA vez."""
 
     def __init__(
         self,
@@ -69,6 +127,8 @@ class CodexRunner:
         budget_check: BudgetCheck | None = None,
         *,
         api_key: str | None = None,
+        token_source: Callable[[str | None], str] | None = None,
+        model: str | None = None,
         http_post: Callable[..., httpx.Response] | None = None,
     ):
         self._credential = credential
@@ -76,18 +136,33 @@ class CodexRunner:
         # Tope de gasto: publico y asignable despues de construir (igual que ClaudeRunner).
         self.budget_check: BudgetCheck | None = budget_check
         self._api_key = (api_key or "").strip() or None
+        self._token_source = token_source
+        self._oauth = token_source is not None or getattr(credential, "mode", "") == "oauth"
+        # Modelo fijo de la cuenta (via ChatGPT); None = los de la configuracion.
+        self._model = model or None
         # Inyectable para tests: por default, el stream real con httpx.
         self._http_post = http_post
 
     @property
     def mode(self) -> str:
-        return "api_key"
+        return "oauth" if self._oauth else "api_key"
 
     def _has_session(self) -> bool:
-        return self._api_key is not None
+        return self._oauth or self._api_key is not None
+
+    def _token(self, rechazado: str | None = None) -> str:
+        """El Bearer de la via ChatGPT. Sus fallos salen como CodexError, con su mensaje."""
+        if self._token_source is None:
+            raise CodexError(chatgpt_auth.VENCIDA, "auth")
+        try:
+            return self._token_source(rechazado)
+        except chatgpt_auth.ChatGPTAuthError as exc:
+            raise CodexError(str(exc), exc.code) from exc
 
     # -- roles -> modelos ----------------------------------------------------
     def model_for(self, role: str) -> str:
+        if self._model and role in ("triage", "redaccion"):
+            return self._model
         if role == "triage":
             return settings.model_codex_triage
         if role == "redaccion":
@@ -96,10 +171,13 @@ class CodexRunner:
 
     # -- llamada base (SSE) --------------------------------------------------
     def _post_stream(self, headers: dict, body: dict) -> httpx.Response:
+        # La via ChatGPT lee la base de la configuracion (oficial por default) para que
+        # las pruebas puedan apuntar a un servidor falso; la de la llave no cambia.
+        url = f"{settings.openai_base}/responses" if self._oauth else API_RESPONSES
         if self._http_post is not None:
-            return self._http_post(API_RESPONSES, headers=headers, json=body)
+            return self._http_post(url, headers=headers, json=body)
         client = httpx.Client(timeout=httpx.Timeout(120.0, connect=15.0))
-        return client.stream("POST", API_RESPONSES, headers=headers, json=body)
+        return client.stream("POST", url, headers=headers, json=body)
 
     def _run(self, model: str, instructions: str, input_items: list[dict], tools: list[dict] | None):
         """Una vuelta a la Responses API. Devuelve (texto, output_items, tool_calls, usage).
@@ -110,8 +188,9 @@ class CodexRunner:
         if self.budget_check is not None:
             self.budget_check()  # corte honesto del tope ANTES de gastar
 
-        if self._api_key is None:
+        if not self._oauth and self._api_key is None:
             raise CodexError("Falta tu API key de OpenAI. Conectala en Tu IA.")
+        bearer = self._token() if self._oauth else self._api_key
 
         body: dict[str, Any] = {
             "model": model,
@@ -121,24 +200,41 @@ class CodexRunner:
             "store": False,
         }
         if tools:
-            body["tools"] = tools
+            body["tools"] = _en_espacio(tools) if self._oauth else tools
             body["tool_choice"] = "auto"
 
-        text, items, usage, retried = self._consume(_api_key_headers(self._api_key), body)
-        if retried == 401:
-            raise CodexError("Tu API key de OpenAI no autorizo (401). Revisala en Tu IA.")
-        if retried:
-            raise CodexError(f"OpenAI respondio {retried}.")
+        text, items, usage, fallo = self._consume(_api_key_headers(bearer), body)
+        if fallo and fallo[0] == 401 and self._oauth:
+            # El token dejo de servir antes de lo que decia el reloj: se renueva una vez
+            # y se reintenta una vez. Si vuelve a fallar, ya no es cosa del token.
+            bearer = self._token(bearer)
+            text, items, usage, fallo = self._consume(_api_key_headers(bearer), body)
+        if fallo:
+            raise self._error(*fallo)
 
         tool_calls = [it for it in items if it.get("type") == "function_call"]
         return text, items, tool_calls, usage
 
+    def _error(self, status: int, codigo: str) -> CodexError:
+        """El rechazo en palabras. status 200 = el stream abrio y fallo a medio camino."""
+        if self._oauth:
+            code, mensaje = chatgpt_auth.mensaje_error(status, codigo)
+            return CodexError(mensaje, code)
+        if status == 401:
+            return CodexError("Tu API key de OpenAI no autorizo (401). Revisala en Tu IA.")
+        if status == 200:
+            return CodexError(f"OpenAI no completo la respuesta ({codigo or 'error'}).")
+        return CodexError(f"OpenAI respondio {status}.")
+
     def _consume(self, headers: dict, body: dict):
-        """Ejecuta el POST y parsea el SSE. Devuelve (texto, items, usage, error_status).
-        error_status es 0 si todo bien, o el codigo HTTP si el backend rechazo."""
+        """Ejecuta el POST y parsea el SSE. Devuelve (texto, items, usage, fallo).
+        fallo es None si todo bien, o (status HTTP, error.code) si el backend rechazo;
+        con status 200 el rechazo llego ya dentro del stream."""
         text_parts: list[str] = []
         items: list[dict] = []
         usage: dict | None = None
+        completo = False
+        fallo: tuple[int, str] | None = None
 
         resp = self._post_stream(headers, body)
         # Cliente inyectado (tests) devuelve una Response ya leida; el real es un stream.
@@ -148,7 +244,7 @@ class CodexRunner:
             if r.status_code != 200:
                 detail = r.read() if is_stream_ctx else getattr(r, "content", b"")
                 logger.warning("codex: OpenAI respondio %s: %s", r.status_code, detail[:200])
-                return "", [], None, r.status_code
+                return "", [], None, (r.status_code, _codigo_de(detail))
             lines = r.iter_lines() if is_stream_ctx else r.text.splitlines()
             for line in lines:
                 if not line.startswith("data:"):
@@ -167,15 +263,32 @@ class CodexRunner:
                     items.append(ev.get("item") or {})
                 elif etype == "response.completed":
                     usage = (ev.get("response") or {}).get("usage")
+                    completo = True
+                elif etype == "response.failed":
+                    # Un limite de uso puede llegar asi, con el stream ya abierto.
+                    err = (ev.get("response") or {}).get("error") or {}
+                    fallo = (200, str(err.get("code") or ""))
+                elif etype == "error":
+                    err = ev.get("error") if isinstance(ev.get("error"), dict) else ev
+                    fallo = (200, str(err.get("code") or ""))
+        # En la via ChatGPT solo cuenta como buena la respuesta que llego a
+        # `response.completed`: un stream cortado no se entrega como si fuera el texto.
+        if fallo is None and self._oauth and not completo:
+            fallo = (200, "")
+        if fallo is not None:
+            return "", [], None, fallo
         text = "".join(text_parts)
         if not text:  # respaldo: reconstruye del item message si no hubo deltas
             text = _text_from_items(items)
-        return text, items, usage, 0
+        return text, items, usage, None
 
     def _record(self, model: str, task: str, usage: dict | None) -> None:
         if self._usage_callback and usage:
             self._usage_callback(
-                model, task, int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0))
+                USO_PLAN_CHATGPT if self._oauth else model,
+                task,
+                int(usage.get("input_tokens", 0)),
+                int(usage.get("output_tokens", 0)),
             )
 
     # -- interfaz ProviderRunner --------------------------------------------
@@ -293,14 +406,22 @@ def test_codex(runner: CodexRunner | None = None) -> dict:
             "code": "not_configured",
             "error": "Falta tu API key de OpenAI. Pegala en Tu IA.",
         }
-    model = settings.model_codex
+    model = r.model_for("redaccion")
     t0 = time.monotonic()
     try:
-        r.complete(system="Responde en una palabra.", user="ping", task="provider_test", role="redaccion")
+        if r._oauth:
+            # Aqui lo que OpenAI mas facil rechaza son las herramientas, y los ayudantes
+            # las usan en cada platica: la prueba las manda, para que "Funciona" tambien
+            # lo diga de eso y no solo del texto.
+            entrada = [{"role": "user", "content": [{"type": "input_text", "text": "ping"}]}]
+            _t, _i, _tc, usage = r._run(model, "Responde en una palabra.", entrada, [_TOOL_DE_PRUEBA])
+            r._record(model, "provider_test", usage)
+        else:
+            r.complete(system="Responde en una palabra.", user="ping", task="provider_test", role="redaccion")
         return {"ok": True, "mode": mode, "model": model, "latency_ms": int((time.monotonic() - t0) * 1000)}
     except CodexError as exc:
         msg = str(exc)
-        code = "auth" if "401" in msg or "key" in msg.lower() else "status"
+        code = exc.code or ("auth" if "401" in msg or "key" in msg.lower() else "status")
         return {"ok": False, "mode": mode, "code": code, "error": msg}
     except httpx.HTTPError as exc:
         return {"ok": False, "mode": mode, "code": "network", "error": f"No se pudo conectar con OpenAI: {exc}"}

@@ -1,4 +1,4 @@
-"""Hardening del API: corrida diaria por cron protegida y trazas por request."""
+"""Hardening del API: trazas por request."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,20 +27,6 @@ def client(db_session):
     app.dependency_overrides[get_db] = lambda: db_session
     yield TestClient(app)
     app.dependency_overrides.clear()
-
-
-def test_corrida_manual_encola_y_corre(client, monkeypatch):
-    """POST /v1/daily/run dispara la corrida AHORA (local: sin tokens de cron)."""
-    corridas = {"n": 0}
-    import aiuda_server.worker.main as worker
-
-    monkeypatch.setattr(
-        worker, "run_daily_blocking", lambda: corridas.__setitem__("n", corridas["n"] + 1)
-    )
-    res = client.post("/v1/daily/run")
-    assert res.status_code == 202
-    assert res.json()["status"] == "encolado"
-    assert corridas["n"] == 1  # el background task efectivamente corrió
 
 
 def test_request_id_en_cada_respuesta(client):

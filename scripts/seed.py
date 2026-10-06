@@ -173,7 +173,7 @@ CONVERSATIONS = [
         [
             ("out", "Hola Su factura F-207 por $9,870.00 venció hace 4 días. ¿Nos apoya con el pago o nos avisa si ya lo realizó?", 1, 10),
             ("in", "quien eres?", 1, 10),
-            ("out", "Soy Mariana, asistente de cobranza de Taquería La Bonita Le escribo de su parte sobre la factura F-207. ¿Le comparto los datos de depósito?", 1, 10),
+            ("out", "Soy el asistente de cobranza de Taquería La Bonita. Le escribo de su parte sobre la factura F-207. ¿Le comparto los datos de depósito?", 1, 10),
             ("in", "ah ok, si pasamelos", 1, 11),
             ("out", "Buenas tardes, le atiende José, el dueño ‍ Con gusto: CLABE 012345678901234567, a nombre de Taquería La Bonita. Cualquier cosa aquí ando.", 1, 12, "human"),
         ],
@@ -183,7 +183,7 @@ CONVERSATIONS = [
         [
             ("out", "Buen día Le recordamos que la factura F-209 por $6,750.00 lleva 14 días vencida. ¿Nos ayuda con el pago?", 2, 10),
             ("in", "esa ya la pagué la semana pasada eh", 2, 11),
-            ("out", "¡Gracias por avisar! Registré su reporte de pago de la F-209 — queda pendiente de verificarse en cuanto se refleje en el banco. En cuanto se confirme le aviso ", 2, 11),
+            ("out", "¡Gracias por avisar! Registré su reporte de pago de la F-209: queda pendiente de verificarse en cuanto se refleje en el banco. En cuanto se confirme le aviso ", 2, 11),
         ],
     ),
 ]
@@ -204,8 +204,8 @@ PROMISES = [
 
 # Promesas cumplidas (historial): (folio, prometió hace, se cumplió hace, nota)
 FULFILLED_PROMISES = [
-    ("F-103", 7, 4, "Estética Rosy prometió pagar esta semana — cumplió"),
-    ("F-213", 9, 6, "Refaccionaria López avisó que ya había pagado — confirmado"),
+    ("F-103", 7, 4, "Estética Rosy prometió pagar esta semana: cumplió"),
+    ("F-213", 9, 6, "Refaccionaria López avisó que ya había pagado: confirmado"),
 ]
 
 # Uso de IA del mes: (modelo, tarea, eventos, in_tokens c/u, out_tokens c/u)
@@ -334,7 +334,7 @@ def seed(session) -> None:
             status="rejected",
         )
     )
-    # Pendientes de aprobación (Mariana)
+    # Pendientes de aprobación (cobranza)
     for folio, bucket, tone, message in PENDING:
         session.add(
             Reminder(
@@ -348,15 +348,15 @@ def seed(session) -> None:
             )
         )
 
-    # Pendientes de aprobación (Carlos · ventas): la bandeja es del equipo completo
+    # Pendientes de aprobación (ventas): la bandeja es del equipo completo
     for title, phone, message in [
         (
             "Cotización · 120 órdenes para evento de empresa",
             "5215599887766",
             "¡Hola! Gracias por escribirnos Para su evento del sábado le cotizo:\n\n"
-            "• 120 órdenes de tacos (pastor, bistec, suadero) — $7,800.00\n"
+            "• 120 órdenes de tacos (pastor, bistec, suadero): $7,800.00\n"
             "• Salsas, cebollitas y tortilla hecha a mano incluidas\n"
-            "• Entrega e instalación en Polanco — $450.00\n\n"
+            "• Entrega e instalación en Polanco: $450.00\n\n"
             "*Total: $8,250.00 MXN* (IVA incluido, con factura)\n\n"
             "Apartamos su fecha con el 30% de anticipo. ¿Se la confirmo?",
         ),
@@ -364,7 +364,7 @@ def seed(session) -> None:
             "Cotización · servicio de taquiza mensual para oficina",
             "5215588776655",
             "¡Buen día! Le preparé la propuesta para la taquiza mensual de su oficina:\n\n"
-            "• 60 personas, un viernes al mes — $4,900.00 por evento\n"
+            "• 60 personas, un viernes al mes: $4,900.00 por evento\n"
             "• Menú rotativo y opción vegetariana\n"
             "• Precio fijo por 6 meses con contrato\n\n"
             "Si le funciona, le mando el calendario propuesto. ¿Cómo ve?",
@@ -383,7 +383,7 @@ def seed(session) -> None:
                 status="pending_approval",
             )
         )
-    # Una cotización ya enviada (historial de Carlos)
+    # Una cotización ya enviada (historial de ventas)
     session.add(
         Reminder(
             tenant_id=tenant.id,
@@ -393,7 +393,7 @@ def seed(session) -> None:
             recipient_phone="5215577665544",
             bucket="cotizacion",
             tone="comercial",
-            message="Cotización enviada: 40 órdenes para su posada — $2,950.00 MXN.",
+            message="Cotización enviada: 40 órdenes para su posada: $2,950.00 MXN.",
             status="sent",
             sent_at=dt(days(-2), 13),
         )

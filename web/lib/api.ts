@@ -4,7 +4,11 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY ?? "";
 
-export type AgingLine = { bucket: string; count: number; total: number };
+/** La dirección de un recurso del API para un enlace directo (un PDF que se abre en
+ *  otra pestaña). En dev lleva /api; en la consola empaquetada va sin prefijo. */
+export const apiUrl = (path: string) => `${API_URL}${path}`;
+
+type AgingLine = { bucket: string; count: number; total: number };
 
 export type Cartera = {
   business_name: string;
@@ -13,9 +17,30 @@ export type Cartera = {
   open_total: number;
   open_count: number;
   pending_approvals: number;
+  /** Lo que hoy necesita la decisión del dueño: por aprobar + pagos por conciliar +
+   *  promesas vencidas. Se define UNA vez, en el server (`_espera_tu_ok`); lo usan el
+   *  globo del menú y la columna "Espera tu OK" del Centro. */
+  espera_tu_ok: number;
   active_promises: number;
   payment_reports: number;
   by_source: Record<string, number>;
+  aging: AgingLine[];
+  /** La moneda de la cifra grande: pesos si hay, si no la que más facturas tenga.
+   *  `open_total`, `open_count`, `aging` y `recovered_this_month` hablan SOLO de ella. */
+  moneda_principal: string;
+  /** El desglose por moneda. Pesos y dólares nunca se suman. */
+  por_moneda: CarteraMoneda[];
+  /** Facturas abiertas en cualquier moneda. */
+  open_count_todas: number;
+};
+
+/** Una moneda del desglose de `GET /v1/cartera` (`por_moneda`). */
+export type CarteraMoneda = {
+  moneda: string;
+  open_total: number;
+  open_count: number;
+  overdue_total: number;
+  recovered_this_month: number;
   aging: AgingLine[];
 };
 
@@ -49,12 +74,20 @@ export type ReminderItem = {
   sent_at?: string | null;
   /** Si el envío se intentó y tronó: el motivo visible (canal caído, sin contacto). */
   motivo_fallo?: string | null;
+  // aiuda lo retiró de la bandeja porque la factura ya no se cobra
+  retirado?: string | null;
   /** Si se aprobó sin canal conectado: aviso honesto ("se enviará cuando conectes…"). */
   pendiente?: string | null;
+  /** Cuenta en "Por aprobar": la regla vive en el server (`_recordatorio_pide_decision`). */
+  pide_decision?: boolean;
+  /** null = no va ligado a una factura. */
+  factura_abierta?: boolean | null;
+  /** Cuándo cambió de estado por última vez. */
+  updated_at?: string | null;
 };
 
 /** Procedencia de un dato: qué es + de qué fuente(s) viene, con su presencia. */
-export type Procedencia = {
+type Procedencia = {
   que?: string;
   source: string;
   sources?: string[];
@@ -88,10 +121,20 @@ export type PromiseItem = {
   customer: string;
   customer_id: string;
   amount: number;
+  /** La moneda de la factura prometida. */
+  currency?: string;
   promised_date: string;
   note: string | null;
   days_left: number;
   fulfilled_at: string | null;
+  /** La fecha prometida ya pasó, no se cumplió y la factura sigue abierta: cuenta
+   *  en "Espera tu OK". La regla vive en el server (`_promesa_vencida`). */
+  vencida: boolean;
+  /** false = la factura ya se pagó o se canceló: la promesa ya no pide nada. */
+  factura_abierta: boolean;
+  /** El dueño ya la dio por incumplida ("No cumplió"): sigue sin cumplir, pero ya no
+   *  cuenta en "Por aprobar". */
+  incumplida?: boolean;
 };
 
 export type ChatMessage = {
@@ -100,8 +143,11 @@ export type ChatMessage = {
   author: string;
   body: string;
   created_at: string | null;
-  // Entrega del saliente: sent | failed | pending | null (entrante/sin rastreo).
+  // Entrega del saliente: sent | failed | pending | sending (adjunto) | held | null.
   delivery?: string | null;
+  // Si falló: por qué, en español. Un adjunto fallido no se puede reintentar.
+  motivo_fallo?: string | null;
+  reintentable?: boolean;
   // Presentes solo en la respuesta de envío (no al listar el hilo).
   delivered?: boolean;
   delivery_error?: string | null;
@@ -118,7 +164,10 @@ export type CustomerDetail = {
   meta: Record<string, string>;
   // El cliente pidió no recibir mensajes (BAJA/STOP); null = puede recibir.
   opt_out: { at: string; via: string } | null;
+  /** SOLO de `moneda`; el desglose completo va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   open_count: number;
   conversation_id: string | null;
   human_takeover: boolean;
@@ -127,13 +176,14 @@ export type CustomerDetail = {
     id: string;
     folio: string;
     amount: number;
+    currency: string;
     status: string;
     bucket: string;
     days_overdue: number;
   }[];
   reminders: { id: string; folio: string | null; status: string; channel: string; bucket: string; created_at: string }[];
   promises: { id: string; folio: string | null; promised_date: string; fulfilled: boolean }[];
-  payments: { id: string; amount: number; paid_at: string; source: string; folio: string | null; status: string }[];
+  payments: { id: string; amount: number; currency: string; paid_at: string; source: string; folio: string | null; status: string }[];
   citas: { id: string; title: string; starts_at: string | null }[];
 };
 
@@ -156,8 +206,13 @@ export type Cfdi = {
 
 export type InvoiceDetail = InvoiceItem & {
   customer_id: string;
+  /** A dónde se escribirá el pago si se registra: la fuente de la factura y si está
+   *  conectada ahora. null = el pago no regresa a ningún sistema. */
+  pago_regresa_a: { fuente: string; conectada: boolean } | null;
   conversation_id: string | null;
   cfdi: Cfdi | Record<string, never>;
+  // Por qué se cerró sin pago, p. ej. "cancelada en el SAT"
+  motivo_cierre: string | null;
   has_xml: boolean;
   has_pdf: boolean;
   reminders: {
@@ -212,12 +267,19 @@ export type WritebackEntry = {
   done_at: string | null;
 };
 
+/** Lo que se debe en UNA moneda. Pesos y dólares nunca se suman. */
+export type SaldoMoneda = { moneda: string; open_total: number; open_count: number };
+
 export type CustomerItem = {
   id: string;
   name: string;
   phone: string | null;
+  /** Facturas abiertas en cualquier moneda. */
   open_invoices: number;
+  /** SOLO de `moneda` (pesos si debe algo en pesos). El resto va en `por_moneda`. */
   open_total: number;
+  moneda: string;
+  por_moneda: SaldoMoneda[];
   tags: string[];
   kind: string;
   meta: Record<string, string>;
@@ -233,37 +295,6 @@ export type ProductItem = {
   source: string;
   meta: Record<string, string>;
   presence: Record<string, { ref?: string; url?: string; file?: string; at?: string }>;
-};
-
-/** Estado de la fuente de prospección (DENUE · INEGI): sin token no hay búsqueda. */
-export type ProspeccionFuente = {
-  fuente: string;
-  nombre: string;
-  conectada: boolean;
-};
-
-/** Un negocio del directorio DENUE, con la marca de si YA está en tu cartera. */
-export type NegocioDenue = {
-  id: string;
-  nombre: string;
-  razon_social: string;
-  actividad: string;
-  telefono: string;
-  correo: string;
-  direccion: string;
-  contactable: boolean;
-  ya_registrado: boolean;
-  cliente_id: string | null;
-};
-
-export type ProspeccionBusqueda = { total: number; resultados: NegocioDenue[] };
-
-export type ProspeccionImport = {
-  importados: number;
-  ya_existian: number;
-  omitidos: number;
-  total: number;
-  detalle: { id: string; cliente_id: string; creado: boolean }[];
 };
 
 export type AppointmentItem = {
@@ -297,7 +328,7 @@ export type EntidadInyectable = "cliente" | "producto" | "factura" | "cita";
 export type InyectarDestinos = Record<EntidadInyectable, InyectarDestino[]>;
 
 /** Una factura candidata que propone el ayudante de conciliación para un pago. */
-export type ReconcileCandidate = {
+type ReconcileCandidate = {
   invoice_id: string;
   folio: string;
   customer: string;
@@ -313,7 +344,7 @@ export type ReconcileCandidate = {
 };
 
 /** Varias facturas del MISMO cliente cuyos saldos suman el pago (una transferencia, varias facturas). */
-export type ReconcileGroup = {
+type ReconcileGroup = {
   invoice_ids: string[];
   folios: string[];
   customer: string;
@@ -363,7 +394,7 @@ export type DichoPago = {
 };
 
 /** Estado honesto de una fuente de confirmación de pago (Belvo/Stripe). */
-export type FuenteConfirmacion = { configurada: boolean; verificada_en_vivo: boolean };
+type FuenteConfirmacion = { configurada: boolean; verificada_en_vivo: boolean };
 
 export type ReconcileConfig = { tolerancia_pct: number; tolerancia_abs: number };
 
@@ -405,7 +436,7 @@ export type Tag = { id: string; name: string; color: string; count?: number };
 export type ConversationStatus = "identificado" | "por_identificar" | "descartado";
 
 /** Hilo de correo: quién escribe y de qué va (la clave técnica vive en remote_phone). */
-export type CorreoHilo = { de: string; nombre: string; asunto: string };
+type CorreoHilo = { de: string; nombre: string; asunto: string };
 
 export type ConversationItem = {
   id: string;
@@ -438,34 +469,20 @@ export type ConversationDetail = {
     author: string;
     body: string;
     delivery?: string | null;
+    motivo_fallo?: string | null;
+    reintentable?: boolean;
     created_at: string;
   }[];
 };
 
 /** Plan de carrera: el nivel lo calcula el BACKEND a partir de acciones reales
  *  (filas de trabajo derivadas en cada lectura, no un contador). Aquí solo se pinta. */
-export type Nivel = {
+type Nivel = {
   nivel: string;
   /** Umbral de acciones del siguiente nivel; null en el máximo. */
   siguiente: number | null;
   /** Progreso [0..1] hacia el siguiente nivel. */
   progreso: number;
-};
-
-export type AgentState = {
-  slug: string;
-  active: boolean;
-  actions: number;
-  pending: number;
-  sent: number;
-  nivel: Nivel;
-};
-
-export type AgentConfig = {
-  slug: string;
-  user_rules: string[];
-  auto_send_buckets: string[];
-  business_context: string;
 };
 
 export type ImportResult = {
@@ -489,19 +506,6 @@ export type ImportAnalysis = {
   fields: Record<string, string>; // campo -> descripción
   types: { key: string; label: string }[];
   row_count: number;
-};
-
-export type UsageSummary = {
-  month: string;
-  total_cost_usd: number;
-  by_model: { model: string; input_tokens: number; output_tokens: number; cost_usd: number }[];
-  activity: {
-    recordatorios_redactados: number;
-    recordatorios_enviados: number;
-    conversaciones_atendidas: number;
-    mensajes_respondidos: number;
-    promesas_registradas: number;
-  };
 };
 
 
@@ -550,6 +554,26 @@ export type Invitacion = {
   tope_aprobacion: number | null;
 };
 
+/** Error de la API. `message` es el texto para el dueño (ya viene en español del
+ *  server); `code`, cuando viene, deja que la pantalla RECONOZCA el caso en vez de
+ *  solo pintarlo: p. ej. que lo que falta es conectar la IA. */
+export class ApiError extends Error {
+  code?: string;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** ¿El error se arregla en Tu IA? (no hay IA conectada, o la que hay no respondió).
+ *  Quien lo pinta pone la liga a Tu IA junto al mensaje. */
+export function errorDeIA(e: unknown): boolean {
+  return e instanceof ApiError && (e.code === "ia_no_conectada" || e.code === "ia_fallo");
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -562,7 +586,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail ?? `Error ${res.status}`);
+    throw new ApiError(
+      typeof detail?.detail === "string" ? detail.detail : `Error ${res.status}`,
+      res.status,
+      typeof detail?.code === "string" ? detail.code : undefined,
+    );
+  }
+  // Toda escritura puede mover lo que espera al dueño (aprobar, rechazar, pagar, pedir
+  // un recordatorio...): se avisa para que el globo del menú se vuelva a contar.
+  if (init?.method && init.method !== "GET" && typeof window !== "undefined") {
+    window.dispatchEvent(new Event("aiuda-escritura"));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -598,32 +631,32 @@ export type ExportEntidad =
 export type WorkspaceInfo = {
   business_name: string;
   role: string;
+  /** La versión de aiuda que corre en esta computadora. */
+  version?: string;
 };
 
-export type Profile = {
-  business_name: string;
-  owner_name: string;
-  email: string;
-  phone: string;
-  rfc: string;
+/** Modo de prueba. `retenidos` = lo aprobado que no ha salido: lo que se iría a
+ *  clientes reales al apagarlo. */
+export type ModoPrueba = { modo_sombra: boolean; retenidos: number };
+
+export type ModoPruebaCambio = ModoPrueba & {
+  retenidos_accion: "enviando" | "no_enviados" | null;
+};
+
+/** Lo que responde registrar un pago. */
+export type PagoRegistrado = {
+  id: string;
+  status: string;
+  paid_source: string;
+  promesas_cumplidas?: number;
+  recordatorios_retirados?: number;
+  /** La entrada de la cola que lleva el pago a su sistema de origen; null si no
+   *  regresa a ninguno. Se manda al momento: su estado real está en /v1/writeback. */
+  writeback_id?: string | null;
 };
 
 export type SearchResponse = {
   groups: { title: string; items: { label: string; sublabel: string; href: string }[] }[];
-};
-
-/** Un hito del embudo de activación; `done` se deriva del estado real en backend. */
-export type OnboardingStep = {
-  key: string;
-  label: string;
-  done: boolean;
-  href: string;
-};
-
-export type OnboardingState = {
-  steps: OnboardingStep[];
-  done_count: number;
-  total: number;
 };
 
 /** GET /v1/setup/estado: lo que aiuda encontró en ESTA computadora en el primer
@@ -644,6 +677,9 @@ export type SetupEstado = {
   ayudantes: { total: number; listo: boolean };
   extras: { wacli: boolean };
   terminado: boolean;
+  /** El negocio sigue en modo de prueba (toda instalación nueva nace así). */
+  modo_prueba?: boolean;
+  cerrado_por_el_dueno?: boolean;
 };
 
 /** Un modelo que aiuda recomienda para ESTA computadora. `cabe` es el veredicto
@@ -707,13 +743,13 @@ export type SetupRed = {
   aviso: string;
 };
 
-export type IntegrationFlow = "read" | "writeback" | "channel" | "confirm" | "action";
+type IntegrationFlow = "read" | "writeback" | "channel" | "confirm" | "action";
 
 /** Una capacidad que una fuente provee (lo que el aiudante realmente usa). */
-export type ProvidedCap = { cap: string; label: string; live: boolean };
+type ProvidedCap = { cap: string; label: string; live: boolean };
 
 /** La declaración de una conexión a la medida: URL, auth, paginación y mapeo. */
-export type CustomConnectorConfig = {
+type CustomConnectorConfig = {
   base_url: string;
   list_path?: string;
   root?: string;
@@ -765,7 +801,7 @@ export type CustomTestResult = {
 };
 
 /** Capacidad de negocio, independiente de la fuente que la cumple. */
-export type Capability = {
+type Capability = {
   key: string;
   label: string;
   desc: string;
@@ -783,6 +819,8 @@ export type IntegrationNode = {
   flows: IntegrationFlow[];
   rol: string;
   live: boolean;
+  /** false = construida, pero nadie la ha usado todavía con una cuenta real. */
+  estrenada: boolean;
   does: string;
   connected: boolean;
   configured: boolean;
@@ -805,7 +843,12 @@ export type SatEmpresa = {
   plazo_dias: number;
   sync: Record<
     "emitidas" | "recibidas",
-    { ultima_fecha: string | null; solicitud_pendiente: boolean }
+    {
+      ultima_fecha: string | null;
+      solicitud_pendiente: boolean;
+      aviso: string | null;
+      cancelaciones_hasta: string | null;
+    }
   >;
 };
 
@@ -818,14 +861,22 @@ export type SatEstado = {
     recibidas: number;
     intercompania: number;
     desconocida: number;
+    canceladas: number;
   };
+  /** `total` es SOLO de `moneda`; `por_moneda` trae el desglose. */
   cartera: {
-    por_empresa: { rfc: string; abiertas: number; total: number }[];
-    todo_junto: { abiertas: number; total: number };
+    por_empresa: {
+      rfc: string;
+      abiertas: number;
+      total: number;
+      moneda: string;
+      por_moneda: SaldoMoneda[];
+    }[];
+    todo_junto: { abiertas: number; total: number; moneda: string; por_moneda: SaldoMoneda[] };
   };
 };
 
-export type SatCfdi = {
+type SatCfdi = {
   uuid: string;
   tipo: string | null;
   metodo_pago: string | null;
@@ -840,6 +891,8 @@ export type SatCfdi = {
   direccion: string;
   source: string;
   invoice_id: string | null;
+  cancelado: boolean;
+  cancelado_el: string | null;
 };
 
 export type SatBoveda = {
@@ -883,18 +936,19 @@ export type IntegrationDetail = {
   rol: string;
   does: string;
   live: boolean;
+  estrenada: boolean;
   connected: boolean;
   configured: boolean;
   logo: string | null;
   color: string;
   group?: string;
-  // Aviso honesto cuando la vía no es la oficial (ej. WhatsApp por wacli/Evolution),
-  // igual que el modo de suscripción del proveedor de IA. No bloquea: informa.
+  // Aviso honesto cuando la vía no es la oficial (ej. WhatsApp por wacli).
+  // No bloquea: informa.
   warning?: string | null;
   capabilities: SourceCap[];
 };
 
-export type IntegrationAgent = {
+type IntegrationAgent = {
   slug: string;
   name: string;
   role: string;
@@ -914,43 +968,40 @@ export type IntegrationsGraph = {
   available_count: number;
 };
 
-export type AgentSystem = {
-  key: string;
-  name: string;
-  group: string;
-  logo: string | null;
-  color: string;
-  flows: IntegrationFlow[];
-  rol: string;
-  live: boolean;
-  does: string;
-  connected: boolean;
-  provides: ProvidedCap[];
-};
-
-export type AgentSystems = {
-  slug: string;
-  name: string;
-  role: string;
-  avatar: string;
-  systems: AgentSystem[];
-  capabilities: Capability[];
-  needs: string[];
-  gaps: string[];
-  connected_count: number;
-};
-
-// "codex" = OpenAI. Se conecta simétrico a Claude: API key (sk-...) o suscripción de ChatGPT.
-// La suscripción se conecta por device code ("Iniciar sesión con ChatGPT"), sin pegar nada.
+// "codex" = OpenAI. Se conecta simétrico a Claude: con la API key (sk-...) del dueño.
 // "local" = un endpoint OpenAI-compatible en tu máquina (Ollama, LM Studio, vLLM):
 // la única vía donde ningún dato sale de tu computadora.
 // "claude_cli"/"codex_cli" (modo "cli") = el Claude Code o el Codex que el dueño YA
 // tiene instalado y con su sesión iniciada. Se conecta con un clic: el secreto va
 // vacío porque no hay ninguno que guardar, la sesión vive dentro del propio programa.
-export type ProviderName = "claude" | "codex" | "local" | "claude_cli" | "codex_cli";
+// "chatgpt" (modo "oauth") = el dueño entró con su cuenta de ChatGPT por el flujo
+// oficial de OpenAI. No se guarda con saveProvider: empieza en chatgptIniciar y lo
+// termina el regreso del navegador.
+export type ProviderName =
+  | "claude"
+  | "codex"
+  | "local"
+  | "claude_cli"
+  | "codex_cli"
+  | "chatgpt";
 // Ya no existe "subscription": esa vía mandaba el token del dueño haciéndose pasar
-// por el CLI oficial del proveedor. Quien tiene suscripción usa "cli".
-export type ProviderMode = "api_key" | "cli";
+// por el CLI oficial del proveedor. Quien tiene suscripción usa "cli" u "oauth".
+export type ProviderMode = "api_key" | "cli" | "oauth";
+
+/** Cómo va "Entrar con ChatGPT" (viene dentro de GET /v1/provider). */
+export type ChatGPTEstado = {
+  /** Hay un login abierto en el navegador y todavía no regresa. */
+  pendiente: boolean;
+  /** Cómo terminó el último intento, si terminó mal. */
+  error: string | null;
+  /** La cuenta registrada. Se conserva al desconectar, para volver a entrar. */
+  email: string | null;
+  registrada: boolean;
+  /** Era la IA conectada y su sesión venció: toca volver a entrar. */
+  vencida: boolean;
+  /** El dueño ya leyó el aviso de que se usa su plan. */
+  bienvenida_vista: boolean;
+};
 
 /** Lo que hizo un ayudante en una unidad de trabajo. La narrativa la escribe el
  *  backend en español; el front no la arma para no poder contradecirla. */
@@ -998,7 +1049,7 @@ export type RunTurno = {
   error: string | null;
 };
 
-/** Estado del proveedor de IA conectado (panel /proveedor). */
+/** Estado de la IA conectada (Ajustes > Tu IA). */
 export type ProviderState = {
   name: ProviderName;
   mode: ProviderMode;
@@ -1011,6 +1062,7 @@ export type ProviderState = {
   local_config?: { base_url: string; model: string };
   /** Venías de la vía retirada por suscripción: qué pasó y qué hacer, en una frase. */
   aviso_retirado?: string;
+  chatgpt?: ChatGPTEstado;
 };
 
 /** Veredicto de la prueba de conexión REAL del proveedor (POST /v1/provider/test):
@@ -1021,9 +1073,9 @@ export type ProviderTest =
 
 // --- Aiuditas (catálogo capability-first) + ayudantes del dueño ---
 
-export type PerillaTipo = "enum" | "numero" | "bool" | "texto" | "hora";
+type PerillaTipo = "enum" | "numero" | "bool" | "texto" | "hora";
 
-export type PerillaOpcion = { value: string; label: string };
+type PerillaOpcion = { value: string; label: string };
 
 export type Perilla = {
   key: string;
@@ -1066,6 +1118,10 @@ export type AiuditaSpec = {
   /** Fuentes posibles para esa capacidad. Aquí el dueño define DE DÓNDE lee. */
   fuentes?: Fuente[];
   perillas: Perilla[];
+  /** Cuándo trabaja, dicho para el dueño ("Cada hora", "Cuando se lo pides"). */
+  cuando?: string;
+  /** Si lo que hace pasa por la aprobación del dueño, dicho para él. */
+  aprobacion?: string;
 };
 
 export type PerfilSpec = { slug: string; name: string; desc: string };
@@ -1139,8 +1195,12 @@ export type CuaCapacidad = {
   url_configurada: boolean;
   /** true = portal a la medida (se puede borrar); false = built-in. */
   editable: boolean;
+  /** false = nadie ha operado este portal de verdad todavía (sello "Sin estrenar"). */
+  estrenada: boolean;
   tiene_sesion: boolean;
   sesion_guardada_en: string | null;
+  /** Lo registró el dueño, o le puso dirección o sesión a uno de fábrica. */
+  del_dueno?: boolean;
 };
 
 /** Un portal a la medida que el dueño registró por URL. */
@@ -1170,16 +1230,62 @@ export type CuaSesionHandoff = {
 };
 
 /** Estado honesto de la oficina: si ESTE servidor tiene el navegador del asistente
- *  (extra `cua` + Chromium) y si el negocio tiene credencial de IA. Sin ambos, las
- *  tareas quedan en "No pudo" con la razón; la UI lo avisa antes de encolar.
+ *  (extra `cua` + Chromium) y si la IA del negocio sirve para operar portales (hoy,
+ *  solo una llave de Anthropic; `ia_detalle` dice por qué la conectada no). Sin
+ *  ambos, las tareas quedan en "No pudo" con la razón; la UI lo avisa antes de encolar.
  *  `handoff_posible`: ¿esta máquina puede abrir una ventana para que el dueño entre? */
 export type CuaEstado = {
   navegador_listo: boolean;
   navegador_detalle: string;
   credencial_ia: boolean;
+  ia_detalle: string;
   listo: boolean;
   handoff_posible: boolean;
   handoff_detalle: string;
+};
+
+/** Un documento oficial bajado de un portal (opinión 32-D, constancia). El PDF se
+ *  abre con apiUrl(`/v1/documentos/${id}.pdf`). */
+type Documento = {
+  id: string;
+  rfc: string;
+  tipo: string;
+  nombre: string;
+  folio: string | null;
+  /** Solo la opinión de cumplimiento: Positivo, Negativo… como lo dice el SAT. */
+  sentido: string | null;
+  fecha: string | null;
+  mission_id: string | null;
+};
+
+/** Una rutina sin IA del SAT para una empresa: su última corrida y lo último que trajo. */
+export type RutinaSat = {
+  capacidad: string;
+  nombre: string;
+  estrenada: boolean;
+  en_curso: boolean;
+  ultima_corrida: {
+    id: string;
+    status: CuaMision["status"];
+    error: string;
+    fecha: string;
+  } | null;
+  ultimo_documento: Documento | null;
+};
+
+/** Las rutinas sin IA por empresa con e.firma. `consentimiento_en` = cuándo dio el
+ *  dueño su permiso para ese RFC (null = hay que pedírselo antes de correr). */
+export type CuaDeterministas = {
+  navegador_listo: boolean;
+  navegador_detalle: string;
+  consentimiento_texto: string;
+  empresas: {
+    rfc: string;
+    nombre: string;
+    vigente_hasta: string | null;
+    consentimiento_en: string | null;
+    rutinas: RutinaSat[];
+  }[];
 };
 
 /** Una tarea de portal guardada con nombre para re-correrla con un clic. Vive en
@@ -1201,6 +1307,37 @@ export type LearningSummary = {
   rejected: number;
   tasaSinEditar: number | null;
   recientes: { original: string; final: string; createdAt: string | null }[];
+};
+
+/** El conector de WhatsApp en esta computadora: si ya está y, si no se puede instalar, por qué. */
+export type WhatsappInstalacion = {
+  instalado: boolean;
+  version: string | null;
+  /** La versión que instala este aiuda (para saber si "Actualizar" cambia algo). */
+  version_fijada: string;
+  no_se_puede: string | null;
+};
+
+/** El WhatsApp del negocio EN VIVO. `connected` = el número está vinculado;
+ *  `estado` dice cómo está la sesión ahora mismo. */
+export type WhatsappStatus = WhatsappInstalacion & {
+  connected: boolean;
+  estado:
+    | "sin_instalar"
+    | "sin_vincular"
+    | "vinculando"
+    | "conectando"
+    | "conectado"
+    | "sin_conexion"
+    | "sesion_cerrada"
+    | "desactualizado"
+    | "externo";
+  desde: string;
+  telefono: string | null;
+  /** El QR vigente mientras se empareja (wacli lo rota). */
+  qr: string | null;
+  /** Lo último que falló, en español (el QR caducó, no hay internet). */
+  aviso: string | null;
 };
 
 export const api = {
@@ -1317,13 +1454,29 @@ export const api = {
     ),
   provider: () => request<ProviderState>("/v1/provider"),
   saveProvider: (name: ProviderName, mode: ProviderMode, secret: string) =>
-    request<{ name: ProviderName; mode: ProviderMode; connected: boolean }>("/v1/provider", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, mode, secret }),
-    }),
+    request<{ name: ProviderName; mode: ProviderMode; connected: boolean; aviso?: string }>(
+      "/v1/provider",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, mode, secret }),
+      },
+    ),
   disconnectProvider: () =>
-    request<{ connected: boolean; env_fallback: boolean }>("/v1/provider", { method: "DELETE" }),
+    request<{ connected: boolean; env_fallback: boolean; aviso?: string }>("/v1/provider", {
+      method: "DELETE",
+    }),
+  /** Empieza a entrar con ChatGPT. El servidor abre el navegador; `url` es el respaldo. */
+  chatgptIniciar: (otraCuenta = false) =>
+    request<{ url: string; abierto: boolean }>("/v1/provider/chatgpt/iniciar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ otra_cuenta: otraCuenta }),
+    }),
+  chatgptEntendido: () =>
+    request<{ bienvenida_vista: boolean }>("/v1/provider/chatgpt/entendido", { method: "POST" }),
+  chatgptUso: () =>
+    request<{ url: string; abierto: boolean }>("/v1/provider/chatgpt/uso", { method: "POST" }),
   testProvider: () => request<ProviderTest>("/v1/provider/test", { method: "POST" }),
   testIntegration: (key: string) =>
     request<{ ok: boolean | null; message: string; details?: Record<string, number | string> }>(
@@ -1331,12 +1484,13 @@ export const api = {
       { method: "POST" },
     ),
   whatsappQr: () => request<{ connected: boolean; qr: string | null }>("/v1/integrations/whatsapp/qr", { method: "POST" }),
-  whatsappStatus: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/status"),
+  whatsappQrCancelar: () =>
+    request<{ connected: boolean }>("/v1/integrations/whatsapp/qr", { method: "DELETE" }),
+  whatsappStatus: () => request<WhatsappStatus>("/v1/integrations/whatsapp/status"),
+  whatsappInstalar: () =>
+    request<WhatsappInstalacion>("/v1/integrations/whatsapp/instalar", { method: "POST" }),
   whatsappLogout: () => request<{ connected: boolean }>("/v1/integrations/whatsapp/session", { method: "DELETE" }),
   workspace: () => request<WorkspaceInfo>("/v1/workspace"),
-  // Activación: progreso derivado del estado real (no flags persistidos). Lo
-  // consume el bloque "Primeros pasos" del Resumen.
-  onboardingState: () => request<OnboardingState>("/v1/onboarding/state"),
   // Primer arranque: qué encontró aiuda en la computadora y qué falta para trabajar.
   // Los aparatos del dueño y la puerta que da a la red de la oficina. El QR se
   // arma con lo que devuelve `crearInvitacion`; el token completo del aparato
@@ -1357,12 +1511,6 @@ export const api = {
     }),
   cancelarInvitacion: () =>
     request<{ cancelada: boolean }>("/v1/dispositivos/invitacion", { method: "DELETE" }),
-  cambiarDispositivo: (id: string, cambio: Partial<Pick<Dispositivo, "nombre" | "papel" | "tope_aprobacion">>) =>
-    request<Dispositivo>(`/v1/dispositivos/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cambio),
-    }),
   revocarDispositivo: (id: string) =>
     request<Dispositivo>(`/v1/dispositivos/${id}/revocar`, { method: "POST" }),
   setupEstado: () => request<SetupEstado>("/v1/setup/estado"),
@@ -1390,20 +1538,20 @@ export const api = {
   // Buscar una IA compartida en la red local. Tarda unos segundos (barrido de la
   // subred); la UI debe mostrar que está buscando.
   setupBuscarEnRed: () => request<SetupRed>("/v1/setup/red/buscar", { method: "POST" }),
-  profile: () => request<Profile>("/v1/profile"),
-  saveProfile: (body: Profile) =>
-    request<Profile>("/v1/profile", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }),
   search: (q: string) => request<SearchResponse>(`/v1/search?q=${encodeURIComponent(q)}`),
-  shadowMode: () => request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra"),
-  setShadowMode: (activo: boolean) =>
-    request<{ modo_sombra: boolean }>("/v1/settings/modo-sombra", {
+  /** El aviso de que la IA se pausó por el tope de gasto del mes (null = nada que decir). */
+  avisoTopeIa: () =>
+    request<{ aviso: { mes: string; desde: string | null } | null }>("/v1/avisos/tope-ia"),
+  descartarAvisoTopeIa: () =>
+    request<{ aviso: null }>("/v1/avisos/tope-ia/descartar", { method: "POST" }),
+  shadowMode: () => request<ModoPrueba>("/v1/settings/modo-sombra"),
+  /** `retenidos` solo cuenta al apagar: mandar ya lo aprobado que no ha salido, o
+   *  dejarlo en "No salió" para que no se vaya solo a clientes reales. */
+  setShadowMode: (activo: boolean, retenidos?: "enviar" | "no_enviar") =>
+    request<ModoPruebaCambio>("/v1/settings/modo-sombra", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ activo }),
+      body: JSON.stringify({ activo, retenidos: retenidos ?? null }),
     }),
   ventanaEnvio: () => request<{ ventana: string }>("/v1/settings/ventana-envio"),
   setVentanaEnvio: (ventana: string) =>
@@ -1456,21 +1604,6 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }),
-  // Prospección con DENUE · INEGI: buscar no guarda nada; importar carga la
-  // selección como prospectos con procedencia denue, sin duplicar la cartera.
-  prospeccionFuente: () => request<ProspeccionFuente>("/v1/prospeccion/fuente"),
-  prospeccionBuscar: (body: { condicion: string; lat: number; lng: number; radio_m: number }) =>
-    request<ProspeccionBusqueda>("/v1/prospeccion/buscar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }),
-  prospeccionImportar: (negocios: Omit<NegocioDenue, "contactable" | "ya_registrado" | "cliente_id">[]) =>
-    request<ProspeccionImport>("/v1/prospeccion/importar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ negocios }),
     }),
   appointments: () => request<AppointmentItem[]>("/v1/appointments"),
   // --- Altas directas + inyección a maestros ------------------------------
@@ -1650,7 +1783,6 @@ export const api = {
         }),
       },
     ),
-  usage: () => request<UsageSummary>("/v1/usage"),
   approve: (id: string, channel = "whatsapp", message?: string) =>
     // La respuesta dice el estado FINAL honesto: delivery "encolado" (canal listo, el
     // envío corre en segundo plano) o "pendiente_canal" (aprobado; `aviso` trae el
@@ -1680,7 +1812,8 @@ export const api = {
         ? `/v1/learning/summary?ayudante_id=${encodeURIComponent(ayudanteId)}`
         : `/v1/learning/summary`,
     ),
-  pay: (invoiceId: string) => request(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
+  pay: (invoiceId: string) =>
+    request<PagoRegistrado>(`/v1/invoices/${invoiceId}/pay`, { method: "POST" }),
   remind: (invoiceId: string) =>
     request<{ id: string; status: string; message: string }>(
       `/v1/invoices/${invoiceId}/remind`,
@@ -1688,6 +1821,12 @@ export const api = {
     ),
   fulfill: (promiseId: string) =>
     request(`/v1/promises/${promiseId}/fulfill`, { method: "POST" }),
+  /** Dar una promesa vencida por incumplida: sale de Hoy; la factura sigue abierta. */
+  promesaNoCumplio: (promiseId: string) =>
+    request<{ id: string; fulfilled: boolean; incumplida: boolean }>(
+      `/v1/promises/${promiseId}/no-cumplio`,
+      { method: "POST" },
+    ),
   reconciliation: () => request<ReconcileBandeja>("/v1/reconciliation"),
   // Acepta una factura o varias (un pago puede liquidar un grupo).
   confirmReconcile: (paymentId: string, invoiceIds: string | string[]) =>
@@ -1710,7 +1849,6 @@ export const api = {
     }),
   reconcileResueltos: () =>
     request<{ resueltos: ReconcileResuelto[]; count: number }>("/v1/reconciliation/resueltos"),
-  reconcileConfig: () => request<ReconcileConfig>("/v1/reconciliation/config"),
   saveReconcileConfig: (body: ReconcileConfig) =>
     request<ReconcileConfig>("/v1/reconciliation/config", {
       method: "PUT",
@@ -1735,21 +1873,27 @@ export const api = {
       body: JSON.stringify(body),
     }),
   // Son DOS prompts porque el interlocutor cambia: `chat` cuando el dueño le
-  // pregunta, `corrida` cuando redacta para un cliente. `system` es alias de `chat`
-  // y se conserva por compatibilidad.
+  // pregunta, `corrida` cuando redacta para un cliente.
   ayudantePrompt: (id: string) =>
-    request<{ system: string; chat: string; corrida: string }>(
+    request<{ chat: string; corrida: string }>(
       `/v1/ayudantes/${id}/prompt`,
     ),
   cuaEstado: () => request<CuaEstado>("/v1/cua/estado"),
   cuaCapacidades: () => request<CuaCapacidad[]>("/v1/cua/capacidades"),
   cuaMisiones: () => request<CuaMision[]>("/v1/cua/misiones"),
   cuaMision: (id: string) => request<CuaMision>(`/v1/cua/misiones/${id}`),
-  cuaEncolar: (capacidad: string, instruccion?: string) =>
+  cuaEncolar: (capacidad: string, instruccion?: string, rfc?: string) =>
     request<CuaMision>("/v1/cua/misiones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ capacidad, instruccion }),
+      body: JSON.stringify({ capacidad, instruccion, rfc }),
+    }),
+  cuaDeterministas: () => request<CuaDeterministas>("/v1/cua/deterministas"),
+  cuaAceptarConsentimiento: (rfc: string) =>
+    request<{ rfc: string; aceptado_en: string }>("/v1/cua/deterministas/consentimiento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rfc }),
     }),
   cuaRutinas: () => request<RutinaBackoffice[]>("/v1/cua/rutinas"),
   cuaGuardarRutina: (body: { nombre: string; capacidad: string; instruccion?: string }) =>
@@ -1760,8 +1904,6 @@ export const api = {
     }),
   cuaBorrarRutina: (id: string) =>
     request<void>(`/v1/cua/rutinas/${id}`, { method: "DELETE" }),
-  // Portales a la medida (registrar por URL) y direcciones de los built-in.
-  cuaPortales: () => request<CuaPortal[]>("/v1/cua/portales"),
   cuaCrearPortal: (body: { nombre: string; url: string; notas?: string }) =>
     request<CuaPortal>("/v1/cua/portales", {
       method: "POST",
@@ -1867,11 +2009,6 @@ export const api = {
     const qs = params.toString();
     return requestBlob(`/v1/export/${entidad}.xlsx${qs ? `?${qs}` : ""}`);
   },
-  importFile: (file: globalThis.File) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request<ImportResult>("/v1/import", { method: "POST", body: form });
-  },
   analyzeImport: (file: globalThis.File, entity?: string) => {
     const form = new FormData();
     form.append("file", file);
@@ -1907,7 +2044,7 @@ export const api = {
 };
 
 /** Un movimiento leído del estado de cuenta (cargo o abono, nunca ambos). */
-export type BancoMovimiento = {
+type BancoMovimiento = {
   fecha: string;
   concepto: string;
   referencia: string;
@@ -1949,11 +2086,11 @@ export const mxn = (value: number) =>
 // Antigüedad de cartera: única fuente de verdad para etiqueta, color de badge (fg/bg)
 // y color de la barra (bar). No redefinir estos tramos en las páginas.
 export const BUCKET_META: Record<string, { label: string; fg: string; bg: string; bar: string }> = {
-  por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-ok" },
+  por_vencer: { label: "Por vencer", fg: "text-ink-2", bg: "bg-line/50", bar: "bg-line-strong" },
   vence_pronto: { label: "Vence pronto", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },
-  vencida_reciente: { label: "Vencida 1–15 d", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
-  vencida: { label: "Vencida 16–45 d", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
-  critica: { label: "Vencida +45 d", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
+  vencida_reciente: { label: "Vencida 1 a 15 días", fg: "text-warn", bg: "bg-warn-soft", bar: "bg-warn" },
+  vencida: { label: "Vencida 16 a 45 días", fg: "text-warn-strong", bg: "bg-warn-strong-soft", bar: "bg-warn-strong" },
+  critica: { label: "Vencida más de 45 días", fg: "text-danger", bg: "bg-danger-soft", bar: "bg-danger" },
   // No es antigüedad de cartera: es una respuesta de correo propuesta por el
   // ayudante que espera tu aprobación (misma pill en el Centro).
   respuesta_correo: { label: "Respuesta de correo", fg: "text-accent-ink", bg: "bg-accent-soft", bar: "bg-accent" },

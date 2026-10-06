@@ -4,8 +4,8 @@
 #   scripts/build-app.sh          # todo: consola + binario + app
 #   scripts/build-app.sh --solo-binario
 #
-# Sale en desktop/src-tauri/target/release/bundle/ (.dmg en macOS, .msi/.exe en
-# Windows, .deb/.AppImage en Linux). Requisitos: node, uv y Rust (rustup).
+# Sale en desktop/src-tauri/target/release/bundle/ (.dmg y .app; aiuda se reparte
+# solo para Mac). Requisitos: node, uv y Rust (rustup).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -37,9 +37,7 @@ command -v rustc >/dev/null || {
 }
 TRIPLE=$(rustc -Vv | awk '/host:/ {print $2}')
 mkdir -p desktop/src-tauri/binaries
-BIN="dist/bin/aiuda"
-[ -f "$BIN.exe" ] && BIN="$BIN.exe"
-cp "$BIN" "desktop/src-tauri/binaries/aiuda-server-$TRIPLE"
+cp dist/bin/aiuda "desktop/src-tauri/binaries/aiuda-server-$TRIPLE"
 chmod +x "desktop/src-tauri/binaries/aiuda-server-$TRIPLE"
 (cd desktop && npm ci --silent && npx tauri build)
 

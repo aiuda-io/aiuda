@@ -40,7 +40,7 @@ class MercadoPagoClient:
     ):
         token = access_token or settings.mercadopago_access_token
         if not token:
-            raise RuntimeError("MERCADOPAGO_ACCESS_TOKEN no configurado — ver .env.example")
+            raise RuntimeError("MERCADOPAGO_ACCESS_TOKEN no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=BASE_URL,
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},

@@ -15,7 +15,7 @@ CARLOS_TOOLS: list[dict] = [
         "name": "consultar_catalogo",
         "description": (
             "Consulta el catálogo de productos con precio y existencia. Úsala SIEMPRE "
-            "antes de mencionar un precio o disponibilidad — nunca los inventes. Puedes "
+            "antes de mencionar un precio o disponibilidad: nunca los inventes. Puedes "
             "filtrar por nombre o SKU; sin filtro, lista el catálogo."
         ),
         "input_schema": {
@@ -34,7 +34,7 @@ CARLOS_TOOLS: list[dict] = [
         "description": (
             "Busca un cliente por nombre o teléfono y devuelve su contacto y su saldo "
             "pendiente (suma de facturas abiertas). Úsala antes de hablar de lo que un "
-            "cliente debe o de su historial — nunca inventes cifras."
+            "cliente debe o de su historial: nunca inventes cifras."
         ),
         "input_schema": {
             "type": "object",

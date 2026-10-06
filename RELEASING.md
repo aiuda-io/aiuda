@@ -5,21 +5,30 @@ Todo release sale de este repo, con estos comandos. No hay pasos secretos.
 Se publican dos cosas distintas:
 
 - **Wheels** (`aiuda-core` y `aiuda-server`) para quien instala con Python.
-- **Instaladores de escritorio** (.dmg y .app, .exe de NSIS, .deb y .AppImage)
-  para quien no quiere terminal.
+- **Instalador de escritorio** (.dmg y .app, solo para Mac) para quien no quiere
+  terminal.
 
 ## Versión
 
-La misma versión en cinco archivos, más el changelog:
+La misma versión en estos archivos, más el changelog:
 
-- `core/pyproject.toml`
+- `core/pyproject.toml` y `core/aiuda_core/__init__.py` (`__version__`, la que
+  dicen `aiuda version`, `aiuda doctor` y el API)
 - `server/pyproject.toml`
+- `pyproject.toml` de la raíz (no se publica, es solo el workspace, pero va igual)
 - `desktop/src-tauri/tauri.conf.json`
-- `desktop/src-tauri/Cargo.toml`
+- `desktop/src-tauri/Cargo.toml` (y `Cargo.lock`, que se actualiza al construir)
 - `desktop/package.json`
+- `web/package.json`
 - `CHANGELOG.md`
 
-El `pyproject.toml` de la raíz no se publica (es solo el workspace).
+Después, `uv lock` y `npm install --package-lock-only` en `web/` y en `desktop/`
+para que los candados digan lo mismo.
+
+Un prelanzamiento se escribe distinto en cada mundo y los dos son el mismo
+corte: Python lo quiere como `0.1.0a2` (PEP 440) y Tauri, Cargo y npm como
+`0.1.0-alpha.2` (SemVer). El ejemplo de `aiuda doctor` en `docs/PROBLEMAS.md`
+cita la versión de Python.
 
 ## Wheels
 
@@ -92,14 +101,12 @@ Cuando existan los certificados, se agregan como secrets del repo y
 `release.yml` los usa sin cambiar nada más; los nombres están anotados ahí.
 Después de un release firmado, `codesign -dv` debe decir Developer ID y no adhoc.
 
-En Windows los instaladores siguen sin firmar: SmartScreen mostrará su aviso.
-
 ## Publicar
 
-1. Subir la versión en los cinco archivos de arriba.
+1. Subir la versión en los archivos de arriba.
 2. Commit, tag `vX.Y.Z`, push del tag.
 3. `.github/workflows/release.yml` se dispara: construye los instaladores para
-   macOS (arm64 e Intel), Windows y Linux, crea el GitHub Release en **borrador**
+   macOS (arm64 e Intel), crea el GitHub Release en **borrador**
    con ellos, y arma los wheels (los publica a PyPI si existe el secret
    `PYPI_TOKEN`).
 4. Revisar el borrador, pegar las notas del changelog y publicarlo.

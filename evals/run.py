@@ -3,13 +3,8 @@
 Modos:
   --fake            (default) Runner determinista: valida el ARNÉS y los criterios
                     en CI sin red ni credenciales. No mide al modelo.
-  --real            Mide al modelo de verdad. Credencial, en este orden:
-                      1. ANTHROPIC_API_KEY del entorno (api_key)
-                      2. --env <ruta a .env>: lee DATABASE_URL (solo localhost:5434),
-                         abre Postgres en SOLO LECTURA, descifra la credencial 'ia'
-                         del tenant en memoria y usa make_runner igual que el motor.
-                    Con suscripción, el motor usa su modelo barato por default
-                    (model_redaccion_suscripcion=haiku): la corrida es barata.
+  --real            Mide al modelo de verdad con ANTHROPIC_API_KEY del entorno
+                    (api_key), por make_runner igual que el motor.
 
 Umbral: >=90% de los casos pasan (por caso: TODOS sus checks). Salida legible por
 área y exit code 1 si no se alcanza — para poder colgarlo de un cron/CI aparte.
@@ -17,12 +12,10 @@ Umbral: >=90% de los casos pasan (por caso: TODOS sus checks). Salida legible po
 Uso:
   .venv/bin/python -m evals.run                  # fake, determinista
   .venv/bin/python -m evals.run --real           # con ANTHROPIC_API_KEY
-  .venv/bin/python -m evals.run --real --env /ruta/al/.env
   .venv/bin/python -m evals.run --solo clasificacion
 """
 
 import argparse
-import json
 import re
 import sys
 from datetime import date
@@ -132,62 +125,13 @@ class FakeEvalRunner:
 # --------------------------------------------------------------------------- #
 
 
-def _runner_real(env_path: str | None):
-    import os
-
-    from aiuda_core.engine.provider import (
-        ProviderCredential,
-        default_credential,
-        test_credential,
-    )
+def _runner_real():
+    from aiuda_core.engine.provider import default_credential, test_credential
     from aiuda_core.engine.runner import make_runner
 
     cred = default_credential()  # ANTHROPIC_API_KEY del entorno, si hay
     if cred is None:
-        if not env_path:
-            sys.exit("Sin credencial: exporta ANTHROPIC_API_KEY o pasa --env <ruta a .env>.")
-        env: dict[str, str] = {}
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, _, v = line.partition("=")
-                    env[k.strip()] = v.strip().strip('"').strip("'")
-        from urllib.parse import urlsplit
-
-        u = urlsplit(env.get("DATABASE_URL", ""))
-        if u.hostname not in ("localhost", "127.0.0.1") or u.port != 5434:
-            sys.exit("--env: DATABASE_URL no es la base local (localhost:5434); abortando.")
-        os.environ["AIUDA_ENCRYPTION_KEYS"] = env["AIUDA_ENCRYPTION_KEYS"]
-
-        from sqlalchemy import create_engine, text
-
-        from aiuda_core.security import crypto
-
-        eng = create_engine(
-            env["DATABASE_URL"],
-            connect_args={"options": "-c default_transaction_read_only=on"},
-        )
-        with eng.connect() as conn:
-            row = conn.execute(
-                text(
-                    "SELECT ic.secret_ciphertext, ic.key_version, ic.public_config "
-                    "FROM integration_credentials ic JOIN tenants t ON t.id = ic.tenant_id "
-                    "WHERE ic.provider = 'ia' AND ic.status != 'disabled' "
-                    "ORDER BY (t.name ILIKE '%hanova%') DESC LIMIT 1"
-                )
-            ).fetchone()
-        eng.dispose()
-        if row is None:
-            sys.exit("--env: no hay credencial 'ia' en esa base.")
-        secret = json.loads(crypto.decrypt(bytes(row[0]), row[1]))
-        public = row[2] if isinstance(row[2], dict) else json.loads(row[2] or "{}")
-        data = {**public, **secret}
-        cred = ProviderCredential(
-            name=data.get("name") or "claude",
-            mode=data.get("mode") or "api_key",
-            secret=data["secret"],
-        )
+        sys.exit("Sin credencial: exporta ANTHROPIC_API_KEY.")
     veredicto = test_credential(cred)
     if not veredicto.get("ok"):
         sys.exit(f"La credencial no pasó el ping: {veredicto.get('code')} — {veredicto.get('error')}")
@@ -207,14 +151,13 @@ def _runner_real(env_path: str | None):
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evals de IA de aiuda (aparte del gate)")
     parser.add_argument("--real", action="store_true", help="mide al modelo real (default: fake)")
-    parser.add_argument("--env", default=None, help="ruta a un .env con DATABASE_URL local para la credencial 'ia'")
     parser.add_argument("--solo", choices=["redaccion", "chat", "clasificacion"], default=None)
     parser.add_argument("--umbral", type=float, default=UMBRAL)
     args = parser.parse_args()
 
     from evals import casos
 
-    runner = _runner_real(args.env) if args.real else FakeEvalRunner()
+    runner = _runner_real() if args.real else FakeEvalRunner()
     modo = "REAL" if args.real else "FAKE (arnés; no mide al modelo)"
     print(f"evals de IA — modo {modo} — {date.today().isoformat()}")
     print("-" * 76)

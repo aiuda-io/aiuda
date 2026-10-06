@@ -62,8 +62,11 @@ def tenant_runner(db, tenant: Tenant, run=None) -> ProviderRunner:
     OJO con el orden: `budget_check` se asigna DESPUÉS de envolver, así que el wrapper
     tiene que reenviar la asignación al runner de adentro o el tope de gasto se apaga en
     silencio. Lo hace, y hay un test que lo fija."""
+    from aiuda_core.engine import chatgpt_auth
     from aiuda_core.observabilidad import envolver
 
+    # Para quien llega sin run abierto (con run, `abrir_run` ya lo hizo antes de escribir).
+    chatgpt_auth.adelantar_renovacion(db, tenant.id)
     runner = make_runner(
         resolve_credential(session=db, tenant_id=tenant.id),
         usage_callback=usage_recorder(db, tenant.id),

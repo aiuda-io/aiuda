@@ -11,7 +11,7 @@ Qué puede PROPONER cada uno (proponer, nunca ejecutar sin humano):
     (pending_approval en la bandeja). Chat: consultar_catalogo, consultar_cliente
     (lectura).
   - diego/ (conciliación): el match depósito-factura con su razón
-    (engine/reconcile.propose_matches); el humano confirma en /conciliacion.
+    (engine/reconcile.propose_matches); el humano confirma en Cartera, Pagos.
     Chat: consultar_pagos (lectura). No redacta: propone matches, no mensajes.
   - valeria/ (recepción): nada todavía — solo consulta (consultar_agenda,
     buscar_cita). Agendar citas sigue "por conectar" en el catálogo.

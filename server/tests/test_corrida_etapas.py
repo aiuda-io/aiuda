@@ -52,7 +52,7 @@ def test_un_fallo_de_ia_no_revierte_lo_sincronizado(base_local, monkeypatch):
         s.add(t)
         s.commit()
 
-    def fake_sync(session, tenant, today=None, fuente_prefs=None):
+    def fake_sync(session, tenant, today=None, fuente_prefs=None, ia_cua=None):
         c = Customer(tenant_id=tenant.id, name="Nuevo", phone="5215500000001")
         session.add(c)
         session.flush()

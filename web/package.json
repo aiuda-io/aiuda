@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "scripts": {
     "manual": "node scripts/manual.mjs",
@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "preexport": "npm run manual",
+    "test": "node scripts/pruebas.mjs",
+    "preexport": "npm run manual && npm test",
     "export": "NEXT_EXPORT=1 NEXT_PUBLIC_API_URL='' next build"
   },
   "dependencies": {

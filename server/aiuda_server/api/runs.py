@@ -23,9 +23,9 @@ router = APIRouter()
 RETENCION_DEFAULT = 90
 
 DISPARO_LABEL = {
-    "corrida": "Corrida del día",
+    "corrida": "Revisión automática",
     "sincronizacion": "Leyó tus fuentes",
-    "manual": "Lo corriste tú",
+    "manual": "Lo pusiste a trabajar",
     "chat": "Le preguntaste",
     "entrante": "Contestó un mensaje",
     "rutina": "Encargo a un portal",

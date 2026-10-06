@@ -1,4 +1,4 @@
-"""CleoEngine (Mariana, cobranza): orquesta cartera + LLM + aprobación HITL.
+"""CleoEngine (runtime interno de cobranza): orquesta cartera + LLM + aprobación HITL.
 
 Qué PROPONE este runtime (proponer, nunca ejecutar sin humano):
   - Recordatorios de cobro (`draft_reminder` / `run_reminders`): quedan en
@@ -157,7 +157,7 @@ class CleoEngine:
             a = session.get(Ayudante, ayudante_id)
             if a is not None and a.tenant_id == tenant.id:
                 self._ayudante = a
-        # Runner del proveedor conectado por el tenant en /proveedor (o el env, self-host).
+        # Runner del proveedor conectado por el tenant en Ajustes, Tu IA (o el env, self-host).
         self.runner = runner or make_runner(
             resolve_credential(session=session, tenant_id=tenant.id),
             usage_callback=self._record_usage,
@@ -606,17 +606,17 @@ class CleoEngine:
                 Reminder.tenant_id == self.tenant.id, Reminder.status == "pending_approval"
             )
         ).all()
-        lines = [f"aiuda · Resumen de cartera — {today.strftime('%d/%m/%Y')}", ""]
+        lines = [f"aiuda · Resumen de cartera del {today.strftime('%d/%m/%Y')}", ""]
         labels = {
             Bucket.POR_VENCER: "Por vencer",
-            Bucket.VENCE_PRONTO: "Vencen pronto (0–3 días)",
-            Bucket.VENCIDA_RECIENTE: "Vencidas 1–15 días",
-            Bucket.VENCIDA: "Vencidas 16–45 días",
+            Bucket.VENCE_PRONTO: "Vencen pronto (0 a 3 días)",
+            Bucket.VENCIDA_RECIENTE: "Vencidas 1 a 15 días",
+            Bucket.VENCIDA: "Vencidas 16 a 45 días",
             Bucket.CRITICA: "Críticas (>45 días)",
         }
         for bucket, line in summary.items():
             if line.count:
-                lines.append(f"• {labels[bucket]}: {line.count} facturas — ${line.total:,.2f}")
+                lines.append(f"• {labels[bucket]}: {line.count} facturas, ${line.total:,.2f}")
         total = sum(line.total for line in summary.values())
         lines.append(f"\nTotal en cartera abierta: ${total:,.2f}")
         if pending:

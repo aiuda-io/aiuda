@@ -15,8 +15,9 @@ el motor no finge. Verdad verificada del motor (2026-07-07):
                (CarlosEngine: propone, el humano aprueba).
   - recepcion: consultar_agenda, buscar_cita (solo lectura).
   - conciliacion: consultar_pagos (lectura) y conciliar (engine/reconcile propone el
-               match; el humano confirma en /conciliacion — nunca cierra solo).
-  - el resto:  sin ejecutor todavía.
+               match; el humano confirma en Cartera, Pagos — nunca cierra solo).
+Un perfil entra a `PERFILES` solo si tiene al menos una aiudita viva: los que no
+tenían ninguna (legal, compras, contenido, prospección) se retiraron.
 """
 
 from __future__ import annotations
@@ -78,6 +79,11 @@ class Aiudita:
     # Las fuentes posibles se DERIVAN de la capacidad en la capa de integraciones
     # (una sola fuente de verdad); la elegida se guarda en la config como `_fuente`.
     capacidad: str = ""
+    # Las dos cosas que el dueño pregunta de cada tarea, en sus palabras y en una
+    # frase: cuándo trabaja y si algo sale sin que él lo apruebe. Vacío = todavía no
+    # hay nada que decir porque la aiudita no tiene ejecutor (`live=False`).
+    cuando: str = ""
+    aprobacion: str = ""
 
 
 @dataclass(frozen=True)
@@ -94,12 +100,8 @@ class Perfil:
 PERFILES: tuple[Perfil, ...] = (
     Perfil("cobranza", "Cobranza", "Vigila tu cartera, redacta recordatorios y registra promesas de pago."),
     Perfil("ventas", "Ventas", "Atiende prospectos y cotiza con tus precios reales."),
-    Perfil("legal", "Legal y fiscal", "Monitorea acuerdos y plazos del SAT y tribunales."),
     Perfil("recepcion", "Recepción", "Responde preguntas frecuentes y agenda citas."),
     Perfil("conciliacion", "Conciliación", "Cruza CFDI contra movimientos bancarios."),
-    Perfil("compras", "Compras", "Rastrea órdenes de compra y califica proveedores."),
-    Perfil("contenido", "Contenido", "Redacta publicaciones y campañas con tu voz de marca."),
-    Perfil("prospeccion", "Prospección", "Encuentra empresas que encajan con tu cliente ideal."),
 )
 
 
@@ -134,6 +136,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
         linea="Lee tus facturas abiertas con su atraso real, nunca de memoria, antes de decir cualquier monto o folio.",
         lectura=True,
         capacidad="cuentas_por_cobrar",
+        cuando="Cada vez que redacta o le preguntas algo.",
+        aprobacion="Solo lee. No envía nada.",
         live=True,
     ),
     Aiudita(
@@ -172,6 +176,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
             ),
         ),
         reglas_libres=True,  # caja: "no menciones recargos", "ofrece pago en OXXO"…
+        cuando="Cada hora revisa tu cartera, y cuando lo pones a trabajar.",
+        aprobacion="El borrador queda en Hoy para que lo apruebes.",
         live=True,
     ),
     Aiudita(
@@ -202,6 +208,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 live=True,
             ),
         ),
+        cuando="Cuando un cliente contesta con una fecha de pago.",
+        aprobacion="Solo lo anota. El seguimiento queda en Hoy para que lo apruebes.",
         live=True,
     ),
     Aiudita(
@@ -211,6 +219,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
         label="Registrar pago reportado",
         linea="Guarda que el cliente dice haber pagado; la factura sigue abierta hasta verificar contra el banco. Un dicho no es un pago.",
         lectura=False,
+        cuando="Cuando un cliente dice que ya pagó.",
+        aprobacion="No cierra la factura. El pago lo confirmas tú.",
         live=True,
     ),
     Aiudita(
@@ -218,7 +228,7 @@ AIUDITAS: tuple[Aiudita, ...] = (
         perfil="cobranza",
         tool="enviar_whatsapp",
         label="Enviar por WhatsApp",
-        linea="Manda el recordatorio ya aprobado al cliente, respetando tus reglas de autonomía y de no-molestar.",
+        linea="Manda el recordatorio ya aprobado al cliente, dentro de tu horario y sin escribirle de más.",
         lectura=False,
         perillas=(
             Perilla(
@@ -226,16 +236,16 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 label="Cuándo puede enviar",
                 tipo=PerillaTipo.ENUM,
                 default="siempre_pedir",
-                ayuda="El control es tuyo por defecto. El auto-envío es opt-in y nunca aplica a casos críticos.",
+                ayuda="De fábrica nada sale sin tu aprobación. Enviar solo lo eliges tú, y nunca aplica a los casos críticos.",
                 opciones=(
                     Opcion("siempre_pedir", "Siempre pedir mi aprobación"),
-                    Opcion("auto_bajo_umbral", "Auto-enviar bajo cierto atraso"),
+                    Opcion("auto_bajo_umbral", "Enviar solo si el atraso es poco"),
                 ),
                 live=True,
             ),
             Perilla(
                 key="umbral_auto_dias",
-                label="Auto-enviar solo por debajo de",
+                label="Enviar solo por debajo de",
                 tipo=PerillaTipo.NUMERO,
                 default=7,
                 ayuda="Arriba de este atraso siempre pide tu aprobación.",
@@ -261,7 +271,7 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 label="Atraso crítico",
                 tipo=PerillaTipo.NUMERO,
                 default=45,
-                ayuda="Arriba de esto nunca auto-envía: solo avisa que el responsable contactará en persona.",
+                ayuda="Arriba de esto nunca envía solo: avisa que el responsable contactará en persona.",
                 minimo=15,
                 maximo=180,
                 unidad="días",
@@ -276,6 +286,8 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 live=True,
             ),
         ),
+        cuando="Después de tu aprobación, dentro de tu horario.",
+        aprobacion="La decides tú, aquí abajo.",
         live=True,
     ),
     Aiudita(
@@ -304,13 +316,17 @@ AIUDITAS: tuple[Aiudita, ...] = (
                 live=True,
             ),
         ),
+        cuando="Todos los días, a la hora que elijas.",
+        aprobacion="Te llega a ti, no a tus clientes.",
         live=True,
     ),
     # ---- VENTAS (lectura viva, resto por conectar) ----
     Aiudita("ventas.consultar_catalogo", "ventas", "consultar_catalogo", "Consultar catálogo",
-            "Busca productos, precios y existencias reales antes de cotizar.", lectura=True, capacidad="catalogo_productos", live=True),
+            "Busca productos, precios y existencias reales antes de cotizar.", lectura=True, capacidad="catalogo_productos",
+            cuando="Cuando cotiza o le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("ventas.consultar_cliente", "ventas", "consultar_cliente", "Consultar cliente",
-            "Revisa los datos y el saldo del cliente para atender con contexto.", lectura=True, capacidad="directorio_clientes", live=True),
+            "Revisa los datos y el saldo del cliente para atender con contexto.", lectura=True, capacidad="directorio_clientes",
+            cuando="Cuando cotiza o le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita(
         id="ventas.generar_cotizacion",
         perfil="ventas",
@@ -352,70 +368,46 @@ AIUDITAS: tuple[Aiudita, ...] = (
             ),
         ),
         reglas_libres=True,  # caja: "ofrece envío gratis arriba de $5,000", condiciones…
+        cuando="Cuando armas una cotización en Productos.",
+        aprobacion="La cotización queda en Hoy para que la apruebes.",
         live=True,
     ),
     Aiudita("ventas.agendar_seguimiento", "ventas", "agendar_seguimiento", "Agendar seguimiento",
             "Programa el recordatorio si el prospecto no responde.", lectura=False),
     Aiudita("ventas.registrar_oportunidad", "ventas", "registrar_oportunidad", "Registrar oportunidad",
-            "Deja la oportunidad visible en el pipeline del equipo.", lectura=False),
+            "Deja la oportunidad a la vista de tu equipo.", lectura=False),
     # ---- RECEPCIÓN (lectura viva, resto por conectar) ----
     Aiudita("recepcion.consultar_agenda", "recepcion", "consultar_agenda", "Consultar agenda",
-            "Revisa la disponibilidad real del calendario.", lectura=True, capacidad="agenda", live=True),
+            "Revisa la disponibilidad real del calendario.", lectura=True, capacidad="agenda",
+            cuando="Cuando le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("recepcion.buscar_cita", "recepcion", "buscar_cita", "Buscar cita",
-            "Encuentra una cita existente por cliente o fecha.", lectura=True, capacidad="agenda", live=True),
+            "Encuentra una cita existente por cliente o fecha.", lectura=True, capacidad="agenda",
+            cuando="Cuando le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("recepcion.agendar_cita", "recepcion", "agendar_cita", "Agendar cita",
             "Agenda con confirmación y recordatorio 24h antes.", lectura=False),
     Aiudita("recepcion.buscar_en_kb", "recepcion", "buscar_en_kb", "Responder preguntas frecuentes",
-            "Contesta solo con la base de conocimiento que tu negocio aprobó.", lectura=True, reglas_libres=True),
-    Aiudita("recepcion.escalar_a_humano", "recepcion", "escalar_a_humano", "Escalar a un humano",
-            "Pasa la conversación al humano correcto, con todo el contexto.", lectura=False),
-    # ---- LEGAL Y FISCAL (por conectar) ----
-    Aiudita("legal.consultar_acuerdos", "legal", "consultar_acuerdos", "Consultar acuerdos",
-            "Busca movimiento por expediente en tribunales.", lectura=True, capacidad="expedientes"),
-    Aiudita("legal.calcular_plazo", "legal", "calcular_plazo", "Calcular plazo",
-            "Cuenta los días hábiles restantes por tipo de recurso.", lectura=True),
-    Aiudita("legal.resumir_acuerdo", "legal", "resumir_acuerdo", "Resumir acuerdo",
-            "Traduce el acuerdo a lenguaje simple para WhatsApp.", lectura=True),
-    Aiudita("legal.agendar_vencimiento", "legal", "agendar_vencimiento", "Agendar vencimiento",
-            "Pone el vencimiento en el calendario del responsable.", lectura=False),
+            "Contesta solo con las respuestas que tu negocio aprobó.", lectura=True, reglas_libres=True),
+    Aiudita("recepcion.escalar_a_humano", "recepcion", "escalar_a_humano", "Pasar a una persona",
+            "Pasa la conversación a la persona correcta, con todo el contexto.", lectura=False),
     # ---- CONCILIACIÓN (consulta y propuesta de matches vivas; CFDI por conectar) ----
     Aiudita("conciliacion.consultar_pagos", "conciliacion", "consultar_pagos", "Consultar pagos por conciliar",
             "Lee los depósitos detectados y a qué factura corresponden según la propuesta, antes de dar un pago por aplicado.",
-            lectura=True, capacidad="confirmacion_pago", live=True),
+            lectura=True, capacidad="confirmacion_pago",
+            cuando="Cuando le preguntas algo.", aprobacion="Solo lee. No envía nada.", live=True),
     Aiudita("conciliacion.descargar_cfdi", "conciliacion", "descargar_cfdi", "Descargar CFDI",
-            "Baja los CFDI del SAT con e.firma o CIEC, solo lectura.", lectura=True, capacidad="cfdi"),
+            "Baja los CFDI del SAT con tu e.firma, solo lectura.", lectura=True, capacidad="cfdi"),
     Aiudita("conciliacion.conciliar", "conciliacion", "conciliar", "Conciliar",
-            "Cruza facturas contra depósitos y te propone las coincidencias; tú confirmas cada match.", lectura=False, live=True),
+            "Cruza facturas contra depósitos y te propone las coincidencias; tú confirmas cada una.", lectura=False,
+            cuando="Cuando entra un pago o subes tu estado de cuenta.",
+            aprobacion="Ningún pago se aplica solo. Los confirmas tú en Cartera.", live=True),
     Aiudita("conciliacion.detectar_irregulares", "conciliacion", "detectar_irregulares", "Detectar irregulares",
             "Marca cancelados, sin comprobante o sin complemento.", lectura=True, capacidad="cfdi"),
-    # ---- COMPRAS (por conectar) ----
-    Aiudita("compras.monitorear_ocs", "compras", "monitorear_ocs", "Monitorear órdenes de compra",
-            "Detecta proveedores que no han confirmado.", lectura=True, capacidad="compras"),
-    Aiudita("compras.comparar_precios", "compras", "comparar_precios", "Comparar precios",
-            "Compara el precio actual contra tu histórico real.", lectura=True, capacidad="catalogo_productos"),
-    Aiudita("compras.sugerir_reorden", "compras", "sugerir_reorden", "Sugerir reorden",
-            "Prepara el borrador de orden de compra para que apruebes.", lectura=False),
-    # ---- CONTENIDO (por conectar) ----
-    Aiudita("contenido.redactar_post", "contenido", "redactar_post", "Redactar publicación",
-            "Escribe posts para IG, FB y LinkedIn con tu voz de marca.", lectura=False, reglas_libres=True),
-    Aiudita("contenido.redactar_campana", "contenido", "redactar_campana", "Redactar campaña",
-            "Arma correos y promociones de temporada.", lectura=False, reglas_libres=True),
-    Aiudita("contenido.programar_publicacion", "contenido", "programar_publicacion", "Programar publicación",
-            "Programa la publicación tras tu aprobación.", lectura=False),
-    # ---- PROSPECCIÓN (por conectar) ----
-    Aiudita("prospeccion.definir_icp", "prospeccion", "definir_icp", "Definir cliente ideal",
-            "Construye tu perfil de cliente ideal con tus mejores clientes reales.", lectura=True, reglas_libres=True),
-    Aiudita("prospeccion.buscar_prospectos", "prospeccion", "buscar_prospectos", "Buscar prospectos",
-            "Encuentra empresas que encajan, por zona y giro, en fuentes públicas.", lectura=True, capacidad="prospeccion"),
-    Aiudita("prospeccion.preparar_ficha", "prospeccion", "preparar_ficha", "Preparar ficha",
-            "Arma la ficha: quién es, por qué encaja y cómo abrir la conversación.", lectura=False),
 )
 
 
 # --- Índices y lookups ------------------------------------------------------
 
 _AIUDITA_POR_ID: dict[str, Aiudita] = {a.id: a for a in AIUDITAS}
-_PERFIL_POR_SLUG: dict[str, Perfil] = {p.slug: p for p in PERFILES}
 
 
 def aiudita_por_id(aiudita_id: str) -> Aiudita | None:
@@ -490,6 +482,8 @@ def _aiudita_payload(a: Aiudita) -> dict:
         "live": a.live,
         "reglas_libres": a.reglas_libres,
         "capacidad": a.capacidad,  # la capa de integraciones deriva sus fuentes
+        "cuando": a.cuando,
+        "aprobacion": a.aprobacion,
         "perillas": [_perilla_payload(p) for p in a.perillas],
     }
 

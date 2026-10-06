@@ -46,22 +46,6 @@ def chat_tools(aiudita_ids) -> list[dict]:
     return [CHAT_AIUDITAS[a][0] for a in aiudita_ids if a in CHAT_AIUDITAS]
 
 
-# Puente para chatear/consultar por rol o plantilla (no es un ayudante que el dueño creó):
-# mapea slugs de persona internos legacy al perfil de capacidades. Ya no existe la ruta
-# /asistentes; el mapa sobrevive para las vistas que aún piden un rol por ese slug.
-PERSONA_PERFIL = {
-    "mariana": "cobranza",
-    "carlos": "ventas",
-    "valeria": "recepcion",
-    "diego": "conciliacion",
-}
-
-
-def chat_aiuditas_de_perfil(perfil: str) -> list[str]:
-    """Las aiuditas de chat (lectura) de un perfil — para chatear con un rol sin ayudante."""
-    return [aid for aid in CHAT_AIUDITAS if aid.split(".")[0] == perfil]
-
-
 class AyudanteChatExecutor:
     """Despacha cada tool al ejecutor del perfil que lo provee. Tenant obligatorio
     (un ayudante jamás ve datos de otro negocio). Solo herramientas de lectura."""

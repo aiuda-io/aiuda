@@ -4,14 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import type { AiuditaConfig, AiuditasCatalog, AiuditaSpec } from "@/lib/api";
 import { AiuditaIcon, aiuditaTipo } from "@/components/aiudita-icon";
 import { removeAiudita, setAiudita } from "@/lib/ayudantes-store";
-import { perfilColor } from "@/lib/perfiles";
 
 /**
- * Picker de aiuditas estilo paleta de comandos: busca, filtra por perfil o por "solo listas",
- * y agrega/quita con un toque. Reemplaza el muro de grillas repetido por cada perfil. Se
- * alimenta del catálogo y muta el store (setAiudita/removeAiudita); como el ayudante es
- * reactivo, `activos` se actualiza en vivo y el + cambia a check sin recargar. Cierra con Esc
- * o clic fuera; la animación respeta prefers-reduced-motion (clases cmd-* de globals.css).
+ * Elegir qué sabe hacer un ayudante: busca, filtra por oficio y pone o quita con un toque.
+ * Se alimenta del catálogo del servidor; lo elegido se guarda al momento y la palomita
+ * cambia sin recargar. Cierra con Esc o tocando fuera.
  */
 export function AiuditaPicker({
   ayudanteId,
@@ -25,7 +22,7 @@ export function AiuditaPicker({
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
-  // "all" | "listas" | slug de perfil
+  // "all" | "listas" | slug del oficio
   const [filtro, setFiltro] = useState<string>("all");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -70,8 +67,7 @@ export function AiuditaPicker({
 
   return (
     <div
-      className="cmd-backdrop fixed inset-0 z-50 flex justify-center bg-ink/25 px-4"
-      style={{ paddingTop: "min(14vh, 80px)" }}
+      className="cmd-backdrop fixed inset-0 z-50 flex justify-center bg-ink/25 px-4 pt-4 sm:pt-20"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -80,11 +76,11 @@ export function AiuditaPicker({
         role="dialog"
         aria-modal="true"
         aria-label="Agregar aiuditas"
-        className="cmd-panel flex w-full max-w-xl flex-col rounded-xl border border-line bg-surface shadow-[0_24px_60px_-34px_rgba(13,45,62,0.45)]"
-        style={{ maxHeight: "72vh" }}
+        // En teléfono ocupa casi toda la pantalla: con el tope de escritorio quedaba
+        // una ventanita de tres renglones para una lista de veinte.
+        className="cmd-panel elev-lg flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col self-start rounded-2xl bg-surface sm:max-h-[72vh]"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Búsqueda */}
         <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
           <svg viewBox="0 0 14 14" className="h-3.5 w-3.5 shrink-0 text-ink-3" fill="none">
             <circle cx="6" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.3" />
@@ -95,14 +91,16 @@ export function AiuditaPicker({
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar aiudita · cotizar, agendar, conciliar…"
-            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3"
+            placeholder="Buscar: cotizar, agendar"
+            aria-label="Buscar aiudita"
+            // Campo desnudo dentro del panel: sin el aro de foco de los campos con borde.
+            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3 focus-visible:shadow-none"
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="shrink-0 rounded border border-line bg-panel px-1 text-sello text-ink-3">
-            Esc
-          </kbd>
+          <button type="button" onClick={onClose} className="btn btn-quiet btn-sm shrink-0">
+            Listo
+          </button>
         </div>
 
         {/* Filtros */}
@@ -116,7 +114,7 @@ export function AiuditaPicker({
             </FiltroChip>
           ))}
           <FiltroChip activo={filtro === "listas"} onClick={() => setFiltro("listas")}>
-            Solo listas
+            Las que ya funcionan
           </FiltroChip>
         </div>
 
@@ -124,12 +122,12 @@ export function AiuditaPicker({
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
           {grupos.length === 0 ? (
             <p className="px-4 py-10 text-center text-cuerpo text-ink-3">
-              {query ? `Sin aiuditas para «${q.trim()}».` : "Sin aiuditas en este filtro."}
+              {query ? `Nada coincide con «${q.trim()}».` : "No hay ninguna aquí."}
             </p>
           ) : (
             grupos.map((g) => (
               <div key={g.perfil.slug}>
-                <p className="px-4 pb-1 pt-3 text-rotulo font-semibold uppercase tracking-[0.07em] text-ink-3">
+                <p className="eyebrow px-4 pb-1 pt-4">
                   {g.perfil.name}
                 </p>
                 {g.items.map((spec) => (
@@ -146,10 +144,9 @@ export function AiuditaPicker({
           <div className="h-2" />
         </div>
 
-        {/* Pie honesto */}
-        <div className="border-t border-line px-4 py-2.5 text-apoyo leading-relaxed text-ink-3">
-          Toca el + para equipar una aiudita. Las «por conectar» se guardan listas para cuando
-          conectes su fuente; nada se envía sin tu aprobación.
+        <div className="border-t border-line px-4 py-3 text-apoyo text-ink-3">
+          Toca una para ponerla o quitarla. Las que todavía no funcionan se pueden dejar puestas:
+          no hacen nada hasta que estén listas.
         </div>
       </div>
     </div>
@@ -170,19 +167,15 @@ function FiltroChip({
       type="button"
       onClick={onClick}
       aria-pressed={activo}
-      className={`rounded-full px-2.5 py-1 text-sello font-medium transition-colors ${
-        activo
-          ? "bg-ink text-surface"
-          : "border border-line text-ink-2 hover:border-line-strong hover:text-ink"
-      }`}
+      className={`btn btn-sm ${activo ? "btn-elegida" : "btn-secondary"}`}
     >
       {children}
     </button>
   );
 }
 
-/** Una fila del picker: icono de la aiudita, nombre + línea, estado y el botón +/check.
- *  Las "por conectar" quedan atenuadas pero visibles y agregables. */
+/** Una fila: su dibujo, nombre y qué hace, y la palomita si ya la tiene. Las que
+ *  todavía no funcionan se ven más tenues, pero se pueden poner. */
 function PickerRow({
   spec,
   activa,
@@ -193,41 +186,31 @@ function PickerRow({
   onToggle: () => void;
 }) {
   const tipo = aiuditaTipo(spec.id, spec.lectura);
-  const color = perfilColor(spec.perfil);
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={activa}
-      className={`group flex w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-accent-soft/50 ${
-        spec.live ? "" : "opacity-60"
-      }`}
+      className="group flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-panel"
     >
       <span
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-        style={{ background: `${color}1f`, color }}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fill p-2 text-ink-2 ${
+          spec.live ? "" : "opacity-50"
+        }`}
       >
-        <AiuditaIcon id={spec.id} tipo={tipo} className="h-4 w-4" />
+        <AiuditaIcon id={spec.id} tipo={tipo} className="h-5 w-5" />
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-cuerpo font-medium text-ink">{spec.label}</span>
-        <span className="block truncate text-apoyo text-ink-3">{spec.linea}</span>
-      </span>
-      <span
-        className="hidden shrink-0 items-center gap-1.5 text-apoyo font-semibold sm:inline-flex"
-        style={{ color: spec.live ? "var(--color-ok)" : "var(--color-ink-3)" }}
-      >
-        <span
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ background: spec.live ? "var(--color-ok)" : "var(--color-line-strong)" }}
-        />
-        {spec.live ? "Lista" : "Por conectar"}
+      <span className={`min-w-0 flex-1 ${spec.live ? "" : "opacity-60"}`}>
+        <span className="block text-cuerpo font-medium text-ink">{spec.label}</span>
+        <span className="block text-apoyo text-ink-3">
+          {spec.live ? spec.linea : `Todavía no funciona. ${spec.linea}`}
+        </span>
       </span>
       <span
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${
           activa
             ? "bg-accent text-surface"
-            : "border border-line text-ink-3 group-hover:border-accent group-hover:text-accent-ink"
+            : "bg-fill text-ink-3 group-hover:bg-fill-strong group-hover:text-ink"
         }`}
         aria-hidden
       >

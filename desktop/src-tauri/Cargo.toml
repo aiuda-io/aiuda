@@ -1,6 +1,6 @@
 [package]
 name = "aiuda-desktop"
-version = "0.1.0"
+version = "0.1.0-alpha.2"
 description = "aiuda: ayudantes de IA en tu computadora"
 authors = ["Hanova Consulting"]
 license = "Apache-2.0"

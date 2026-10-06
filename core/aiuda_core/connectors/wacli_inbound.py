@@ -13,10 +13,11 @@ lo que llega después. El webhook además deduplica por `id`, así que un reenv�
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Callable, Iterable
 from datetime import datetime
 
-from aiuda_core.phones import digits_from_jid
+from aiuda_core.phones import digits_from_jid, match_key, phone_from_jid
 
 # Cuántos ids recientes recordar por conversación (red anti-reenvío para mensajes cuyo
 # timestamp no se puede ordenar). Acotado para que el estado no crezca sin control.
@@ -35,8 +36,65 @@ def _from_me(msg: dict) -> bool:
     return bool(_first(msg, "FromMe", "fromMe", "from_me"))
 
 
+# Lo que el cliente mandó cuando no escribió nada: una etiqueta en español. wacli
+# lo describe en inglés en `DisplayText` ("Sent image") y ese texto no es del cliente.
+_ADJUNTOS = {
+    "image": "[imagen]",
+    "video": "[video]",
+    "audio": "[audio]",
+    "document": "[documento]",
+}
+
+
+# Marcadores que wacli pone donde el cliente no escribió nada (salen de su binario,
+# 0.18.2): "[Audio]" como nota de un audio, y "[Album]" o "[Album: 3 images]" como
+# texto del mensaje que solo agrupa un álbum. Vistos con una cuenta real: entraban
+# a la bandeja como si el cliente hubiera escrito eso.
+_MARCADOR_AUDIO = re.compile(r"\[audio\]", re.IGNORECASE)
+_MARCADOR_ALBUM = re.compile(r"\[album(:[^\]]*)?\]", re.IGNORECASE)
+
+# Un mensaje que es solo una etiqueta entre corchetes: las de arriba ("[audio]",
+# "[imagen]"), "[documento] nombre.pdf" o cualquier otra que llegue así
+# ("[Pendiente]", vista en la misma prueba; no sale de wacli).
+_SOLO_ETIQUETA = re.compile(r"\[[^\[\]\n]{1,60}\]")
+
+
+def es_solo_etiqueta(body) -> bool:
+    """¿El mensaje no trae nada escrito por el cliente? Un audio, una foto o un
+    documento sin nota se quedan en la bandeja con su etiqueta, pero no hay qué
+    contestarles: el ayudante no responde a algo que no pudo leer."""
+    texto = str(body or "").strip()
+    return bool(_SOLO_ETIQUETA.fullmatch(texto)) or texto.startswith(_ADJUNTOS["document"] + " ")
+
+
 def _text(msg: dict) -> str:
-    return str(_first(msg, "Text", "DisplayText", "Body", "Message", "text") or "").strip()
+    """Lo que el cliente escribió, o la etiqueta de lo que mandó. Cadena vacía si
+    no hay nada que atender.
+
+    `DisplayText` es la descripción que wacli arma para su propia pantalla, en
+    inglés: "Sent sticker", "Reacted ... to ...", "(message)". Visto con wacli
+    0.18.2 contra una cuenta real: tomarlo como el mensaje metía reacciones y
+    stickers a la bandeja como si el cliente hubiera escrito eso, y el ayudante
+    les contestaba. Aquí una reacción o un sticker no es un mensaje; una foto, un
+    audio o un documento sin nota entra con su etiqueta (un comprobante de pago
+    suele llegar así) y con nota entra la nota. El mensaje que agrupa un álbum
+    tampoco entra: cada foto llega aparte, con su propio mensaje."""
+    if _first(msg, "ReactionToID"):
+        return ""
+    tipo = str(_first(msg, "MediaType") or "").strip().lower()
+    if tipo:
+        nota = str(_first(msg, "MediaCaption") or "").strip()
+        if nota and not _MARCADOR_AUDIO.fullmatch(nota):
+            return nota
+        etiqueta = _ADJUNTOS.get(tipo)
+        if etiqueta is None:
+            return ""  # sticker u otro tipo sin contenido que leer
+        nombre = str(_first(msg, "Filename") or "").strip()
+        return f"{etiqueta} {nombre}" if tipo == "document" and nombre else etiqueta
+    texto = str(_first(msg, "Text", "Body", "Message", "text") or "").strip()
+    if _MARCADOR_ALBUM.fullmatch(texto):
+        return ""
+    return _ADJUNTOS["audio"] if _MARCADOR_AUDIO.fullmatch(texto) else texto
 
 
 def _ts(msg: dict) -> float | None:
@@ -113,18 +171,31 @@ def collect_inbound(
     chats: Iterable[dict],
     list_messages: Callable[[str], list[dict]],
     state: dict,
+    atendidos: set[str],
 ) -> tuple[list[dict], dict]:
-    """Recorre las conversaciones DM y junta los mensajes entrantes nuevos.
+    """Recorre las conversaciones de los teléfonos atendidos y junta sus mensajes
+    entrantes nuevos.
 
-    `state` mapea jid → estado por conversación; se devuelve actualizado. Los grupos
-    (kind != 'dm') se ignoran: la cobranza es 1 a 1, no en grupos."""
+    `atendidos` son los teléfonos (por match_key) de los clientes y del dueño: solo
+    esas conversaciones se leen. El número vinculado suele ser el personal del
+    dueño, y leer cada chat cuesta un proceso de wacli por vuelta; los de su
+    familia y amigos ni se abren. Los grupos (kind != 'dm') y los JID que no son un
+    teléfono ('@lid') tampoco: la cobranza es 1 a 1 y con alguien conocido.
+
+    `state` mapea jid → estado por conversación; se devuelve actualizado y sin los
+    chats que ya no se atienden: si ese número se vuelve cliente después, su chat
+    se siembra de nuevo en vez de reenviar lo que escribió mientras no lo era."""
+
+    def atendido(jid: str) -> bool:
+        return match_key(phone_from_jid(jid)) in atendidos
+
     posts: list[dict] = []
-    new_state = dict(state)
+    new_state = {jid: visto for jid, visto in state.items() if atendido(jid)}
     for chat in chats:
         if chat.get("kind") not in (None, "dm"):
             continue  # solo conversaciones directas
         jid = chat.get("jid")
-        if not jid:
+        if not jid or not atendido(jid):
             continue
         chat_posts, chat_state = select_new(list_messages(jid), jid, state.get(jid))
         posts.extend(chat_posts)

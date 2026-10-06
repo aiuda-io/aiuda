@@ -1,6 +1,6 @@
 [project]
 name = "aiuda-workspace"
-version = "0.1.0"
+version = "0.1.0a2"
 description = "aiuda — asistentes de IA para PyMEs mexicanas (workspace raíz)"
 requires-python = ">=3.11"
 dependencies = ["aiuda-core", "aiuda-server"]
@@ -25,12 +25,10 @@ aiuda-server = { workspace = true }
 dev = [
     "pyinstaller>=6.21.0",
     "pytest>=8.0",
-    "pytest-asyncio>=0.23",
     "ruff>=0.4",
 ]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["core/tests", "server/tests"]
 
 [tool.ruff]

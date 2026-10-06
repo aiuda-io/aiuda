@@ -2,7 +2,7 @@
 
 Para qué lo usa aiuda: detectar cobros ya realizados como fuente que
 CONFIRMA pagos, igual que Belvo con el banco ("un dicho no es un pago").
-Carlos puede ver qué ventas de su tienda en línea ya liquidaron en Stripe
+El ayudante de ventas puede ver qué ventas de la tienda en línea ya liquidaron en Stripe
 y cuáles siguen pendientes, sin abrir el dashboard de Stripe.
 
 Auth: Bearer con la API key de la cuenta (sk_live_… en producción).
@@ -36,7 +36,7 @@ class StripeClient:
         key = api_key or settings.stripe_api_key
         if not key:
             raise RuntimeError(
-                "STRIPE_API_KEY no configurado — ver .env.example"
+                "STRIPE_API_KEY no configurado. Captura ese dato al conectar."
             )
         self._http = httpx.Client(
             base_url="https://api.stripe.com",

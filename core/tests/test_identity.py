@@ -6,6 +6,7 @@ from aiuda_core.identity import (
     find_conversation_by_phone,
     resolve_customer_by_email,
     resolve_customer_by_phone,
+    telefonos_atendidos,
 )
 from aiuda_core.models.entities import Conversation, Customer
 
@@ -49,3 +50,31 @@ def test_resolve_customer_por_email_normaliza(session, tenant):
     # Sin @ no hay correo: nunca cruza (ni con vacío ni con basura).
     assert resolve_customer_by_email(session, tenant.id, "") is None
     assert resolve_customer_by_email(session, tenant.id, "ana") is None
+
+
+def test_telefonos_atendidos_son_los_clientes_y_el_dueno_en_cualquier_formato(session, tenant):
+    from aiuda_core.phones import match_key, phone_from_jid
+
+    tenant.owner_phone = "+52 1 55 0000 0000"
+    session.add_all([
+        Customer(tenant_id=tenant.id, name="Local", phone="55 1234 5678"),
+        Customer(tenant_id=tenant.id, name="Con 52", phone="+52 33 1487 2210"),
+        Customer(tenant_id=tenant.id, name="Sin teléfono", phone=None),
+        Customer(tenant_id=tenant.id, name="Basura", phone="123"),
+    ])
+    session.flush()
+    atendidos = telefonos_atendidos(session, tenant)
+    assert atendidos == {"5512345678", "3314872210", "5500000000"}
+
+    def llega(jid):
+        return match_key(phone_from_jid(jid)) in atendidos
+
+    # WhatsApp entrega el mismo número con 521 o con 52: los dos cruzan.
+    assert llega("5215512345678@s.whatsapp.net") and llega("525512345678@s.whatsapp.net")
+    assert llega("5213314872210:31@s.whatsapp.net")  # con sufijo de dispositivo
+    assert not llega("5215599990000@s.whatsapp.net")
+    # Un '@lid' no trae teléfono, y el id de un grupo no es un teléfono aunque
+    # termine en los mismos dígitos que el de un cliente.
+    assert not llega("190000000000001@lid")
+    assert not llega("5215512345678@lid")
+    assert not llega("5215512345678-1475339136@g.us")

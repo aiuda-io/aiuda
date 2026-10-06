@@ -1,112 +1,147 @@
 "use client";
 
-// Master-detail de Conversaciones en UNA ruta: la bandeja (izquierda) fija y el
-// hilo (derecha) elegido por ?id=. Navegar entre hilos cambia solo el query, así
-// la lista no se remonta ni se recarga. En móvil se muestra una sola: la lista
-// sin ?id, el hilo con ?id.
+// Mensajes en UNA ruta: la bandeja a la izquierda y el hilo a la derecha, elegido por
+// ?id=. Cambiar de hilo solo cambia el query, así la bandeja no se recarga. En el
+// teléfono se ve una cosa a la vez: la lista sin ?id, el hilo con ?id.
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { api, type ConversationDetail } from "@/lib/api";
-import { ChevronLeft, ErrorState, Skeleton, useApi } from "@/components/ui";
+import { api, type ConversationDetail, type ConversationItem, type CustomerItem } from "@/lib/api";
+import {
+  ChevronLeft,
+  ErrorState,
+  SecondaryButton,
+  Skeleton,
+  TextInput,
+  inputCls,
+  useApi,
+  QuietButton,
+} from "@/components/ui";
 import { Chatter, type ChatterMessage } from "@/components/chatter";
 import { ConversationsList } from "@/components/conversations-list";
 import { usePageTrail } from "@/components/rastro";
 import { toast } from "@/components/toast";
+import { telefonoMx } from "@/lib/format";
 
 export default function ConversacionesPage() {
   // useSearchParams exige un boundary de Suspense en el export estático.
   return (
     <Suspense fallback={null}>
-      <Conversaciones />
+      <Mensajes />
     </Suspense>
   );
 }
 
-function Conversaciones() {
+function Mensajes() {
   const id = useSearchParams().get("id") ?? "";
   const enHilo = id !== "";
+  const { data, error, loading, refetch, refetchQuiet } = useApi<ConversationItem[]>(api.conversations);
+  const conversations = data ?? [];
+  const sinNada = !loading && !error && conversations.length === 0;
 
   return (
-    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[480px] overflow-hidden rounded-xl border border-line bg-surface">
+    // La bandeja va sobre el mismo papel que todo lo demás: una raya fina la separa
+    // del hilo (DESIGN.md: ni columna gris ni ficha blanca encima).
+    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[480px] min-w-0">
       <aside
-        className={`${enHilo ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-line bg-panel/40 md:w-[344px]`}
+        className={`${enHilo ? "hidden md:flex" : "flex"} w-full min-w-0 flex-col ${
+          sinNada ? "" : "md:w-[340px] md:shrink-0 md:border-r md:border-line md:pr-6"
+        }`}
       >
-        <ConversationsList />
+        <ConversationsList
+          conversations={conversations}
+          loading={loading}
+          error={error}
+          retry={refetch}
+          activeId={id}
+        />
       </aside>
-      <main className={`${enHilo ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col bg-surface`}>
-        {enHilo ? <Conversacion id={id} /> : <SinHilo />}
-      </main>
+      {!sinNada && (
+        <main className={`${enHilo ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col md:pl-8`}>
+          {enHilo ? (
+            <Hilo id={id} enBandeja={conversations.find((c) => c.id === id)} onCambio={refetchQuiet} />
+          ) : (
+            <SinHilo />
+          )}
+        </main>
+      )}
     </div>
   );
 }
 
 function SinHilo() {
   return (
-    <div className="hidden h-full flex-col items-center justify-center px-8 text-center md:flex">
-      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-panel text-ink-3">
-        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.4">
-          <path d="M4 5.5h16v10H9l-4 3v-3H4z" strokeLinejoin="round" />
-        </svg>
-      </span>
-      <p className="mt-3 text-cuerpo font-medium text-ink">Elige una conversación</p>
-      <p className="mt-1 max-w-xs text-cuerpo text-ink-3">
-        Sus mensajes aparecen aquí. Entras a responder cuando quieras; tu ayudante te avisa lo
-        que necesita tu aprobación en el Centro.
+    <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+      <p className="text-seccion font-semibold text-ink">Elige una conversación</p>
+      <p className="mt-2 max-w-sm text-cuerpo text-ink-2">
+        Aquí lees el hilo y contestas cuando quieras. Lo que tu ayudante redacta queda en Hoy
+        para que lo apruebes.
       </p>
     </div>
   );
 }
 
-function Conversacion({ id }: { id: string }) {
-  const { data, error, loading, refetch } = useApi<ConversationDetail>(
-    () => api.conversation(id),
-    [id],
-  );
-  const [toggling, setToggling] = useState(false);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
+function Hilo({
+  id,
+  enBandeja,
+  onCambio,
+}: {
+  id: string;
+  enBandeja: ConversationItem | undefined;
+  onCambio: () => void;
+}) {
+  const { data, error, loading, refetch } = useApi<ConversationDetail>(() => api.conversation(id), [id]);
+  const [ocupado, setOcupado] = useState(false);
+  const [reintentando, setReintentando] = useState<string | null>(null);
   usePageTrail(
     data?.customer ?? data?.correo?.nombre ?? data?.correo?.de ?? data?.remote_phone ?? "Conversación",
   );
 
-  const takeover = data?.human_takeover ?? false;
+  const alMando = data?.human_takeover ?? false;
   const esCorreo = data?.channel === "correo";
-  const themName =
+  const nombre =
     data?.customer ??
-    (esCorreo ? data?.correo?.nombre || data?.correo?.de || "Remitente" : data?.remote_phone) ??
+    (esCorreo
+      ? data?.correo?.nombre || data?.correo?.de || "Remitente"
+      : data?.remote_phone
+        ? telefonoMx(data.remote_phone) || data.remote_phone
+        : undefined) ??
     "…";
+  const estado = enBandeja?.status ?? "identificado";
 
-  const toggleTakeover = async () => {
-    if (!data) return;
-    setToggling(true);
+  async function hacer(fn: () => Promise<unknown>, falla: string, listo?: string) {
+    setOcupado(true);
     try {
-      await api.takeover(data.id, !takeover);
+      await fn();
+      if (listo) toast(listo, "info");
       refetch();
+      onCambio();
     } catch (e) {
-      toast(`No se pudo cambiar quién atiende: ${(e as Error).message}`, "error");
+      toast(`${falla}: ${(e as Error).message}`, "error");
     } finally {
-      setToggling(false);
+      setOcupado(false);
     }
-  };
+  }
 
-  const resend = async (messageId: string) => {
+  const reenviar = async (messageId: string) => {
     if (!data) return;
-    setRetryingId(messageId);
+    setReintentando(messageId);
     try {
       await api.resendMessage(data.id, messageId);
       refetch();
     } catch (e) {
       toast(`No se pudo reintentar: ${(e as Error).message}`, "error");
     } finally {
-      setRetryingId(null);
+      setReintentando(null);
     }
   };
 
-  const send = async (body: string) => {
+  const enviar = async (body: string) => {
     if (!data) return;
     try {
       await api.sendHumanMessage(data.id, body);
       refetch();
+      onCambio();
     } catch (e) {
       toast(`No se pudo enviar: ${(e as Error).message}`, "error");
       throw e;
@@ -114,104 +149,128 @@ function Conversacion({ id }: { id: string }) {
   };
 
   const messages: ChatterMessage[] = (data?.messages ?? []).map((m) => {
-    const mine = m.direction === "out";
-    const human = m.author === "human";
+    const mio = m.direction === "out";
+    const humano = m.author === "human";
     return {
       id: m.id,
-      side: mine ? "me" : "them",
-      label: human ? "Tú" : mine ? "Ayudante" : themName,
+      side: mio ? "me" : "them",
+      label: humano ? "Tú" : mio ? "Tu ayudante" : nombre,
       body: m.body,
       time: m.created_at,
-      // Solo lo que TÚ mandaste a mano lleva estado de entrega + reintento.
+      // Solo lo que TÚ mandaste a mano lleva estado de entrega y reintento.
       meta:
-        mine && human ? (
+        mio && humano ? (
           m.delivery === "failed" ? (
-            <button
-              onClick={() => resend(m.id)}
-              disabled={retryingId === m.id}
-              className="text-sello font-medium text-danger underline decoration-danger/40 underline-offset-2 hover:decoration-danger disabled:opacity-60"
-            >
-              {retryingId === m.id ? "Reintentando…" : "No se envió · Reintentar"}
-            </button>
-          ) : m.delivery === "pending" ? (
-            <span className="text-sello text-ink-3">Enviando…</span>
+            // El motivo va junto al aviso: "No se envió" a secas no dice qué hacer.
+            <span className="flex flex-col items-end gap-0.5 text-right">
+              {m.reintentable === false ? (
+                <span className="text-rotulo font-medium text-danger">No se envió</span>
+              ) : (
+                <button
+                  onClick={() => reenviar(m.id)}
+                  disabled={reintentando === m.id}
+                  className="text-rotulo font-medium text-danger underline underline-offset-2 disabled:opacity-60"
+                >
+                  {reintentando === m.id ? "Reintentando…" : "No se envió. Reintentar"}
+                </button>
+              )}
+              {m.motivo_fallo && <span className="max-w-xs text-rotulo text-ink-3">{m.motivo_fallo}</span>}
+            </span>
+          ) : m.delivery === "pending" || m.delivery === "sending" ? (
+            <span className="text-rotulo text-ink-3">Enviando…</span>
           ) : m.delivery === "sent" ? (
-            <span className="text-sello text-ink-3">Enviado</span>
+            <span className="text-rotulo text-ink-3">Enviado</span>
           ) : undefined
         ) : undefined,
     };
   });
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <ErrorState message={error} retry={refetch} />
-      </div>
-    );
-  }
+  if (error) return <ErrorState message={error} retry={refetch} />;
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Cabecera del hilo */}
-      <header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-line px-4">
+    <div className="flex h-full min-w-0 flex-col">
+      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 pb-4">
         <Link
           href="/conversaciones"
-          aria-label="Volver a conversaciones"
-          className="-ml-1 shrink-0 rounded-md p-1 text-ink-3 hover:text-ink md:hidden"
+          aria-label="Volver a Mensajes"
+          className="-ml-1 shrink-0 rounded-md p-2 text-ink-2 hover:text-ink md:hidden"
         >
-          <ChevronLeft />
+          <ChevronLeft className="h-4 w-4" />
         </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-cuerpo font-semibold text-ink">
+        <div className="min-w-0 flex-1 basis-40">
+          <h2 className="truncate text-seccion font-semibold text-ink">
             {data?.customer_id ? (
-              <Link
-                href={`/clientes/detalle?id=${data.customer_id}`}
-                className="underline-offset-2 transition-colors hover:text-accent-ink hover:underline"
-              >
-                {themName}
+              <Link href={`/clientes/detalle?id=${data.customer_id}`} className="hover:text-accent-ink hover:underline">
+                {nombre}
               </Link>
             ) : (
-              themName
+              nombre
             )}
-          </h1>
+          </h2>
           {data && (
             <p className="tnum truncate text-apoyo text-ink-3">
               {esCorreo
                 ? `Correo · ${data.correo?.de || "sin remitente"}${data.correo?.asunto ? ` · ${data.correo.asunto}` : ""}`
-                : `WhatsApp · ${data.remote_phone}`}
+                : `WhatsApp · ${telefonoMx(data.remote_phone, { pais: true }) || data.remote_phone}`}
             </p>
           )}
         </div>
         {data && (
-          <button
-            onClick={toggleTakeover}
-            disabled={toggling}
-            className={`shrink-0 rounded-md px-3 py-1.5 text-cuerpo font-medium transition-colors disabled:opacity-60 ${
-              takeover
-                ? "bg-accent text-surface hover:bg-accent-strong"
-                : "border border-line bg-surface text-ink-2 hover:border-accent hover:text-accent-ink"
-            }`}
-          >
-            {takeover ? "Devolver al ayudante" : "Tomar el control"}
-          </button>
+          <div className="barra shrink-0">
+            <QuietButton
+              onClick={() =>
+                estado === "descartado"
+                  ? hacer(() => api.undismissConversation(data.id), "No se pudo regresar", "De vuelta en la bandeja.")
+                  : hacer(() => api.dismissConversation(data.id), "No se pudo descartar", "Conversación descartada.")
+              }
+              disabled={ocupado}
+ size="sm"
+>
+              {estado === "descartado" ? "Regresar a la bandeja" : "Descartar"}
+            </QuietButton>
+            <SecondaryButton
+              size="sm"
+              onClick={() => hacer(() => api.takeover(data.id, !alMando), "No se pudo cambiar quién atiende")}
+              disabled={ocupado}
+            >
+              {alMando ? "Devolver al ayudante" : "Atender yo"}
+            </SecondaryButton>
+          </div>
         )}
       </header>
 
-      {takeover && (
-        <p className="shrink-0 border-b border-line bg-accent-soft px-4 py-2 text-cuerpo font-medium text-accent-ink">
-          Tú tienes el control. Tu ayudante está en pausa y no responderá hasta que se lo devuelvas.
+      {alMando && (
+        <p className="mb-3 shrink-0 rounded-lg bg-panel px-4 py-2.5 text-cuerpo text-ink-2">
+          Tú atiendes esta conversación. Tu ayudante no contesta aquí hasta que se la devuelvas.
         </p>
       )}
 
-      {/* Hilo: llena el alto del panel, con scroll interno y composer pegado abajo */}
-      <div className="min-h-0 flex-1 p-3">
+      {data && estado === "por_identificar" && (
+        <Identificar
+          contacto={esCorreo ? data.correo?.de || "este correo" : data.remote_phone}
+          esCorreo={esCorreo}
+          ocupado={ocupado}
+          onRegistrar={(opts) =>
+            hacer(
+              () => api.registrarClienteConversacion(data.id, opts),
+              "No se pudo registrar",
+              opts.linkCustomerId
+                ? "Conversación ligada al cliente."
+                : "Cliente dado de alta. La conversación quedó identificada.",
+            )
+          }
+        />
+      )}
+
+      {/* El hilo llena el alto que queda, con scroll propio y el campo pegado abajo. */}
+      <div className="min-h-0 flex-1">
         {loading && !data ? (
           <Skeleton className="h-full w-full rounded-xl" />
         ) : (
           <Chatter
             fill
             messages={messages}
-            onSend={send}
+            onSend={enviar}
             emptyTitle="Sin mensajes todavía"
             emptyHint={
               esCorreo
@@ -219,12 +278,78 @@ function Conversacion({ id }: { id: string }) {
                 : "Cuando el cliente escriba por WhatsApp, el hilo aparece aquí."
             }
             placeholder={
-              esCorreo
-                ? "Escribe tu respuesta; sale por correo en el mismo hilo (Re:)…"
-                : "Escribe como tú; el cliente lo recibe de tu parte…"
+              esCorreo ? "Responde por correo" : "Escribe tu respuesta"
             }
           />
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Un contacto sin identificar todavía no es de nadie: se liga a un cliente que ya
+ *  existe o se da de alta uno nuevo. */
+function Identificar({
+  contacto,
+  esCorreo,
+  ocupado,
+  onRegistrar,
+}: {
+  contacto: string;
+  esCorreo: boolean;
+  ocupado: boolean;
+  onRegistrar: (opts: { name?: string; linkCustomerId?: string }) => void;
+}) {
+  const [clientes, setClientes] = useState<CustomerItem[]>([]);
+  const [ligar, setLigar] = useState("");
+  const [nombre, setNombre] = useState("");
+
+  useEffect(() => {
+    api.customers("cliente").then(setClientes).catch(() => {});
+  }, []);
+
+  return (
+    <div className="mb-3 shrink-0 rounded-xl bg-panel px-4 py-3.5">
+      <p className="text-cuerpo text-ink">
+        {esCorreo ? "El correo" : "El número"}{" "}
+        <span className="tnum font-medium">{esCorreo ? contacto : telefonoMx(contacto) || contacto}</span> todavía
+        no es de ningún cliente.
+      </p>
+      <div className="barra mt-3">
+        {clientes.length > 0 && (
+          <>
+            <select
+              value={ligar}
+              onChange={(e) => setLigar(e.target.value)}
+              aria-label="Ligar a un cliente que ya tienes"
+              className={`${inputCls} sm:max-w-[16rem]`}
+            >
+              <option value="">Es un cliente que ya tengo</option>
+              {clientes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <SecondaryButton onClick={() => onRegistrar({ linkCustomerId: ligar })} disabled={!ligar || ocupado}>
+              Ligar
+            </SecondaryButton>
+          </>
+        )}
+        <TextInput
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && nombre.trim()) onRegistrar({ name: nombre.trim() });
+          }}
+          placeholder="O es nuevo: su nombre"
+          aria-label="Nombre del cliente nuevo"
+          className="sm:max-w-[16rem]"
+        />
+        {/* Contorno: el relleno de esta pantalla es el de enviar la respuesta. */}
+        <SecondaryButton onClick={() => onRegistrar({ name: nombre.trim() })} disabled={!nombre.trim() || ocupado}>
+          Dar de alta
+        </SecondaryButton>
       </div>
     </div>
   );

@@ -13,13 +13,25 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
-from aiuda_server.api.deps import get_db, get_tenant
+from aiuda_server import audit
+from aiuda_server.api.deps import get_db, get_tenant, require_role
+from aiuda_server.api.documentos import iso_utc, serializar
 from aiuda_core.cua.fallback import (
+    CANDADO_SAT,
     CUA_PORTALES_KEY,
     CUA_PORTALES_URL_KEY,
     CUA_TEMPLATES,
+    CONSENTIMIENTO_SAT_TEXTO,
+    MSG_FALTA_CONSENTIMIENTO,
+    MSG_YA_CORRIENDO,
     PORTAL_PREFIX,
+    RUTINAS_DETERMINISTAS,
+    aceptar_consentimiento_sat,
     borrar_sesion,
+    consentimiento_sat,
+    corrida_sat_en_curso,
+    corrida_viva,
+    efirmas_guardadas,
     ejecutar_recado,
     enqueue_cua_mission,
     portal_efectivo,
@@ -56,9 +68,9 @@ def _serialize(m: CuaMission, with_evidence: bool = False) -> dict:
         "steps": m.steps or [],
         "error": m.error or "",
         "evidencia_capturas": len(m.evidence or []),
-        "createdAt": m.created_at.isoformat() if m.created_at else None,
-        "startedAt": m.started_at.isoformat() if m.started_at else None,
-        "finishedAt": m.finished_at.isoformat() if m.finished_at else None,
+        "createdAt": iso_utc(m.created_at),
+        "startedAt": iso_utc(m.started_at),
+        "finishedAt": iso_utc(m.finished_at),
     }
     if with_evidence:
         # base64 de PNG; el front las pinta como data:image/png;base64,...
@@ -69,28 +81,35 @@ def _serialize(m: CuaMission, with_evidence: bool = False) -> dict:
 def run_recado_blocking(recado_id: str) -> None:
     """Corre un recado encolado en su propia sesión (BackgroundTask; abre navegador headless)."""
     from aiuda_core.db import session_scope
+    from aiuda_server.metering import tenant_runner
 
     with session_scope() as session:
         recado = session.get(CuaMission, recado_id)
         if recado is not None and recado.status == "queued":
-            ejecutar_recado(session, recado)
+            tenant = session.get(Tenant, recado.tenant_id)
+            # La IA del dueño con su tope y su registro de uso: una misión de portal
+            # son decenas de llamadas con imagen y tienen que contar.
+            ejecutar_recado(session, recado, ia=lambda: tenant_runner(session, tenant))
 
 
 @router.get("/v1/cua/estado")
 def estado(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> dict:
     """Estado HONESTO de la oficina: ¿este servidor tiene el navegador del asistente
-    (extra `cua` + Chromium) y el tenant tiene credencial de IA? La UI lo muestra tal
-    cual; sin esto las tareas quedan en 'No pudo' con la razón."""
+    (extra `cua` + Chromium) y el tenant tiene una IA que sirva para operar portales?
+    No basta con tener IA conectada: hoy solo sirve una llave de Anthropic, y
+    `ia_detalle` dice por qué la suya no. La UI lo muestra tal cual; sin esto las
+    tareas quedan en 'No pudo' con la razón."""
     from aiuda_core.cua.computer import estado_navegador
-    from aiuda_core.engine.provider import resolve_credential
+    from aiuda_core.cua.fallback import ia_para_cua
 
     navegador_listo, detalle = estado_navegador()
-    credencial = resolve_credential(session=db, tenant_id=tenant.id) is not None
+    credencial, ia_detalle = ia_para_cua(db, tenant)
     handoff_posible, handoff_detalle = estado_handoff_posible()
     return {
         "navegador_listo": navegador_listo,
         "navegador_detalle": detalle,
         "credencial_ia": credencial,
+        "ia_detalle": ia_detalle,
         "listo": navegador_listo and credencial,
         # ¿Esta máquina puede abrir una ventana para que el dueño entre al portal él mismo?
         "handoff_posible": handoff_posible,
@@ -109,6 +128,18 @@ def _capacidad_publica(tenant: Tenant, capacidad: str, sistema: str, objetivo: s
         "url": (portal or {}).get("url") or "",
         "url_configurada": bool((portal or {}).get("url")),
         "editable": capacidad.startswith(PORTAL_PREFIX),
+        # ¿El dueño ya hizo suyo este portal? Los que registró por URL siempre; los tres
+        # de fábrica solo si les puso dirección o les conectó acceso. Los de fábrica sin
+        # tocar nada más se han corrido contra portales de prueba, y la consola no se
+        # los enseña al dueño.
+        "del_dueno": (
+            capacidad.startswith(PORTAL_PREFIX)
+            or bool(((tenant.config or {}).get(CUA_PORTALES_KEY) or {}).get(capacidad))
+            or tiene_sesion(tenant, capacidad)
+        ),
+        # Nadie ha operado todavía un portal real con el asistente de IA (solo los
+        # portales de prueba locales). La consola le pone el sello "Sin estrenar".
+        "estrenada": False,
         "tiene_sesion": tiene_sesion(tenant, capacidad),
         "sesion_guardada_en": sesion_guardada_en(tenant, capacidad),
     }
@@ -155,7 +186,7 @@ def detalle(
 ) -> dict:
     m = db.get(CuaMission, mission_id)
     if m is None or m.tenant_id != tenant.id:
-        raise HTTPException(status_code=404, detail="Recado no encontrado")
+        raise HTTPException(status_code=404, detail="Ese registro no existe.")
     return _serialize(m, with_evidence=True)
 
 
@@ -164,6 +195,56 @@ class NuevoRecado(BaseModel):
     # Indicación específica del dueño para esta corrida (opcional). Afina el objetivo
     # por defecto del trabajador; se guarda y se le pasa al agente al operar el portal.
     instruccion: str | None = None
+    # Solo para las rutinas deterministas del SAT: de qué empresa. Si el negocio tiene
+    # una sola e.firma se puede omitir.
+    rfc: str | None = None
+
+
+def _corridas_deterministas(db, tenant: Tenant) -> dict[tuple[str, str], CuaMission]:
+    """La corrida más reciente de cada rutina determinista por RFC."""
+    filas = db.scalars(
+        select(CuaMission)
+        .where(
+            CuaMission.tenant_id == tenant.id,
+            CuaMission.capacidad.in_(list(RUTINAS_DETERMINISTAS)),
+        )
+        .order_by(CuaMission.created_at.desc())
+        .limit(200)
+    ).all()
+    ultimas: dict[tuple[str, str], CuaMission] = {}
+    for m in filas:
+        ultimas.setdefault((m.capacidad, str((m.data or {}).get("_rfc") or "")), m)
+    return ultimas
+
+
+def _encolar_determinista(body: NuevoRecado, background, db, tenant: Tenant) -> dict:
+    """Las dos rutinas del SAT: sin IA y sin instrucción, con la e.firma guardada."""
+    con_efirma = efirmas_guardadas(db, tenant)
+    rfc = (body.rfc or "").strip().upper()
+    if not rfc and len(con_efirma) == 1:
+        rfc = con_efirma[0]
+    if not con_efirma:
+        raise HTTPException(
+            status_code=400,
+            detail="Primero carga tu e.firma en SAT · Bóveda fiscal.",
+        )
+    if rfc not in con_efirma:
+        raise HTTPException(
+            status_code=400,
+            detail="Elige de cuál de tus empresas con e.firma quieres el documento.",
+        )
+    if not consentimiento_sat(tenant, rfc):
+        raise HTTPException(status_code=409, detail=MSG_FALTA_CONSENTIMIENTO)
+    # Revisar y apartar bajo el candado: dos peticiones a la vez no pasan las dos.
+    with CANDADO_SAT:
+        if corrida_sat_en_curso(db, tenant, body.capacidad, rfc):
+            raise HTTPException(status_code=409, detail=MSG_YA_CORRIENDO)
+        recado = enqueue_cua_mission(db, tenant, body.capacidad, rfc=rfc)
+        # Confirmado antes de soltar el candado y de despachar: la otra petición y la
+        # corrida abren su propia sesión de base.
+        db.commit()
+    background.add_task(run_recado_blocking, recado.id)
+    return _serialize(recado)
 
 
 @router.post("/v1/cua/misiones", status_code=201)
@@ -175,12 +256,114 @@ def encolar(
 ) -> dict:
     """Encola un trabajo y lo corre en segundo plano (headless). Devuelve el trabajo en
     cola; el log se actualiza solo cuando el asistente termina."""
+    if body.capacidad in RUTINAS_DETERMINISTAS:
+        return _encolar_determinista(body, background, db, tenant)
     if portal_efectivo(tenant, body.capacidad) is None:
         raise HTTPException(status_code=400, detail="Ese portal no está disponible.")
     instruccion = (body.instruccion or "").strip() or None
     recado = enqueue_cua_mission(db, tenant, body.capacidad, instruccion=instruccion)
     background.add_task(run_recado_blocking, recado.id)
     return _serialize(recado)
+
+
+# ---------- Rutinas deterministas: los documentos del SAT, sin IA ----------
+#
+# Guion fijo, sin IA: no dependen de qué IA conectó el dueño (ni de que haya una).
+# Se despachan con el mismo POST /v1/cua/misiones (capacidad + rfc) y dejan su PDF en
+# /v1/documentos. Aquí va lo que la pantalla necesita para pintarlas por empresa.
+
+
+@router.get("/v1/cua/deterministas")
+def deterministas(db=Depends(get_db), tenant: Tenant = Depends(get_tenant)) -> dict:
+    """Las rutinas sin IA por empresa con e.firma: su última corrida y el último
+    documento que trajeron. Dice también si este aiuda tiene el navegador que
+    necesitan, en palabras del dueño."""
+    from aiuda_core.cua.computer import estado_navegador
+    from aiuda_core.cua.deterministas.sat_documentos import MSG_SIN_NAVEGADOR
+    from aiuda_core.engine.sync import sat_empresas
+    from aiuda_core.models import Documento
+
+    navegador_listo, _ = estado_navegador()
+    corridas = _corridas_deterministas(db, tenant)
+    empresas = []
+    for e in sat_empresas(db, tenant):
+        if not e.get("efirma"):
+            continue
+        rutinas = []
+        for capacidad, spec in RUTINAS_DETERMINISTAS.items():
+            doc = db.scalar(
+                select(Documento)
+                .where(
+                    Documento.tenant_id == tenant.id,
+                    Documento.rfc == e["rfc"],
+                    Documento.tipo == spec["documento"],
+                )
+                .order_by(Documento.fecha.desc())
+                .limit(1)
+            )
+            m = corridas.get((capacidad, e["rfc"]))
+            rutinas.append(
+                {
+                    "capacidad": capacidad,
+                    "nombre": spec["nombre"],
+                    "estrenada": spec["estrenada"],
+                    "en_curso": corrida_viva(m),
+                    "ultima_corrida": (
+                        {
+                            "id": m.id,
+                            "status": m.status,
+                            "error": m.error or "",
+                            "fecha": iso_utc(m.finished_at or m.created_at),
+                        }
+                        if m is not None
+                        else None
+                    ),
+                    "ultimo_documento": serializar(doc) if doc is not None else None,
+                }
+            )
+        empresas.append(
+            {
+                "rfc": e["rfc"],
+                "nombre": e.get("nombre") or "",
+                "vigente_hasta": e.get("vigente_hasta"),
+                # Cuándo dio su permiso el dueño para este RFC (None = falta pedirlo).
+                "consentimiento_en": consentimiento_sat(tenant, e["rfc"]),
+                "rutinas": rutinas,
+            }
+        )
+    return {
+        "navegador_listo": navegador_listo,
+        "navegador_detalle": "" if navegador_listo else MSG_SIN_NAVEGADOR,
+        "consentimiento_texto": CONSENTIMIENTO_SAT_TEXTO,
+        "empresas": empresas,
+    }
+
+
+class Consentimiento(BaseModel):
+    rfc: str
+
+
+@router.post("/v1/cua/deterministas/consentimiento", status_code=201)
+def dar_consentimiento(
+    body: Consentimiento,
+    db=Depends(get_db),
+    tenant: Tenant = Depends(get_tenant),
+    actor=Depends(require_role("admin")),
+) -> dict:
+    """El dueño acepta, una vez por RFC, que aiuda entre al portal del SAT con la
+    e.firma guardada y escriba su contraseña. Queda con fecha y en la bitácora; sin
+    esto las rutinas del SAT se niegan a correr."""
+    rfc = (body.rfc or "").strip().upper()
+    if rfc not in efirmas_guardadas(db, tenant):
+        raise HTTPException(status_code=404, detail="Esa empresa no tiene e.firma guardada.")
+    aceptado_en = aceptar_consentimiento_sat(db, tenant, rfc)
+    audit.record(
+        db, tenant_id=tenant.id, action="sat.rutinas.consentimiento",
+        entity_type="integration", entity_id=rfc, principal=actor,
+        after={"rfc": rfc, "aceptado_en": aceptado_en},
+    )
+    db.flush()
+    return {"rfc": rfc, "aceptado_en": aceptado_en}
 
 
 # ---------- Rutinas guardadas: una tarea de portal que el dueño repite ----------
@@ -224,7 +407,7 @@ def guardar_rutina(
     instrucción). Devuelve la rutina creada."""
     nombre = (body.nombre or "").strip()
     if not nombre:
-        raise HTTPException(status_code=400, detail="Ponle un nombre a la rutina.")
+        raise HTTPException(status_code=400, detail="Ponle un nombre para guardarlo.")
     portal = portal_efectivo(tenant, body.capacidad)
     if portal is None:
         raise HTTPException(status_code=400, detail="Ese portal no está disponible.")
@@ -249,7 +432,7 @@ def borrar_rutina(
     rutinas = _rutinas(tenant)
     quedan = [r for r in rutinas if r.get("id") != rutina_id]
     if len(quedan) == len(rutinas):
-        raise HTTPException(status_code=404, detail="Esa rutina no existe.")
+        raise HTTPException(status_code=404, detail="Eso que guardaste ya no existe.")
     _guardar_rutinas(db, tenant, quedan)
 
 
@@ -280,12 +463,6 @@ class NuevoPortal(BaseModel):
     nombre: str
     url: str
     notas: str | None = None
-
-
-@router.get("/v1/cua/portales")
-def listar_portales(tenant: Tenant = Depends(get_tenant)) -> list[dict]:
-    """Los portales a la medida que el dueño registró."""
-    return portales_url(tenant)
 
 
 @router.post("/v1/cua/portales", status_code=201)

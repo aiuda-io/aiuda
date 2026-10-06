@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from aiuda_server import audit
-from aiuda_server.api.deps import Principal, get_db, get_principal, get_tenant
+from aiuda_server.api.deps import Principal, get_db, get_principal, get_tenant, tope_de_ia
 from aiuda_core.connectors.estado_cuenta import (
     EstadoCuenta,
     EstadoNoCuadra,
@@ -82,8 +82,8 @@ async def analizar_estado(
         raise HTTPException(status_code=413, detail="El PDF pesa más de 10 MB.")
     try:
         estado = analizar(content, runner=tenant_runner(db, tenant))
-    except BudgetExceeded as exc:
-        raise HTTPException(status_code=402, detail=str(exc))
+    except BudgetExceeded:
+        raise tope_de_ia("leer tu estado de cuenta")
     except (EstadoNoLegible, EstadoNoCuadra) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception:

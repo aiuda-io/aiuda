@@ -164,20 +164,28 @@ def test_sin_credencial_es_noop_honesto(monkeypatch):
     runner = CuaRunner()  # sin cliente inyectado ni credencial disponible
     result = asyncio.run(runner.run(_mission()))
     assert result.success is False
-    assert "credencial" in (result.error or "").lower()  # dice por que, no inventa datos
+    # dice por que y que hacer, no inventa datos
+    assert "llave de anthropic" in (result.error or "").lower()
 
 
 # --- Deteccion honesta: instalado vs no instalado ---------------------------
 
 def test_sin_extra_cua_es_noop_honesto_aunque_haya_credencial(monkeypatch):
-    """Servidor sin el extra `cua`: la mision no corre y el error dice que instalar,
-    aunque la credencial de IA este presente. Nunca inventa datos."""
+    """Servidor sin el extra `cua`: la mision no corre y el error dice que falta el
+    navegador, aunque la credencial de IA este presente. Nunca inventa datos. El
+    mensaje es para el dueño: no lo manda a una terminal."""
     monkeypatch.setattr("aiuda_core.cua.runner.paquete_playwright_instalado", lambda: False)
     runner = CuaRunner(client=object())  # credencial/cliente presentes
     result = asyncio.run(runner.run(_mission()))
     assert result.success is False
-    assert "no está instalado" in (result.error or "")
-    assert "uv sync --extra cua" in (result.error or "")  # accionable, no criptico
+    assert "no trae el navegador" in (result.error or "")
+    _sin_terminal(result.error or "")
+
+
+def _sin_terminal(mensaje: str) -> None:
+    """Lo que ve el dueño no trae comandos ni nombres de herramientas."""
+    for palabra in ("uv sync", "playwright", "Playwright", "extra `cua`", ".venv", "Corre:"):
+        assert palabra not in mensaje, mensaje
 
 
 def test_estado_navegador_sin_paquete(monkeypatch):
@@ -185,7 +193,24 @@ def test_estado_navegador_sin_paquete(monkeypatch):
 
     monkeypatch.setattr(comp, "paquete_playwright_instalado", lambda: False)
     listo, detalle = comp.estado_navegador()
-    assert listo is False and "extra `cua`" in detalle
+    assert listo is False and "no trae el navegador" in detalle
+    _sin_terminal(detalle)
+
+
+def test_estado_navegador_que_no_arranca_no_ensena_el_error_tecnico(monkeypatch):
+    pytest.importorskip("playwright")
+    import playwright.sync_api
+
+    import aiuda_core.cua.computer as comp
+
+    def roto():
+        raise RuntimeError("BrowserType.launch: driver crashed at /x/y")
+
+    monkeypatch.setattr(comp, "_CHROMIUM_LISTO", False)
+    monkeypatch.setattr(playwright.sync_api, "sync_playwright", roto)
+    listo, detalle = comp.estado_navegador()
+    assert listo is False and detalle == comp.MSG_NAVEGADOR_NO_ARRANCA
+    assert "driver" not in detalle
 
 
 def test_estado_navegador_con_todo_instalado():
@@ -194,7 +219,7 @@ def test_estado_navegador_con_todo_instalado():
 
     listo, detalle = estado_navegador()
     if not listo:  # entorno con playwright pero sin el Chromium descargado
-        assert "playwright install" in detalle  # honesto y accionable
+        assert "le falta una parte" in detalle  # honesto, en palabras del dueño
     else:
         assert "listo" in detalle.lower()
 
@@ -223,4 +248,5 @@ def test_error_de_chromium_faltante_se_traduce(tmp_path, monkeypatch):
     )
     result = asyncio.run(runner.run(_mission()))
     assert result.success is False
-    assert "playwright install chromium" in (result.error or "")
+    assert "le falta una parte" in (result.error or "")
+    _sin_terminal(result.error or "")

@@ -40,7 +40,7 @@ class ConektaClient:
     ):
         key = api_key or settings.conekta_api_key
         if not key:
-            raise RuntimeError("CONEKTA_API_KEY no configurado — ver .env.example")
+            raise RuntimeError("CONEKTA_API_KEY no configurado. Captura ese dato al conectar.")
         basic = base64.b64encode(f"{key}:".encode()).decode()
         self._http = httpx.Client(
             base_url=BASE_URL,

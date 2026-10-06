@@ -11,8 +11,9 @@ export type IntegrationHelp = {
 export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
   whatsapp: {
     intro:
-      "Tu número de siempre, conectado como una sesión más de WhatsApp Web (no es la API oficial). Para el uso normal el riesgo es bajo; si algún día envías a volumen, conecta WhatsApp Business (oficial).",
+      "Tu número de siempre, conectado como una sesión más de WhatsApp Web. No es la API oficial de Meta.",
     steps: [
+      "Si es la primera vez, pícale Instalar: el conector se baja y se instala solo.",
       "En este panel pícale Mostrar código QR.",
       "Abre WhatsApp en tu teléfono.",
       "Ve a Ajustes > Dispositivos vinculados > Vincular un dispositivo.",
@@ -53,7 +54,7 @@ export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
 
   email: {
     intro:
-      "Conecta el correo del negocio (IMAP genérico, Gmail o Outlook): los correos de tus clientes entran como hilos a la bandeja, tu ayudante propone la respuesta y tú apruebas antes de que salga. La vía completa HOY es contraseña de aplicación; entrar con OAuth (botón de Google/Microsoft) está documentado y por cablear.",
+      "Conecta el correo del negocio (IMAP genérico, Gmail o Outlook): los correos de tus clientes entran como hilos a la bandeja, tu ayudante propone la respuesta y tú apruebas antes de que salga. Hoy se entra con una contraseña de aplicación; el botón de entrar con Google o Microsoft todavía no existe.",
     steps: [
       "Elige tu proveedor: IMAP genérico, Gmail o Outlook. Gmail y Outlook rellenan los servidores solos.",
       "En Gmail o Outlook activa la verificación en dos pasos y genera una contraseña de aplicación (no uses tu contraseña normal).",
@@ -71,35 +72,6 @@ export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
         field: "Servidor IMAP / SMTP",
         where:
           "Gmail: imap.gmail.com:993 y smtp.gmail.com:465. Outlook: outlook.office365.com:993 y smtp.office365.com:587. Otro: revisa la ayuda de tu proveedor.",
-      },
-      {
-        field: "OAuth (Google / Microsoft)",
-        where:
-          "Aún no está cableado: exige registrar una app OAuth (scope de correo en Google Cloud / permisos IMAP+SMTP en Microsoft Entra) e intercambiar tokens XOAUTH2. La credencial ya guarda esos campos cifrados; cuando se cablee, entrarás sin contraseña de aplicación.",
-      },
-    ],
-  },
-
-  slack: {
-    intro:
-      "Publica en tu canal de Slack los avisos que aiuda ya genera: el resumen diario de cartera y el aviso cuando la IA se pausa por tope.",
-    steps: [
-      "Pídele a un administrador del workspace que cree una app de Slack (api.slack.com) con el scope chat:write.",
-      "Instala la app en el workspace y copia el bot token (empieza con xoxb-).",
-      "Invita al bot al canal donde quieres los avisos: /invite @aiuda en ese canal.",
-      "Pega el bot token y el canal (p.ej. #cobranza) abajo, y pícale Conectar.",
-      "Pícale Probar conexión: verifica el token contra Slack (auth.test) sin publicar nada.",
-    ],
-    credentials: [
-      {
-        field: "Bot token (xoxb-…)",
-        where:
-          "api.slack.com: un administrador crea una app de Slack, le da el scope chat:write, la instala en el workspace y copia el bot token (empieza con xoxb-).",
-      },
-      {
-        field: "Canal de avisos",
-        where:
-          "El canal de tu workspace donde quieres los avisos (p.ej. #cobranza). El bot debe estar invitado a ese canal (/invite @aiuda).",
       },
     ],
   },
@@ -319,24 +291,6 @@ export const INTEGRATION_HELP: Record<string, IntegrationHelp> = {
         field: "Private app token",
         where:
           "HubSpot > Settings > Integrations > Private Apps: crea una private app, dale permisos de contactos y deals, y copia su token.",
-      },
-    ],
-  },
-
-  denue: {
-    intro:
-      "Directorio público del INEGI con 5.5 millones de unidades económicas para prospectar negocios reales por giro y zona.",
-    steps: [
-      "Entra a inegi.org.mx/app/api/denue.",
-      "Regístrate (es gratis) y el INEGI te da un token sin costo.",
-      "Pega el token abajo.",
-      "Pícale Conectar.",
-    ],
-    credentials: [
-      {
-        field: "Token de INEGI",
-        where:
-          "inegi.org.mx/app/api/denue: te registras y el INEGI te da un token de la API de DENUE sin costo.",
       },
     ],
   },

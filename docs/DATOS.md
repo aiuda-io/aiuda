@@ -14,31 +14,36 @@ queda nada en ningún lado.
 | `sesion.json` | La llave de la ventana abierta ahorita. Se borra sola al cerrar aiuda |
 | `red-local.crt`, `red-local.key` | La identidad de esta computadora frente a tus aparatos. Aparecen si prendes la red del negocio ([APARATOS.md](APARATOS.md)) |
 | `wacli_inbound*.json` | Hasta qué mensaje de WhatsApp se leyó (marcador del sondeo) |
+| `bin/wacli` | El conector de WhatsApp, si lo instalaste desde la consola |
+| `wacli.*.pid` | Qué proceso de WhatsApp tiene abierto aiuda ahorita. Se borra solo al cerrar |
 | `dev/` | Logs y PIDs si usas `scripts/dev.sh` (desarrollo) |
 
 Dentro de `aiuda.db` está tu cartera (facturas, clientes, productos), las
 conversaciones, los recordatorios con su estado, las promesas de pago, la
-conciliación, la bitácora de aprobaciones, los aparatos que dejaste entrar y la
-configuración del negocio.
+conciliación, la bitácora de aprobaciones, los aparatos que dejaste entrar, los
+documentos que bajaste del SAT (opinión de cumplimiento y constancia, en PDF) y
+la configuración del negocio.
 
 Cifrado con la llave de `key`, dentro de la misma base:
 
-- Las credenciales de tus conectores y el secreto de tu proveedor de IA.
+- Las credenciales de tus conexiones y el secreto de tu IA.
 - Las sesiones de portales que capturaste con el handoff del CUA (cookies y
-  storage ya autenticados; tu contraseña no se guarda nunca). Ver
+  storage ya autenticados; la contraseña de esos portales no se guarda nunca). Ver
   [CUA.md](CUA.md).
+- Tu e.firma del SAT, si la conectaste: certificado, llave y contraseña. Es la
+  única contraseña tuya que aiuda guarda. Ver [SAT.md](SAT.md).
 
 De los aparatos emparejados **no** se guarda su llave, solo su huella: quien se
 lleve la base no se lleva la entrada de ningún teléfono.
 
 Fuera de `~/.aiuda`: si usas WhatsApp con tu número, wacli guarda su propia
-sesión en su carpeta, no en la nuestra. Y la app de escritorio deja sus logs en
+sesión y la copia de tus chats en su carpeta (`~/.wacli`), no en la nuestra. Y la app de escritorio deja sus logs en
 la bitácora del sistema.
 
 ## Tu estado de cuenta bancario (PDF)
 
 No necesitas open banking para conciliar: el PDF que tu banco ya te manda cada
-mes alcanza. En **Conciliación** (o en **Importar datos**) arrastras el PDF,
+mes alcanza. En **Cartera, pestaña Pagos** (o en **Importar**) arrastras el PDF,
 aiuda te enseña qué leyó y si los movimientos cuadran contra el saldo inicial y
 final del estado, y solo cuando tú apruebas, los depósitos entran a la bandeja
 de conciliación. Ahí tu ayudante propone qué factura liquida cada depósito y tú
@@ -48,7 +53,7 @@ Lo que hay que saber, sin adornos:
 
 - **BBVA y Banorte se leen directo**, sin IA y sin costo. Estos dos formatos
   están verificados contra estados de cuenta reales.
-- **Cualquier otro banco lo lee tu IA** (la que conectaste en Proveedor de IA).
+- **Cualquier otro banco lo lee tu IA** (la que conectaste en Tu IA).
   El texto del estado se le pasa a tu proveedor; si eso te incomoda, usa un
   modelo local con Ollama y nada sale de tu computadora. Cada monto que la IA
   reporte se verifica contra el texto del PDF: un monto que no está en el papel
@@ -137,8 +142,8 @@ trasera. Vuelves a capturarlas en la consola y sigues.
 
 ### Administrarla tú (opcional)
 
-Si prefieres manejar la llave por tu cuenta (por ejemplo, una instancia operada
-para un tercero), define `AIUDA_ENCRYPTION_KEYS` y esa manda sobre el archivo:
+Si prefieres manejar la llave por tu cuenta (por ejemplo, con un gestor
+de secretos), define `AIUDA_ENCRYPTION_KEYS` y esa manda sobre el archivo:
 
 ```
 AIUDA_ENCRYPTION_KEYS="<llave_fernet>"            # una sola llave
@@ -199,6 +204,6 @@ capturar los secretos otra vez.
 
 ## Guardar los datos en otro lado
 
-El default es SQLite en tu computadora. Si corres una instancia para varias
-personas, `DATABASE_URL` apunta a Postgres (necesita el extra
-`aiuda-server[postgres]`). El resto del comportamiento no cambia.
+El default es SQLite en `~/.aiuda/aiuda.db`. aiuda solo usa SQLite; con
+`DATABASE_URL` puedes apuntar a otro archivo (`sqlite:////ruta/a/aiuda.db`). El
+resto del comportamiento no cambia.

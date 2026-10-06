@@ -24,9 +24,10 @@ URL vieja o desde otro navegador, cierra esa pestaña y abre la app otra vez (o
 corre `aiuda start`, que abre el navegador con la llave del momento).
 
 **El ayudante no redacta nada.**
-Puede ser que no haya IA conectada (`aiuda doctor` lo dice), que el tope mensual
-de tokens que te pusiste ya se haya agotado (la bitácora deja el aviso), o que
-el modelo local elegido no soporte tool calling. Ver [IA.md](IA.md).
+Puede ser que no haya IA conectada (lo ves en **Tu IA**), que el tope mensual de
+gasto de IA ya se haya agotado (Hoy lo avisa arriba, y queda en la
+bitácora), o que el modelo local elegido no sepa consultar tus datos. Ver
+[IA.md](IA.md).
 
 **Al conectar Codex sale `env: node: No such file or directory`.**
 Era un defecto nuestro, arreglado el 27 de julio de 2026. Codex por dentro
@@ -47,9 +48,38 @@ devuelve es el del servidor de Odoo, tal cual. Cada dato importado guarda su
 procedencia, así que en la ficha se ve de dónde vino y cuándo.
 
 **WhatsApp no envía.**
-El envío usa wacli, que se pelea consigo mismo si tienes un `wacli sync
---follow` retenido en el store. El envío espera el lock unos segundos y si no lo
-suelta, falla. Cierra el sync y reintenta.
+El mensaje que no salió dice por qué, junto a "No se envió" en la conversación o
+en Hoy, en "No salió". Para ver cómo está la sesión, entra a Ajustes, a Conexiones, y abre WhatsApp
+y usa "Probar conexión". Lo más común:
+
+- **No está vinculado, o WhatsApp cerró la sesión.** Pasa si quitaste esta
+  computadora desde tu teléfono, en Dispositivos vinculados. Vuelve a escanear
+  el código QR.
+- **Sin conexión.** Tu número sigue vinculado y aiuda reintenta solo; revisa el
+  internet de la computadora.
+- **WhatsApp abierto en otro programa.** Solo un programa puede tener abierta la
+  sesión. aiuda la mantiene abierta por su cuenta mientras está corriendo; si
+  además dejaste un `wacli sync` en una terminal, ciérralo y aiuda la retoma en
+  menos de un minuto.
+- **Falta el conector.** En Ajustes, en Conexiones, abre WhatsApp y presiona Instalar el conector.
+  Necesita macOS 15 o más nuevo.
+
+**No llegan las respuestas de mis clientes.**
+Llegan mientras aiuda está abierto: es aiuda quien mantiene conectada la sesión
+de WhatsApp de esta computadora. Con aiuda cerrado los mensajes se quedan en tu
+teléfono y entran cuando lo vuelves a abrir. Si aiuda está abierto y no llegan,
+usa "Probar conexión" en Ajustes, en Conexiones.
+
+aiuda solo recibe lo que te escriben tus clientes. Si el mensaje de un cliente
+no aparece, revisa que su ficha tenga el mismo teléfono desde el que te escribe.
+Lo que te mandan tu familia, tus amigos o cualquier número que no sea de un
+cliente no entra a aiuda, no se le pasa a la IA y no recibe respuesta: se queda
+en tu WhatsApp como siempre.
+
+**Un cliente escribió y el ayudante no le contestó.**
+El mensaje está en la conversación, para que lo atiendas tú. Pasa cuando no hay
+una IA conectada, cuando tú tomaste la conversación o cuando el cliente mandó un
+audio, una foto o un documento sin escribir nada.
 
 **"No se pudo descifrar" o 409 al guardar una credencial.**
 La llave con la que se guardó ese secreto ya no está. Si tienes respaldo de
@@ -72,10 +102,10 @@ instalador nuevo, ese mensaje significa que el archivo se corrompió al
 descargarse.
 
 **Mi teléfono no encuentra esta computadora.**
-Primero: hoy **no existe todavía la app del teléfono**, así que el emparejamiento
-no se completa por más que todo lo demás esté bien. Cuando exista, la causa
-número uno en Mac es el permiso de red local. Está explicado con sus pasos en
-[APARATOS.md](APARATOS.md).
+La causa número uno es el permiso de red local de tu Mac; la segunda, que el
+teléfono esté en otro WiFi (la red de invitados del módem no cuenta). Está
+explicado con sus pasos en [APARATOS.md](APARATOS.md). Y recuerda que solo
+funciona dentro de tu red: desde la calle el teléfono no llega.
 
 ## El chequeo completo (necesita terminal)
 
@@ -91,11 +121,11 @@ uv run aiuda doctor                                          # desde el repo
 Ejemplo de salida:
 
 ```
-aiuda doctor (0.1.0)
+aiuda doctor (0.1.0a2)
   [ok] Carpeta de datos: /Users/tu/.aiuda
   [ok] Base de datos: /Users/tu/.aiuda/aiuda.db
   [ok] Llave de cifrado: /Users/tu/.aiuda/key
-  [--] Proveedor de IA: sin conectar, hazlo en la consola (/proveedor)
+  [--] Tu IA: sin conectar, hazlo en la consola (Ajustes > Tu IA)
   [ok] Claude Code / Codex instalados: claude, conéctalos con un clic en la consola
   [ok] Ollama (IA local): respondiendo (200)
   [ok] Consola: .../aiuda_server/static
@@ -104,8 +134,8 @@ aiuda doctor (0.1.0)
 ```
 
 `[--]` no siempre es un problema: los CLIs, Ollama, el CUA y wacli son
-opcionales. Lo que sí importa es que la carpeta de datos, la base y la llave
-digan `[ok]`, y que haya un proveedor de IA si esperas que el ayudante redacte.
+opcionales (wacli se instala con un clic desde Ajustes, en Conexiones, al abrir WhatsApp). Lo que sí importa es que la carpeta de datos, la base y la llave
+digan `[ok]`, y que Tu IA esté conectada si esperas que el ayudante redacte.
 
 ## Si nada de eso aplica
 

@@ -33,6 +33,45 @@ _COMPUTER_BETA = "computer-use-2025-01-24"
 _COMPUTER_TOOL_TYPE = "computer_20250124"
 
 
+# Lo que el CUA le pide al modelo, y por qué solo una vía lo da hoy: ver una captura
+# de pantalla (imagen) y contestar una acción de ratón o teclado con coordenadas, en
+# un ir y venir de decenas de pasos. Eso es la herramienta de computer-use de
+# Anthropic. Las demás vías de aiuda intercambian texto: no reciben la captura.
+MSG_SIN_IA = (
+    "Para entrar a otros portales hace falta conectar Claude con tu llave de Anthropic, "
+    "en Ajustes. Sin ella el asistente no puede ver la pantalla del portal."
+)
+
+
+def _error_para_el_dueno(exc: Exception) -> str:
+    """El fallo del proveedor en palabras del dueño. Sin esto el recado mostraba el
+    error crudo del SDK ("Error code: 401 - {'type': 'error', ...}"), que salió tal
+    cual en la verificación en vivo con una llave inválida. Lo que no se reconoce se
+    deja pasar como viene: mejor el detalle técnico que una frase que lo esconda."""
+    import anthropic
+
+    if isinstance(exc, anthropic.AuthenticationError):
+        return (
+            "Anthropic no aceptó tu llave (401). Revisa en Tu IA que sea "
+            "válida y esté vigente."
+        )
+    if isinstance(exc, anthropic.PermissionDeniedError):
+        return "Tu cuenta de Anthropic no tiene permiso para esto (403)."
+    if isinstance(exc, anthropic.RateLimitError):
+        return (
+            "Anthropic frenó la misión por límite de uso (429). Vuelve a intentarlo "
+            "en unos minutos."
+        )
+    if isinstance(exc, anthropic.APIConnectionError):
+        return "No se pudo conectar con Anthropic (red o tiempo de espera)."
+    if isinstance(exc, anthropic.APIStatusError):
+        return (
+            f"Anthropic rechazó la petición ({exc.status_code}). Puede que el modelo "
+            f"configurado no acepte operar pantallas. Detalle: {str(exc)[:300]}"
+        )
+    return str(exc)
+
+
 def _default_client():
     """Cliente Anthropic asíncrono desde ANTHROPIC_API_KEY (demo) o settings. None si no hay."""
     key = os.environ.get("ANTHROPIC_API_KEY") or getattr(settings, "anthropic_api_key", "")
@@ -41,6 +80,29 @@ def _default_client():
     import anthropic
 
     return anthropic.AsyncAnthropic(api_key=key)
+
+
+class ClienteDelMotor:
+    """La IA del dueño (el runner de `make_runner`) con la forma que el loop espera:
+    `client.beta.messages.create(...)` asíncrono.
+
+    Por qué un adaptador y no un `AsyncAnthropic` propio: el CUA armaba su cliente
+    aparte y así se saltaba el tope de gasto y el registro de uso. Aquí cada paso
+    pasa por `motor.computer_use`, igual que la redacción pasa por `complete`.
+
+    La llamada es SÍNCRONA a propósito, aunque el método sea `async`: el tope y el
+    registro de uso tocan la sesión de base de datos del hilo que corre la misión,
+    y SQLite no deja usar esa conexión desde otro hilo. El loop es de esta misión
+    nada más (`asyncio.run` en fallback._run), así que bloquearlo no detiene a nadie."""
+
+    def __init__(self, motor, task: str = "cua"):
+        self._motor = motor
+        self._task = task
+        self.beta = self
+        self.messages = self
+
+    async def create(self, **kwargs):
+        return self._motor.computer_use(task=self._task, **kwargs)
 
 
 def _b64(png: bytes) -> str:
@@ -62,7 +124,6 @@ class CuaRunner:
         headless: bool = True,
         evidence_dir: str | None = None,
         betas: list[str] | None = None,
-        system: str | None = None,
         storage_state: dict | None = None,
     ):
         self._client = client
@@ -73,12 +134,8 @@ class CuaRunner:
         # arranque logueado y no choque contra la pantalla de acceso. None = sin sesión.
         self.storage_state = storage_state
         self.evidence_dir = evidence_dir
-        # Betas del header anthropic-beta. Por defecto solo computer-use; con la
-        # suscripción se antepone la beta OAuth (ambas en un solo header).
+        # Betas del header anthropic-beta: solo la de computer-use.
         self.betas = betas or [_COMPUTER_BETA]
-        # Prefijo de identidad de Claude Code: la vía suscripción (OAuth) lo exige en `system`
-        # o Anthropic rechaza el token. En api_key va None.
-        self._system = system
 
     def _computer_cm(self) -> LocalComputer:
         return self._computer or LocalComputer(
@@ -100,10 +157,7 @@ class CuaRunner:
         if client is None:
             return MissionResult(
                 success=False,
-                error=(
-                    "Sin credencial de IA para CUA. Define ANTHROPIC_API_KEY (o conecta tu "
-                    "proveedor) con acceso a computer-use. Ver docs/CUA.md."
-                ),
+                error=MSG_SIN_IA,
             )
 
         evidence_dir = self.evidence_dir or tempfile.mkdtemp(prefix="cua_")
@@ -147,7 +201,6 @@ class CuaRunner:
                         tools=[tool],
                         messages=messages,
                         betas=self.betas,
-                        **({"system": self._system} if self._system else {}),
                     )
                     messages.append({"role": "assistant", "content": resp.content})
                     tool_results = []
@@ -198,7 +251,7 @@ class CuaRunner:
             if "Executable doesn't exist" in msg or "playwright install" in msg:
                 result.error = MSG_CHROMIUM_FALTA
             else:
-                result.error = msg
+                result.error = _error_para_el_dueno(exc)
         return result
 
 

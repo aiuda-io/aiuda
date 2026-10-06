@@ -1,7 +1,7 @@
 """Conector Facturama — PAC certificado por el SAT (CFDI 4.0).
 
 Para qué lo usa aiuda: listar y descargar los CFDI del negocio para que la
-cartera tenga respaldo fiscal (procedencia) y Diego concilie contra el banco.
+cartera tenga respaldo fiscal (procedencia) y la conciliación cruce contra el banco.
 La emisión/timbrado queda para después; primero lectura.
 
 Auth: HTTP Basic (usuario, contraseña de Facturama). Sandbox por default.
@@ -37,7 +37,7 @@ class FacturamaClient:
         self.base_url = (base_url or settings.facturama_base_url).rstrip("/")
         auth = (user or settings.facturama_user, password or settings.facturama_password)
         if not auth[0]:
-            raise RuntimeError("FACTURAMA_USER no configurado — ver .env.example")
+            raise RuntimeError("FACTURAMA_USER no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=self.base_url, auth=auth, timeout=30, transport=transport
         )
@@ -70,9 +70,3 @@ class FacturamaClient:
         response.raise_for_status()
         data = response.json()
         return {"cfdi_muestra": len(data) if isinstance(data, list) else 0}
-
-    def download_xml(self, cfdi_id: str) -> bytes:
-        """XML del CFDI — la evidencia fiscal que respalda una factura."""
-        response = self._http.get(f"/cfdi/xml/issuedLite/{cfdi_id}")
-        response.raise_for_status()
-        return response.content

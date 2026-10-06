@@ -1,8 +1,8 @@
 """Capa de proveedor agnóstica: una interfaz común (ProviderRunner) y un factory.
 
 El engine habla con un ProviderRunner, no con un cliente concreto. Dos implementaciones:
-ClaudeRunner (llm.py, SDK de Anthropic) y CodexRunner (codex.py, Responses API de OpenAI por
-suscripción de ChatGPT). make_runner elige según el nombre de la credencial; los call sites no
+ClaudeRunner (llm.py, SDK de Anthropic) y CodexRunner (codex.py, Responses API de OpenAI con
+la llave del dueño o con su sesión de "Entrar con ChatGPT"). make_runner elige según el nombre de la credencial; los call sites no
 cambian.
 
 Dirección de imports (sin ciclos): runner.py → {llm.py, codex.py} → provider.py. provider.py
@@ -63,6 +63,8 @@ def make_runner(
     codex → CodexRunner contra la Responses API ESTÁNDAR de OpenAI (api.openai.com).
     claude_cli / codex_cli → el binario que el dueño ya tiene, con SU sesión.
     local → cualquier endpoint OpenAI-compatible (Ollama, LM Studio, vLLM).
+    chatgpt → el mismo CodexRunner, con el token de "Entrar con ChatGPT" en vez de
+    la llave y el modelo que esa cuenta tiene disponible.
     """
     cred = credential or default_credential()
     name = cred.name if cred else "claude"
@@ -75,6 +77,16 @@ def make_runner(
             credential=cred,
             usage_callback=usage_callback,
             api_key=cred.secret if cred else "",
+        )
+    if name == "chatgpt":
+        from aiuda_core.engine import chatgpt_auth
+        from aiuda_core.engine.codex import CodexRunner
+
+        return CodexRunner(
+            credential=cred,
+            usage_callback=usage_callback,
+            token_source=cred.token_vigente,
+            model=chatgpt_auth.parse_secret(cred.secret).get("model"),
         )
     if name in ("claude_cli", "codex_cli"):
         # El CLI del dueño, tal cual: su sesión, su cuenta, sin credenciales

@@ -1,7 +1,7 @@
 # Conectar tu IA
 
 aiuda no incluye ni revende inferencia. Tú traes el modelo. Todo se conecta desde
-la consola, en **/proveedor**, y el secreto queda cifrado en tu computadora
+la consola, en **Ajustes**, sección **Tu IA**, y el secreto queda cifrado en tu computadora
 ([DATOS.md](DATOS.md)).
 
 Sin IA conectada, aiuda arranca y sincroniza, pero no redacta nada. `aiuda
@@ -41,6 +41,7 @@ ves con una versión nueva, cuéntalo en un issue.
 | Vía | Qué necesitas | Costo | Tus datos salen a |
 |---|---|---|---|
 | El programa que ya tienes | Claude Code o Codex instalado | Lo que ya pagas al mes | Anthropic u OpenAI |
+| Entrar con ChatGPT (sin estrenar) | Tu cuenta de ChatGPT con un plan que lo admita | Lo que ya pagas al mes; gasta de tu mismo cupo | OpenAI |
 | API key | Llave de Anthropic u OpenAI | Por token, lo cobra el proveedor | Anthropic u OpenAI |
 | Modelo local | Ollama en tu máquina | Nada | Ningún lado |
 
@@ -48,7 +49,7 @@ ves con una versión nueva, cuéntalo en un issue.
 
 La vía recomendada: es la que los proveedores contemplan para uso programático.
 
-- **Claude:** crea una llave en console.anthropic.com y pégala en /proveedor.
+- **Claude:** crea una llave en console.anthropic.com y pégala en Ajustes, en Tu IA.
 - **OpenAI:** una llave `sk-...` de platform.openai.com, igual.
 
 aiuda usa dos modelos: uno chico para clasificar y hacer triage, uno grande para
@@ -72,13 +73,73 @@ estilo: era una afirmación falsa que viajaba en cada petición para pasar un
 control de acceso, y correr en tu computadora no lo cambiaba.
 
 aiuda es abierto y cualquiera lo puede instalar o forkear, así que ese riesgo se
-le repartía a todos. Se retiró. Lo que se buscaba —usar la suscripción que ya
-pagas sin llave aparte— lo da la vía de arriba, y esa sí es legítima.
+le repartía a todos. Se retiró. Lo que se buscaba (usar la suscripción que ya
+pagas sin llave aparte) lo da la vía de arriba, y esa sí es legítima.
 
 Si ya la tenías configurada, la consola te lo dice al abrir Tu IA y te ofrece el
 cambio; no se apaga en silencio.
 
-### 3. Modelo local (Ollama)
+### 3. Entrar con ChatGPT
+
+**Sin estrenar: está construida y probada contra un servidor de pruebas que sigue
+la documentación de OpenAI, pero todavía nadie ha entrado en aiuda con una cuenta
+real.** Si con la tuya algo no sale, la consola te dice qué pasó y puedes conectar
+tu IA por cualquiera de las otras vías.
+
+Lo menos seguro es que tus ayudantes puedan consultar tus datos al platicar contigo
+(lo que hacen sus aiuditas): OpenAI pide que esas consultas se le manden de una forma
+particular en esta vía y no publica un ejemplo. aiuda sigue lo que dice su
+documentación y, al probar la conexión en Tu IA, manda una consulta de esas para que
+"Funciona" lo diga también de eso. Si OpenAI la rechaza, te lo dice ahí mismo.
+
+Sirve para usar el plan de ChatGPT que ya pagas sin instalar Codex y sin sacar una
+llave. En Tu IA eliges "Mi plan de ChatGPT" y picas **Continuar con ChatGPT**: se
+abre tu navegador en la página de OpenAI, entras con tu cuenta, das permiso, y el
+navegador te regresa a aiuda. Listo.
+
+No es la vía que se quitó. Aquella se hacía pasar por el programa oficial; esta es
+la que OpenAI abrió para programas abiertos que corren en tu computadora
+([su documentación](https://developers.openai.com/siwc/token-sharing-open-source)):
+
+- aiuda se registra **con su propio nombre**. En la configuración de ChatGPT la
+  vas a ver como una aplicación conectada que se llama aiuda, y desde ahí la
+  puedes limitar o quitar.
+- Lo que redactan tus ayudantes va a la API pública de OpenAI, la misma de las
+  llaves, identificado con el permiso que le diste.
+- aiuda nunca ve tu contraseña. Guarda, cifrado en esta computadora, el permiso
+  que le dio OpenAI, y lo renueva sola cada hora.
+
+Lo que conviene saber antes:
+
+- **Gasta de tu mismo plan.** Lo que usen tus ayudantes cuenta junto con lo que
+  tú uses en ChatGPT. La corrida de cobranza es cada hora: si redacta mucho, a ti
+  te queda menos para platicar con ChatGPT ese rato.
+- **El límite se pone en ChatGPT, no en aiuda.** En Tu IA, "Administrar uso" te
+  lleva a [chatgpt.com/settings/usage](https://chatgpt.com/settings/usage), donde
+  decides cuánto de tu plan puede usar aiuda. Si se llega a ese límite o al de tu
+  plan, aiuda deja de redactar y te lo dice; no se cambia sola a otra forma de
+  cobro.
+- **No todos los planes lo admiten.** Lo decide OpenAI según tu cuenta, y puede
+  depender del país. Si la tuya no puede, el mensaje lo dice.
+- **El modelo lo da tu cuenta.** aiuda le pregunta a OpenAI qué modelos tienes y
+  usa uno de esos para todo; no se elige desde la consola.
+- **Las rutinas de portales no funcionan por esta vía**, igual que con una llave
+  de OpenAI: necesitan una llave de Claude.
+- **Se hace en la computadora donde corre aiuda.** Desde el teléfono no se puede
+  empezar, porque el navegador que se abre es el de la computadora.
+- **La sesión dura mientras se use.** Si pasan 30 días sin que aiuda la renueve, o
+  quitas la aplicación desde ChatGPT, te pedimos volver a entrar.
+
+Esta vía existe porque aiuda es abierto, gratis y corre en tu computadora: esas
+son las condiciones de OpenAI. Si eso cambiara, esta vía tendría que pedirse por
+otro camino.
+
+Todavía no sabemos si a OpenAI le gusta cómo aiuda le pide consultar tu cartera
+desde el chat de un ayudante por esta vía: su documentación dice que las
+herramientas se mandan agrupadas de cierta forma y no trae un ejemplo. Redactar y
+clasificar no dependen de eso. Se sabrá con el primer login real.
+
+### 4. Modelo local (Ollama)
 
 La única vía donde ningún dato sale de tu computadora.
 
@@ -111,8 +172,8 @@ hasta ese equipo. Se queda en tu oficina, pero ya no es solo tu máquina.
 
 ## Probar que quedó
 
-En /proveedor hay un botón que hace una llamada real y regresa el modo, el
-modelo y la latencia, o el error exacto (auth, permiso, rate limit, red). Desde
+En Ajustes, en Tu IA, el botón **Probar que responde** hace una llamada real y
+dice si tu IA contestó o, si no, por qué (la llave, el permiso, el límite, la red). Desde
 la terminal, `aiuda doctor` dice si hay proveedor conectado, si ya tienes Claude
 Code o Codex instalados y si Ollama responde.
 
@@ -120,16 +181,25 @@ Code o Codex instalados y si Ollama responde.
 
 Cada llamada a la IA deja un registro con modelo, tarea y tokens. El uso del mes,
 con un costo estimado a partir de una tabla de precios local, se consulta en
-`GET /v1/usage`. Todavía no hay una pantalla que lo muestre: está pendiente.
+`GET /v1/usage`. Todavía no hay una pantalla que lo muestre: está pendiente. Y
+un hueco que conviene saber: para OpenAI con llave esa tabla todavía no trae
+precio, así que ahí el uso se cuenta pero el costo sale en cero.
+
+Con el programa que ya tienes y con Entrar con ChatGPT el costo también sale en
+cero, y ahí sí es lo correcto: lo cubre el plan que ya pagas. Los tokens se
+cuentan igual (los de ChatGPT aparecen como `chatgpt-plan`) y el tope mensual de
+abajo aplica igual. Cuánto de tu plan llevas gastado lo dice ChatGPT, en
+"Administrar uso", no aiuda.
 
 También existe un tope mensual de tokens, y viene puesto de fábrica: 5 millones
 de tokens al mes. No es un cobro nuestro (nosotros no cobramos nada y nunca vemos
 tu llave): es el freno para que un mes raro, o una corrida que se atore, no te
-sorprenda en el recibo de tu proveedor de IA. Un negocio normal no lo toca: una
+sorprenda en el recibo de tu IA. Un negocio normal no lo toca: una
 corrida de cobranza gasta miles de tokens, no millones.
 
 Cuando se agota, aiuda deja de llamar a la IA: no se cuelga a media iteración,
-deja el aviso en la bitácora y la corrida sigue sin IA. Para moverlo se escribe
+la revisión sigue sin IA, y el aviso queda en la bitácora y arriba de Hoy, donde
+lo ves al abrir y lo puedes descartar. Para moverlo se escribe
 `ia_tope_tokens_mes` en la configuración del negocio (todavía no hay pantalla
 para eso); con `0` te quedas sin tope, bajo tu propio riesgo.
 
@@ -139,5 +209,11 @@ hora). También se mueve, con `max_borradores_corrida`.
 
 ## Cambiar o desconectar
 
-En /proveedor puedes reemplazar el secreto o desconectar. Al desconectar se
+En Ajustes, en Tu IA, puedes reemplazar el secreto o desconectar. Al desconectar se
 borra la credencial cifrada; nada más se pierde.
+
+Si lo conectado era tu cuenta de ChatGPT, al desconectar aiuda le avisa a OpenAI
+que la sesión terminó y borra el permiso de esta computadora. Si no logra
+avisarle (sin internet, por ejemplo), lo borra igual y te lo dice, para que
+quites aiuda tú desde la configuración de ChatGPT. La aplicación registrada en tu
+cuenta no se borra sola: así, si vuelves a entrar, no se crea otra.

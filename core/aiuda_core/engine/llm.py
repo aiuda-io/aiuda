@@ -23,14 +23,11 @@ from aiuda_core.engine.provider import (
 
 logger = logging.getLogger(__name__)
 
-# La redacción de aiuda es ASÍNCRONA: la corrida diaria deja borradores en Aprobaciones y
-# esperan tu visto bueno. No hay prisa. Por eso, ante el 429 de ráfaga de la SUSCRIPCIÓN
-# (plan personal, límites de ráfaga muy bajos), esperamos de verdad —segundos— y reintentamos
-# el MISMO cliente: la ventana de ráfaga suele ceder. Son esperas largas y deliberadas, NO los
-# reintentos rápidos del SDK (que re-disparan al instante sin ceder; por eso el cliente de
-# suscripción va con max_retries=0). Agotadas las esperas, o si el token se rechaza (401/403),
-# se cae a la API key de respaldo (si hay una). Un error de red o un 5xx NO disparan nada: son
-# transitorios, no "esta credencial no sirve".
+# La redacción de aiuda es ASÍNCRONA: la corrida deja borradores en Aprobaciones y esperan
+# tu visto bueno. No hay prisa. Con la llave del dueño, el 429 de ráfaga lo reintenta el
+# propio SDK. `rate_backoff` (vacío por default) agrega esperas largas y deliberadas sobre
+# el MISMO cliente para una cuenta con ráfaga apretada. Un error de red o un 5xx NO
+# disparan esas esperas: son transitorios, no "esta credencial no sirve".
 
 # Regla dura de aiuda: cero emojis en la salida del LLM. Red de seguridad sobre
 # todo lo que el modelo redacta (recordatorios, chat, etc.).
@@ -48,7 +45,7 @@ def strip_emojis(text: str) -> str:
 
 # Lo que el modelo redacta va DIRECTO al WhatsApp/correo del cliente: markdown de
 # reporte (negritas **, encabezados #, separadores ---) se ve roto ahí. La regla de
-# formato vive en el prompt (regla 9 de Mariana); esto es la red determinista sobre
+# formato vive en el prompt (regla 9 del prompt de cobranza); esto es la red determinista sobre
 # lo obvio. Deliberadamente NO toca *asteriscos simples*, _guiones bajos simples_ ni
 # listas con guion: son texto plano legítimo (y WhatsApp los usa como formato propio).
 _MD_NEGRITAS_RE = re.compile(r"\*\*(.+?)\*\*|__(.+?)__", flags=re.DOTALL)
@@ -172,6 +169,24 @@ class ClaudeRunner:
         )
         self._record(model, task, response.usage)
         return next((b.text for b in response.content if b.type == "text"), "")
+
+    def computer_use(self, *, task: str = "cua", **kwargs: Any):
+        """Una llamada cruda al computer-use de Anthropic (beta.messages.create).
+
+        Existe para el CUA (cua/runner.py), que necesita lo que `complete` y
+        `run_tool_loop` no dan: mandar capturas de pantalla y recibir acciones de
+        ratón y teclado. Pasa por aquí, y no por un cliente armado aparte, para que
+        el tope de gasto del dueño corte ANTES de cada paso y cada paso quede
+        registrado como uso: una misión de portal son decenas de llamadas con
+        imagen, justo el gasto que no puede quedar fuera de la cuenta.
+
+        Sin `rate_backoff`: un 429 a media misión termina la misión con su razón;
+        dormir aquí dejaría el navegador abierto esperando."""
+        if self.budget_check is not None:
+            self.budget_check()
+        response = self._client.beta.messages.create(**kwargs)
+        self._record(str(kwargs.get("model") or ""), task, getattr(response, "usage", None))
+        return response
 
     def classify(self, system: str, user: str, *, labels: list[str], task: str) -> str:
         """Clasificación con Haiku. Devuelve siempre una de `labels` (fallback: la última)."""

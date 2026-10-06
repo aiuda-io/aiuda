@@ -14,7 +14,6 @@ from __future__ import annotations
 import argparse
 import os
 import secrets
-import shutil
 import sys
 import threading
 import webbrowser
@@ -94,8 +93,7 @@ def _apagar_con_el_padre() -> None:
     Al cerrar la ventana, la app mata al sidecar; pero un binario empaquetado
     corre en dos procesos (lanzador + Python real) y el hijo sobreviviría,
     dejando el server escuchando a espaldas del dueño. Aquí el hijo vigila su
-    propio stdin: cuando el padre se va, el pipe cierra y salimos. Funciona
-    igual en macOS, Linux y Windows.
+    propio stdin: cuando el padre se va, el pipe cierra y salimos.
     """
 
     def _vigilar() -> None:
@@ -109,9 +107,22 @@ def _apagar_con_el_padre() -> None:
         # borra aquí, a mano: este es el camino de todos los días, el de cerrar
         # la ventana, y sin esto sesion.json se quedaba tirado siempre.
         _borrar_sesion()
+        _detener_whatsapp()
         os._exit(0)
 
     threading.Thread(target=_vigilar, name="aiuda-vigilante", daemon=True).start()
+
+
+def _detener_whatsapp() -> None:
+    """Ningún wacli se queda vivo cuando aiuda se apaga. El cierre normal de
+    uvicorn ya lo hace; esto cubre las salidas que se lo saltan (os._exit al
+    morir la app de escritorio, y la señal)."""
+    try:
+        from aiuda_server import wacli_sync
+
+        wacli_sync.detener_todo()
+    except Exception:  # noqa: BLE001 — apagar no puede fallar por WhatsApp
+        pass
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -143,28 +154,33 @@ def cmd_start(args: argparse.Namespace) -> int:
         return 0
 
     url = f"http://127.0.0.1:{args.port}/" + (f"?token={token}" if token else "")
+    import signal
+
     if token:
         import atexit
-        import signal
 
         _anotar_sesion(token, args.port)
         atexit.register(_borrar_sesion)
 
-        # atexit no corre cuando al proceso lo terminan por señal, y así es como
-        # se apaga casi siempre: la app cierra su sidecar, o el sistema apaga la
-        # sesión. Sin esto, sesion.json se queda tirado apuntando a un puerto
-        # muerto. No rompe nada (sesion_viva siempre pregunta a /health antes de
-        # creerle), pero deja basura y confunde a quien la lea.
-        def _apagar(_sig, _frame):
+    # atexit no corre cuando al proceso lo terminan por señal, y así es como
+    # se apaga casi siempre: la app cierra su sidecar, o el sistema apaga la
+    # sesión. Sin esto, sesion.json se queda tirado apuntando a un puerto
+    # muerto. No rompe nada (sesion_viva siempre pregunta a /health antes de
+    # creerle), pero deja basura y confunde a quien la lea. El wacli se detiene
+    # con o sin token: cerrar la terminal de `aiuda start --no-token` (SIGHUP)
+    # no debe dejar un sync de WhatsApp vivo.
+    def _apagar(_sig, _frame):
+        if token:
             _borrar_sesion()
-            raise SystemExit(0)
+        _detener_whatsapp()
+        raise SystemExit(0)
 
-        for señal in (signal.SIGTERM, signal.SIGHUP):
-            try:
-                signal.signal(señal, _apagar)
-            except (ValueError, OSError):  # sin hilo principal o sin esa señal
-                pass
-    print(f"aiuda {_version()} — todo corre en esta computadora", flush=True)
+    for señal in (signal.SIGTERM, signal.SIGHUP):
+        try:
+            signal.signal(señal, _apagar)
+        except (ValueError, OSError):  # sin hilo principal o sin esa señal
+            pass
+    print(f"aiuda {_version()}: todo corre en esta computadora", flush=True)
     print(f"  consola: {url}", flush=True)
     print("  datos:   ~/.aiuda/  ·  detener: Ctrl+C", flush=True)
     if not args.no_browser:
@@ -187,26 +203,9 @@ def cmd_daily(_args: argparse.Namespace) -> int:
     from aiuda_server.worker.main import run_daily_blocking
 
     create_all()
-    print("Corrida de cobranza: sincroniza fuentes, redacta y deja todo en Aprobaciones…")
+    print("Revisión de cobranza: lee tus fuentes, redacta y deja todo en Hoy, por aprobar…")
     report = run_daily_blocking()
     print(f"Listo: {report}" if report else "Listo.")
-    return 0
-
-
-def cmd_mcp(_args: argparse.Namespace) -> int:
-    """Sirve el negocio como herramientas MCP por stdio.
-
-    No lo corre una persona: lo lanza el arnés del dueño (`claude`, `codex`) como
-    subproceso, y el alcance llega por variables de entorno (AIUDA_TENANT_ID,
-    AIUDA_AYUDANTE_ID), nunca por argv, porque argv se ve en `ps`.
-
-    stdout queda reservado para JSON-RPC: aquí no se imprime nada más.
-    """
-    from aiuda_core.db import create_all
-    from aiuda_core.mcp import correr
-
-    create_all()
-    correr()
     return 0
 
 
@@ -243,16 +242,23 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     create_all()
     with session_scope() as db:
         from aiuda_server.api.deps import get_workspace
-        from aiuda_core.engine.provider import credential_from_config, credential_from_store
+        from aiuda_core.engine.provider import (
+            credential_from_config,
+            credential_from_store,
+            esta_conectada,
+        )
 
         tenant = get_workspace(db)
         cred = credential_from_store(db, tenant.id) or credential_from_config(tenant.config or {})
-    if cred is not None:
-        _check("Proveedor de IA", True, f"{cred.name} ({cred.mode}) conectado en la consola")
+    if cred is not None and not esta_conectada(cred):
+        # Mientras esa fila exista no se cae a la llave del entorno: se dice tal cual.
+        _check("Tu IA", False, "la sesión de ChatGPT venció, vuelve a entrar en la consola (Ajustes > Tu IA)")
+    elif cred is not None:
+        _check("Tu IA", True, f"{cred.name} ({cred.mode}) conectado en la consola")
     elif settings.anthropic_api_key:
-        _check("Proveedor de IA", True, "ANTHROPIC_API_KEY del entorno")
+        _check("Tu IA", True, "ANTHROPIC_API_KEY del entorno")
     else:
-        _check("Proveedor de IA", False, "sin conectar, hazlo en la consola (/proveedor)")
+        _check("Tu IA", False, "sin conectar, hazlo en la consola (Ajustes > Tu IA)")
 
     # El CLI ya instalado: la vía de un clic desde la consola.
     from aiuda_core.engine.cli_runner import detectar
@@ -285,14 +291,24 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
     try:
         from aiuda_core.cua.computer import estado_navegador
 
+        from aiuda_core.cua.computer import COMANDO_INSTALAR
+
         listo, detalle = estado_navegador()
+        if not listo:  # aquí sí: quien corre `doctor` está en una terminal
+            detalle = f"{detalle} Para instalarlo: {COMANDO_INSTALAR}"
         _check("CUA (Playwright/Chromium)", listo, detalle)
     except Exception as exc:  # noqa: BLE001
-        _check("CUA (Playwright/Chromium)", False, f"opcional — {exc}")
+        _check("CUA (Playwright/Chromium)", False, f"opcional: {exc}")
 
     # WhatsApp local
-    wacli = shutil.which(settings.wacli_bin)
-    _check("wacli (WhatsApp local)", wacli is not None, wacli or "no está en el PATH (opcional)")
+    from aiuda_core.connectors import wacli_bin
+
+    wacli = wacli_bin.resolver()
+    _check(
+        "wacli (WhatsApp local)",
+        wacli is not None,
+        wacli or "sin instalar (opcional; se instala desde Ajustes > Conexiones > WhatsApp)",
+    )
     return 0
 
 
@@ -319,9 +335,6 @@ def main(argv: list[str] | None = None) -> int:
     p_start.set_defaults(fn=cmd_start)
 
     sub.add_parser("daily", help="corre la corrida de cobranza ahora").set_defaults(fn=cmd_daily)
-    sub.add_parser(
-        "mcp", help="sirve tus datos como herramientas MCP (lo lanza tu IA, no tú)"
-    ).set_defaults(fn=cmd_mcp)
     sub.add_parser("doctor", help="revisa la instalación").set_defaults(fn=cmd_doctor)
     sub.add_parser("version", help="versión instalada").set_defaults(fn=cmd_version)
 

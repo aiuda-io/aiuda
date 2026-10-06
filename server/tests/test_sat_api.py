@@ -177,6 +177,54 @@ def test_estado_trae_empresas_boveda_y_cartera_por_empresa(client, demo):
     assert body["cartera"]["todo_junto"]["total"] == 1660.0
 
 
+def test_estado_dice_en_espanol_lo_que_contesto_el_sat(client, db_session, demo):
+    client.post("/v1/sat/empresas", json={"rfc": HANOVA})
+    demo.config = {
+        **demo.config,
+        "sat_descarga": {
+            HANOVA: {"emitidas": {"aviso": "El SAT ya tiene en curso una solicitud igual."}}
+        },
+    }
+    db_session.flush()
+    sync = client.get("/v1/sat/estado").json()["empresas"][0]["sync"]
+    assert sync["emitidas"]["aviso"] == "El SAT ya tiene en curso una solicitud igual."
+    assert sync["recibidas"]["aviso"] is None
+
+
+def test_boveda_y_estado_dicen_lo_cancelado_en_el_sat(client, db_session, demo):
+    from aiuda_core.engine.sync import aplicar_cancelaciones
+
+    _subir(client, cfdi_xml(U1, emisor=HANOVA, folio="1").encode(), rfc=HANOVA)
+    _subir(client, cfdi_xml(U2, emisor=HANOVA, folio="2", total="500.00").encode())
+    aplicar_cancelaciones(
+        db_session, demo,
+        [{"uuid": U1, "cancelado": True, "fecha_cancelacion": "2026-10-01 11:54:11"}],
+    )
+    demo.config = {
+        **demo.config,
+        "sat_descarga": {
+            HANOVA: {"emitidas": {"cancelados": {"ultima_fecha": "2026-10-05"}}}
+        },
+    }
+    db_session.flush()
+    cfdis = {c["uuid"]: c for c in client.get("/v1/sat/boveda").json()["cfdis"]}
+    assert cfdis[U1]["cancelado"] is True
+    assert cfdis[U1]["cancelado_el"] == "2026-10-01 11:54:11"
+    assert cfdis[U2]["cancelado"] is False
+    estado = client.get("/v1/sat/estado").json()
+    assert estado["boveda"]["canceladas"] == 1
+    # la cancelada salió de la cartera: solo queda la de 500
+    assert estado["cartera"]["todo_junto"] == {
+        "abiertas": 1,
+        "total": 500.0,
+        "moneda": "MXN",
+        "por_moneda": [{"moneda": "MXN", "open_total": 500.0, "open_count": 1}],
+    }
+    assert estado["empresas"][0]["sync"]["emitidas"]["cancelaciones_hasta"] == "2026-10-05"
+    inv = db_session.scalar(select(Invoice).where(Invoice.folio == "F-1"))
+    assert client.get(f"/v1/invoices/{inv.id}").json()["motivo_cierre"] == "cancelada en el SAT"
+
+
 def test_intercompania_fuera_de_los_totales(client, db_session, demo):
     """Tres empresas; una le factura a otra. La bóveda lo guarda UNA vez y los
     totales de cartera no lo cuentan: es dinero de la misma casa."""

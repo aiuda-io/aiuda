@@ -1,6 +1,6 @@
 """Conector HubSpot CRM — contactos y pipeline de ventas.
 
-Para qué lo usa aiuda: Carlos (agente de ventas) registra los prospectos que
+Para qué lo usa aiuda: el ayudante de ventas registra los prospectos que
 llegan por WhatsApp o email sin que el vendedor tenga que capturar nada a mano,
 y consulta el pipeline para saber qué oportunidades están abiertas y en qué
 etapa van. Evita duplicados: si el contacto ya existe en HubSpot lo avisa.
@@ -42,7 +42,7 @@ class HubSpotClient:
     ):
         self.token = token or settings.hubspot_token
         if not self.token:
-            raise RuntimeError("HUBSPOT_TOKEN no configurado — ver .env.example")
+            raise RuntimeError("HUBSPOT_TOKEN no configurado. Captura ese dato al conectar.")
         self._http = httpx.Client(
             base_url=BASE_URL,
             headers={"Authorization": f"Bearer {self.token}"},
@@ -53,7 +53,7 @@ class HubSpotClient:
     def list_open_deals(self, limit: int = 50) -> list[Oportunidad]:
         """Lista las oportunidades abiertas del pipeline con nombre, monto y etapa.
 
-        Carlos la usa para el resumen diario de ventas y para priorizar a quién
+        Ventas la usa para el resumen diario de ventas y para priorizar a quién
         hacer seguimiento según el monto en juego o la etapa en que está el trato.
         """
         response = self._http.get(
@@ -74,7 +74,7 @@ class HubSpotClient:
 
     def list_contacts(self, limit: int = 100) -> list[Contacto]:
         """Lista los contactos del CRM con nombre, teléfono y correo. Capacidad
-        `directorio_clientes`: alimenta el directorio para que Carlos cotice y dé
+        `directorio_clientes`: alimenta el directorio para que ventas cotice y dé
         seguimiento sin recapturar. El nombre se arma de firstname + lastname."""
         response = self._http.get(
             "/crm/v3/objects/contacts",

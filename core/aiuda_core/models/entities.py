@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     LargeBinary,
     Numeric,
     String,
@@ -26,7 +27,9 @@ class Tenant(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255))
     # Número de WhatsApp del dueño/admin (recibe aprobaciones y resumen diario)
     owner_phone: Mapped[str] = mapped_column(String(32))
-    # Instancia de Evolution API asignada a este tenant
+    # Id de canal de WhatsApp del tenant: rutea los entrantes de wacli y nombra su
+    # store. El nombre es histórico (nació con el conector de Evolution, ya
+    # retirado); no se renombra porque el proyecto no lleva migraciones.
     evolution_instance: Mapped[str] = mapped_column(String(64), unique=True)
     # Flags: {"auto_send_buckets": ["vence_pronto"], ...}
     config: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -47,15 +50,14 @@ class Customer(Base, TenantMixin, TimestampMixin):
     presence: Mapped[dict] = mapped_column(JSON, default=dict)
     # Etiquetas del negocio (ids que apuntan a tenant.config["tags"]).
     tags: Mapped[list] = mapped_column(JSON, default=list)
-    # cliente | prospecto — un prospecto es un posible cliente (lo trabaja Sofía).
+    # cliente | prospecto — un prospecto es un posible cliente.
     kind: Mapped[str] = mapped_column(String(16), default="cliente", index=True)
     # Bolsa flexible: empresa, origen, señal de compra, etc. (sobre todo prospectos).
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
 class Product(Base, TenantMixin, TimestampMixin):
-    """Catálogo de productos del negocio. Lo alimentan Carlos (ventas) y Roberto
-    (compras). Entra por importación de Excel o, después, desde la tienda/ERP."""
+    """Catálogo de productos del negocio. Lo usan ventas y compras. Entra por importación de Excel o, después, desde la tienda/ERP."""
 
     __tablename__ = "products"
 
@@ -71,7 +73,7 @@ class Product(Base, TenantMixin, TimestampMixin):
 
 
 class Appointment(Base, TenantMixin, TimestampMixin):
-    """Citas y agenda del negocio. Las atiende Valeria (recepción). Entran por
+    """Citas y agenda del negocio. Las atiende recepción. Entran por
     importación de Excel o, después, desde Google Calendar."""
 
     __tablename__ = "appointments"
@@ -89,7 +91,7 @@ class Appointment(Base, TenantMixin, TimestampMixin):
 
 
 class PurchaseOrder(Base, TenantMixin, TimestampMixin):
-    """Órdenes de compra del negocio. Las vigila Roberto (compras): detecta proveedores
+    """Órdenes de compra del negocio. Compras las vigila para detectar proveedores
     que no han confirmado. Entran desde Odoo (purchase.order) o, después, de otra fuente
     que liste OCs —misma capacidad, ninguna privilegiada."""
 
@@ -185,6 +187,23 @@ class CfdiBoveda(Base, TenantMixin, TimestampMixin):
     meta: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class SatPaquete(Base, TenantMixin, TimestampMixin):
+    """Un paquete de la Descarga Masiva ya bajado y todavía sin importar.
+
+    El SAT limita cuántas veces entrega cada paquete. Si la importación fallaba
+    después de bajarlo, la corrida siguiente lo volvía a descargar y gastaba ese
+    límite. Aquí se guarda el ZIP ANTES de importar (cifrado, como los demás
+    secretos) y se borra cuando la importación termina bien."""
+
+    __tablename__ = "sat_paquetes"
+    __table_args__ = (UniqueConstraint("tenant_id", "id_paquete"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    id_paquete: Mapped[str] = mapped_column(String(64), index=True)
+    contenido: Mapped[bytes] = mapped_column(LargeBinary)  # el ZIP, cifrado (Fernet)
+    key_version: Mapped[int] = mapped_column(Integer, default=1)
+
+
 class Reminder(Base, TenantMixin, TimestampMixin):
     """Trabajo redactado por un agente que espera aprobación humana.
 
@@ -233,7 +252,7 @@ class PaymentPromise(Base, TenantMixin, TimestampMixin):
 
 
 class Payment(Base, TenantMixin, TimestampMixin):
-    """Un pago que llegó (banco/Stripe/manual) y espera conciliación. Diego propone
+    """Un pago que llegó (banco/Stripe/manual) y espera conciliación. El motor propone
     a qué factura corresponde; el humano confirma, corrige o lo ignora. Un match de
     monto NO cierra la factura solo — la soberanía es del humano (igual que un dicho
     del cliente no es un pago)."""
@@ -456,3 +475,24 @@ class CuaMission(Base, TenantMixin, TimestampMixin):
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Documento(Base, TenantMixin, TimestampMixin):
+    """Un documento oficial del negocio bajado de un portal: hoy la Opinión de
+    cumplimiento (32-D) y la Constancia de situación fiscal del SAT. Cada bajada es
+    una fila nueva (el documento vale por su fecha); el PDF vive aquí, en la
+    computadora del dueño, y se liga a la corrida que lo trajo."""
+
+    __tablename__ = "documentos"
+    __table_args__ = (Index("ix_documentos_tenant_rfc_tipo", "tenant_id", "rfc", "tipo"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    rfc: Mapped[str] = mapped_column(String(13))
+    tipo: Mapped[str] = mapped_column(String(32))  # opinion_32d | constancia
+    folio: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    # Solo la opinión lo trae: Positivo, Negativo, etc., como lo dice el SAT.
+    sentido: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True))  # cuándo se bajó
+    pdf: Mapped[bytes] = mapped_column(LargeBinary)
+    # Referencia suave (sin FK, como el resto del esquema) a la corrida que lo trajo.
+    mission_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)

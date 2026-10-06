@@ -1,13 +1,12 @@
 """WhatsApp entrante (wacli) DENTRO del proceso de `aiuda start`.
 
-wacli no empuja mensajes: hay que sondearlos. Antes eso era un daemon aparte
-(scripts/wacli_inbound.py + systemd/launchd); en local-first el sondeo vive en
-un hilo del mismo proceso, así que UN comando recibe y procesa WhatsApp.
+wacli no empuja mensajes: hay que sondearlos. El sondeo vive en un hilo del
+mismo proceso, así que UN comando recibe y procesa WhatsApp.
 
 La ingesta es LA MISMA que la del webhook (conversación + dedupe por
 wa_message_id + procesamiento del agente): ``ingresar_entrante`` es la función
-compartida. El estado "qué ya vi" persiste en ~/.aiuda/ igual que el daemon
-viejo, así que actualizar no re-importa historia.
+compartida. El estado "qué ya vi" persiste en ~/.aiuda/, así que reiniciar no
+re-importa historia.
 """
 
 from __future__ import annotations
@@ -20,8 +19,9 @@ from sqlalchemy import select
 
 from aiuda_core.config import settings
 from aiuda_core.db import default_data_dir, session_scope
+from aiuda_core.identity import telefonos_atendidos
 from aiuda_core.models import Conversation, Message, Tenant
-from aiuda_core.phones import normalize_mx
+from aiuda_core.phones import match_key, normalize_mx
 
 log = logging.getLogger("aiuda.inbound")
 
@@ -29,10 +29,15 @@ log = logging.getLogger("aiuda.inbound")
 def ingresar_entrante(db, tenant, *, phone: str, body: str, wa_id: str | None):
     """Registra un mensaje entrante (conversación + fila Message, con dedupe).
     Devuelve el Message nuevo o None si se ignoró/duplicó. NO procesa el agente:
-    eso lo decide el caller (BackgroundTasks en el webhook, inline en el poller)."""
+    eso lo decide el caller (BackgroundTasks en el webhook, inline en el poller).
+
+    Solo entra lo que escribe un cliente del negocio o el dueño: de cualquier otro
+    número no se guarda ni la conversación."""
     phone = normalize_mx(str(phone or "").strip())
     body = str(body or "").strip()
     if not phone or not body:
+        return None
+    if match_key(phone) not in telefonos_atendidos(db, tenant):
         return None
 
     conversation = db.scalar(
@@ -75,7 +80,7 @@ def _wacli_tenants(db) -> list[tuple[str, str]]:
 
 
 def _state_path(instance: str) -> Path:
-    # Misma convención que el daemon viejo: el estado sobrevive la migración.
+    # El nombre no se cambia: es el archivo que ya tienen las instalaciones.
     name = f"wacli_inbound.{instance}.json" if settings.wacli_store_root else "wacli_inbound.json"
     return default_data_dir() / name
 
@@ -98,6 +103,8 @@ def poll_wacli_once(client_factory=None) -> int:
     el fallo de uno no detiene a los demás."""
     from aiuda_core.connectors.wacli import WacliClient
     from aiuda_core.connectors.wacli_inbound import collect_inbound
+    from aiuda_core.connectors.channel import wacli_store_dir
+    from aiuda_server import wacli_sync
     from aiuda_server.worker.main import process_incoming_message_blocking
 
     with session_scope() as db:
@@ -105,6 +112,8 @@ def poll_wacli_once(client_factory=None) -> int:
     total = 0
     for tenant_id, instance in objetivos:
         try:
+            # El sync es lo que llena el espejo que aquí se lee: si no está, se arranca.
+            wacli_sync.asegurar(instance, wacli_store_dir(instance))
             store_dir = (
                 str(Path(settings.wacli_store_root) / instance)
                 if settings.wacli_store_root
@@ -114,8 +123,12 @@ def poll_wacli_once(client_factory=None) -> int:
                 client_factory(instance) if client_factory else WacliClient(store_dir=store_dir)
             )
             state_path = _state_path(instance)
+            with session_scope() as db:
+                atendidos = telefonos_atendidos(db, db.get(Tenant, tenant_id))
+            # Solo se leen los chats de clientes y el del dueño: cada chat leído es
+            # un proceso de wacli, y en un número personal casi ninguno es cliente.
             posts, new_state = collect_inbound(
-                client.list_chats(), client.list_messages, _load_state(state_path)
+                client.list_chats(), client.list_messages, _load_state(state_path), atendidos
             )
             nuevos: list[str] = []
             with session_scope() as db:
@@ -133,8 +146,14 @@ def poll_wacli_once(client_factory=None) -> int:
             # El estado se guarda DESPUÉS de persistir los mensajes: si algo truena
             # a media ingesta, el siguiente sondeo reintenta (el dedupe absorbe).
             _save_state(state_path, new_state)
+            # Cada mensaje por separado: ya están guardados y marcados como vistos,
+            # así que el que truene (la IA sin conectar, el proveedor caído) no debe
+            # llevarse a los que siguen. Entre ellos puede venir una BAJA.
             for message_id in nuevos:
-                process_incoming_message_blocking(tenant_id, message_id)
+                try:
+                    process_incoming_message_blocking(tenant_id, message_id)
+                except Exception:  # noqa: BLE001 — queda en la bandeja para atenderlo a mano
+                    log.exception("no se pudo atender el mensaje entrante %s", message_id)
             total += len(nuevos)
         except Exception:  # noqa: BLE001 — un negocio con wacli caído no tumba el sondeo
             log.exception("sondeo wacli falló para %s", instance)

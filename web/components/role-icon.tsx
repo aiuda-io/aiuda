@@ -19,7 +19,7 @@ function svg(children: ReactNode) {
   );
 }
 
-export const ROLE_ICONS: Record<string, ReactNode> = {
+const ROLE_ICONS: Record<string, ReactNode> = {
   coins: svg(<><circle cx="6.8" cy="7" r="3.6" /><path d="M9.4 4.7a3.6 3.6 0 1 1 1.8 6.6" /></>),
   cart: svg(<><path d="M2.6 3.4h1.7l1.3 6.8h6.1l1.3-4.9H5.3" /><circle cx="7.2" cy="14" r="1" /><circle cx="12" cy="14" r="1" /></>),
   scale: svg(<><path d="M9 3v11M5.2 14h7.6" /><path d="M3.4 6.4h11.2M3.4 6.4 5.4 10H1.4zM14.6 6.4 12.6 10h4z" /></>),

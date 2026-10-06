@@ -41,7 +41,7 @@ export function Toaster() {
   // antes de que llegue un toast y el lector de pantalla puede anunciarlo. Los toasts
   // de error usan role="alert" (asertivo, se anuncia de inmediato); los demás, polite.
   return (
-    // z-[70]: por encima de TODO lo que se superpone (drawers, tour, asistente de
+    // z-[70]: por encima de TODO lo que se superpone (drawers, asistente de
     // primer arranque en z-[60]). Un aviso que queda tapado es un aviso perdido.
     <div
       aria-live="polite"
@@ -52,7 +52,7 @@ export function Toaster() {
         <div
           key={t.id}
           role={t.variant === "error" ? "alert" : "status"}
-          className="toast-in pointer-events-auto flex items-start gap-2.5 rounded-lg border border-line bg-surface px-3.5 py-2.5 shadow-[0_4px_24px_rgba(13,45,62,0.12)]"
+          className="toast-in pointer-events-auto flex items-start gap-2.5 rounded-xl bg-surface px-4 py-3 shadow-md"
         >
           <svg viewBox="0 0 12 12" className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${COLOR[t.variant]}`} fill="none">
             <path d={ICON[t.variant]} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

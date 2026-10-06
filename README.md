@@ -6,7 +6,7 @@
 Ayudantes de IA con humano en el loop para el back office de la PyME mexicana.
 Corre en tu computadora. Todo el código es abierto.
 
-![El tablero de aiuda: propuestas de cobranza esperando tu visto bueno, cada una con su monto, su antigüedad y quién la redactó](docs/assets/aprobaciones.png)
+![Hoy, la pantalla de trabajo de aiuda: lo que tus ayudantes redactaron y espera tu aprobación, cada mensaje con su monto, su atraso y quién lo redactó](docs/assets/hoy.png)
 
 ## Qué es
 
@@ -67,7 +67,7 @@ el de la PyME. Un dueño de negocio en Veracruz no va a instalar Rust. Por eso l
 notarización es el pendiente número uno: es lo que separa "cualquiera con una
 terminal puede usarlo" de "cualquiera puede usarlo".
 
-Qué está probado en cada plataforma, en [docs/INSTALAR.md](docs/INSTALAR.md).
+Cómo se abre la primera vez y qué está probado, en [docs/INSTALAR.md](docs/INSTALAR.md).
 Para verificar un instalador antes de repartirlo: `./scripts/prueba-app.sh`.
 
 ### Desde la terminal
@@ -92,8 +92,13 @@ Opcionales:
 - **IA local:** instala [Ollama](https://ollama.com) y baja un modelo con tool
   calling (`ollama pull llama3.1`). aiuda lo detecta solo y ningún dato sale de
   tu máquina. Ver [docs/IA.md](docs/IA.md).
-- **WhatsApp con tu número:** instala [wacli](https://github.com/steipete/wacli)
-  y vincula por QR desde la consola, como WhatsApp Web.
+- **WhatsApp con tu número:** se conecta desde la consola. Un clic instala
+  [wacli](https://github.com/openclaw/wacli) (lo baja de su release oficial y
+  verifica la suma; pide macOS 15) y vinculas por QR, como WhatsApp Web. aiuda
+  no reparte wacli: su binario incluye código GPL-3.0. Corriendo desde el repo
+  también sirve el `wacli` que ya tengas en el PATH. Es una vía no oficial,
+  fuera de las condiciones de uso de Meta. aiuda solo lee y contesta los chats
+  de tus clientes; el resto de tu WhatsApp no entra.
 - **Portales sin API (CUA):** `uv sync --extra cua` y luego
   `.venv/bin/playwright install chromium`. Ver [docs/CUA.md](docs/CUA.md).
 - **SAT:** registra hasta tres RFCs, importa XML/ZIP o conecta la e.firma desde
@@ -132,18 +137,29 @@ Pre-1.0, en desarrollo activo. Lo que hay hoy, sin adornos:
 
 - **Cobranza** es el vertical más maduro: conectar Odoo, sincronizar cartera
   real, redactar y aprobar está verificado punta a punta contra un Odoo 19.
-- **Integraciones:** 23 en el catálogo de la consola. 10 de ellas están
-  implementadas contra su contrato documentado y sin estrenar en vivo; la
-  consola lo dice en cada una.
+- **Conexiones:** 13 en el catálogo de la consola. Cuatro están estrenadas con
+  cuentas reales (Odoo, Excel/CSV, WhatsApp con tu número y el SAT con e.firma).
+  Las otras 9 están implementadas contra su contrato documentado y nadie las
+  ha usado todavía con una cuenta real: la consola las agrupa bajo "sin estrenar". Hay
+  seis más escritas y con pruebas, pero **ocultas** hasta estrenarlas: todos los
+  conectores de pago (Stripe, Belvo, Mercado Pago, Clip y Conekta) y la API oficial
+  de WhatsApp Business.
 - **App de escritorio:** probada en macOS con chip Apple, de punta a punta y con
   el instalador recién bajado (`scripts/prueba-app.sh`). El paquete está firmado
   pero **falta notarizarlo**, que es lo único que separa el `.dmg` de poder
-  repartirse. El flujo de release también construye Windows y Linux, sin
-  verificar todavía.
+  repartirse. aiuda se reparte solo para Mac.
 - **CUA (portales sin API):** verificado contra portales de prueba locales, con
-  una corrida real de punta a punta contra uno de ellos. No viaja en el binario
-  de la app.
-- **Multi-usuario:** no existe. Un negocio por instalación.
+  una corrida real de punta a punta contra uno de ellos. Incluye dos rutinas sin
+  IA que bajan del SAT la opinión de cumplimiento y la constancia de situación
+  fiscal con la e.firma guardada: esas dos sí se corrieron contra el portal real
+  del SAT ya dentro de aiuda, el 5 de octubre de 2026 (una opinión Positiva y una
+  constancia, con una e.firma). No viaja en el binario de la app.
+- **Teléfono:** la app de iPhone existe, en un repo aparte. Se empareja con un
+  QR dentro de la red de la oficina y sirve para ver el negocio y aprobar. Todavía
+  no está en la App Store: hoy se instala desde su código, con Xcode. Ver
+  [docs/APARATOS.md](docs/APARATOS.md).
+- **Multi-usuario:** no existe. Un negocio por instalación; varios aparatos, la
+  misma bitácora.
 
 ## Documentación
 

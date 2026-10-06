@@ -1,12 +1,14 @@
-"""Canal WhatsApp del tenant: emparejar wacli por QR, activar la vía oficial y
-recibir el webhook de la Cloud API.
+"""Canal WhatsApp del tenant: instalar y emparejar wacli por QR, activar la vía
+oficial y recibir el webhook de la Cloud API.
 
-wacli (dev/piloto): `wacli auth` abre una sesión de emparejamiento y emite eventos
-NDJSON; capturamos el evento `qr_code` y lo convertimos a imagen (segno) para la
-consola. Con WACLI_STORE_ROOT cada tenant empareja SU PROPIO store (`--store`),
-así la sesión/número de un negocio nunca es la de otro; sin la raíz (self-host de
-un solo número) el store default solo puede pertenecer a UN tenant — el segundo
-que intente recibe un rechazo honesto, no el número ajeno.
+wacli: el proceso de emparejamiento (`wacli auth`) y el de sincronización
+(`wacli sync --follow`) son del supervisor ``aiuda_server.wacli_sync``; aquí solo
+se le pide empezar, cancelar o cerrar, y se le pregunta el estado EN VIVO. El QR
+vigente (wacli lo rota) se convierte a imagen (segno) para la consola. Con
+WACLI_STORE_ROOT cada tenant empareja SU PROPIO store (`--store`), así la
+sesión/número de un negocio nunca es la de otro; sin la raíz (un solo número) el
+store default solo puede pertenecer a UN tenant: el segundo que intente recibe
+un rechazo honesto, no el número ajeno.
 
 Cloud API (producción): las credenciales se capturan cifradas en el conector
 `whatsapp_cloud`; aquí solo se ACTIVA como vía del canal y se recibe su webhook
@@ -15,89 +17,22 @@ Cloud API (producción): las credenciales se capturan cifradas en el conector
 import hashlib
 import hmac
 import json
-import select
-import subprocess
-import time
 
 import segno
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import select as sa_select
 
+from aiuda_server import wacli_sync
 from aiuda_server.api.deps import get_db, get_tenant
 from aiuda_core.config import settings
+from aiuda_core.connectors import wacli_bin
 from aiuda_core.connectors.channel import wacli_store_dir, whatsapp_config
+from aiuda_core.connectors.wacli import explicar_fallo_wacli
 from aiuda_core.connectors.waba import parse_webhook as parse_waba_webhook
 from aiuda_core.models import Conversation, IntegrationCredential, Message, Tenant
 
 router = APIRouter()
-
-# Proceso de emparejamiento en curso POR TENANT (cada negocio escanea su propio QR).
-_AUTH_PROCS: dict[str, subprocess.Popen] = {}
-
-
-def _store_args(tenant: Tenant) -> list[str]:
-    """`--store` del workspace o nada (store default del host)."""
-    store = wacli_store_dir(tenant.evolution_instance)
-    return ["--store", store] if store else []
-
-
-def _stop_auth(tenant_id: str) -> None:
-    proc = _AUTH_PROCS.pop(tenant_id, None)
-    if proc and proc.poll() is None:
-        proc.terminate()
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-
-
-def _is_authenticated(tenant: Tenant) -> bool:
-    try:
-        out = subprocess.run(
-            [settings.wacli_bin, "auth", "status", *_store_args(tenant), "--json"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        data = json.loads(out.stdout or "{}")
-        return bool(data.get("data", {}).get("authenticated"))
-    except (subprocess.SubprocessError, json.JSONDecodeError, FileNotFoundError):
-        return False
-
-
-def _capture_qr(tenant: Tenant, deadline_s: float = 15.0) -> str | None:
-    """Inicia `wacli auth` (con el store del tenant) y devuelve el contenido del QR."""
-    _stop_auth(tenant.id)
-    try:
-        proc = subprocess.Popen(
-            [settings.wacli_bin, "auth", "--qr-format", "text", "--events", *_store_args(tenant)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-    except FileNotFoundError:
-        return None
-    _AUTH_PROCS[tenant.id] = proc
-
-    end = time.monotonic() + deadline_s
-    assert proc.stderr is not None
-    while time.monotonic() < end and proc.poll() is None:
-        ready, _, _ = select.select([proc.stderr], [], [], end - time.monotonic())
-        if not ready:
-            break
-        line = proc.stderr.readline()
-        if not line:
-            break
-        try:
-            evt = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if evt.get("event") == "qr_code":
-            return evt.get("data", {}).get("code")
-        if evt.get("event") == "error":
-            break
-    return None
 
 
 def _mark(tenant: Tenant, db, via: str | None) -> None:
@@ -128,6 +63,42 @@ def _duena_del_store_default(db, tenant: Tenant) -> Tenant | None:
     return None
 
 
+def _qr_imagen(code: str | None) -> str | None:
+    return segno.make(code, error="m").svg_data_uri(scale=6, border=2) if code else None
+
+
+def _estado_vivo(tenant: Tenant, db) -> dict:
+    """El estado del WhatsApp del negocio tal como está AHORA en wacli, no como
+    quedó guardado. Si la sesión está vinculada y el store es suyo, se anota la
+    vía y se deja corriendo el sync (por si se vinculó fuera de la consola)."""
+    instance = tenant.evolution_instance
+    store = wacli_store_dir(instance)
+    foto = wacli_sync.estado(instance, store)
+    vinculado = foto["estado"] in wacli_sync.VINCULADOS
+    if vinculado:
+        # No robar el store default: solo es suyo si nadie más lo posee.
+        if _duena_del_store_default(db, tenant) is None:
+            if (whatsapp_config(tenant) or {}).get("via") != "wacli":
+                _mark(tenant, db, "wacli")
+            foto["estado"] = wacli_sync.arrancar(instance, store)
+        else:
+            vinculado = False
+    return {
+        "connected": vinculado,
+        "estado": foto["estado"],
+        "desde": foto["desde"],
+        "telefono": foto["telefono"] if vinculado else None,
+        "qr": _qr_imagen(foto["qr"]),
+        # Lo último que falló, ya en español (el QR caducó, no hay internet...).
+        "aviso": (
+            explicar_fallo_wacli(foto["error"])
+            if foto["error"] and foto["estado"] in (wacli_sync.SIN_VINCULAR, wacli_sync.SIN_CONEXION)
+            else None
+        ),
+        **_instalacion(),
+    }
+
+
 @router.post("/v1/integrations/whatsapp/qr")
 def whatsapp_qr(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     """Devuelve el QR para emparejar (o avisa si ya está conectado)."""
@@ -136,49 +107,89 @@ def whatsapp_qr(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         raise HTTPException(
             status_code=409,
             detail=(
-                "El WhatsApp de este servidor ya está vinculado a otro negocio. Para "
-                "varios negocios cada uno necesita su propio store (WACLI_STORE_ROOT) "
-                "o el canal oficial de WhatsApp Business."
+                "El WhatsApp de esta computadora ya está vinculado a otro negocio. "
+                "Cada negocio necesita su propio número."
             ),
         )
-    if _is_authenticated(tenant):
-        _mark(tenant, db, "wacli")
+    if wacli_bin.resolver() is None:
+        raise HTTPException(status_code=409, detail=wacli_bin.SIN_INSTALAR)
+    if _estado_vivo(tenant, db)["connected"]:
         return {"connected": True, "qr": None}
 
-    code = _capture_qr(tenant)
+    instance = tenant.evolution_instance
+    store = wacli_store_dir(instance)
+    code = wacli_sync.vincular(instance, store)
     if not code:
+        error = wacli_sync.estado(instance, store)["error"]
         raise HTTPException(
             status_code=502,
-            detail="No se pudo generar el QR. Revisa que wacli esté instalado en el servidor.",
+            detail=(
+                explicar_fallo_wacli(error)
+                if error
+                else "No se pudo generar el código QR. Intenta de nuevo en un momento."
+            ),
         )
-    qr = segno.make(code, error="m")
-    return {"connected": False, "qr": qr.svg_data_uri(scale=6, border=2)}
+    return {"connected": False, "qr": _qr_imagen(code)}
+
+
+@router.delete("/v1/integrations/whatsapp/qr")
+def whatsapp_qr_cancelar(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
+    """El dueño cerró la ventana sin escanear: el emparejamiento se cancela para
+    que no se quede ocupando el WhatsApp de esta computadora. Si alcanzó a
+    escanear, no se cancela nada y el negocio queda anotado como vinculado."""
+    wacli_sync.cancelar_vinculacion(tenant.evolution_instance)
+    return {"connected": _estado_vivo(tenant, db)["connected"]}
 
 
 @router.get("/v1/integrations/whatsapp/status")
 def whatsapp_status(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    connected = _is_authenticated(tenant)
-    if connected:
-        _stop_auth(tenant.id)
-        # No robar el store default: solo marca conectado si nadie más lo posee.
-        if _duena_del_store_default(db, tenant) is None:
-            _mark(tenant, db, "wacli")
-        else:
-            connected = False
-    return {"connected": connected}
+    return _estado_vivo(tenant, db)
+
+
+def _instalacion() -> dict:
+    """Lo que la consola necesita para ofrecer Instalar: si ya hay un wacli, cuál
+    versión, y si esta computadora no puede instalarlo, por qué."""
+    binario = wacli_bin.resolver()
+    return {
+        "instalado": binario is not None,
+        "version": wacli_bin.version(binario) if binario else None,
+        # La que instala este aiuda. Si ya es la instalada, "Actualizar" no
+        # serviría de nada y la consola no lo ofrece.
+        "version_fijada": wacli_bin.WACLI_VERSION,
+        "no_se_puede": None if binario else wacli_bin.puede_instalarse(),
+    }
+
+
+@router.post("/v1/integrations/whatsapp/instalar")
+def whatsapp_instalar():
+    """Instala el conector de WhatsApp con un clic: lo baja del release oficial,
+    verifica su suma y lo deja en la carpeta de datos. Nada que teclear."""
+    try:
+        wacli_bin.instalar()
+    except wacli_bin.WacliInstallError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    wacli_sync.tras_instalar()
+    return _instalacion()
 
 
 @router.delete("/v1/integrations/whatsapp/session")
 def whatsapp_logout(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    _stop_auth(tenant.id)
-    try:
-        subprocess.run(
-            [settings.wacli_bin, "auth", "logout", *_store_args(tenant)],
-            capture_output=True,
-            timeout=10,
+    """Desvincula el número. Si wacli no pudo cerrar la sesión se dice, y el
+    negocio sigue marcado como vinculado: decir "desconectado" con la sesión
+    viva sería mentir."""
+    instance = tenant.evolution_instance
+    store = wacli_store_dir(instance)
+    error = wacli_sync.desvincular(instance, store)
+    if error is not None:
+        wacli_sync.arrancar(instance, store)  # sigue vinculado: el sync vuelve
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "No se pudo cerrar la sesión de WhatsApp. Revisa tu internet e intenta "
+                "de nuevo; también puedes quitarla desde tu teléfono, en Dispositivos "
+                "vinculados."
+            ),
         )
-    except (subprocess.SubprocessError, FileNotFoundError):
-        pass
     _mark(tenant, db, None)
     return {"connected": False}
 

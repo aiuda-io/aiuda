@@ -1,11 +1,15 @@
 """Resolución de credenciales del proveedor de IA y construcción del cliente.
 
-aiuda es BYO-credentials y no hay letras chicas. Tres vías, todas legítimas:
+aiuda es BYO-credentials y no hay letras chicas. Cuatro vías, todas legítimas:
 
   api_key  → tu llave. `anthropic.Anthropic(api_key=...)` (x-api-key).
   cli      → el binario que YA tienes instalado (`claude`, `codex`). Lo lanzamos como
              subproceso y él se autentica con TU sesión: aiuda nunca ve tu token.
   local    → un endpoint OpenAI-compatible en tu máquina (Ollama, LM Studio, vLLM).
+  oauth    → "Entrar con ChatGPT": el flujo oficial de OpenAI para herramientas
+             abiertas que corren en tu computadora. aiuda se registra con SU nombre,
+             recibe su propio client_id y usa tu plan por la Responses API pública.
+             Ver engine/chatgpt_auth.py.
 
 QUÉ SE QUITÓ Y POR QUÉ. Existió una cuarta vía, `subscription`, que tomaba el token
 OAuth de `claude setup-token` y lo mandaba a api.anthropic.com anteponiendo al system
@@ -20,13 +24,18 @@ Code" no se perdió, se movió a donde sí es legítima: el modo `cli`, que lanz
 binario con TU sesión. Lo mismo del lado de OpenAI con el device flow de Codex contra
 chatgpt.com.
 
+La vía `oauth` NO es aquella de regreso. Lo que se retiró era presentarse como otro
+programa; en esta aiuda se presenta como aiuda, y si algún día el flujo exigiera lo
+contrario, se quita igual.
+
 La credencial se resuelve en este orden:
-  1. tenant.config["provider"] (lo que el usuario conectó en el panel /proveedor)
+  1. tenant.config["provider"] (lo que el usuario conectó en Ajustes, Tu IA)
   2. settings.anthropic_api_key (variable de entorno, compat self-host)
 """
 
 import time
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 import anthropic
 
@@ -39,16 +48,19 @@ from aiuda_core.config import settings
 # fallar limpio y que la siguiente corrida horaria lo intente de nuevo.
 LLM_TIMEOUT_S = 120.0
 
-ProviderName = str  # "claude" | "codex" | "local" | "claude_cli" | "codex_cli"
-ProviderMode = str  # "api_key" | "cli"
+ProviderName = str  # "claude" | "codex" | "local" | "claude_cli" | "codex_cli" | "chatgpt"
+ProviderMode = str  # "api_key" | "cli" | "oauth"
 
 # "local" = cualquier endpoint OpenAI-compatible en tu máquina o red (Ollama,
 # LM Studio, vLLM). Su secreto es un JSON {base_url, model, api_key opcional} y
 # su modo siempre es api_key.
 # "claude_cli"/"codex_cli" = el CLI que el dueño YA tiene instalado y con su
 # sesión iniciada. Un clic y listo: sin token que pegar ni terminal que abrir.
-VALID_NAMES = ("claude", "codex", "local", "claude_cli", "codex_cli")
-VALID_MODES = ("api_key", "cli")
+# "chatgpt" (modo "oauth") = el dueño entró con su cuenta de ChatGPT. Su secreto es un
+# JSON con los tokens y el client_id que OpenAI le emitió a aiuda; solo se crea por el
+# flujo del navegador, nunca pegando nada.
+VALID_NAMES = ("claude", "codex", "local", "claude_cli", "codex_cli", "chatgpt")
+VALID_MODES = ("api_key", "cli", "oauth")
 
 
 @dataclass(frozen=True)
@@ -56,6 +68,11 @@ class ProviderCredential:
     name: ProviderName
     mode: ProviderMode
     secret: str
+    # Solo "chatgpt": da el access token para la siguiente llamada, renovándolo si
+    # hace falta. Recibe el token que OpenAI acaba de rechazar (o None).
+    token_vigente: Callable[[str | None], str] | None = field(
+        default=None, compare=False, repr=False
+    )
 
 
 def credential_from_config(config: dict | None) -> ProviderCredential | None:
@@ -70,6 +87,9 @@ def credential_from_config(config: dict | None) -> ProviderCredential | None:
     if not secret and mode != "cli":
         return None
     if name not in VALID_NAMES or mode not in VALID_MODES:
+        return None
+    # ChatGPT solo existe en la fila cifrada: sus tokens rotan y hay que guardarlos.
+    if name == "chatgpt" or mode == "oauth":
         return None
     return ProviderCredential(name=name, mode=mode, secret=secret)
 
@@ -97,7 +117,38 @@ def credential_from_store(session, tenant_id: str) -> ProviderCredential | None:
         return None
     if name not in VALID_NAMES or mode not in VALID_MODES:
         return None
+    if (name == "chatgpt") != (mode == "oauth"):
+        return None
+    if name == "chatgpt":
+        from aiuda_core.engine import chatgpt_auth
+
+        # Aquí no se renueva nada (resolver la credencial no sale a la red): el token
+        # se pide justo antes de cada llamada, con la sesión de quien resolvió. Una
+        # conexión vencida también se devuelve, para que la corrida diga "vuelve a
+        # entrar" en vez de caer en silencio a otra llave y a otra forma de cobro.
+        return ProviderCredential(
+            name=name,
+            mode=mode,
+            secret=secret,
+            token_vigente=lambda rechazado=None: chatgpt_auth.token_vigente(
+                session, tenant_id, rechazado=rechazado
+            ),
+        )
     return ProviderCredential(name=name, mode=mode, secret=secret)
+
+
+def esta_conectada(credential: ProviderCredential | None) -> bool:
+    """¿Con esta credencial se puede llamar hoy? Casi siempre basta con que exista. La
+    excepción es ChatGPT con la sesión vencida: la credencial se sigue devolviendo (para
+    que la corrida diga "vuelve a entrar" y no caiga a otra llave), pero ya no trae
+    tokens. Quien le cuente al dueño si su IA está conectada pregunta aquí."""
+    if credential is None:
+        return False
+    if credential.name == "chatgpt":
+        from aiuda_core.engine import chatgpt_auth
+
+        return bool(chatgpt_auth.parse_secret(credential.secret).get("access_token"))
+    return True
 
 
 def resolve_credential(

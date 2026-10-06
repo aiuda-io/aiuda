@@ -9,11 +9,15 @@ app de escritorio (Tauri)          o          aiuda start (terminal)
                        ▼
               proceso Python único
               ├─ FastAPI en 127.0.0.1:4747 (token de sesión por arranque)
+              ├─ segunda puerta opcional en la red local (:4748, HTTPS) para
+              │  los aparatos emparejados; apagada por default
               ├─ consola: export estático de Next servido por el mismo proceso
               ├─ scheduler (hilos): corrida horaria + WhatsApp entrante (wacli)
-              ├─ SQLite ~/.aiuda/aiuda.db (WAL); Postgres opcional (operadores)
+              ├─ wacli: `sync --follow` como proceso hijo, supervisado
+              ├─ SQLite ~/.aiuda/aiuda.db (WAL)
               ├─ llave Fernet en ~/.aiuda/key (0600), una sola fuente
-              ├─ IA BYO: Claude / OpenAI / local (Ollama, OpenAI-compatible)
+              ├─ IA BYO: llave (Claude / OpenAI), el Claude Code o Codex ya
+              │  instalado, o local (Ollama, OpenAI-compatible)
               └─ CUA: Chromium local (Playwright) que opera portales; el dueño
                  hace el login él mismo (handoff) y la sesión queda cifrada
 ```
@@ -32,7 +36,7 @@ funciona en la terminal funciona en la app, y al revés.
 | `desktop/` | App Tauri: ventana y ciclo de vida del sidecar. Nada de lógica de negocio. |
 | `packaging/` | `aiuda.spec` de PyInstaller: el server y la consola en un ejecutable. |
 | `landing/` | Página pública estática. |
-| `scripts/` | `build-app.sh`, `dev.sh`, `seed.py`, `cua_demo.py`. |
+| `scripts/` | Construir (`build-app.sh`), desarrollar (`dev.sh`, `seed.py`), probar de punta a punta sobre una casa desechable (`prueba-app.sh`, `prueba-ia.sh`, `prueba-banco.sh`, `journey.py`, `flujos.py`) y sacar capturas (`capturas.py`, `og.py`). |
 
 ## Decisiones que definen el diseño
 
@@ -42,17 +46,22 @@ funciona en la terminal funciona en la app, y al revés.
   (cada dato sabe de qué fuente viene) y el write-back regresa a la fuente.
 - **Local-first en serio.** El default no necesita variables de entorno, Docker,
   Redis ni migraciones: SQLite, `create_all` idempotente y la llave en
-  `~/.aiuda/key`. El modo cliente-servidor se conserva (HTTP interno), así que la
-  app de escritorio y una instancia operada por un integrador usan este mismo
-  código.
-- **BYO-IA.** aiuda no incluye ni revende inferencia. API key, el CLI que el dueño
-  ya tiene instalado (se autentica con SU sesión; aiuda nunca ve su token),
-  personal (bajo tu riesgo, la UI lo dice) o un modelo local con Ollama, la única
-  vía donde ningún dato sale de tu máquina. Ver [docs/IA.md](docs/IA.md).
+  `~/.aiuda/key`. El modo cliente-servidor se conserva (HTTP interno): la app
+  de escritorio y `aiuda start` usan este mismo código.
+- **BYO-IA.** aiuda no incluye ni revende inferencia. Cuatro vías: la API key del
+  dueño, el CLI que ya tiene instalado (se autentica con SU sesión; aiuda nunca
+  ve su token), entrar con su cuenta de ChatGPT por el flujo oficial de OpenAI
+  (aiuda se registra con su propio nombre; sin estrenar con una cuenta real) o un
+  modelo local con Ollama, la única donde ningún dato sale de su máquina. Ver
+  [docs/IA.md](docs/IA.md).
 - **Canales honestos.** WhatsApp con tu número (protocolo de WhatsApp Web, el
   aviso vive en la UI) o correo IMAP/SMTP. La Cloud API oficial de Meta existe
-  como conector, pero necesita URL pública: es para instancias operadas, no para
-  el local puro.
+  como conector, pero necesita una URL pública que la instalación local no
+  trae, y la consola no la ofrece hasta estrenarla con una cuenta real.
+- **Sin estrenar se dice.** Cada integración del catálogo declara `estrenada`
+  (`server/aiuda_server/api/integrations.py`): si nadie la ha usado con una
+  cuenta real, la consola le pone el sello. Las marcadas `oculta` no se ofrecen
+  hasta probarse, salvo a quien ya las tiene conectadas.
 - **Un solo log de lo soberano.** Cada aprobación, rechazo, edición y write-back
   deja fila en `audit_logs`. Poder demostrar quién autorizó un cobro es
   fundacional.
@@ -88,6 +97,23 @@ dispara la corrida de cobranza una vez por hora de reloj (idempotente y con
 cooldowns, así que correr de más no duplica nada) y otro sondea WhatsApp entrante
 cada 20 segundos. `aiuda daily` hace lo mismo en primer plano.
 
+El sondeo solo lee los chats de los clientes del negocio y el del dueño
+(`identity.telefonos_atendidos`, cruce por los últimos 10 dígitos). El número
+vinculado suele ser el personal del dueño: lo que llega de cualquier otro número
+no se guarda, no se le pasa a la IA y no recibe respuesta ni baja. La misma
+regla se repite al guardar (`inbound.ingresar_entrante`) y al atender
+(`worker/main.py`).
+
+WhatsApp con tu número sí trae un proceso aparte, pero no lo opera nadie a mano:
+`server/aiuda_server/wacli_sync.py` es dueño del `wacli sync --follow` de cada
+negocio vinculado (mantiene la sesión conectada y llena el espejo local que el
+sondeo lee) y del `wacli auth` del emparejamiento. Lo arranca al abrir, lo
+relanza si muere y lo termina al apagar. Para enviar no lo detiene: con un sync
+vivo, `wacli send` le pasa el mensaje a ese proceso y sale en 2 o 3 segundos
+sin soltar la conexión. El binario lo resuelve
+`core/aiuda_core/connectors/wacli_bin.py`, siempre por ruta absoluta: el que
+instaló la consola en `~/.aiuda/bin`, o el del sistema.
+
 La corrida no depende de que el hilo despierte en el minuto exacto: cada 30
 segundos compara la hora actual contra la última corrida (guardada en
 `Tenant.config["ultima_corrida_horaria"]`) y salda las que falten. Si la laptop
@@ -103,23 +129,36 @@ SQLite en `~/.aiuda/aiuda.db` con WAL. Sin Alembic: el esquema se declara en los
 modelos y `create_all` lo materializa al arrancar, de forma idempotente. Por eso
 la configuración nueva va en `Tenant.config` (JSON) en vez de columnas nuevas.
 
-Todas las tablas conservan `tenant_id`: permite aislar workspaces en una
-instancia operada y evita una migración destructiva. En local hay un workspace
+Todas las tablas conservan `tenant_id`: quitarlo sería una migración
+destructiva. En local hay un workspace
 y se crea solo; `WORKSPACE_ID` elige cuando una base importada trae varios.
 
-Postgres sigue soportado con `DATABASE_URL` y el extra `aiuda-server[postgres]`,
-para instancias operadas. El `Dockerfile` de la raíz es para ese caso, no para
-la instalación normal.
+aiuda solo corre sobre SQLite. `DATABASE_URL` sirve para apuntar a otro archivo
+(tests y scripts), no a otro motor.
+
+## Aparatos en la red local
+
+El teléfono no pasa por ningún servidor: le habla directo a la computadora del
+negocio. Al prender la red en **Ajustes, Teléfono y equipo** se abre una segunda puerta
+(`server/aiuda_server/red_local.py`, puerto 4748) con HTTPS y un certificado que
+la máquina se firma sola. La huella de ese certificado viaja en el QR del
+emparejamiento y el teléfono acepta esa huella y ninguna otra. Esa puerta
+siempre exige el token de un aparato emparejado, y lo que cada papel puede tocar
+está declarado, ruta por ruta, en `server/aiuda_server/api/permisos.py`.
+
+La app de iPhone vive en un repo aparte y consume este mismo API. Solo funciona
+dentro de la red de la oficina.
 
 ## Tests
 
 `core/tests` y `server/tests`: SQLite en memoria, LLM mockeado, deterministas y
 sin necesidad de credenciales. `evals/` corre evaluaciones de IA aparte del gate.
-CI: pytest, ruff, tsc, export de la consola y build de los wheels.
+CI: pytest, ruff, lint y tsc de la consola, su export y el build de los wheels.
 
 ## Después de v0.1: nodo local y relay opcional
 
-v0.1 sigue siendo un solo proceso local. La dirección futura toma de
+v0.1 sigue siendo un solo proceso local, y el teléfono solo llega dentro de la
+red de la oficina. Nada de lo que sigue existe hoy. La dirección futura toma de
 [Buzz](https://github.com/block/buzz/blob/main/VISION_AGENT.md) una frontera,
 no su producto completo:
 
@@ -134,6 +173,4 @@ el arranque local sin cuenta. Un relay propio se conecta por URL o invitación,
 sin cuenta de Hanova, y el nodo se autentica con su propia llave.
 
 Por la sensibilidad fiscal, el relay debe guardar metadatos mínimos o contenido
-cifrado de extremo a extremo que el operador no pueda abrir. Antes de compartir
-infraestructura entre negocios, el camino operable es una instancia dedicada
-por cliente; el aislamiento compartido no es objetivo de v0.1.
+cifrado de extremo a extremo que el operador no pueda abrir.

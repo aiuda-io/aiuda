@@ -1,4 +1,4 @@
-"""Conectores de productividad: Slack, HubSpot — request correcto + parsing.
+"""Conectores de productividad: HubSpot — request correcto + parsing.
 
 Ninguno toca la red real: httpx.MockTransport intercepta todo.
 """
@@ -9,49 +9,10 @@ import httpx
 import pytest
 
 from aiuda_core.connectors.hubspot import HubSpotClient
-from aiuda_core.connectors.slack import SlackClient
 
 
 def transport(handler):
     return httpx.MockTransport(handler)
-
-
-# ────────────────────────── Slack ──────────────────────────
-
-
-def test_slack_post_message_ok():
-    captured = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured["path"] = request.url.path
-        captured["auth"] = request.headers.get("authorization", "")
-        captured["body"] = json.loads(request.content)
-        return httpx.Response(200, json={"ok": True, "ts": "1717900000.000100"})
-
-    client = SlackClient(bot_token="xoxb-test", transport=transport(handler))
-    ts = client.post_message("#alertas", "Resumen diario listo")
-
-    assert captured["path"] == "/api/chat.postMessage"
-    assert captured["auth"] == "Bearer xoxb-test"
-    assert captured["body"]["channel"] == "#alertas"
-    assert captured["body"]["text"] == "Resumen diario listo"
-    assert ts == "1717900000.000100"
-
-
-def test_slack_post_message_error_api():
-    """Cuando Slack devuelve ok=false se lanza RuntimeError con el campo error."""
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"ok": False, "error": "channel_not_found"})
-
-    client = SlackClient(bot_token="xoxb-test", transport=transport(handler))
-    with pytest.raises(RuntimeError, match="channel_not_found"):
-        client.post_message("#inexistente", "hola")
-
-
-def test_slack_sin_credenciales_truena():
-    with pytest.raises(RuntimeError, match="SLACK_BOT_TOKEN"):
-        SlackClient(bot_token="")
 
 
 # ────────────────────────── HubSpot ──────────────────────────

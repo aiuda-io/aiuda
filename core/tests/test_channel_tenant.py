@@ -92,6 +92,8 @@ def test_dos_tenants_wacli_envian_por_stores_distintos(session, monkeypatch):
     a = _tenant(session, "A", "inst-a", {"integrations": {"whatsapp": {"via": "wacli"}}})
     b = _tenant(session, "B", "inst-b", {"integrations": {"whatsapp": {"via": "wacli"}}})
     commands: list[list[str]] = []
+    # Hay un wacli "instalado" (ruta que no existe: subprocess.run va interceptado).
+    monkeypatch.setattr(wacli_mod.wacli_bin, "_del_sistema", lambda: "/sin-wacli/wacli")
     monkeypatch.setattr(
         wacli_mod.subprocess, "run",
         lambda command, **kw: commands.append(command) or _Result(),
@@ -170,10 +172,12 @@ def test_get_channel_sender_canales_no_vivos_devuelve_none(session):
     assert get_channel_sender("whatsapp", wa) is not None
 
 
-def test_advertencia_no_oficial_es_honesta_sin_alarmismo():
+def test_advertencia_no_oficial_dice_lo_que_hay_sin_sermon():
     aviso = channel_mod.UNOFFICIAL_WHATSAPP_WARNING
-    # Dice la verdad (no es la API oficial, el volumen atrae restricciones)...
-    assert "no la API oficial" in aviso
-    assert "volumen" in aviso
-    # ...sin regañar al uso local normal.
-    assert "riesgo es bajo" in aviso
+    # Las tres cosas que el dueño tiene que saber antes de conectar...
+    assert "tu propio número" in aviso and "no oficial" in aviso
+    assert "fuera de las condiciones de uso de Meta" in aviso
+    assert "suspender el número" in aviso
+    # ...sin restarle importancia ("el riesgo es bajo") y en pocas líneas.
+    assert "riesgo" not in aviso
+    assert len(aviso) < 240 and "—" not in aviso

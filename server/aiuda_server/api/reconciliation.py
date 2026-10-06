@@ -1,5 +1,5 @@
-"""Conciliación de pagos (Diego): la bandeja donde el dinero que entró se casa con
-las facturas que liquida. Diego PROPONE con evidencia (por qué cuadra); el humano
+"""Conciliación de pagos: la bandeja donde el dinero que entró se casa con
+las facturas que liquida. El motor PROPONE con evidencia (por qué cuadra); el humano
 confirma, ajusta (elige otra factura) o rechaza. Nada se cierra solo.
 
 Qué vive aquí:
@@ -19,7 +19,7 @@ API del proveedor. No se inventa liveness.
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -156,7 +156,7 @@ def _dichos(db, tenant: Tenant, pendientes: list[Payment], tol_pct: float, tol_a
 
 @router.get("/v1/reconciliation")
 def list_reconciliation(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
-    """Bandeja de Diego: pagos detectados pendientes con la evidencia completa
+    """Bandeja de conciliación: pagos detectados pendientes con la evidencia completa
     (propuesta, alternativas, grupos multifactura, veredicto de ambigüedad), más
     los dichos de pago por verificar y el estado honesto de las fuentes."""
     tol_pct, tol_abs = tolerancia(tenant.config)
@@ -211,6 +211,7 @@ class ReconcileBody(BaseModel):
 def confirm_reconciliation(
     payment_id: str,
     body: ReconcileBody,
+    background: BackgroundTasks,
     tenant: Tenant = Depends(get_tenant),
     db=Depends(get_db),
     principal: Principal = Depends(get_principal),
@@ -276,6 +277,8 @@ def confirm_reconciliation(
     now = datetime.now(MX_TZ)
     restante = monto
     aplicaciones = []
+    hay_writeback = False
+    from aiuda_core.engine.sync import cerrar_pendientes_por_pago
     from aiuda_core.engine.writeback import queue_payment_writeback
 
     for inv in invoices:
@@ -304,7 +307,11 @@ def confirm_reconciliation(
             inv.verified = "verificada"
             # Write-back solo del cierre: el abono parcial aún no tiene ejecutor
             # (writeback registra el pago completo en la fuente).
-            queue_payment_writeback(db, tenant, inv)
+            if queue_payment_writeback(db, tenant, inv) is not None:
+                hay_writeback = True
+            # La factura quedó pagada: sus promesas se cumplen y lo que aún no
+            # salía deja de estar pendiente.
+            cerrar_pendientes_por_pago(db, inv)
         audit.record(
             db,
             tenant_id=tenant.id,
@@ -341,6 +348,13 @@ def confirm_reconciliation(
         **({"excedente": restante} if restante > 0.005 else {}),
     }
     db.flush()
+    if hay_writeback:
+        # Igual que al registrar un pago a mano: el cierre regresa a su sistema de
+        # origen ahora, no hasta la revisión de cada hora.
+        db.commit()
+        from aiuda_server.api.writeback import mandar_ya
+
+        mandar_ya(background, tenant.id)
     primera = invoices[0]
     return {
         "id": pay.id,

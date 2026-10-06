@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from aiuda_core.config import settings
-from aiuda_core.models import Base, Invoice, Message, Reminder, Tenant, Customer
+from aiuda_core.models import Base, Conversation, Customer, Invoice, Message, Reminder, Tenant
 from aiuda_server.api.main import app, get_db
 
 
@@ -67,12 +67,10 @@ def tenant(db_session):
 
 
 WEBHOOK_PAYLOAD = {
-    "event": "messages.upsert",
     "instance": "demo",
-    "data": {
-        "key": {"remoteJid": "5215587654321@s.whatsapp.net", "fromMe": False, "id": "MSG1"},
-        "message": {"conversation": "hola, ¿cuánto debo?"},
-    },
+    "phone": "5215587654321",
+    "message": "hola, ¿cuánto debo?",
+    "id": "MSG1",
 }
 
 
@@ -81,12 +79,26 @@ def test_health(client):
 
 
 def test_webhook_rechaza_token_invalido(client, tenant):
-    response = client.post("/v1/webhooks/evolution?token=malo", json=WEBHOOK_PAYLOAD)
+    response = client.post("/v1/webhooks/wacli?token=malo", json=WEBHOOK_PAYLOAD)
     assert response.status_code == 401
 
 
+def _cliente(db_session, tenant, phone="5587654321"):
+    db_session.add(Customer(tenant_id=tenant.id, name="Cliente", phone=phone))
+    db_session.flush()
+
+
+def test_webhook_de_un_numero_que_no_es_cliente_no_guarda_nada(client, db_session, tenant):
+    response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
+    assert response.json()["status"] == "ignored"
+    assert db_session.scalars(select(Message)).all() == []
+    assert db_session.scalars(select(Conversation)).all() == []
+    assert app.state.test_jobs == []
+
+
 def test_webhook_persiste_y_procesa_inline(client, db_session, tenant):
-    response = client.post("/v1/webhooks/evolution?token=secreto", json=WEBHOOK_PAYLOAD)
+    _cliente(db_session, tenant)
+    response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"
     message = db_session.scalar(select(Message).where(Message.tenant_id == tenant.id))
@@ -96,9 +108,10 @@ def test_webhook_persiste_y_procesa_inline(client, db_session, tenant):
 
 
 def test_webhook_es_idempotente(client, db_session, tenant):
-    client.post("/v1/webhooks/evolution?token=secreto", json=WEBHOOK_PAYLOAD)
-    response = client.post("/v1/webhooks/evolution?token=secreto", json=WEBHOOK_PAYLOAD)
-    assert response.json()["status"] == "duplicate"
+    _cliente(db_session, tenant)
+    client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
+    response = client.post("/v1/webhooks/wacli?token=secreto", json=WEBHOOK_PAYLOAD)
+    assert response.json()["status"] == "ignored"
     messages = db_session.scalars(select(Message).where(Message.tenant_id == tenant.id)).all()
     assert len(messages) == 1
 
@@ -280,6 +293,24 @@ def test_enviar_aprobado_varado_dispara_envio(client, db_session, tenant):
     assert ("send_reminder", (tenant.id, reminder.id)) in app.state.test_jobs
 
 
+def test_no_se_aprueba_el_recordatorio_de_una_factura_cancelada(client, db_session, tenant):
+    """Un borrador retirado puede volver a aprobarse (rechazar no es callejón sin
+    salida), pero si su factura se canceló en el SAT el envío no procede."""
+    reminder = _make_reminder(db_session, tenant, status="rejected")
+    invoice = db_session.get(Invoice, reminder.invoice_id)
+    invoice.status = "cancelled"
+    invoice.meta = {"cerrada_por": "cancelada en el SAT"}
+    db_session.flush()
+    res = client.post(f"/v1/reminders/{reminder.id}/approve", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 409
+    assert "cancelada en el SAT" in res.json()["detail"]
+    assert reminder.status == "rejected"
+    assert ("send_reminder", (tenant.id, reminder.id)) not in app.state.test_jobs
+    detalle = client.get(f"/v1/invoices/{invoice.id}", headers={"X-API-Key": "k-demo"}).json()
+    assert detalle["status"] == "cancelled"
+    assert detalle["motivo_cierre"] == "cancelada en el SAT"
+
+
 def test_enviar_rechaza_si_no_esta_aprobado(client, db_session, tenant):
     """Solo un 'approved' puede reenviarse: un pending_approval no dispara envío (409)."""
     reminder = _make_reminder(db_session, tenant, status="pending_approval")
@@ -434,6 +465,157 @@ def test_recordar_ahora_pendiente_no_encola(client, db_session, tenant, monkeypa
     assert res.status_code == 200
     assert res.json()["status"] == "pending_approval"
     assert not any(j[0] == "send_reminder" for j in app.state.test_jobs)
+
+
+def _draft_que_truena(monkeypatch):
+    """draft_reminder falla como falla el SDK del proveedor: con su texto en inglés."""
+    from aiuda_core.engine.engine import CleoEngine
+
+    def boom(self, invoice, customer, today, broken_promise=None):
+        raise RuntimeError("Could not resolve authentication method. Expected api_key")
+
+    monkeypatch.setattr(CleoEngine, "draft_reminder", boom)
+
+
+def test_recordar_sin_ia_dice_que_falta_la_ia_y_no_el_error_crudo(
+    client, db_session, tenant, monkeypatch
+):
+    # Sin IA conectada el dueño veía el texto de la excepción, en inglés. Ahora recibe
+    # qué hacer, en español, y un código para que la consola ponga la liga a Tu IA.
+    invoice = _open_invoice(db_session, tenant)
+    _draft_que_truena(monkeypatch)
+
+    res = client.post(f"/v1/invoices/{invoice.id}/remind", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 409
+    cuerpo = res.json()
+    assert cuerpo["code"] == "ia_no_conectada"
+    assert "Conecta tu IA" in cuerpo["detail"]
+    assert "Could not" not in res.text and "api_key" not in res.text
+
+
+def test_recordar_con_ia_que_falla_no_filtra_la_excepcion(
+    client, db_session, tenant, monkeypatch
+):
+    # Hay IA conectada pero la redacción falló: mensaje limpio y código propio; el
+    # detalle técnico se queda en el log del servidor.
+    import aiuda_core.engine.provider as provider
+
+    invoice = _open_invoice(db_session, tenant)
+    _draft_que_truena(monkeypatch)
+    monkeypatch.setattr(provider, "resolve_credential", lambda *a, **k: object())
+
+    res = client.post(f"/v1/invoices/{invoice.id}/remind", headers={"X-API-Key": "k-demo"})
+    assert res.status_code == 502
+    cuerpo = res.json()
+    assert cuerpo["code"] == "ia_fallo"
+    assert "Tu IA" in cuerpo["detail"]
+    assert "Could not" not in res.text and "api_key" not in res.text
+
+
+def test_espera_tu_ok_es_un_solo_numero(client, db_session, tenant):
+    """El globo del menú y "Por aprobar (N)" de Hoy cuentan lo mismo: mensajes por
+    aprobar de facturas abiertas (o sin factura) + pagos por confirmar + promesas
+    VENCIDAS de facturas abiertas. Antes el menú decía un número y el inicio otro."""
+    from datetime import datetime, timedelta, timezone
+
+    from aiuda_core.models import Payment, PaymentPromise
+
+    from zoneinfo import ZoneInfo
+
+    headers = {"X-API-Key": "k-demo"}
+    # El "hoy" del server es el de México: la prueba usa el mismo para no depender
+    # de la zona horaria de la máquina.
+    hoy = datetime.now(ZoneInfo("America/Mexico_City")).date()
+    abierta = _open_invoice(db_session, tenant)
+
+    def _otra(folio, status):
+        inv = Invoice(
+            tenant_id=tenant.id,
+            customer_id=abierta.customer_id,
+            folio=folio,
+            amount=100,
+            issued_date=abierta.issued_date,
+            due_date=abierta.due_date,
+            status=status,
+        )
+        db_session.add(inv)
+        db_session.flush()
+        return inv
+
+    def _mensaje(invoice_id, status, bucket="vencida", **extra):
+        db_session.add(
+            Reminder(
+                tenant_id=tenant.id,
+                invoice_id=invoice_id,
+                bucket=bucket,
+                tone="firme",
+                message="Recordatorio",
+                status=status,
+                **extra,
+            )
+        )
+
+    otra = _otra("F-2", "open")
+    pagada = _otra("F-3", "paid")
+    cancelada = _otra("F-4", "cancelled")
+    _mensaje(abierta.id, "pending_approval")  # cuenta
+    _mensaje(None, "pending_approval", bucket="cotizacion", title="Cotización")  # cuenta
+    _mensaje(pagada.id, "pending_approval")  # la factura ya se pagó: no pide nada
+    _mensaje(cancelada.id, "pending_approval")  # ya no se cobra: tampoco
+    # Lo que ya tuvo veredicto no espera decisión, aunque la factura siga abierta.
+    for status in ("approved", "sent", "rejected", "failed"):
+        _mensaje(otra.id, status)
+    db_session.add(
+        Payment(
+            tenant_id=tenant.id,
+            amount=100,
+            currency="MXN",
+            source="banco",
+            status="pendiente",
+            paid_at=datetime.now(timezone.utc),
+        )
+    )
+    for factura, dias in ((abierta, -3), (otra, 0), (otra, 5), (pagada, -9)):
+        db_session.add(
+            PaymentPromise(
+                tenant_id=tenant.id,
+                invoice_id=factura.id,
+                promised_date=hoy + timedelta(days=dias),
+            )
+        )
+    db_session.flush()
+
+    cartera = client.get("/v1/cartera", headers=headers).json()
+    # 2 mensajes por aprobar + 1 pago por confirmar + 1 promesa vencida. Ni los
+    # mensajes de la factura pagada o cancelada, ni la promesa de hoy, ni la
+    # futura, ni la de la factura ya pagada.
+    assert cartera["espera_tu_ok"] == 4
+    assert cartera["pending_approvals"] == 4  # el campo viejo no cambia de sentido
+
+    promesas = client.get("/v1/promises", headers=headers).json()
+    assert len(promesas) == 4
+    assert sum(1 for p in promesas if p["vencida"]) == 1
+    assert sum(1 for p in promesas if not p["factura_abierta"]) == 1
+
+    pendientes = client.get("/v1/reminders?status=pending_approval", headers=headers).json()
+    assert len(pendientes) == 4
+    assert {p["factura_abierta"] for p in pendientes} == {True, False, None}
+    for p in pendientes:
+        assert p["pide_decision"] is (p["factura_abierta"] is not False)
+        assert p["updated_at"]
+    # Fuera de "pending_approval" nada pide decisión.
+    for status in ("approved", "sent", "rejected", "failed"):
+        otros = client.get(f"/v1/reminders?status={status}", headers=headers).json()
+        assert len(otros) == 1 and otros[0]["pide_decision"] is False
+
+    # Hoy arma su lista con las mismas tres fuentes: pinta exactamente N renglones.
+    conciliar = client.get("/v1/reconciliation", headers=headers).json()["pending"]
+    renglones = (
+        sum(1 for p in pendientes if p["pide_decision"])
+        + len(conciliar)
+        + sum(1 for p in promesas if p["vencida"])
+    )
+    assert renglones == cartera["espera_tu_ok"]
 
 
 def test_reminders_y_promises_traen_customer_id(client, db_session, tenant):
@@ -594,18 +776,3 @@ def test_editar_cliente_telefono_duplicado_409(client, db_session, tenant):
     db_session.flush()
     res = client.put(f"/v1/customers/{b.id}", headers=headers, json={"phone": "5215500001111"})
     assert res.status_code == 409
-
-
-def test_systems_del_ayudante(client, tenant):
-    """A qué sistemas llega un ayudante. Sale de sus aiuditas, no de un rol de fábrica."""
-    a = client.post(
-        "/v1/ayudantes",
-        json={"name": "Male", "aiuditas": ["cobranza.consultar_cartera"]},
-        headers={"X-API-Key": "k-demo"},
-    ).json()
-    res = client.get(f"/v1/ayudantes/{a['id']}/systems", headers={"X-API-Key": "k-demo"})
-    assert res.status_code == 200
-    body = res.json()
-    assert body["name"] == "Male"
-    assert any(s["key"] == "odoo" for s in body["systems"])
-    assert client.get("/v1/ayudantes/zzz/systems", headers={"X-API-Key": "k-demo"}).status_code == 404

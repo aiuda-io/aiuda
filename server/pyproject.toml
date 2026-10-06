@@ -1,6 +1,6 @@
 [project]
 name = "aiuda-server"
-version = "0.1.0"
+version = "0.1.0a2"
 description = "aiuda server — API local y jobs (corre en tu computadora)"
 license = "Apache-2.0"
 requires-python = ">=3.11"
@@ -15,11 +15,6 @@ dependencies = [
     # router le cambie la dirección, sin que el dueño escriba una IP.
     "zeroconf>=0.132",
 ]
-
-[project.optional-dependencies]
-# Postgres es opcional: el default local es SQLite. Este extra es para una
-# instancia operada (varios usuarios) que apunte DATABASE_URL a Postgres.
-postgres = ["psycopg[binary]>=3.1"]
 
 [project.scripts]
 aiuda = "aiuda_server.cli:main"

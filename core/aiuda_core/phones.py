@@ -1,5 +1,5 @@
-"""Normalización de teléfonos al formato que espera WhatsApp (whatsmeow/wacli y
-Evolution): solo dígitos país+número, sin '+', sin sufijo '@s.whatsapp.net'.
+"""Normalización de teléfonos al formato que espera WhatsApp (whatsmeow/wacli):
+solo dígitos país+número, sin '+', sin sufijo '@s.whatsapp.net'.
 
 Los teléfonos en la base son inconsistentes (de Excel crudo, de Shopify con '+52…',
 del webhook como '521…'), así que se normalizan en el borde de envío, no al guardar.
@@ -33,6 +33,15 @@ def digits_from_jid(jid) -> str:
     """
     head = str(jid or "").split("@", 1)[0].split(":", 1)[0]
     return re.sub(r"\D", "", head)
+
+
+def phone_from_jid(jid) -> str:
+    """El teléfono de un JID de persona ('…@s.whatsapp.net'). Cadena vacía si el JID no
+    es un teléfono: grupos, canales, estados y los '@lid', el identificador opaco con
+    que WhatsApp oculta el número. wacli (0.18.2) no trae con qué resolver un '@lid' a
+    su teléfono, así que quien llega así es un desconocido."""
+    texto = str(jid or "")
+    return digits_from_jid(texto) if texto.endswith("@s.whatsapp.net") else ""
 
 
 def match_key(value) -> str:

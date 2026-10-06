@@ -1,7 +1,7 @@
 """Trabajos del motor local.
 
 Tareas:
-- process_incoming_message: mensaje de WhatsApp → Cleo → respuesta
+- process_incoming_message: mensaje de WhatsApp → motor de cobranza → respuesta
 - send_reminder: recordatorio aprobado → envío real (WhatsApp o correo)
 - run_daily: corrida diaria de recordatorios + resumen al dueño (cron 8:00 MX);
   también propone (HITL) las respuestas a correos entrantes nuevos
@@ -14,78 +14,38 @@ negocio.
 """
 
 import logging
-import shlex
-import subprocess
 import threading
-import time
-from contextlib import contextmanager, nullcontext as _nullcontext
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 
-from aiuda_core.config import settings
+from aiuda_core.connectors.wacli import FALLO_GENERICO, explicar_fallo_wacli
+from aiuda_core.connectors.wacli_inbound import es_solo_etiqueta
 from aiuda_core.connectors.channel import (
     CHANNELS,
     get_channel_sender,
     get_correo_sender,
     get_whatsapp_sender,
     resolve_correo,
-    resolve_voz,
     resolve_whatsapp,
 )
 from aiuda_core.db import session_scope
 from aiuda_core.engine.engine import CleoEngine, OutsideSendWindow, ShadowHold
 from aiuda_core.engine.llm import BudgetExceeded
+from aiuda_core.engine.provider import resolve_credential
 from aiuda_core.optout import OPT_OUT_CONFIRMATION, OptedOut, is_opt_out, mark_opt_out
+from aiuda_core.identity import telefonos_atendidos
 from aiuda_core.phones import match_key
 from aiuda_core.models import Conversation, Customer, Invoice, Message, Reminder, Tenant, utcnow
 
 MX_TZ = ZoneInfo("America/Mexico_City")
 log = logging.getLogger("aiuda.worker")
 
-# Un envío a la vez por proceso: pausar/reiniciar el sync de wacli no puede solaparse
-# (dos envíos pisándose el stop/start volverían a chocar con el lock). Serializa también
-# los envíos del chat para que no compitan por el store.
-_send_lock = threading.Lock()
-
 # Una corrida diaria a la vez por proceso: dos disparos solapados del cron redactarían y
 # auto-enviarían la MISMA cobranza dos veces (ambos leen "sin recordatorio activo" a la vez).
 # Asume uvicorn de un solo worker (config del VPS mono-usuario).
 _daily_lock = threading.Lock()
-
-
-def _run_sync_cmd(cmd: str, label: str) -> None:
-    if not cmd:
-        return
-    try:
-        subprocess.run(shlex.split(cmd), capture_output=True, timeout=20)
-    except Exception as exc:  # noqa: BLE001 — pausar/reanudar el sync no debe tumbar el envío
-        log.warning("sync %s falló (%s): %s", label, cmd, exc)
-
-
-@contextmanager
-def _sync_paused():
-    """Libera el lock del store de wacli durante el envío y lo reanuda al terminar.
-
-    `wacli sync --follow` retiene el lock SQLite y `wacli send` espera ~30s a que se
-    libere. Igual que fastapi_service: paramos el sync, enviamos (~2s) y lo reiniciamos.
-    Serializado por `_send_lock` para que dos envíos no se solapen el stop/start. Si no
-    hay comandos configurados, sólo serializa (el envío cae al --lock-wait de siempre)."""
-    with _send_lock:
-        _run_sync_cmd(settings.wacli_sync_stop_cmd, "stop")
-        if settings.wacli_sync_stop_cmd and settings.wacli_sync_settle_secs > 0:
-            time.sleep(settings.wacli_sync_settle_secs)
-        try:
-            yield
-        finally:
-            _run_sync_cmd(settings.wacli_sync_start_cmd, "start")
-
-
-def _pause_for(wa) -> object:
-    """Contexto de envío según el provider: sólo wacli pelea el lock del store con su
-    daemon de sync; la Cloud API y Evolution son HTTP y no necesitan pausar nada."""
-    return _sync_paused() if (wa is not None and wa.provider == "wacli") else _nullcontext()
 
 
 def _today():
@@ -130,7 +90,7 @@ def _tenant_sender(session, tenant: Tenant, wa=None):
 def _build_engine(session, tenant: Tenant, run=None) -> CleoEngine:
     from aiuda_server.metering import budget_check
 
-    # Canal por tenant (wacli | whatsapp_cloud | evolution) — ver connectors/channel.py
+    # Canal por tenant (wacli | whatsapp_cloud) — ver connectors/channel.py
     engine = CleoEngine(
         session,
         tenant,
@@ -151,12 +111,9 @@ def _build_engine(session, tenant: Tenant, run=None) -> CleoEngine:
 
 def _aviso_tope(session, tenant: Tenant, motivo: str) -> None:
     """Deja constancia HONESTA del corte de IA: una vez por mes por tenant escribe la
-    bitácora (auditable) y guarda el aviso en tenant.config (la consola lo muestra en
-    el centro de mando).
-    Si el negocio conectó Slack, el mismo aviso sale a su canal (una vez, por el
-    mismo guard mensual); si no, no pasa nada."""
+    bitácora (auditable) y guarda el aviso en tenant.config["ia_tope_aviso"]. El Centro
+    de mando lo lee por GET /v1/avisos/tope-ia y el dueño lo puede descartar."""
     from aiuda_server import audit
-    from aiuda_core.connectors.slack import aviso_al_equipo
 
     mes = datetime.now(MX_TZ).strftime("%Y-%m")
     cfg = dict(tenant.config or {})
@@ -174,7 +131,6 @@ def _aviso_tope(session, tenant: Tenant, motivo: str) -> None:
         entity_id=tenant.id,
         after={"motivo": motivo, "mes": mes},
     )
-    aviso_al_equipo(session, tenant.id, f"aiuda · La IA se pausó este mes: {motivo}")
     log.warning("IA cortada para tenant %s: %s", tenant.id, motivo)
 
 
@@ -187,7 +143,13 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
         conversation = session.get(Conversation, message.conversation_id)
         if conversation.human_takeover:
             return  # el humano tiene el control: el agente no interviene
+        # Solo se atiende a un cliente del negocio o al dueño. El número suele ser
+        # el personal del dueño: a su familia y a sus amigos no les contesta un
+        # ayudante, y un "alto" suyo no es una baja.
+        if match_key(conversation.remote_phone) not in telefonos_atendidos(session, tenant):
+            return
         engine = _build_engine(session, tenant)
+        wa = resolve_whatsapp(session, tenant)
 
         # ¿Es el dueño? Sus mensajes pueden ser comandos de aprobación. Se compara por los
         # últimos 10 dígitos (match_key): el owner_phone y el teléfono del webhook pueden
@@ -232,7 +194,11 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
                         if reminder.status == "failed":
                             reminder.meta = {
                                 **(reminder.meta or {}),
-                                "motivo_fallo": f"No salió: {str(exc)[:200]}",
+                                "motivo_fallo": (
+                                    explicar_fallo_wacli(exc)
+                                    if wa is not None and wa.provider == "wacli"
+                                    else f"No salió: {str(exc)[:200]}"
+                                ),
                             }
                 return
             # No era comando: el agente le responde con los datos de su negocio
@@ -254,6 +220,17 @@ def process_incoming_message_blocking(tenant_id: str, message_id: str) -> None:
                     body=OPT_OUT_CONFIRMATION,
                 )
             )
+            return
+
+        # Un audio, una foto o un documento sin nota se queda en la bandeja: no
+        # trae nada escrito que el ayudante pueda contestar.
+        if es_solo_etiqueta(message.body):
+            return
+
+        # Sin IA conectada no hay respuesta automática: el mensaje ya quedó en la
+        # bandeja para atenderlo a mano. (Los comandos del dueño y la baja de arriba
+        # no usan IA y sí corren.)
+        if resolve_credential(session=session, tenant_id=tenant.id) is None:
             return
 
         # Historial reciente del hilo: sin él, el agente contestaría cada
@@ -300,8 +277,7 @@ def pendiente_canal_msg(channel: str) -> str:
     espera. El recordatorio queda APROBADO y sale cuando el dueño conecte el canal
     (o pulse "Enviar ahora"). 'failed' se reserva para un intento REAL que tronó."""
     nombre = {
-        "whatsapp": "WhatsApp", "correo": "el correo",
-        "voz": "las llamadas de voz (Twilio)", "sms": "SMS",
+        "whatsapp": "WhatsApp", "correo": "el correo", "sms": "SMS",
     }.get(channel, channel)
     return f"Aprobado. Se enviará cuando conectes {nombre}."
 
@@ -346,6 +322,21 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
         if reminder.invoice_id:
             invoice = session.get(Invoice, reminder.invoice_id)
             customer = session.get(Customer, invoice.customer_id) if invoice else None
+            if invoice is not None and invoice.status != "open":
+                # Última puerta: una factura que ya no está abierta no se cobra,
+                # aunque el recordatorio se hubiera aprobado antes. Cancelada (en
+                # el SAT, por nota de crédito o por ser entre tus empresas) o
+                # PAGADA: un aprobado que esperaba canal, o uno que falló, salía
+                # al conectar el canal aunque el cliente ya hubiera pagado.
+                from aiuda_core.engine.sync import YA_SE_PAGO, retirar_recordatorios
+
+                if invoice.status == "paid":
+                    motivo = YA_SE_PAGO
+                else:
+                    cerrada_por = (invoice.meta or {}).get("cerrada_por") or "cancelada"
+                    motivo = f"La factura ya no se cobra: {cerrada_por}."
+                retirar_recordatorios(session, invoice, motivo)
+                return
         field = CHANNELS.get(channel, {}).get("recipient_field", "phone")
         if field == "email":
             # Respuestas de correo traen su destinatario en meta.correo.para (el
@@ -371,21 +362,6 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
                 else None
             )
             sender = get_channel_sender(channel, wa, window, correo=correo, correo_opts=correo_opts)
-        elif channel == "voz":
-            # Llamada de voz (Twilio): el recordatorio se DICE por teléfono. Guardamos el
-            # Call SID en el recordatorio para que el StatusCallback (webhook) ligue el
-            # veredicto de la llamada (contestó / no contestó) al recordatorio correcto.
-            voz = resolve_voz(session, tenant)
-
-            def _guardar_call_sid(sid: str, _rem=reminder) -> None:
-                voz_meta = {**((_rem.meta or {}).get("voz") or {}), "call_sid": sid, "estado": "en_curso"}
-                _rem.meta = {**(_rem.meta or {}), "voz": voz_meta}
-
-            voz_opts = {
-                "status_callback": settings.twilio_voz_status_callback_url or None,
-                "on_call": _guardar_call_sid,
-            }
-            sender = get_channel_sender(channel, wa, window, voz=voz, voz_opts=voz_opts)
         else:
             sender = get_channel_sender(channel, wa, window)
         if sender is None:
@@ -429,11 +405,8 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
         # apagón dejaría atrás para que el siguiente intento no repita el cobro.
         reminder.meta = {**(reminder.meta or {}), "envio_en_curso": utcnow().isoformat()}
         session.commit()
-        # Sólo wacli choca con el lock del sync; Cloud API/Evolution/email no lo necesitan.
-        pause = _pause_for(wa) if channel == "whatsapp" else _nullcontext()
         try:
-            with pause:
-                engine.send(reminder, recipient, sender)
+            engine.send(reminder, recipient, sender)
         except OptedOut as exc:
             # El cliente pidió la baja: no es fallo del canal, es su decisión. Queda
             # 'failed' con el motivo visible; no se reintenta solo.
@@ -459,24 +432,83 @@ def _send_reminder_impl(tenant_id: str, reminder_id: str) -> None:
                 approval.advance(reminder, "failed")
             if reminder.status == "failed":
                 canal = CHANNELS.get(channel, {}).get("label", channel)
+                por_wacli = channel == "whatsapp" and wa is not None and wa.provider == "wacli"
                 reminder.meta = {
                     **(reminder.meta or {}),
-                    "motivo_fallo": f"No salió por {canal}: {str(exc)[:200]}",
+                    # wacli falla en inglés y para quien programa: al dueño se le
+                    # dice qué pasó y qué hacer (el crudo ya quedó en el log).
+                    "motivo_fallo": (
+                        explicar_fallo_wacli(exc)
+                        if por_wacli
+                        else f"No salió por {canal}: {str(exc)[:200]}"
+                    ),
                 }
         # Hubo veredicto (sent/failed) o retención deliberada (sombra/horario): la
         # marca de en-vuelo se limpia. Solo una muerte del proceso la deja puesta.
         reminder.meta = _sin_marca_en_vuelo(reminder.meta)
 
 
-def _mark_delivery(tenant_id: str, message_id: str | None, status: str) -> None:
-    """Fija el estado de entrega del saliente. Sin message_id no hace nada (compat)."""
+# Motivo del último intento fallido de cada saliente humano. Vive en
+# tenant.config (sin columna nueva ni migración), acotado a los más recientes.
+ENVIOS_FALLIDOS_KEY = "envios_fallidos"
+_MAX_ENVIOS_FALLIDOS = 200
+
+SIN_CANAL = "WhatsApp no está conectado. Ve a Ajustes, Conexiones, abre WhatsApp y conéctalo."
+ADJUNTO_PERDIDO = "El envío del archivo se interrumpió. Vuelve a adjuntarlo."
+
+
+def _mark_delivery(
+    tenant_id: str,
+    message_id: str | None,
+    status: str,
+    motivo: str | None = None,
+    adjunto: bool = False,
+) -> None:
+    """Fija el estado de entrega del saliente. Sin message_id no hace nada (compat).
+    Con 'failed' guarda además POR QUÉ (para la consola y el teléfono); cualquier
+    otro veredicto borra el motivo anterior."""
     if not message_id:
         return
     with session_scope() as session:
         msg = session.get(Message, message_id)
-        if msg is not None and msg.tenant_id == tenant_id:
-            msg.delivery = status
-            session.add(msg)
+        if msg is None or msg.tenant_id != tenant_id:
+            return
+        msg.delivery = status
+        session.add(msg)
+        tenant = session.get(Tenant, tenant_id)
+        if tenant is None:
+            return
+        fallidos = dict((tenant.config or {}).get(ENVIOS_FALLIDOS_KEY) or {})
+        if status == "failed":
+            fallidos.pop(message_id, None)  # reinsertar lo deja como el más reciente
+            fallidos[message_id] = {
+                "motivo": motivo or FALLO_GENERICO,
+                "cuando": utcnow().isoformat(),
+                **({"adjunto": True} if adjunto else {}),
+            }
+            # Al recortar se conservan los adjuntos: su marca es lo que impide
+            # reenviarlos como texto (son pocos; lo que crece son los mensajes).
+            for viejo in list(fallidos)[:-_MAX_ENVIOS_FALLIDOS]:
+                if not fallidos[viejo].get("adjunto"):
+                    del fallidos[viejo]
+        elif message_id not in fallidos:
+            return
+        else:
+            del fallidos[message_id]
+        tenant.config = {**(tenant.config or {}), ENVIOS_FALLIDOS_KEY: fallidos}
+        session.add(tenant)
+
+
+def motivo_de_fallo(tenant: Tenant, message_id: str) -> dict | None:
+    """{"motivo", "cuando", "adjunto"?} del saliente fallido, o None."""
+    return ((tenant.config or {}).get(ENVIOS_FALLIDOS_KEY) or {}).get(message_id)
+
+
+def _explicar(exc: BaseException, wa) -> str:
+    """El motivo de un envío de WhatsApp que tronó, para el dueño."""
+    if wa is not None and wa.provider == "wacli":
+        return explicar_fallo_wacli(exc)
+    return FALLO_GENERICO
 
 
 def send_human_message_blocking(
@@ -491,7 +523,10 @@ def send_human_message_blocking(
     `sent` o `failed`. Si el proceso muere antes, el mensaje queda en `pending` y el barrido
     de la corrida diaria lo reintenta. Un `pending` viejo = envío que nunca obtuvo veredicto."""
     if not phone or not body:
-        _mark_delivery(tenant_id, message_id, "failed")
+        _mark_delivery(
+            tenant_id, message_id, "failed",
+            "Falta el teléfono del cliente." if not phone else "El mensaje está vacío.",
+        )
         return
     with session_scope() as session:
         tenant = session.get(Tenant, tenant_id)
@@ -504,7 +539,8 @@ def send_human_message_blocking(
             return
         wa = resolve_whatsapp(session, tenant) if tenant is not None else None
         if wa is None:
-            _mark_delivery(tenant_id, message_id, "failed")  # sin canal: honesto, no se barre
+            # sin canal: honesto, no se barre
+            _mark_delivery(tenant_id, message_id, "failed", SIN_CANAL)
             return
         # La ventana de 24 h (Cloud API) se decide aquí, con la sesión viva; el envío
         # ocurre después, ya sin sesión.
@@ -513,45 +549,65 @@ def send_human_message_blocking(
             if wa.provider == "whatsapp_cloud"
             else False
         )
-    with _pause_for(wa):
-        ok = _safe_send(
-            f"mensaje a {phone}",
-            lambda: get_whatsapp_sender(wa, lambda _p: within)(phone, body),
-        )
-    _mark_delivery(tenant_id, message_id, "sent" if ok else "failed")
+    fallo = _intentar_envio(
+        f"mensaje a {phone}",
+        lambda: get_whatsapp_sender(wa, lambda _p: within)(phone, body),
+    )
+    if fallo is None:
+        _mark_delivery(tenant_id, message_id, "sent")
+    else:
+        _mark_delivery(tenant_id, message_id, "failed", _explicar(fallo, wa))
 
 
 def send_human_file_blocking(
-    tenant_id: str, phone: str, file_path: str, caption: str, filename: str
+    tenant_id: str,
+    phone: str,
+    file_path: str,
+    caption: str,
+    filename: str,
+    message_id: str | None = None,
 ) -> None:
     """Igual que send_human_message_blocking pero para un archivo (PDF/imagen). Borra el
-    temporal al terminar, pase lo que pase."""
+    temporal al terminar, pase lo que pase. Con `message_id` el adjunto también recibe
+    veredicto (sent/failed con motivo/held): antes no quedaba rastro de si salió."""
     import os
+
+    def veredicto(status: str, motivo: str | None = None) -> None:
+        _mark_delivery(tenant_id, message_id, status, motivo, adjunto=True)
 
     try:
         if not phone:
+            veredicto("failed", "Falta el teléfono del cliente.")
             return
         with session_scope() as session:
             tenant = session.get(Tenant, tenant_id)
             if tenant is not None and bool((tenant.config or {}).get("modo_sombra")):
                 log.info("modo sombra: adjunto a %s retenido (no se envió)", phone)
+                veredicto("held")
                 return
             wa = resolve_whatsapp(session, tenant) if tenant is not None else None
             if wa is None:
+                veredicto("failed", SIN_CANAL)
                 return
             if wa.provider != "wacli":
                 # Honesto: el adjunto por Cloud API (media upload) aún no está cableado.
                 log.warning("adjunto omitido: el canal del negocio no es wacli")
+                veredicto(
+                    "failed", "Por WhatsApp Business (oficial) todavía no se pueden enviar archivos."
+                )
                 return
         from aiuda_core.connectors.wacli import WacliClient
 
-        with _pause_for(wa):
-            _safe_send(
-                f"archivo a {phone}",
-                lambda: WacliClient(store_dir=wa.store_dir).send_file(
-                    phone, file_path, caption=caption, filename=filename
-                ),
-            )
+        fallo = _intentar_envio(
+            f"archivo a {phone}",
+            lambda: WacliClient(store_dir=wa.store_dir).send_file(
+                phone, file_path, caption=caption, filename=filename
+            ),
+        )
+        if fallo is None:
+            veredicto("sent")
+        else:
+            veredicto("failed", _explicar(fallo, wa))
     finally:
         try:
             os.remove(file_path)
@@ -837,15 +893,21 @@ def process_writebacks_blocking(tenant_id: str) -> None:
             _process_writebacks(session, tenant)
 
 
+def _intentar_envio(label: str, send_fn) -> Exception | None:
+    """Envía sin tumbar a quien llama. Devuelve None si salió, o la excepción (para
+    poder decirle al dueño POR QUÉ no salió; el crudo queda en el log)."""
+    try:
+        send_fn()
+        return None
+    except Exception as exc:  # noqa: BLE001 — un canal caído no debe abortar el día
+        log.warning("envío omitido (%s): %s", label, exc)
+        return exc
+
+
 def _safe_send(label: str, send_fn) -> bool:
     """Envía sin tumbar la corrida: en free no hay canal (wacli) y el envío truena.
     Si falla, lo registra y sigue — lo redactado queda en Aprobaciones de todos modos."""
-    try:
-        send_fn()
-        return True
-    except Exception as exc:  # noqa: BLE001 — un canal caído no debe abortar el día
-        log.warning("envío omitido (%s): %s", label, exc)
-        return False
+    return _intentar_envio(label, send_fn) is None
 
 
 def run_daily_blocking(
@@ -905,11 +967,12 @@ def _run_daily_impl(
         try:
             # 1) Fuentes primero, en SU transacción: la cartera de las fuentes
             #    conectadas entra (tienda, Odoo…) respetando "de dónde lee" cada
-            #    capacidad, los pagos detectados entran a conciliación (Diego
+            #    capacidad, los pagos detectados entran a conciliación (el motor
             #    propone, el humano confirma) y el outbox se inyecta de regreso.
             #    Lo sincronizado queda commiteado ANTES de tocar la IA.
             with session_scope() as session:
                 from aiuda_core.observabilidad import abrir_run, contar_sync
+                from aiuda_server.metering import tenant_runner as _runner_con_tope
 
                 tenant = session.get(Tenant, tenant_id)
                 # Traer la cartera es trabajo, y era el más invisible: entraban 147
@@ -918,6 +981,8 @@ def _run_daily_impl(
                     reporte = sync_fuentes(
                         session, tenant, today=today,
                         fuente_prefs=fuentes_preferidas(session, tenant),
+                        # Los portales (CUA) gastan IA: con el tope del dueño.
+                        ia_cua=lambda s=session, t=tenant: _runner_con_tope(s, t),
                     )
                     contar_sync(run, reporte)
                     wb = _process_writebacks(session, tenant)
@@ -947,7 +1012,7 @@ def _run_daily_impl(
                         _aviso_tope(session, tenant, ia_budget_message(verdict))
                         report["ia_cortada"] += 1
                         # `cortado`, no `done`: terminó sin error pero sin hacer el
-                        # trabajo. Antes esto se perdía en un contador del reporte.
+                        # trabajo, y la bitácora tiene que decirlo.
                         run.cortar(ia_budget_message(verdict))
                         drafted = []
                     else:
@@ -992,21 +1057,12 @@ def _run_daily_impl(
             with session_scope() as session:
                 tenant = session.get(Tenant, tenant_id)
                 engine = _build_engine(session, tenant)
-                wa = resolve_whatsapp(session, tenant)
                 if any(engine.summary_due(h) for h in horas):
                     resumen = engine.daily_summary(today)
-                    with _pause_for(wa):
-                        ok = _safe_send(
-                            "resumen al dueño",
-                            lambda: engine.send_whatsapp(tenant.owner_phone, resumen),
-                        )
-                    # El MISMO resumen sale al Slack del negocio si lo conectó
-                    # (avisos_equipo); no-op silencioso si no. Cuenta como entregado
-                    # si al menos un canal lo sacó.
-                    from aiuda_core.connectors.slack import aviso_al_equipo
-
-                    if aviso_al_equipo(session, tenant.id, resumen):
-                        ok = True
+                    ok = _safe_send(
+                        "resumen al dueño",
+                        lambda: engine.send_whatsapp(tenant.owner_phone, resumen),
+                    )
                     if ok:
                         report["summaries"] += 1
             report["tenants"] += 1
@@ -1048,6 +1104,18 @@ def _sweep_pending_sends(now: datetime, older_than_min: int = 10, cap: int = 50)
             (m.tenant_id, m.id, c.id, c.channel or "whatsapp", c.remote_phone, m.body)
             for m, c in rows
         ]
+        # Un adjunto que se quedó a medias no se puede reintentar (su archivo
+        # temporal ya no existe): se marca fallido con el motivo, no se reenvía.
+        adjuntos = session.execute(
+            select(Message.tenant_id, Message.id).where(
+                Message.direction == "out",
+                Message.author == "human",
+                Message.delivery == "sending",
+                Message.created_at < cutoff,
+            )
+        ).all()
+    for tenant_id, message_id in adjuntos:
+        _mark_delivery(tenant_id, message_id, "failed", ADJUNTO_PERDIDO, adjunto=True)
     for tenant_id, message_id, conv_id, channel, phone, body in stuck:
         log.info("barrido: reintento de saliente pendiente %s (%s)", message_id, channel)
         if channel == "correo":
@@ -1078,8 +1146,8 @@ def _sweep_stranded_approved(now: datetime, older_than_min: int = 10, cap: int =
             .order_by(Reminder.updated_at)
             .limit(cap)
         ).all()
-        # En modo sombra los aprobados se retienen A PROPÓSITO: re-dispararlos solo
-        # pausaría el sync de wacli por nada. Se saltan (salen al apagar la sombra).
+        # En modo sombra los aprobados se retienen A PROPÓSITO: re-dispararlos no
+        # serviría de nada. Se saltan (salen al apagar la sombra).
         sombra: dict[str, bool] = {}
         stuck = []
         for tenant_id, reminder_id in rows:

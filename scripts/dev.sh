@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Desarrollo local con recarga en vivo (dos procesos, mismo origen vía rewrite).
-# La instalación normal NO usa esto: es `uvx aiuda` (o `uv run aiuda start`).
+# La instalación normal NO usa esto: es la app de escritorio o `uv run aiuda start`.
 #
 #   scripts/dev.sh          # API :8000 (reload) + consola Next :3000
 #   scripts/dev.sh down     # detener ambos

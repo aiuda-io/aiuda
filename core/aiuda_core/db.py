@@ -29,31 +29,26 @@ def resolved_database_url() -> str:
     return f"sqlite:///{default_data_dir() / 'aiuda.db'}"
 
 
-def _is_sqlite(url: str) -> bool:
-    return url.startswith("sqlite")
-
-
 def get_engine():
     global _engine
     if _engine is None:
-        url = resolved_database_url()
-        if _is_sqlite(url):
-            # check_same_thread=False: FastAPI atiende cada request en su hilo y
-            # los jobs del scheduler corren en otro; SQLAlchemy serializa el
-            # acceso por conexión. WAL: lecturas no bloquean escrituras.
-            _engine = create_engine(
-                url, connect_args={"check_same_thread": False}, pool_pre_ping=True
-            )
+        # aiuda solo corre sobre SQLite. check_same_thread=False: FastAPI atiende
+        # cada request en su hilo y los jobs del scheduler corren en otro;
+        # SQLAlchemy serializa el acceso por conexión. WAL: lecturas no bloquean
+        # escrituras.
+        _engine = create_engine(
+            resolved_database_url(),
+            connect_args={"check_same_thread": False},
+            pool_pre_ping=True,
+        )
 
-            @event.listens_for(_engine, "connect")
-            def _sqlite_pragmas(dbapi_conn, _record):  # noqa: ANN001
-                cursor = dbapi_conn.cursor()
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA foreign_keys=ON")
-                cursor.execute("PRAGMA busy_timeout=5000")
-                cursor.close()
-        else:
-            _engine = create_engine(url, pool_pre_ping=True)
+        @event.listens_for(_engine, "connect")
+        def _sqlite_pragmas(dbapi_conn, _record):  # noqa: ANN001
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.close()
     return _engine
 
 

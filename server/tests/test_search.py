@@ -71,7 +71,7 @@ def test_clientes_deep_link_a_su_ficha(client, db_session, tenant):
     data = client.get("/v1/search?q=abarrotes", headers=HEADERS).json()
     grupo = _grupo(data, "Clientes")
     assert grupo is not None
-    assert grupo["items"][0]["href"] == f"/clientes/{c.id}"
+    assert grupo["items"][0]["href"] == f"/clientes/detalle?id={c.id}"
 
 
 def test_prospectos_en_su_grupo_no_en_clientes(client, db_session, tenant):
@@ -81,7 +81,7 @@ def test_prospectos_en_su_grupo_no_en_clientes(client, db_session, tenant):
             name="Ferretería Prospecto",
             phone=None,
             kind="prospecto",
-            meta={"origen": "denue", "municipio": "Monterrey"},
+            meta={"origen": "excel", "municipio": "Monterrey"},
         )
     )
     db_session.flush()
@@ -90,7 +90,7 @@ def test_prospectos_en_su_grupo_no_en_clientes(client, db_session, tenant):
     assert _grupo(data, "Clientes") is None  # no se cuela en Clientes
     grupo = _grupo(data, "Prospectos")
     assert grupo is not None
-    assert grupo["items"][0]["href"] == "/prospectos"
+    assert grupo["items"][0]["href"].startswith("/clientes/detalle?id=")
     assert grupo["items"][0]["sublabel"] == "Monterrey"  # sin teléfono: dice dónde está
 
 
@@ -113,7 +113,7 @@ def test_facturas_deep_link_a_su_ficha(client, db_session, tenant):
     data = client.get("/v1/search?q=F-100", headers=HEADERS).json()
     grupo = _grupo(data, "Facturas")
     assert grupo is not None
-    assert grupo["items"][0]["href"] == f"/facturas/{inv.id}"
+    assert grupo["items"][0]["href"] == f"/facturas/detalle?id={inv.id}"
 
 
 def test_productos_por_nombre_y_sku(client, db_session, tenant):
@@ -135,7 +135,7 @@ def test_conexiones_a_la_medida_por_nombre(client, tenant):
     grupo = _grupo(data, "Conexiones a la medida")
     assert grupo is not None
     assert grupo["items"][0]["label"] == "Mi ERP de escritorio"
-    assert grupo["items"][0]["href"] == "/integraciones"
+    assert grupo["items"][0]["href"] == "/configuracion?seccion=conexiones"
 
 
 def test_no_cruza_tenants(client, db_session, tenant):

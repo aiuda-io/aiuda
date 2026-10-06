@@ -4,30 +4,27 @@ aiuda vive en una computadora: la del negocio. Esta parte es para que tu celular
 y el de quien trabaja contigo, entren a ese mismo aiuda sin salir del WiFi de tu
 local. Nada sube a internet y no hay cuenta que crear.
 
-Está en la consola, en **Tus aparatos**.
+Está en la consola, en **Ajustes**, sección **Teléfono y equipo**.
 
 ## Lo honesto, antes de que le dediques tiempo
 
-Del lado de la computadora está armado y probado: prender la red, enseñar el
-código, los papeles, sacar un aparato y el candado que deja fuera a quien no
-invitaste.
-
-**La app del teléfono todavía no existe.** El código que aparece en pantalla
-abre `aiuda://emparejar`, y hoy ningún teléfono tiene instalado nada que
-responda a eso. Si le apuntas la cámara, no va a pasar nada.
-
-Entonces: puedes prender la red y ver la pantalla completa, pero **todavía no
-vas a aprobar desde tu celular**. Esto se documenta ahora porque la mitad de la
-computadora ya viaja en la app, no porque el teléfono ya sirva.
+**La app es para iPhone y todavía no está en la App Store.** Existe y funciona:
+se empareja con el código que enseña Teléfono y equipo, muestra tu negocio y deja aprobar lo
+que tu ayudante propuso. Pero hoy no la puedes bajar de la tienda: solo se
+instala desde su código, con Xcode, que es cosa de quien programa. Si no tienes
+quién te la instale, esta parte todavía no es para ti.
 
 Lo demás que conviene saber de una vez:
 
-- Lo que sí está probado, con pruebas automáticas, es el candado: los papeles, el
-  tope, que un invitado no se ascienda solo y que sacar un aparato lo deje fuera
-  de inmediato. Probado contra el API, no con un teléfono real.
-- Probado en **macOS con chip Apple**. En Windows y Linux el mismo código corre,
-  pero nadie lo ha probado. El aviso de permiso que se explica abajo es cosa de
-  macOS.
+- **Solo dentro de tu WiFi.** Saliendo de la oficina, el teléfono ya no llega a
+  la computadora.
+- **No hay app para Android.**
+- La computadora tiene que estar prendida y con aiuda abierto.
+- Lo que está probado con pruebas automáticas es el candado: los papeles, el
+  tope, que un invitado no pueda meter a nadie más y que sacar un aparato lo deje
+  fuera de inmediato. El papel de un aparato se elige al emparejarlo y no se
+  cambia después: para darle otro, se saca y se vuelve a invitar.
+- Probado en **macOS con chip Apple**. aiuda es solo para Mac.
 
 ## Qué es, en una frase
 
@@ -40,7 +37,7 @@ bitácora. No es una copia ni una sincronización.
 
 ## Prenderla
 
-1. En la consola, entra a **Tus aparatos**.
+1. En la consola, entra a **Ajustes** y abre **Teléfono y equipo**.
 2. Botón **Prender**.
 3. Aparece la dirección de esta computadora en tu red (algo como
    `192.168.1.50`). Esa es la señal de que quedó.
@@ -62,8 +59,8 @@ Es el tropiezo más común y el más difícil de adivinar, porque cuando falta *
 sale ningún error**: simplemente el teléfono nunca encuentra la computadora.
 
 macOS pregunta una sola vez, y si dijiste "No permitir" no vuelve a preguntar.
-La pantalla de Tus aparatos lo detecta y te lo dice con todas sus letras: "Tu Mac
-no está dejando que aiuda vea la red". Ahí mismo hay un botón **Abrir Ajustes**
+La pantalla de Teléfono y equipo lo detecta y te lo dice con todas sus letras: "Tu Mac
+no está dejando que aiuda vea la red". Ahí mismo hay un botón **Abrir los Ajustes de la Mac**
 que te deja parado en el panel exacto.
 
 A mano, es: **Ajustes del sistema > Privacidad y seguridad > Red local**, y
@@ -115,10 +112,10 @@ Lo que un invitado **no** toca nunca, aunque su teléfono esté emparejado:
 
 | No puede | Por qué |
 |---|---|
-| Cambiar el proveedor de IA | Apuntar la IA a otro lado manda tu cartera a donde diga quien lo cambió |
+| Cambiar tu IA | Apuntar la IA a otro lado manda tu cartera a donde diga quien lo cambió |
 | Tocar integraciones y conectores | Ahí viven las llaves de tus sistemas |
 | Encargar misiones del navegador (CUA) | Usarían las sesiones de portales que tú ya dejaste abiertas |
-| Cambiar la configuración del negocio | Ahí se apaga el modo sombra, o sea, ahí se sueltan mensajes a clientes reales |
+| Cambiar la configuración del negocio | Ahí se apaga el modo de prueba, o sea, ahí se sueltan mensajes a clientes reales |
 | Exportar o importar | Es llevarse el negocio completo en un archivo |
 | Invitar o sacar aparatos, prender la red | Sería darse a sí mismo la llave |
 
@@ -154,12 +151,12 @@ de tu máquina para los teléfonos que ya la conocen. Ver [DATOS.md](DATOS.md).
 
 ## Si el teléfono no encuentra la computadora
 
-Cuando exista la app, esta es la lista corta:
+Esta es la lista corta:
 
 - **El permiso de red local**, arriba. Es la causa número uno en macOS.
 - **El mismo WiFi.** Muchos módems tienen una red de invitados que aísla a los
   aparatos entre sí: ahí no se ven aunque estén a un metro.
-- **La red apagada.** Revisa que en Tus aparatos diga la dirección.
+- **La red apagada.** Revisa que en Teléfono y equipo diga la dirección.
 - **La computadora dormida.** aiuda no contesta si la Mac está suspendida.
 
 Si aiuda no logra anunciarse en tu red, la pantalla lo dice y sigue sirviendo: el

@@ -18,12 +18,6 @@ TRANSITIONS: dict[str, set[str]] = {
     # Rechazar NO es un callejón sin salida: el dueño puede corregir el borrador y
     # enviarlo, o devolverlo a la bandeja. Nada se pierde (trazabilidad).
     "rejected": {"approved", "pending_approval"},
-    # Una LLAMADA de voz se marca 'sent' al COLOCARSE (salió), pero el operador puede
-    # avisar después (StatusCallback de Twilio) que no conectó: no contestó, ocupado,
-    # falló. Eso es una entrega fallida honesta, así que 'sent' → 'failed' es válido para
-    # que el dueño lo vea y reintente. WhatsApp/correo nunca disparan esta transición (sus
-    # statuses de entrega no se registran sobre el recordatorio).
-    "sent": {"failed"},
     "failed": {"approved"},  # reintento de envío requiere re-marcar approved
 }
 

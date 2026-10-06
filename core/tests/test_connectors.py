@@ -10,7 +10,6 @@ import httpx
 import pytest
 
 from aiuda_core.connectors.belvo import BelvoClient
-from aiuda_core.connectors.denue import DenueClient
 from aiuda_core.connectors.facturama import FacturamaClient
 from aiuda_core.connectors.gcal import GoogleCalendarClient
 
@@ -88,37 +87,6 @@ def test_facturama_lista_cfdis():
     cfdis = client.list_cfdis()
     assert cfdis[0].folio == "F-102"
     assert cfdis[0].rfc_receptor == "FEM880101XX1"
-
-
-# ---------- DENUE ----------
-
-
-def test_denue_buscar():
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert "/app/api/denue/v1/consulta/Buscar/ferreteria/" in request.url.path
-        assert request.url.path.endswith("/tok-123")
-        return httpx.Response(
-            200,
-            json=[
-                {
-                    "Id": "1",
-                    "Nombre": "FERRETERIA LA CENTRAL",
-                    "Razon_social": "",
-                    "Clase_actividad": "Comercio al por menor",
-                    "Telefono": "5555555555",
-                    "Correo_e": "",
-                    "Calle": "AV JUAREZ 10",
-                    "Colonia": "CENTRO",
-                    "CP": "06000",
-                }
-            ],
-        )
-
-    client = DenueClient(token="tok-123", transport=transport(handler))
-    negocios = client.buscar("ferreteria", 19.4326, -99.1332)
-    assert negocios[0].nombre == "FERRETERIA LA CENTRAL"
-    assert negocios[0].contactable is True
-    assert "CENTRO" in negocios[0].direccion
 
 
 # ---------- Google Calendar ----------

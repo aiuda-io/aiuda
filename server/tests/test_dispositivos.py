@@ -169,18 +169,6 @@ def test_un_invitado_no_puede_meter_a_nadie_mas(client, en_la_red):
     assert r.status_code == 403
 
 
-def test_un_invitado_no_se_puede_ascender_solo(client, en_la_red, db_session):
-    token = emparejar_como(client, "invitado")
-    suyo = db_session.scalars(select(Dispositivo)).one()
-    r = client.patch(
-        f"/v1/dispositivos/{suyo.id}",
-        json={"papel": "dueno"},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert r.status_code == 403
-    db_session.refresh(suyo)
-    assert suyo.papel == "invitado"
-
 
 def test_un_invitado_no_prende_ni_apaga_la_red(client, en_la_red):
     token = emparejar_como(client, "invitado")

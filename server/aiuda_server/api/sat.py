@@ -14,6 +14,7 @@ la contraseña, ni siquiera enmascarados por partes. Nada de secretos en logs.
 
 import base64
 import io
+import logging
 import re
 import zipfile
 from datetime import datetime, timezone
@@ -25,11 +26,14 @@ from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
 from aiuda_server import audit
-from aiuda_server.api.deps import get_db, get_tenant, require_role
+from aiuda_server.api.deps import ErrorConCodigo, get_db, get_tenant, require_role
+from aiuda_server.api.monedas import saldos_por_moneda, total_principal
 from aiuda_core.connectors import credentials as cred
+from aiuda_core.cua.fallback import olvidar_consentimiento_sat
 from aiuda_core.connectors.sat_descarga import (
     SatCredencialInvalida,
     SatDescargaClient,
+    SatSinRespuesta,
     validar_efirma,
 )
 from aiuda_core.engine.sync import (
@@ -39,9 +43,16 @@ from aiuda_core.engine.sync import (
     importar_cfdis,
     sat_empresas,
 )
-from aiuda_core.models import CfdiBoveda, IntegrationCredential, Invoice, Tenant
+from aiuda_core.models import (
+    CfdiBoveda,
+    IntegrationCredential,
+    Invoice,
+    SatPaquete,
+    Tenant,
+)
 
 router = APIRouter()
+log = logging.getLogger("aiuda.sat")
 
 _RFC_RE = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 
@@ -284,15 +295,32 @@ def sat_conectar_efirma(
     except SatCredencialInvalida as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:  # falta satcfdi en este entorno
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        # El texto de la excepción manda a correr un comando: eso no se le dice al dueño.
+        log.error("sat: no se pudo validar la e.firma: %s", exc)
+        raise ErrorConCodigo(
+            503,
+            "Esta instalación de aiuda no trae lo necesario para hablar con el SAT. "
+            "No se guardó nada.",
+            code="sat_no_disponible",
+        ) from exc
     _tope_empresas(db, tenant, info["rfc"])
+    proveedor = f"{SAT_EFIRMA_PREFIX}{info['rfc']}"
+    cer_b64 = base64.b64encode(cer_bytes).decode()
+    # El permiso para entrar al portal era para la e.firma que estaba guardada. Si este
+    # certificado es otro (una renovación), se vuelve a pedir; si es el mismo, se queda.
+    try:
+        mismo_cer = (cred.get_credential(db, tenant.id, proveedor) or {}).get("cer") == cer_b64
+    except Exception:  # la guardada no abre: no se puede saber, se vuelve a pedir
+        mismo_cer = False
+    if not mismo_cer:
+        olvidar_consentimiento_sat(db, tenant, info["rfc"])
     cred.set_credential(
         db,
         tenant.id,
-        f"{SAT_EFIRMA_PREFIX}{info['rfc']}",
+        proveedor,
         {
             # Secretos (van cifrados): los archivos en base64 y la contraseña.
-            "cer": base64.b64encode(cer_bytes).decode(),
+            "cer": cer_b64,
             "key": base64.b64encode(key_bytes).decode(),
             "password": password,
             # Público (lo único que la UI puede enseñar).
@@ -345,14 +373,26 @@ def sat_probar_efirma(
             base64.b64decode(datos["key"]),
             datos["password"],
         ).probar()
+    except SatSinRespuesta as exc:
+        # El SAT no contestó: no evaluó nada, así que la e.firma no queda marcada
+        # como rechazada.
+        raise HTTPException(
+            status_code=503,
+            detail="El SAT no contestó. Intenta de nuevo en unos minutos.",
+        ) from exc
     except Exception as exc:  # noqa: BLE001
         row.status = "error"
         row.last_test_at = datetime.now(timezone.utc)
         row.last_error = str(exc)
         db.flush()
-        raise HTTPException(
-            status_code=502,
-            detail=f"El SAT no aceptó la e.firma de {rfc}: {exc}",
+        # El motivo crudo (viene en inglés, de la librería) se queda en la fila;
+        # al dueño se le dice qué pasó y qué revisar.
+        log.warning("sat: el SAT no aceptó la e.firma de %s (%s)", rfc, type(exc).__name__)
+        raise ErrorConCodigo(
+            502,
+            f"El SAT no aceptó la e.firma de {rfc}. Revisa que siga vigente y que "
+            "no la hayas renovado; si la renovaste, sube la nueva.",
+            code="sat_rechazo",
         ) from exc
     row.status = "connected"
     row.last_test_at = datetime.now(timezone.utc)
@@ -373,8 +413,10 @@ def sat_borrar_efirma(
     db=Depends(get_db),
     actor=Depends(require_role("admin")),
 ):
-    """Borra la e.firma de esa empresa, de verdad: desaparece la fila cifrada.
-    La bóveda y la cartera ya descargadas se quedan (son datos del negocio)."""
+    """Borra la e.firma de esa empresa, de verdad: desaparece la fila cifrada,
+    y con ella lo que estuviera a medias con el SAT (la solicitud pendiente y los
+    paquetes bajados sin importar). La bóveda y la cartera ya descargadas se
+    quedan (son datos del negocio)."""
     rfc = _rfc_valido(rfc)
     row = db.scalar(
         select(IntegrationCredential).where(
@@ -389,8 +431,35 @@ def sat_borrar_efirma(
     plazos = dict(cfg.get("sat_plazos") or {})
     plazos.pop(rfc, None)
     cfg["sat_plazos"] = plazos
+    # Se conserva hasta dónde se había bajado y qué se pidió hoy (si la vuelven a
+    # conectar no se repite una solicitud); lo pendiente sí se suelta.
+    descarga = {k: dict(v) for k, v in (cfg.get("sat_descarga") or {}).items()}
+    carriles = []
+    for scope, st in list((descarga.get(rfc) or {}).items()):
+        st = dict(st or {})
+        if "cancelados" in st:
+            st["cancelados"] = dict(st["cancelados"] or {})
+            carriles.append(st["cancelados"])
+        carriles.append(st)
+        descarga[rfc][scope] = st
+    for st in carriles:
+        sol = st.pop("solicitud", None) or {}
+        st.pop("aviso", None)
+        for id_paquete in sol.get("paquetes") or sol.get("bajando") or []:
+            fila = db.scalar(
+                select(SatPaquete).where(
+                    SatPaquete.tenant_id == tenant.id,
+                    SatPaquete.id_paquete == id_paquete,
+                )
+            )
+            if fila is not None:
+                db.delete(fila)
+    if descarga:
+        cfg["sat_descarga"] = descarga
     tenant.config = cfg
     flag_modified(tenant, "config")
+    # El permiso para entrar al portal era para ESTA e.firma: se va con ella.
+    olvidar_consentimiento_sat(db, tenant, rfc)
     audit.record(
         db, tenant_id=tenant.id, action="sat.efirma.borrar",
         entity_type="integration", entity_id=rfc, principal=actor,
@@ -401,21 +470,36 @@ def sat_borrar_efirma(
 
 def _cartera_por_empresa(db, tenant: Tenant, rfcs: list[str]) -> dict:
     """Totales de cartera abierta por empresa (meta.empresa_rfc) y todo junto.
-    Lo intercompañía nunca llega aquí: el importador no lo mete a cartera."""
+    Lo intercompañía nunca llega aquí: el importador no lo mete a cartera.
+
+    Pesos y dólares no se suman (mismo criterio que `/v1/cartera`): `total` habla
+    SOLO de `moneda`, la principal de ese grupo, y `por_moneda` trae el desglose.
+    `abiertas` sí cuenta las facturas de cualquier moneda."""
     abiertas = db.scalars(
         select(Invoice).where(Invoice.tenant_id == tenant.id, Invoice.status == "open")
     ).all()
-    por_rfc = {rfc: {"rfc": rfc, "abiertas": 0, "total": 0.0} for rfc in rfcs}
-    todo = {"abiertas": 0, "total": 0.0}
+    montos: dict[str | None, list[tuple[str | None, float]]] = {rfc: [] for rfc in rfcs}
+    todas: list[tuple[str | None, float]] = []
     for inv in abiertas:
-        monto = float(inv.amount or 0)
-        todo["abiertas"] += 1
-        todo["total"] += monto
+        par = (inv.currency, float(inv.amount or 0))
+        todas.append(par)
         rfc = (inv.meta or {}).get("empresa_rfc")
-        if rfc in por_rfc:
-            por_rfc[rfc]["abiertas"] += 1
-            por_rfc[rfc]["total"] += monto
-    return {"por_empresa": list(por_rfc.values()), "todo_junto": todo}
+        if rfc in montos:
+            montos[rfc].append(par)
+
+    def resumen(pares: list[tuple[str | None, float]]) -> dict:
+        principal, por_moneda = saldos_por_moneda(pares)
+        return {
+            "abiertas": len(pares),
+            "total": total_principal(principal, por_moneda),
+            "moneda": principal,
+            "por_moneda": por_moneda,
+        }
+
+    return {
+        "por_empresa": [{"rfc": rfc, **resumen(montos[rfc])} for rfc in rfcs],
+        "todo_junto": resumen(todas),
+    }
 
 
 @router.get("/v1/sat/estado")
@@ -431,6 +515,12 @@ def sat_estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
             scope: {
                 "ultima_fecha": (st.get(scope) or {}).get("ultima_fecha"),
                 "solicitud_pendiente": bool((st.get(scope) or {}).get("solicitud")),
+                # Lo último que contestó el SAT, ya en español (o None si va al día).
+                "aviso": (st.get(scope) or {}).get("aviso"),
+                # Hasta qué día se revisó qué comprobantes se cancelaron en el SAT.
+                "cancelaciones_hasta": (
+                    (st.get(scope) or {}).get("cancelados") or {}
+                ).get("ultima_fecha"),
             }
             for scope in ("emitidas", "recibidas")
         }
@@ -443,6 +533,7 @@ def sat_estado(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
         "recibidas": sum(1 for f in filas if f.direccion == "recibida"),
         "intercompania": sum(1 for f in filas if f.direccion == "intercompania"),
         "desconocida": sum(1 for f in filas if f.direccion == "desconocida"),
+        "canceladas": sum(1 for f in filas if (f.meta or {}).get("cancelado")),
     }
     return {
         "empresas": empresas,
@@ -469,7 +560,12 @@ def sat_boveda(
     if rfc:
         rfc = rfc.strip().upper()
         filas = [f for f in filas if rfc in (f.rfc_emisor, f.rfc_receptor)]
-    total = sum(Decimal(str(f.total)) for f in filas if f.total is not None)
+    # La suma de la bóveda tampoco mezcla monedas: `suma_total` es la de
+    # `moneda` (la principal de lo filtrado) y `suma_por_moneda` trae el resto.
+    principal, por_moneda = saldos_por_moneda(
+        (f.moneda, float(f.total)) for f in filas if f.total is not None
+    )
+    total = Decimal(str(total_principal(principal, por_moneda)))
     return {
         "cfdis": [
             {
@@ -487,9 +583,17 @@ def sat_boveda(
                 "direccion": f.direccion,
                 "source": f.source,
                 "invoice_id": f.invoice_id,
+                # Cancelado en el SAT después de emitido (lo dice la lista diaria).
+                "cancelado": bool((f.meta or {}).get("cancelado")),
+                "cancelado_el": (f.meta or {}).get("cancelado_el"),
             }
             for f in filas
         ],
         "count": len(filas),
         "suma_total": float(total),
+        "moneda": principal,
+        "suma_por_moneda": [
+            {"moneda": p["moneda"], "total": p["open_total"], "count": p["open_count"]}
+            for p in por_moneda
+        ],
     }

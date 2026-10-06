@@ -49,3 +49,33 @@ def test_parse_cfdi_rechaza_no_cfdi():
         parse_cfdi("<root><x/></root>")
     with pytest.raises(ValueError):
         parse_cfdi("no es xml {")
+
+
+NOMINA = """<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+  xmlns:nomina12="http://www.sat.gob.mx/nomina12"
+  xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="NOMINA" Folio="10" Fecha="2026-09-18T19:08:10"
+  TipoDeComprobante="N" MetodoPago="PUE" Moneda="MXN" Total="10892.25">
+  <cfdi:Emisor Rfc="HCO250213281" Nombre="HANOVA CONSULTING" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="XAXX010101000" Nombre="EMPLEADO DE PRUEBA" UsoCFDI="CN01"/>
+  <cfdi:Conceptos><cfdi:Concepto Descripcion="Pago de nómina"/></cfdi:Conceptos>
+  <cfdi:Complemento>
+    <nomina12:Nomina Version="1.2" TipoNomina="O">
+      <nomina12:Emisor RegistroPatronal="A1234567890"/>
+      <nomina12:Receptor Curp="XEXX010101HNEXXXA4" NumEmpleado="1"/>
+    </nomina12:Nomina>
+    <tfd:TimbreFiscalDigital UUID="b78c124b-0000-4000-8000-000000000001"
+      FechaTimbrado="2026-09-18T19:08:11"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>"""
+
+
+def test_emisor_y_receptor_son_los_del_comprobante_no_los_del_complemento():
+    """Un recibo de nómina real trae nomina12:Emisor y nomina12:Receptor sin RFC:
+    no deben pisar a los del comprobante (así llegaron los del SAT)."""
+    d = parse_cfdi(NOMINA)
+    assert d["tipo"] == "N"
+    assert d["emisor"]["rfc"] == "HCO250213281"
+    assert d["receptor"]["rfc"] == "XAXX010101000"
+    assert d["receptor"]["nombre"] == "EMPLEADO DE PRUEBA"

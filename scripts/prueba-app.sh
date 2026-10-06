@@ -49,7 +49,9 @@ EJECUTABLE=""
 limpiar() {
   [ -n "$EJECUTABLE" ] && pkill -f "$EJECUTABLE" 2>/dev/null
   sleep 1
-  pkill -f "aiuda-server" 2>/dev/null
+  # Solo el servidor de la copia de prueba: un `pkill -f "aiuda-server"` a secas
+  # apagaría también el aiuda que el dueño tenga abierto.
+  [ -n "$COPIA" ] && pkill -f "$COPIA/.*aiuda-server" 2>/dev/null
   [ -n "$MONTAJE" ] && hdiutil detach "$MONTAJE" -quiet 2>/dev/null
   [ -n "$COPIA" ] && rm -rf "$(dirname "$COPIA")"
   [ -n "$CASA" ] && rm -rf "$CASA"
@@ -226,13 +228,24 @@ if [ -n "$TOKEN" ]; then
 
   MAQUINA=$(curl -fsS "http://127.0.0.1:$PORT/v1/setup/maquina?token=$TOKEN")
   nota "máquina: $(echo "$MAQUINA" | cut -c1-200)"
-  if echo "$MAQUINA" | grep -q '"claude"'; then
-    paso "detectó un CLI de IA ya instalado (la ruta de un clic)"
+  # Hay que leer `instalado`: la respuesta SIEMPRE trae las llaves "claude" y
+  # "codex", así que buscar el nombre daba por detectado un CLI que no estaba.
+  CLIS=$(echo "$MAQUINA" | /usr/bin/python3 -c "
+import json, sys
+try:
+    clis = json.load(sys.stdin).get('clis') or {}
+    print(' '.join(k for k, v in clis.items() if (v or {}).get('instalado')))
+except Exception:
+    print('')" 2>/dev/null)
+  if [ -n "$CLIS" ]; then
+    paso "detectó un CLI de IA ya instalado: $CLIS (la ruta de un clic)"
+  elif [ "$CON_MI_IA" = true ]; then
+    falla "le presté tu Claude Code y tu Codex y no detectó ninguno"
   else
     nota "no encontró CLIs de IA: correcto en una máquina limpia"
   fi
 
-  AGENTES=$(curl -fsS "http://127.0.0.1:$PORT/v1/agents?token=$TOKEN")
+  AGENTES=$(curl -fsS "http://127.0.0.1:$PORT/v1/ayudantes?token=$TOKEN")
   echo "$AGENTES" | grep -q "\[" && paso "la lista de ayudantes responde (vacía, sin datos demo)" \
     || falla "la lista de ayudantes falló"
 fi

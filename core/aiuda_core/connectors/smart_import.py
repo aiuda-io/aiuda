@@ -13,7 +13,7 @@ import io
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -288,7 +288,7 @@ def _parse_amount_opt(value) -> float | None:
 
 
 def _clean_phone(value) -> str:
-    # Regla compartida con el envío (wacli/Evolution): ver aiuda_core.phones.
+    # Regla compartida con el envío (wacli): ver aiuda_core.phones.
     return normalize_mx(value)
 
 
@@ -560,9 +560,11 @@ _INGEST = {
 
 
 def _origin(filename: str, at: datetime | None) -> dict:
-    """Procedencia: de qué archivo y cuándo se subió. La fecha es hora de pared
-    (naive) para mostrar el día tal cual, sin reinterpretar zona horaria."""
-    return {"file": filename, "at": (at or datetime.now()).replace(microsecond=0).isoformat()}
+    """Procedencia: de qué archivo y cuándo se subió. El instante va con su zona
+    (UTC): la consola lee toda hora sin zona como UTC, y una hora de pared sin
+    marcar se le correría seis horas."""
+    cuando = at or datetime.now(timezone.utc)
+    return {"file": filename, "at": cuando.replace(microsecond=0).isoformat()}
 
 
 # --- Orquestador ------------------------------------------------------------

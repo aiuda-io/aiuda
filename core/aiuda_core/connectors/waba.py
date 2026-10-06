@@ -2,7 +2,7 @@
 
 Esta es la vía soportada de producción del canal WhatsApp: dentro de los Términos
 de Meta, sin riesgo de baneo del número. Reglas del modelo oficial que este
-conector respeta (y que wacli/Evolution ignoran):
+conector respeta (y que wacli ignora):
 
 - **Ventana de 24 horas**: texto libre solo si el cliente escribió en las últimas
   24 h. Fuera de la ventana, únicamente PLANTILLAS aprobadas por Meta.

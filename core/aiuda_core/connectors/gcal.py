@@ -1,11 +1,11 @@
 """Conector Google Calendar — citas y disponibilidad (REST v3).
 
-Para qué lo usa aiuda: Valeria (recepción) agenda citas respetando la
-disponibilidad real, y Mariana agenda llamadas de cobranza acordadas.
+Para qué lo usa aiuda: recepción agenda citas respetando la disponibilidad
+real, y cobranza agenda las llamadas acordadas.
 
 Auth: bearer token ya emitido (OAuth del negocio o service account con domain
-delegation). El flujo de consentimiento vive en el onboarding del cloud; este
-cliente solo consume el token.
+delegation). aiuda no trae flujo de consentimiento: este cliente solo consume el
+token que el dueño captura.
 """
 
 from dataclasses import dataclass
@@ -36,7 +36,7 @@ class GoogleCalendarClient:
     ):
         self.token = token or settings.google_calendar_token
         if not self.token:
-            raise RuntimeError("GOOGLE_CALENDAR_TOKEN no configurado — ver .env.example")
+            raise RuntimeError("GOOGLE_CALENDAR_TOKEN no configurado. Captura ese dato al conectar.")
         self.calendar_id = calendar_id or settings.google_calendar_id
         self._http = httpx.Client(
             base_url=BASE_URL,

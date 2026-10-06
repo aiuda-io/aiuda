@@ -12,22 +12,32 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Tamaño del "monitor" que ve el agente. El viewport de Playwright y el display que se le
 # declara al modelo deben coincidir para que las coordenadas cuadren 1:1.
 WIDTH, HEIGHT = 1280, 800
 
-# Mensajes honestos de "no instalado": lo que el dueño ve cuando el servidor no tiene el
-# navegador. Dicen exactamente qué falta y cómo instalarlo (ver docs/CUA.md).
+# Mensajes honestos de "no instalado": lo que el DUEÑO ve en la consola cuando esta
+# instalación no tiene el navegador. Dicen qué falta, en sus palabras y sin mandarlo a
+# una terminal. El comando es cosa de quien instala: lo da `aiuda doctor`
+# (COMANDO_INSTALAR) y está en docs/CUA.md.
 MSG_EXTRA_NO_INSTALADO = (
-    "El navegador del asistente no está instalado en este servidor (extra `cua`). "
-    "Instálalo con: uv sync --extra cua && .venv/bin/playwright install chromium"
+    "Esta instalación de aiuda no trae el navegador que hace falta para entrar a los "
+    "portales. La app de escritorio no lo incluye."
 )
 MSG_CHROMIUM_FALTA = (
-    "Playwright está instalado pero falta el navegador Chromium. "
-    "Corre: .venv/bin/playwright install chromium"
+    "Al navegador que hace falta para entrar a los portales le falta una parte en "
+    "esta instalación de aiuda."
 )
+MSG_NAVEGADOR_NO_ARRANCA = (
+    "El navegador que hace falta para entrar a los portales no pudo arrancar en "
+    "esta instalación de aiuda."
+)
+COMANDO_INSTALAR = "uv sync --extra cua && .venv/bin/playwright install chromium"
 
 
 def paquete_playwright_instalado() -> bool:
@@ -52,7 +62,7 @@ def estado_navegador() -> tuple[bool, str]:
     if not paquete_playwright_instalado():
         return False, MSG_EXTRA_NO_INSTALADO
     if _CHROMIUM_LISTO:
-        return True, "Navegador listo (Playwright + Chromium instalados)."
+        return True, "Navegador listo."
     try:
         from playwright.sync_api import sync_playwright
 
@@ -60,10 +70,12 @@ def estado_navegador() -> tuple[bool, str]:
             exe = p.chromium.executable_path
         if not os.path.exists(exe):
             return False, MSG_CHROMIUM_FALTA
-    except Exception as exc:  # driver roto, permisos, etc.: la razón real, no un invento
-        return False, f"Playwright no pudo iniciar: {exc}"
+    except Exception as exc:  # driver roto, permisos, etc.
+        # El detalle técnico (en inglés) va al registro, no a la pantalla del dueño.
+        logger.warning("El navegador del CUA no pudo arrancar: %s", exc)
+        return False, MSG_NAVEGADOR_NO_ARRANCA
     _CHROMIUM_LISTO = True
-    return True, "Navegador listo (Playwright + Chromium instalados)."
+    return True, "Navegador listo."
 
 # Teclas estilo computer-use (xdotool) -> teclas de Playwright.
 _KEYMAP = {

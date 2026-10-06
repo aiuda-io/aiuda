@@ -16,10 +16,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # Vacío = SQLite local en ~/.aiuda/aiuda.db (el default de la instalación en
-    # tu computadora; lo resuelve aiuda_core.db). Ponlo solo para usar Postgres
-    # (p.ej. una instancia operada para varios usuarios):
-    # postgresql+psycopg://usuario:clave@host:5432/aiuda (requiere el extra
-    # `aiuda-server[postgres]`).
+    # tu computadora; lo resuelve aiuda_core.db). Ponlo solo para apuntar a otro
+    # archivo SQLite (tests y scripts): sqlite:////ruta/a/aiuda.db
     database_url: str = Field("", validation_alias=propia("database_url"))
 
     # Corrida horaria automática (hilo del scheduler dentro del proceso del API).
@@ -43,25 +41,26 @@ class Settings(BaseSettings):
     # (no hay un equivalente barato de haiku).
     model_codex: str = "gpt-5.5"
     model_codex_triage: str = "gpt-5.5"
+    # Entrar con ChatGPT: el emisor de OAuth y la base de la API pública. Los
+    # defaults son los oficiales y no se tocan en una instalación; existen para
+    # que las pruebas apunten a un servidor falso en vez de a una cuenta real.
+    chatgpt_issuer: str = Field("https://auth.openai.com", validation_alias=propia("chatgpt_issuer"))
+    openai_base: str = Field("https://api.openai.com/v1", validation_alias=propia("openai_base"))
+    # Abrir el navegador de esta computadora cuando el dueño lo pide desde la consola
+    # (entrar con ChatGPT, ver su uso). Apagado en las pruebas.
+    abrir_navegador: bool = Field(True, validation_alias=propia("abrir_navegador"))
 
-    # Canal de WhatsApp: "wacli" (CLI de terceros) o "evolution" (Evolution API)
+    # Canal de WhatsApp por default cuando el tenant no declara su vía: "wacli".
     whatsapp_provider: str = "wacli"
     # Comando de envío de wacli; placeholders {bin}, {phone} y {message}.
-    # wacli 0.8.x: `send` exige el subcomando `text` con --to/--message; --lock-wait
-    # hace que el envío espere el lock si hay un `wacli sync` corriendo en vez de fallar.
-    wacli_send_template: str = "{bin} send text --to {phone} --message {message} --lock-wait 30s"
-    # Binario de wacli (lo usan el emparejado por QR y, vía {bin}, el envío).
+    # wacli 0.8.x: `send` exige el subcomando `text` con --to/--message. Va SIN
+    # --lock-wait: con un sync vivo (el del server u otro) wacli le delega el envío
+    # y sale en 2 o 3 s; con --lock-wait primero espera el plazo completo. La espera
+    # la agrega el conector solo si el store está ocupado (connectors/wacli.py).
+    wacli_send_template: str = "{bin} send text --to {phone} --message {message}"
+    # Binario de wacli. El default deja que aiuda lo resuelva (el que instaló, o el del
+    # sistema: connectors/wacli_bin.py); otro valor fija una ruta explícita.
     wacli_bin: str = "wacli"
-    # El cuello de botella del envío: `wacli sync --follow` retiene el lock del store y
-    # `wacli send` espera ~30s a que se libere. Solución (igual que fastapi_service): pausar
-    # el sync justo antes de enviar y reiniciarlo al terminar. Comandos de shell; si ambos
-    # quedan vacíos, no se toca el sync (el envío cae al --lock-wait de la plantilla).
-    #   macOS local:  launchctl unload/load ~/Library/LaunchAgents/sh.wacli.sync.plist
-    #   server Linux: systemctl stop/start wacli-sync.service
-    wacli_sync_stop_cmd: str = ""
-    wacli_sync_start_cmd: str = ""
-    # Segundos de espera tras pausar el sync para que suelte el lock antes de enviar.
-    wacli_sync_settle_secs: float = 0.4
     # Raíz de stores de wacli por workspace: cada instancia usa <root>/<instance>
     # vía la flag global --store (sesión y datos aislados; cada negocio su número).
     # Vacío = store default del host.
@@ -76,15 +75,9 @@ class Settings(BaseSettings):
     # Sin él, el webhook oficial rechaza los POST (no se aceptan eventos sin firma).
     waba_app_secret: str = ""
 
-    # Llamadas de voz (Twilio) — canal de recordatorios por teléfono. Las credenciales
-    # de la cuenta van por tenant (cifradas, provider twilio_voz); esto es solo la URL
-    # PÚBLICA a la que Twilio avisa el resultado de cada llamada (StatusCallback). Vacío
-    # = no se pide callback (la llamada igual se hace, solo no llega el veredicto).
-    twilio_voz_status_callback_url: str = ""
-
-    # Evolution API (WhatsApp)
-    evolution_base_url: str = ""
-    evolution_api_key: str = ""
+    # Token del webhook de entrada de wacli (POST /v1/webhooks/wacli). El nombre es
+    # histórico: nació con el conector de Evolution, ya retirado, y se conserva para
+    # no romper el .env de las instalaciones que ya lo tienen.
     evolution_webhook_token: str = ""
 
     # Belvo · open banking MX (detección de pagos). Sandbox por default.
@@ -96,9 +89,6 @@ class Settings(BaseSettings):
     facturama_base_url: str = "https://apisandbox.facturama.mx"
     facturama_user: str = ""
     facturama_password: str = ""
-
-    # DENUE · INEGI (directorio público de 5.5M unidades económicas)
-    denue_token: str = ""
 
     # Google Calendar (token OAuth/service account ya emitido)
     google_calendar_token: str = ""
@@ -141,10 +131,6 @@ class Settings(BaseSettings):
     mercadolibre_client_id: str = ""
     mercadolibre_client_secret: str = ""
     mercadolibre_seller_id: str = ""  # opcional: si falta, se resuelve con /users/me
-
-    # Slack · bot token instalado por el admin del workspace + canal de avisos
-    slack_bot_token: str = ""
-    slack_channel: str = ""  # ej. #cobranza — a dónde salen los avisos internos
 
     # HubSpot · private app token de la cuenta del usuario
     hubspot_token: str = ""

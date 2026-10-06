@@ -1,60 +1,89 @@
 @import "tailwindcss";
 
+/* ATELIER CLARO
+ *
+ * Un sistema monocromo: papel casi blanco, tinta, y el azul de la marca como el
+ * ÚNICO color del armazón. Los colores de estado existen, pero apagados y solo como
+ * una marca chica (un punto) junto al texto que dice lo mismo con palabras. Lo caro
+ * aquí no es un adorno: es el aire, la cifra bien puesta, la raya fina y que casi
+ * nada tenga caja. La jerarquía la dan el tamaño y el peso de la letra.
+ *
+ * Las reglas de uso están en web/DESIGN.md. Los contrastes de abajo están medidos
+ * (WCAG), no estimados.
+ */
 @theme {
-  /* Neutrales entintados hacia el hue de marca (~225). Nunca #000/#fff puros. */
-  --color-bg: oklch(0.988 0.002 220);
-  --color-panel: oklch(0.972 0.004 220); /* sidebar, topbar: segunda capa neutral */
-  --color-surface: oklch(0.998 0.001 220);
-  --color-line: oklch(0.918 0.007 220);
-  --color-line-strong: oklch(0.86 0.01 222);
+  /* Neutros. El croma es residual (hacia el azul de marca): se leen como gris
+     puro, pero no se ven sucios junto al acento. Los grises de relleno son pocos y
+     pálidos a propósito: una pantalla se arma con rayas y aire, no con fichas. */
+  --color-bg: oklch(0.995 0.001 250); /* el papel: el lienzo de toda la consola, menú incluido */
+  --color-surface: oklch(1 0 0); /* lo que flota encima: campo, menú desplegable, diálogo */
+  --color-panel: oklch(0.975 0.002 250); /* banda puntual que agrupa (un aviso, un pie). No es el fondo de una columna */
+  --color-fill: oklch(0.955 0.003 250); /* renglón activo o bajo el cursor */
+  --color-fill-strong: oklch(0.925 0.003 250); /* el mismo, presionado; pista de una barra */
+  --color-line: oklch(0.918 0.003 250); /* la raya fina: separa renglones y secciones */
+  --color-line-strong: oklch(0.86 0.004 250); /* contorno de botón secundario y de sello */
+  --color-field: oklch(0.62 0.006 250); /* borde de campo, casilla y radio: 3.6:1 sobre el papel, 3.2:1 sobre fill */
 
-  --color-ink: oklch(0.26 0.032 235);
-  --color-ink-2: oklch(0.46 0.022 232);
-  --color-ink-3: oklch(0.6 0.016 230);
+  --color-ink: oklch(0.2 0.006 255); /* 17.8:1 */
+  --color-ink-2: oklch(0.39 0.006 255); /* 9.5:1 */
+  --color-ink-3: oklch(0.515 0.006 255); /* 5.5:1 sobre el papel, 4.9:1 sobre fill: el más claro que pasa AA */
 
-  /* Acento: acciones primarias, selección, estado. Nada más. */
-  --color-accent: oklch(0.58 0.1 228);
-  --color-accent-strong: oklch(0.5 0.1 230);
-  --color-accent-soft: oklch(0.945 0.025 222);
-  --color-accent-ink: oklch(0.42 0.085 230);
+  /* Acento: el azul de aiuda llevado a tinta. Más hondo y menos chillón que un
+     azul de producto, para que el blanco encima pase AAA (7.6:1) y para que se
+     lea como una decisión y no como el color por defecto de una plantilla.
+     Se usa con avaricia: el botón que resuelve la pantalla, el globo de pendientes,
+     un enlace dentro de un texto, y el foco. Nunca como fondo de una zona. */
+  --color-accent: oklch(0.44 0.105 238);
+  --color-accent-strong: oklch(0.37 0.095 240);
+  --color-accent-soft: oklch(0.962 0.016 236);
+  --color-accent-ink: oklch(0.4 0.1 239); /* 8.9:1 sobre el papel */
 
-  /* Marca: el azul del wordmark (#2596be) y las superficies oscuras de entrada
-     (panel de acceso, alineado al hero del landing). Solo para la marca, no UI. */
+  /* Marca: el azul del wordmark (#2596be). Solo para la marca, no UI. */
   --color-brand: oklch(0.62 0.105 228);
-  --color-navy: oklch(0.23 0.045 235);
-  --color-navy-2: oklch(0.285 0.05 238);
-  --color-navy-line: oklch(0.4 0.04 238);
-  --color-sky: oklch(0.8 0.07 222);
 
-  /* Semánticos */
-  --color-ok: oklch(0.56 0.12 161);
-  --color-ok-soft: oklch(0.962 0.028 162);
-  --color-warn: oklch(0.68 0.145 68);
-  --color-warn-soft: oklch(0.972 0.045 85);
-  /* Ámbar profundo: separa "Vencida 16-45 d" de "Vencida 1-15 d" en barras y pills. */
-  --color-warn-strong: oklch(0.58 0.15 52);
-  --color-warn-strong-soft: oklch(0.955 0.05 70);
-  --color-danger: oklch(0.57 0.2 27);
-  --color-danger-soft: oklch(0.962 0.024 27);
+  /* Estado: apagados. Oscuros para que el texto pase AA; los -soft casi no tienen
+     croma, para que una banda de aviso no grite. */
+  --color-ok: oklch(0.47 0.085 160);
+  --color-ok-soft: oklch(0.966 0.012 160);
+  --color-warn: oklch(0.51 0.095 70);
+  --color-warn-soft: oklch(0.968 0.014 82);
+  --color-warn-strong: oklch(0.48 0.11 48);
+  --color-warn-strong-soft: oklch(0.965 0.014 55);
+  --color-danger: oklch(0.49 0.15 27);
+  --color-danger-soft: oklch(0.966 0.012 27);
+  /* La franja del modo de prueba. Es el único fondo con color de toda la consola,
+     y lo es a propósito: mientras está, nada de lo que apruebes sale. */
+  --color-warn-band: oklch(0.945 0.045 85); /* tinta encima: 15.4:1 */
 
-  /* Elevación: UNA sola escala, entintada al hue de marca (~235), muy suave y de foco
-     corto · da capas, no glow. Vive en @theme para que también alimente las utilidades
-     shadow-sm/md/lg de Tailwind: así `shadow-lg` deja de ser la sombra NEGRA por defecto
-     (que rompe el tema claro) y queda coherente con `.elev-*`. El resto de la app sigue
-     plano de hairlines; la sombra se reserva para lo que debe "flotar". */
-  --shadow-sm: 0 1px 2px oklch(0.35 0.03 235 / 0.05), 0 1px 3px oklch(0.35 0.03 235 / 0.05);
-  --shadow-md: 0 1px 2px oklch(0.35 0.03 235 / 0.05), 0 3px 10px oklch(0.35 0.03 235 / 0.07);
-  --shadow-lg: 0 10px 34px oklch(0.35 0.03 235 / 0.11);
+  /* Elevación: neutra y solo para lo que de verdad flota (menú, panel, diálogo).
+     Una raya de medio pixel hace el borde; la sombra solo da la distancia. */
+  --shadow-sm: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.08), 0 1px 2px oklch(0.2 0.004 255 / 0.05);
+  --shadow-md: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.1), 0 6px 20px -6px oklch(0.2 0.004 255 / 0.14);
+  --shadow-lg: 0 0 0 0.5px oklch(0.2 0.004 255 / 0.1), 0 28px 64px -20px oklch(0.2 0.004 255 / 0.26);
 
-  --font-sans: "Avenir Next", "Avenir", -apple-system, "Segoe UI", system-ui, sans-serif;
+  /* ESQUINAS: una regla, tres medidas, y la medida la pone el TIPO de objeto.
+   *
+   *    6  etiqueta   sello, chip, casilla
+   *   10  control    botón, campo, pestaña, renglón que se selecciona
+   *   16  superficie tarjeta, menú desplegable, panel, diálogo
+   *
+   * Las utilidades de Tailwind se doblan sobre esas tres, así que no hay forma de
+   * escribir una cuarta por accidente: rounded-sm y rounded-md dan 6, rounded-lg
+   * da 10, y de rounded-xl para arriba da 16. `rounded-full` queda para puntos y
+   * caras. Un radio suelto en corchetes (rounded-[11px]) está prohibido. */
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 16px;
+  --radius-2xl: 16px;
+
+  /* SF Pro, la letra del sistema: viene en toda Mac, no se reparte ni se descarga
+     nada. El wordmark conserva Avenir Next (también del sistema) para seguir
+     reconocible. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --font-brand: "Avenir Next", "Avenir", -apple-system, system-ui, sans-serif;
 
   /* ESCALA TIPOGRÁFICA: siete niveles con nombre, y ninguno más.
-   *
-   * Aquí está lo que separa una consola que se puede usar de una que se ve
-   * "profesional" en la pantalla del que la programó. El dueño de una taquería
-   * puede tener 50 años y presbicia, y abre esto en su monitor, no pegado a él.
-   * Si tiene que acercarse a leer, el producto ya falló: eso es un fallo de uso,
-   * no de gusto.
    *
    * Las pantallas piden el PAPEL del texto, nunca un número:
    *
@@ -67,48 +96,270 @@
    *   text-sello    etiqueta de UNA palabra (pill, badge). Nunca prosa.
    *
    * Regla dura: 12px (sello) es el suelo absoluto y solo para una palabra. Si un
-   * texto se lee en renglones, es cuerpo o apoyo. Punto.
+   * texto se lee en renglones, es cuerpo o apoyo. El dueño puede tener 50 años y
+   * presbicia, y abre esto en su monitor, no pegado a él.
+   *
+   * Arriba la escala se abre (44 y 30) y se aprieta el tracking: la jerarquía la
+   * da el tamaño, no los marcos.
    */
-  --text-cifra: 28px;
-  --text-cifra--line-height: 1.1;
-  --text-cifra--letter-spacing: -0.02em;
-  --text-titulo: 21px;
-  --text-titulo--line-height: 1.25;
-  --text-titulo--letter-spacing: -0.01em;
-  --text-seccion: 17px;
-  --text-seccion--line-height: 1.35;
+  --text-cifra: 44px;
+  --text-cifra--line-height: 1.02;
+  --text-cifra--letter-spacing: -0.036em;
+  --text-titulo: 30px;
+  --text-titulo--line-height: 1.13;
+  --text-titulo--letter-spacing: -0.027em;
+  --text-seccion: 18px;
+  --text-seccion--line-height: 1.3;
+  --text-seccion--letter-spacing: -0.014em;
   --text-cuerpo: 15px;
-  --text-cuerpo--line-height: 1.55;
+  --text-cuerpo--line-height: 1.5;
+  --text-cuerpo--letter-spacing: -0.006em;
   --text-apoyo: 14px;
-  --text-apoyo--line-height: 1.5;
+  --text-apoyo--line-height: 1.45;
   --text-rotulo: 13px;
   --text-rotulo--line-height: 1.4;
   --text-sello: 12px;
   --text-sello--line-height: 1.35;
 }
 
-/* Tokens de movimiento: pocas duraciones y curvas, usadas en TODA la app para que el
-   movimiento se sienta de una sola mano · no animaciones sueltas. Premium = coherencia
-   y contención, no cantidad. */
+/* Tokens de movimiento: dos duraciones y dos curvas para TODA la app. El
+   movimiento solo cuenta un cambio de estado; llega rápido y frena suave. */
 :root {
-  --dur-fast: 120ms; /* micro-feedback: hover, press, foco */
-  --dur-base: 200ms; /* entradas de contenido (reveal) */
-  --dur-slow: 320ms; /* expandir/colapsar, transiciones con peso */
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); /* desacelera al llegar (entradas) */
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* mover/redimensionar */
+  --dur-fast: 140ms; /* micro-feedback: hover, press, foco */
+  --dur-base: 220ms; /* entradas de contenido (reveal) */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); /* ease-out-quint: desacelera al llegar */
+  --ease-in-out: cubic-bezier(0.45, 0, 0.2, 1); /* mover/redimensionar */
 }
 
-/* Utilidades de elevación (uso deliberado, no por defecto): la capa semántica sobre
-   los tokens --shadow-* de @theme. Misma escala que shadow-sm/md/lg de Tailwind. */
-.elev-sm { box-shadow: var(--shadow-sm); }
+/* En el teléfono la cifra y el título bajan un escalón: a 44px un total de seis
+   cifras no cabe en media pantalla. Es un corte, no tipografía fluida. */
+@media (max-width: 640px) {
+  :root {
+    --text-cifra: 32px;
+    --text-titulo: 25px;
+  }
+}
+
+/* Utilidades de elevación (uso deliberado, no por defecto). */
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
 
-/* La cifra como protagonista: tabular para que alinee y no "baile", con el tracking
-   apretado que dan las tipografías de datos premium. Para montos y KPIs hero. */
+/* La cifra como protagonista: tabular para que alinee y no "baile". El peso y el
+   tracking apretado hacen el trabajo que antes hacía una caja alrededor. */
 .hero-num {
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+/* PRIMITIVOS. Viven aquí, como clases, para que un botón sea el mismo objeto en
+   todas las pantallas (components/ui.tsx los envuelve). En @layer components: una
+   utilidad de Tailwind puesta al lado todavía gana la cascada. */
+@layer components {
+  /* BOTONES: tres, en dos tamaños. No hay más.
+   *
+   *   primario    relleno de acento. UNO por pantalla: el que la resuelve.
+   *   secundario  contorno fino, sin relleno. Las demás acciones con peso.
+   *   callado     solo la palabra. Acciones de renglón, cancelar, "ver más".
+   *
+   * Tamaños: normal (40) y chico (.btn-sm, 32, dentro de un renglón o una tabla).
+   * .btn-lg (52) no es un tercer tamaño de la consola: es del asistente de primer
+   * arranque, donde el botón es el objeto de la pantalla. .btn-danger es el
+   * primario de una confirmación que borra, y solo vive dentro de ese diálogo. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-cuerpo);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.008em;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .btn:active:not(:disabled) { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-sm { min-height: 32px; padding: 0 12px; font-size: var(--text-apoyo); }
+  .btn-lg { min-height: 52px; padding: 0 24px; font-size: var(--text-seccion); }
+
+  .btn-primary { background: var(--color-accent); color: var(--color-surface); }
+  .btn-primary:hover:not(:disabled) { background: var(--color-accent-strong); }
+  /* El contorno va por sombra interior y no por `border`: así el botón mide lo
+     mismo que el primario y dos botones juntos quedan a la misma altura. */
+  .btn-secondary {
+    background: transparent;
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1px var(--color-line-strong);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-fill);
+    box-shadow: inset 0 0 0 1px var(--color-field);
+  }
+  .btn-quiet { background: transparent; color: var(--color-ink-2); }
+  .btn-quiet:hover:not(:disabled) { background: var(--color-fill); color: var(--color-ink); }
+  /* La opción ELEGIDA de un grupo (tono, parte de la cara, fuente): contorno en
+     tinta y relleno gris. No es un cuarto botón: es el estado "puesto" de uno
+     secundario o callado. Nunca en acento: elegir no es la acción de la pantalla. */
+  .btn-elegida,
+  .btn-elegida:hover:not(:disabled) {
+    background: var(--color-fill);
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1.5px var(--color-ink);
+  }
+  .btn-danger { background: var(--color-danger); color: var(--color-surface); }
+  .btn-danger:hover:not(:disabled) { background: oklch(0.43 0.15 27); }
+
+  /* BARRA DE ACCIONES: los botones que van juntos (arriba de una página, sobre una
+     lista, al pie de un renglón que pide una decisión). En escritorio es una fila
+     a su ancho. En teléfono hay UNA regla, la misma en toda la consola:
+       - dos por renglón, del mismo ancho, de orilla a orilla;
+       - el que no cabe en media pantalla, o el que queda solo, ocupa el renglón;
+       - el callado se dibuja con contorno, para que no quede una palabra suelta
+         junto a un botón (un callado que va solo sigue siendo una palabra).
+     Así ninguna barra queda escalonada, con botones de anchos distintos. */
+  .barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  @media (max-width: 639px) {
+    .barra { width: 100%; }
+    .barra > .btn { flex: 1 1 calc(50% - 4px); }
+    .barra > .btn-quiet {
+      color: var(--color-ink);
+      box-shadow: inset 0 0 0 1px var(--color-line-strong);
+    }
+    .barra > .btn-quiet:only-child {
+      flex: 0 0 auto;
+      color: var(--color-ink-2);
+      box-shadow: none;
+    }
+  }
+
+  /* Campo: lo único con borde oscuro, porque es lo único donde se escribe. El
+     borde pasa 3:1 contra el papel y contra cualquier relleno de la consola. */
+  .field {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid var(--color-field);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: var(--text-cuerpo);
+    line-height: 1.45;
+  }
+  .field::placeholder { color: var(--color-ink-3); }
+  .field:hover { border-color: var(--color-ink-2); }
+  .field-lg { min-height: 52px; padding: 12px 16px; font-size: var(--text-seccion); }
+
+  /* Sello: una etiqueta neutra de una palabra ("Sin estrenar"). Contorno fino,
+     sin relleno y sin color: clasifica, no avisa. Para avisar está .mark. */
+  .sello {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 1px var(--color-line-strong);
+    font-size: var(--text-sello);
+    line-height: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--color-ink-2);
+  }
+
+  /* Pestañas de sección: palabras sobre una raya. La activa pesa más y lleva su
+     tramo de raya en tinta. Sin pista gris y sin color. */
+  .tabs {
+    display: flex;
+    max-width: 100%;
+    gap: 28px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    box-shadow: inset 0 -1px 0 var(--color-line);
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    display: inline-flex;
+    flex: none;
+    align-items: baseline;
+    gap: 8px;
+    height: 44px;
+    padding-top: 10px;
+    font-size: var(--text-cuerpo);
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--color-ink-3);
+    cursor: pointer;
+    box-shadow: inset 0 -2px 0 transparent;
+  }
+  .tab:hover { color: var(--color-ink); }
+  .tab[aria-selected="true"] {
+    font-weight: 600;
+    color: var(--color-ink);
+    box-shadow: inset 0 -2px 0 var(--color-ink);
+  }
+  /* El foco por teclado va por dentro: la fila de pestañas recorta lo que sale. */
+  .tab:focus-visible { outline-offset: -2px; }
+  /* En teléfono las pestañas se juntan y bajan un escalón de letra: las cuatro de
+     Ajustes y las cuatro de un ayudante caben completas en 350px. Antes la última
+     quedaba cortada ("Teléfono y eq") y había que adivinar que la fila se deslizaba. */
+  @media (max-width: 639px) {
+    .tabs { gap: 14px; }
+    .tab { gap: 6px; font-size: var(--text-apoyo); }
+  }
+
+  /* El wordmark: Avenir Next, como siempre. Es la marca, no un nivel de la escala. */
+  .wordmark {
+    font-family: var(--font-brand);
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+  }
+
+  /* Rótulo de sección: minúsculas, chico y gris. Antes eran versalitas espaciadas. */
+  .eyebrow {
+    font-size: var(--text-rotulo);
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--color-ink-3);
+  }
+
+  /* Lo que se CITA: el mensaje tal como lo va a leer el cliente. Una raya fina a la
+     izquierda y aire; sin caja y sin fondo gris. La raya es neutra, nunca de acento. */
+  .cita {
+    padding-left: 16px;
+    box-shadow: inset 1px 0 0 var(--color-line-strong);
+  }
+
+  /* Marca de estado: un punto y la palabra. El color va solo en el punto. */
+  .mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-size: var(--text-rotulo);
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--color-ink-2);
+  }
+  .mark::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 999px;
+    background: var(--mark, var(--color-ink-3));
+  }
 }
 
 /* Color de borde por defecto. Tailwind v4 deja `border` (sin color) en
@@ -149,7 +400,7 @@
   select:focus-visible {
     outline: none;
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px oklch(0.58 0.1 228 / 0.18);
+    box-shadow: 0 0 0 3px oklch(0.44 0.105 238 / 0.18);
   }
 
   /* Foco visible para navegar con teclado: TODO lo interactivo (ligas del menú,
@@ -190,23 +441,95 @@ body {
   /* El piso de la app, no la densidad de una terminal: lo que herede sin clase
      se lee igual que el cuerpo. Antes era 13px y era el origen del problema. */
   font-size: var(--text-cuerpo);
-  line-height: 1.55;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility; /* kerning/ligaduras: texto más nítido */
+}
+
+/* Un título nunca deja una palabra sola en el segundo renglón, y un párrafo no
+   termina en una viuda. Es de lo poco que separa una página cuidada de una que
+   solo está ordenada. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
 }
 
 /* En pantallas táctiles los inputs suben a 16px: por debajo, iOS hace zoom al
    enfocar (rompe el layout). En desktop mantienen la densidad de consola. */
 @media (pointer: coarse) {
-  input,
-  textarea,
-  select {
+  /* Menos los campos que ya van más grandes (el nombre de un ayudante, que es su
+     título; los del asistente): a esos el `!important` los encogía a 16. */
+  :is(input, textarea, select):not(.text-titulo, .text-seccion, .field-lg) {
     font-size: 16px !important;
   }
 }
 
+/* ÁREA TÁCTIL: con el dedo, todo lo que se toca mide al menos 44 por 44.
+   - El botón normal y el campo crecen de verdad, de 40 a 44 de alto.
+   - Lo que es chico a propósito (un botón de renglón de 32, un enlace de una
+     palabra, la equis de un panel, un interruptor) conserva su tamaño a la vista y
+     gana un área invisible alrededor, centrada, que es la que recibe el dedo. Así la
+     densidad de la pantalla no cambia y nada queda a medio centímetro de fallarle.
+   El área va en @layer base: un `absolute` o un `fixed` puesto con una utilidad
+   sigue ganando. El alto del botón y del campo va con ellos, en components. */
+@layer components {
+  @media (pointer: coarse) {
+    .btn:not(.btn-sm, .btn-lg),
+    .field:not(.field-lg) {
+      min-height: 44px;
+    }
+  }
+}
+@layer base {
+  @media (pointer: coarse) {
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="hidden"]),
+    select {
+      min-height: 44px;
+    }
+    a,
+    button,
+    summary,
+    [role="button"],
+    [role="tab"],
+    [role="switch"] {
+      position: relative;
+    }
+    a::after,
+    button::after,
+    summary::after,
+    [role="button"]::after,
+    [role="tab"]::after,
+    [role="switch"]::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
+/* El campo de búsqueda trae su propia "x" (components/ui.tsx): la del navegador
+   sobra y quedaban dos. */
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
 ::selection {
   background: var(--color-accent-soft);
+}
+
+/* Con la franja del modo de prueba arriba (40px en escritorio, una línea), el
+   menú fijo baja lo mismo para no quedar debajo de ella. */
+.marco:has(> .franja) {
+  --franja: 40px;
 }
 
 /* Cifras financieras alineadas */
@@ -222,13 +545,13 @@ body {
   to { background-position: -150% 0; }
 }
 .skeleton {
-  border-radius: 8px;
-  background-color: oklch(0.945 0.004 220);
+  border-radius: var(--radius-sm);
+  background-color: oklch(0.955 0.002 250);
   background-image: linear-gradient(
     100deg,
     transparent 25%,
-    oklch(0.995 0.002 220 / 0.85) 45%,
-    oklch(0.995 0.002 220 / 0.85) 55%,
+    oklch(0.995 0.001 250 / 0.85) 45%,
+    oklch(0.995 0.001 250 / 0.85) 55%,
     transparent 75%
   );
   background-size: 200% 100%;
@@ -269,27 +592,30 @@ body {
     border-width: 0;
   }
 }
-/* Doble clase a propósito: le gana en especificidad a `.reveal-stagger > *` (que
-   también fija `animation` sobre sus hijos) sin recurrir a !important, para que la
-   salida realmente corra cuando la fila vive en una lista con entrada escalonada. */
-.row-leaving.row-leaving {
+.row-leaving {
   overflow: hidden;
   animation: row-out 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 /* Navegar se siente fluido: el contenido llega con peso (sobrio, ~180ms), en
  * la dirección del viaje (adelante = te metiste; atrás = regresaste). El
- * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve. */
+ * topbar, el sidebar y el Rastro quedan anclados; solo el contenido se mueve.
+ * Relleno `backwards` y no `both`: al terminar, la animación suelta el elemento.
+ * Con `both` el transform se quedaba puesto para siempre (aunque fuera la
+ * identidad) y eso encierra a todo `position: fixed` de la página: velos y
+ * selectores dejaban de cubrir la ventana completa. Escribir `transform: none`
+ * en el último cuadro NO basta: interpolado contra translateY sigue siendo una
+ * matriz, medido en el navegador. */
 @keyframes page-enter-fwd {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes page-enter-back {
   from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
-.page-enter-fwd { animation: page-enter-fwd 0.18s var(--ease-out) both; }
-.page-enter-back { animation: page-enter-back 0.18s var(--ease-out) both; }
+.page-enter-fwd { animation: page-enter-fwd var(--dur-base) var(--ease-out) backwards; }
+.page-enter-back { animation: page-enter-back var(--dur-base) var(--ease-out) backwards; }
 @media (prefers-reduced-motion: reduce) {
   .page-enter-fwd,
   .page-enter-back {
@@ -297,22 +623,12 @@ body {
   }
 }
 
-/* Reveal: el contenido no aparece de golpe · sube 8px y se desvanece al entrar.
-   `.reveal-stagger` lo hace en cascada suave (listas, grids de tarjetas). El retardo
-   se topa a los primeros elementos para no arrastrar listas largas. */
+/* Reveal: el contenido no aparece de golpe · sube 8px y se desvanece al entrar. */
 @keyframes reveal-up {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 .reveal { animation: reveal-up var(--dur-base) var(--ease-out) both; }
-.reveal-stagger > * { animation: reveal-up var(--dur-base) var(--ease-out) both; }
-.reveal-stagger > *:nth-child(1) { animation-delay: 0ms; }
-.reveal-stagger > *:nth-child(2) { animation-delay: 45ms; }
-.reveal-stagger > *:nth-child(3) { animation-delay: 90ms; }
-.reveal-stagger > *:nth-child(4) { animation-delay: 135ms; }
-.reveal-stagger > *:nth-child(5) { animation-delay: 180ms; }
-.reveal-stagger > *:nth-child(6) { animation-delay: 225ms; }
-.reveal-stagger > *:nth-child(n + 7) { animation-delay: 270ms; }
 
 /* Un latido suave para estados "vivos" (trabajando, presencia). Sobrio, no parpadea. */
 @keyframes breathe {
@@ -320,11 +636,3 @@ body {
   50% { opacity: 0.55; }
 }
 .breathe { animation: breathe 1.8s var(--ease-in-out) infinite; }
-
-/* Confirmación silenciosa: al aprobar/guardar, un check que se dibuja (no confeti). */
-@keyframes check-pop {
-  0% { transform: scale(0.6); opacity: 0; }
-  60% { transform: scale(1.08); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-.check-pop { animation: check-pop var(--dur-base) var(--ease-out) both; }

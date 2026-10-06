@@ -1,6 +1,6 @@
 {
   "name": "aiuda-desktop",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.2",
   "description": "Aplicación de escritorio local-first de aiuda",
   "private": true,
   "scripts": {

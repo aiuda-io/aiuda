@@ -38,7 +38,7 @@ def crear_link_cobro(
     if client is None:
         raise HTTPException(
             status_code=409,
-            detail="No hay pasarela de cobro conectada. Conecta Mercado Pago, Clip o Conekta en Integraciones.",
+            detail="No hay pasarela de cobro conectada. Conecta Mercado Pago, Clip o Conekta en Ajustes, Conexiones.",
         )
     try:
         link = client.crear_link_pago(body.monto, body.concepto, body.referencia)

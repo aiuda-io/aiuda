@@ -19,6 +19,7 @@ from sqlalchemy import select
 from aiuda_core.connectors import credentials as cred
 from aiuda_core.connectors.sat_descarga import (
     SatCredencialInvalida,
+    SatDescargaClient,
     extraer_xmls,
     validar_efirma,
 )
@@ -202,3 +203,92 @@ def test_extraer_xmls_solo_lee_en_memoria():
         zf.writestr("dos.XML", "<Comprobante/>")
         zf.writestr("meta.txt", "no")
     assert len(extraer_xmls(buf.getvalue())) == 2
+
+
+class _ServicioEspia:
+    """El web service del SAT de satcfdi, anotando con qué se le pide."""
+
+    def __init__(self):
+        self.pedidos: list[tuple[str, dict]] = []
+
+    def recover_comprobante_emitted_request(self, **kw):
+        self.pedidos.append(("emitidas", kw))
+        return {"IdSolicitud": "S1", "CodEstatus": "5000"}
+
+    def recover_comprobante_received_request(self, **kw):
+        self.pedidos.append(("recibidas", kw))
+        return {"IdSolicitud": "S2", "CodEstatus": "5000"}
+
+
+def test_recibidas_se_piden_solo_vigentes(fiel):
+    """El SAT real rechaza (301) una solicitud de recibidas que no declare el
+    estado: ya no entrega XML de recibidos cancelados."""
+    cer, key = fiel
+    espia = _ServicioEspia()
+    cliente = SatDescargaClient(cer, key, PASSWORD, service=espia)
+    desde, hasta = datetime(2026, 9, 1), datetime(2026, 9, 30, 23, 59, 59)
+
+    cliente.solicitar("recibidas", desde, hasta)
+    cliente.solicitar("emitidas", desde, hasta)
+
+    assert espia.pedidos[0][1]["estado_comprobante"] == "Vigente"
+    assert "estado_comprobante" not in espia.pedidos[1][1]
+
+
+def test_un_sat_colgado_no_cuelga_la_corrida(fiel, monkeypatch):
+    """satcfdi llama a requests.post sin límite: un SAT que acepta la conexión y
+    no contesta dejaba la corrida esperando para siempre. Aquí un servidor local
+    hace exactamente eso y la llamada tiene que soltar sola."""
+    import socket
+    import threading
+
+    from satcfdi.pacs import sat as satcfdi_sat
+
+    from aiuda_core.connectors import sat_descarga
+    from aiuda_core.connectors.sat_descarga import SatSinRespuesta
+
+    mudo = socket.socket()
+    mudo.bind(("127.0.0.1", 0))
+    mudo.listen(1)  # acepta en el kernel y jamás responde
+    monkeypatch.setattr(
+        satcfdi_sat._CFDIAutenticacion,
+        "soap_url",
+        f"http://127.0.0.1:{mudo.getsockname()[1]}/",
+    )
+    monkeypatch.setattr(sat_descarga, "SAT_TIMEOUT", (2, 0.3))
+    cer, key = fiel
+    cliente = SatDescargaClient(cer, key, PASSWORD)
+    resultado: list = []
+
+    def llamar():
+        try:
+            cliente.probar()
+            resultado.append("contestó")
+        except Exception as exc:  # noqa: BLE001 - el tipo se revisa abajo
+            resultado.append(exc)
+
+    hilo = threading.Thread(target=llamar, daemon=True)
+    hilo.start()
+    hilo.join(timeout=10)
+    mudo.close()
+    assert not hilo.is_alive(), "la llamada al SAT se quedó colgada"
+    assert isinstance(resultado[0], SatSinRespuesta)
+    assert "no contestó a tiempo" in str(resultado[0])
+
+
+def test_solo_un_fallo_al_conectar_cuenta_como_no_enviada():
+    """Para decidir si se puede reintentar hoy: solo cuando es seguro que la
+    petición no salió. Un corte a media respuesta pudo ocurrir con la solicitud
+    ya entregada al SAT."""
+    import requests
+    from urllib3.exceptions import MaxRetryError, NewConnectionError
+
+    from aiuda_core.connectors.sat_descarga import _no_conecto
+
+    sin_red = requests.ConnectionError(
+        MaxRetryError(None, "/", reason=NewConnectionError(None, "sin red"))
+    )
+    assert _no_conecto(requests.ConnectTimeout()) is True
+    assert _no_conecto(sin_red) is True
+    assert _no_conecto(requests.ReadTimeout()) is False
+    assert _no_conecto(requests.ConnectionError("Connection aborted.")) is False

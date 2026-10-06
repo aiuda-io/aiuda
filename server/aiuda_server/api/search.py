@@ -3,9 +3,12 @@
 GET /v1/search?q=<texto>
 
 Devuelve hasta 5 resultados por grupo (Clientes, Prospectos, Facturas, Productos,
-Conversaciones, Promesas, Conexiones a la medida) filtrando SIEMPRE por tenant.id.
+Mensajes, Promesas, Conexiones a la medida) filtrando SIEMPRE por tenant.id.
 Grupos vacíos se omiten. Cada resultado deep-linkea a su ficha cuando existe
 (clickabilidad total); si no hay ficha propia, a la lista donde vive.
+
+Los títulos de grupo y las rutas son los de la consola (el contrato de rutas vive
+en ``web/lib/sections.ts``): el buscador los pinta tal cual, sin traducirlos.
 """
 
 from fastapi import APIRouter, Depends, Query
@@ -20,7 +23,15 @@ _MAX = 5
 
 
 def _estado_factura(status: str) -> str:
-    return "pagada" if status == "paid" else "abierta"
+    return {"paid": "pagada", "cancelled": "cancelada"}.get(status, "abierta")
+
+
+def _monto(inv: Invoice) -> str:
+    """El monto en SU moneda: pesos con signo, cualquier otra con su código por
+    delante, para que una factura en dólares nunca se lea como pesos."""
+    moneda = (inv.currency or "MXN").strip().upper() or "MXN"
+    cifra = f"{float(inv.amount):,.2f}"
+    return f"${cifra}" if moneda == "MXN" else f"{moneda} {cifra}"
 
 
 @router.get("/v1/search")
@@ -39,7 +50,7 @@ def search(
 
     # ── Clientes ──────────────────────────────────────────────────────────────
     # Los prospectos son Customer con kind="prospecto": van en su propio grupo
-    # (viven en /prospectos, no en /clientes) para que el resultado lleve bien.
+    # para que no se confundan con quien ya compra.
     clientes = db.scalars(
         select(Customer)
         .where(
@@ -58,14 +69,14 @@ def search(
                     {
                         "label": c.name,
                         "sublabel": c.phone,
-                        "href": f"/clientes/{c.id}",
+                        "href": f"/clientes/detalle?id={c.id}",
                     }
                     for c in clientes
                 ],
             }
         )
 
-    # ── Prospectos (DENUE u otros orígenes) ───────────────────────────────────
+    # ── Prospectos ────────────────────────────────────────────────────────────
     prospectos = db.scalars(
         select(Customer)
         .where(
@@ -84,7 +95,7 @@ def search(
                     {
                         "label": c.name,
                         "sublabel": c.phone or (c.meta or {}).get("municipio") or "prospecto",
-                        "href": "/prospectos",
+                        "href": f"/clientes/detalle?id={c.id}",
                     }
                     for c in prospectos
                 ],
@@ -108,9 +119,9 @@ def search(
                 "title": "Facturas",
                 "items": [
                     {
-                        "label": f"{inv.folio} · ${float(inv.amount):,.2f}",
+                        "label": f"{inv.folio} · {_monto(inv)}",
                         "sublabel": f"{cust.name} · {_estado_factura(inv.status)}",
-                        "href": f"/facturas/{inv.id}",
+                        "href": f"/facturas/detalle?id={inv.id}",
                     }
                     for inv, cust in inv_rows
                 ],
@@ -142,7 +153,7 @@ def search(
             }
         )
 
-    # ── Conversaciones ────────────────────────────────────────────────────────
+    # ── Mensajes ──────────────────────────────────────────────────────────────
     # Busca clientes cuyo nombre o teléfono coincida, luego junta con Conversation
     conv_rows = db.execute(
         select(Conversation, Customer)
@@ -158,19 +169,19 @@ def search(
     if conv_rows:
         groups.append(
             {
-                "title": "Conversaciones",
+                "title": "Mensajes",
                 "items": [
                     {
                         "label": cust.name,
                         "sublabel": cust.phone,
-                        "href": f"/conversaciones/{conv.id}",
+                        "href": f"/conversaciones?id={conv.id}",
                     }
                     for conv, cust in conv_rows
                 ],
             }
         )
 
-    # ── Promesas de pago ──────────────────────────────────────────────────────
+    # ── Promesas ──────────────────────────────────────────────────────────────
     promesas = db.scalars(
         select(PaymentPromise)
         .where(
@@ -183,12 +194,12 @@ def search(
     if promesas:
         groups.append(
             {
-                "title": "Promesas de pago",
+                "title": "Promesas",
                 "items": [
                     {
                         "label": (p.note or "")[:80],
                         "sublabel": "promesa de pago",
-                        "href": "/promesas",
+                        "href": "/facturas?vista=promesas",
                     }
                     for p in promesas
                 ],
@@ -197,7 +208,7 @@ def search(
 
     # ── Conexiones a la medida ────────────────────────────────────────────────
     # Viven en tenant.config (no en tabla propia); se buscan por el nombre que
-    # les puso el dueño y llevan a Integraciones, donde se administran.
+    # les puso el dueño y llevan a Ajustes > Conexiones, donde se administran.
     q_lower = q.lower()
     conexiones = [
         c
@@ -213,7 +224,7 @@ def search(
                     {
                         "label": c.get("name", ""),
                         "sublabel": "conexión a la medida",
-                        "href": "/integraciones",
+                        "href": "/configuracion?seccion=conexiones",
                     }
                     for c in conexiones
                 ],

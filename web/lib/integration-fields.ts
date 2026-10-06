@@ -19,12 +19,9 @@ export const EMAIL_PRESETS: Record<string, Record<string, string>> = {
   imap: {},
 };
 
-export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
+const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
   // WhatsApp con tu número se conecta por QR (como WhatsApp Web), no capturando
-  // credenciales: por eso aquí no hay campos. Los tres que había (instance, base_url,
-  // token de Evolution) no los leía nadie —channel.py construye EvolutionClient() sin
-  // argumentos, o sea que toma settings.evolution_* del entorno— y el token acababa en
-  // texto plano en tenant.config. Se quitaron.
+  // credenciales: por eso aquí no hay campos.
   whatsapp: [],
   whatsapp_cloud: [
     {
@@ -43,25 +40,6 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
     },
     { key: "template_idioma", label: "Idioma de la plantilla", placeholder: "es_MX" },
   ],
-  slack: [
-    { key: "bot_token", label: "Bot token (xoxb-…)", secret: true },
-    {
-      key: "channel",
-      label: "Canal de avisos",
-      placeholder: "#cobranza",
-      hint: "A dónde salen los avisos (resumen diario, corte de IA). Invita al bot al canal: /invite @aiuda.",
-    },
-  ],
-  twilio_voz: [
-    { key: "account_sid", label: "Account SID", placeholder: "AC…" },
-    { key: "auth_token", label: "Auth Token", secret: true },
-    {
-      key: "from_number",
-      label: "Número de origen (Twilio)",
-      placeholder: "+5215512345678",
-      hint: "El número que compraste en Twilio, en formato E.164 (+52…). Desde ahí salen las llamadas. Twilio cobra por minuto.",
-    },
-  ],
   email: [
     {
       key: "provider",
@@ -72,7 +50,7 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
         { value: "google", label: "Gmail (Google)" },
         { value: "microsoft", label: "Outlook (Microsoft)" },
       ],
-      hint: "Gmail y Outlook rellenan los servidores solos; con IMAP genérico los pones tú. Entrar con OAuth (botón de Google/Microsoft) está por cablear: hoy la vía completa es la contraseña de aplicación.",
+      hint: "Gmail y Outlook rellenan los servidores solos; con IMAP genérico los pones tú. Hoy se entra con una contraseña de aplicación; el botón de entrar con Google o Microsoft todavía no existe.",
     },
     { key: "email", label: "Correo", placeholder: "cobranza@minegocio.com" },
     { key: "imap_host", label: "Servidor IMAP (entrada)", placeholder: "imap.gmail.com" },
@@ -197,33 +175,6 @@ export const INTEGRATION_FIELDS: Record<string, FieldDef[]> = {
     { key: "calendar_id", label: "Calendar ID", placeholder: "primary" },
   ],
   hubspot: [{ key: "token", label: "Private app token", secret: true }],
-  denue: [{ key: "token", label: "Token de INEGI" }],
-  image_gen: [
-    {
-      key: "provider",
-      label: "Proveedor",
-      type: "select",
-      options: [
-        { value: "fal", label: "fal.ai (Flux · open-weights, más barato)" },
-        { value: "openai", label: "OpenAI (gpt-image-1)" },
-        { value: "custom", label: "Propio / self-host (compatible con OpenAI)" },
-      ],
-      hint: "fal.ai corre modelos open-weights (Flux) a fracciones de centavo por imagen. 'Propio' apunta a tu ComfyUI/Stable Diffusion tras un gateway compatible con la Images API de OpenAI.",
-    },
-    { key: "api_key", label: "API key", secret: true },
-    {
-      key: "base_url",
-      label: "Endpoint (solo self-host)",
-      placeholder: "https://mi-servidor/v1",
-      hint: "Solo para la vía 'Propio': la URL base de tu endpoint compatible. fal y OpenAI la traen por defecto.",
-    },
-    {
-      key: "model",
-      label: "Modelo",
-      placeholder: "fal-ai/flux/schnell",
-      hint: "Opcional. Por defecto Flux schnell (fal) o gpt-image-1 (OpenAI).",
-    },
-  ],
 };
 
 export function fieldsFor(key: string): FieldDef[] {

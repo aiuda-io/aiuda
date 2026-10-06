@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { telefonoMx } from "@/lib/format";
+import { useAyudantes } from "@/lib/ayudantes-store";
+import { type Destino, dentroDe, destinos, oficiosDe } from "@/lib/sections";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -10,8 +13,8 @@ type SearchItem = {
   label: string;
   sublabel: string;
   href: string;
-  /** Acción local en vez de navegar (ej. reabrir la guía de bienvenida). */
-  run?: () => void;
+  /** Sale de la consola (el manual): navegación completa, no del router. */
+  fuera?: boolean;
 };
 
 type SearchGroup = {
@@ -27,30 +30,6 @@ type SearchResult = {
 
 const OPEN_EVENT = "open-command-palette";
 
-const PAGES: { label: string; href: string }[] = [
-  // Aprobaciones, Promesas y Conciliación viven dentro de Centro de mando (bandeja
-  // unificada); no se listan aparte. Sus rutas siguen vivas para deep-links.
-  { label: "Centro de mando", href: "/centro" },
-  { label: "Resumen", href: "/" },
-  { label: "Facturas", href: "/facturas" },
-  { label: "Conversaciones", href: "/conversaciones" },
-  { label: "Clientes", href: "/clientes" },
-  { label: "Prospectos", href: "/prospectos" },
-  { label: "Buscar negocios (DENUE)", href: "/prospectos/buscar" },
-  { label: "Productos", href: "/productos" },
-  { label: "Agenda", href: "/citas" },
-  { label: "Tus ayudantes", href: "/ayudantes" },
-  { label: "Rutinas", href: "/rutinas" },
-  { label: "Importar datos", href: "/importar" },
-  { label: "Integraciones", href: "/integraciones" },
-  { label: "Organigrama de integraciones", href: "/integraciones?vista=organigrama" },
-  { label: "SAT · Bóveda fiscal", href: "/sat" },
-  { label: "Proveedor de IA", href: "/proveedor" },
-  { label: "Configuración", href: "/configuracion" },
-  { label: "API", href: "/desarrolladores" },
-  { label: "Perfil", href: "/perfil" },
-];
-
 // ── API pública ───────────────────────────────────────────────────────────────
 
 /** Abre el command palette desde cualquier parte del árbol. */
@@ -60,38 +39,46 @@ export function openCommandPalette() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fuzzyPages(q: string): SearchGroup | null {
-  if (!q.trim()) return null;
-  const lower = q.toLowerCase();
-  const matches = PAGES.filter((p) => p.label.toLowerCase().includes(lower));
+/** Minúsculas y sin acentos: "telefono" encuentra "Teléfono y equipo". */
+const plano = (t: string) =>
+  t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+/** Los destinos de la consola que casan con lo escrito. La lista y los nombres
+ *  son los de lib/sections.ts, los mismos del menú. Sin texto, van todos: el
+ *  buscador abierto es también el mapa de la consola. */
+function irA(q: string, lista: Destino[]): SearchGroup | null {
+  const palabras = plano(q).split(/\s+/).filter(Boolean);
+  const matches = lista.filter((d) => {
+    const texto = plano(`${d.label} ${dentroDe(d)} ${d.claves ?? ""}`);
+    return palabras.every((w) => texto.includes(w));
+  });
   if (!matches.length) return null;
+  // Primero los que casan por su nombre; después los que casan por lo que traen.
+  const porNombre = (d: Destino) => (palabras.length && plano(d.label).includes(palabras[0]) ? 0 : 1);
+  matches.sort((x, y) => porNombre(x) - porNombre(y));
   return {
     title: "Ir a",
-    items: matches.map((p) => ({ label: p.label, sublabel: p.href, href: p.href })),
+    items: matches.map((d) => ({
+      label: d.label,
+      sublabel: dentroDe(d),
+      href: d.href,
+      fuera: d.fuera,
+    })),
   };
 }
 
-// Acciones locales (no navegan). La guía de bienvenida es one-shot al entrar;
-// este es su camino de regreso (lib/onboarding.ts).
-const ACTIONS: { label: string; sublabel: string; keywords: string; run: () => void }[] = [];
-
-function fuzzyActions(q: string): SearchGroup | null {
-  const lower = q.trim().toLowerCase();
-  if (!lower) return null;
-  const matches = ACTIONS.filter(
-    (a) => a.label.toLowerCase().includes(lower) || a.keywords.includes(lower),
-  );
-  if (!matches.length) return null;
-  return {
-    title: "Ayuda",
-    items: matches.map((a) => ({ label: a.label, sublabel: a.sublabel, href: "", run: a.run })),
-  };
-}
 
 // ── Componente ────────────────────────────────────────────────────────────────
 
 export function CommandPalette() {
   const router = useRouter();
+  const { ayudantes } = useAyudantes();
+  // Productos y Agenda se listan con la misma condición que en el menú. Se guarda
+  // como texto para que la lista no cambie de identidad en cada render.
+  const oficios = oficiosDe(ayudantes).join(",");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [groups, setGroups] = useState<SearchGroup[]>([]);
@@ -152,15 +139,23 @@ export function CommandPalette() {
     // Cada cambio de query invalida cualquier búsqueda en vuelo.
     const runId = ++runIdRef.current;
 
+    const lista = destinos(oficiosDe(ayudantes));
+    const local = () => {
+      const g = irA(query, lista);
+      return g ? [g] : [];
+    };
+
     if (query.trim().length < 2) {
-      // Solo mostrar páginas y acciones mientras no hay texto suficiente
-      const locals = query.trim()
-        ? [fuzzyPages(query), fuzzyActions(query)].filter((g): g is SearchGroup => g !== null)
-        : [];
-      setGroups(locals);
+      // Sin texto suficiente para preguntarle al servidor: solo los destinos.
+      setGroups(local());
       setSelectedIdx(0);
       return;
     }
+
+    // Los destinos casan al instante; lo del servidor llega un momento después
+    // y se acomoda debajo sin borrar lo que ya estaba.
+    setGroups((prev) => [...local(), ...prev.filter((g) => g.title !== "Ir a")]);
+    setSelectedIdx(0);
 
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
@@ -170,17 +165,9 @@ export function CommandPalette() {
         const data: SearchResult = await api.search(query).catch(() => ({ groups: [] }));
         // Llegó tarde: hay una búsqueda más nueva en curso, descarta esta respuesta.
         if (runId !== runIdRef.current) return;
-        const locals = [fuzzyPages(query), fuzzyActions(query)].filter(
-          (g): g is SearchGroup => g !== null,
-        );
-        setGroups([...data.groups, ...locals]);
-        setSelectedIdx(0);
-      } catch {
-        if (runId !== runIdRef.current) return;
-        const locals = [fuzzyPages(query), fuzzyActions(query)].filter(
-          (g): g is SearchGroup => g !== null,
-        );
-        setGroups(locals);
+        // Los destinos van primero: quien escribe "pagos" quiere la pantalla.
+        // Los títulos y las rutas ya vienen del servidor con los nombres de la consola.
+        setGroups([...local(), ...data.groups]);
         setSelectedIdx(0);
       } finally {
         if (runId === runIdRef.current) setLoading(false);
@@ -190,7 +177,9 @@ export function CommandPalette() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+    // `oficios` resume a `ayudantes`: es lo único de ellos que cambia la lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, oficios, open]);
 
   // ── Items planos para navegación ───────────────────────────────────────────
 
@@ -200,7 +189,8 @@ export function CommandPalette() {
 
   const navigate = useCallback(
     (item: SearchItem) => {
-      if (item.run) item.run();
+      // El manual es una página aparte, fuera del router de la consola.
+      if (item.fuera) window.location.href = item.href;
       else router.push(item.href);
       close();
     },
@@ -231,6 +221,13 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", handler);
   }, [open, allItems, selectedIdx, navigate]);
 
+  // Con flechas, el resultado activo se mantiene a la vista (la lista de destinos
+  // ya no cabe entera en el panel).
+  useEffect(() => {
+    if (!open) return;
+    document.getElementById(`cmd-opt-${selectedIdx}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, selectedIdx]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (!open) return null;
@@ -239,15 +236,15 @@ export function CommandPalette() {
   let runningIdx = 0;
 
   const hasResults = groups.length > 0;
-  const showEmpty = query.trim().length >= 2 && !loading && !hasResults;
+  const showEmpty = query.trim().length > 0 && !loading && !hasResults;
   // Id del resultado activo, para que el lector de pantalla anuncie sobre qué está
   // parado sin mover el foco fuera del input (patrón combobox + aria-activedescendant).
   const activeOptionId = hasResults && allItems[selectedIdx] ? `cmd-opt-${selectedIdx}` : undefined;
 
   return (
     <div
-      className="cmd-backdrop fixed inset-0 z-50 flex justify-center bg-ink/25 px-4"
-      style={{ paddingTop: "min(20vh, 96px)" }}
+      className="cmd-backdrop fixed inset-0 z-50 flex items-start justify-center bg-ink/25 px-4"
+      style={{ paddingTop: "min(16vh, 96px)" }}
       onMouseDown={(e) => {
         // Cierra solo si click directo sobre el backdrop
         if (e.target === e.currentTarget) close();
@@ -257,13 +254,13 @@ export function CommandPalette() {
         role="dialog"
         aria-modal="true"
         aria-label="Buscador de la consola"
-        className="cmd-panel w-full max-w-xl rounded-lg border border-line bg-surface shadow"
-        style={{ maxHeight: "60vh", display: "flex", flexDirection: "column" }}
+        className="cmd-panel flex w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-surface shadow-lg"
+        style={{ maxHeight: "min(70vh, 560px)" }}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Input */}
-        <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
-          <svg viewBox="0 0 14 14" className="h-3.5 w-3.5 shrink-0 text-ink-3" fill="none">
+        <div className="flex h-14 shrink-0 items-center gap-3 border-b border-line px-5">
+          <svg viewBox="0 0 14 14" className="h-4 w-4 shrink-0 text-ink-3" fill="none" aria-hidden="true">
             <circle cx="6" cy="6" r="4.2" stroke="currentColor" strokeWidth="1.3" />
             <path d="m9.5 9.5 2.7 2.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
@@ -277,17 +274,15 @@ export function CommandPalette() {
             aria-autocomplete="list"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar cliente, folio, conversación…"
-            className="min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3"
+            placeholder="Buscar pantalla, cliente o folio"
+            className="h-full min-w-0 flex-1 bg-transparent text-cuerpo text-ink outline-none placeholder:text-ink-3 focus-visible:shadow-none"
             autoComplete="off"
             spellCheck={false}
           />
           {loading && (
             <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-line border-t-accent" />
           )}
-          <kbd className="shrink-0 rounded border border-line bg-panel px-1 text-sello text-ink-3">
-            Esc
-          </kbd>
+          <kbd className="shrink-0 font-sans text-rotulo text-ink-3">Esc</kbd>
         </div>
 
         {/* Resultados */}
@@ -298,17 +293,10 @@ export function CommandPalette() {
           className="overflow-y-auto"
           style={{ flex: 1 }}
         >
-          {/* Estado inicial */}
-          {!query.trim() && (
-            <p className="px-4 py-6 text-center text-cuerpo text-ink-3">
-              Escribe para buscar en todo tu negocio
-            </p>
-          )}
-
           {/* Sin resultados */}
           {showEmpty && (
-            <p className="px-4 py-6 text-center text-cuerpo text-ink-3">
-              Sin resultados para «{query.trim()}»
+            <p className="px-5 py-8 text-center text-cuerpo text-ink-3">
+              Nada con «{query.trim()}»
             </p>
           )}
 
@@ -320,7 +308,7 @@ export function CommandPalette() {
 
               return (
                 <div key={group.title}>
-                  <p className="px-4 pb-1 pt-3 text-rotulo font-semibold uppercase tracking-[0.06em] text-ink-3">
+                  <p className="eyebrow px-5 pb-1.5 pt-4">
                     {group.title}
                   </p>
                   {group.items.map((item, itemIdx) => {
@@ -336,24 +324,23 @@ export function CommandPalette() {
                         type="button"
                         onMouseEnter={() => setSelectedIdx(globalIdx)}
                         onClick={() => navigate(item)}
-                        className={`flex w-full items-baseline gap-3 px-4 py-2 text-left transition-colors ${
-                          isSelected ? "bg-accent-soft" : "hover:bg-accent-soft/60"
+                        // En teléfono el dato va debajo del nombre: lado a lado, el nombre
+                        // quedaba cortado ("F-301 · $38,288…").
+                        className={`flex w-full flex-col gap-x-3 px-5 py-2.5 text-left sm:flex-row sm:items-baseline sm:py-2 ${
+                          isSelected ? "bg-fill" : ""
                         }`}
                       >
                         <span
-                          className={`flex-1 truncate text-cuerpo ${
-                            isSelected ? "text-accent-ink" : "text-ink"
+                          className={`text-cuerpo text-ink sm:flex-1 sm:truncate ${
+                            isSelected ? "font-medium" : ""
                           }`}
                         >
                           {item.label}
                         </span>
                         {item.sublabel && (
-                          <span
-                            className={`tnum shrink-0 text-apoyo ${
-                              isSelected ? "text-accent-ink/70" : "text-ink-3"
-                            }`}
-                          >
-                            {item.sublabel}
+                          <span className="tnum text-apoyo text-ink-3 sm:shrink-0">
+                            {/* Un teléfono llega crudo del servidor: se agrupa para leerlo. */}
+                            {/^\+?\d{10,13}$/.test(item.sublabel) ? telefonoMx(item.sublabel) : item.sublabel}
                           </span>
                         )}
                       </button>

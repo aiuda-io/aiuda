@@ -156,7 +156,7 @@ def test_sync_fuentes_enruta_a_cua_cuando_el_dueno_lo_elige(session, tenant, mon
 
     visto = {}
 
-    def fake_sync_cua(s, t, cap, today=None):
+    def fake_sync_cua(s, t, cap, today=None, ia=None):
         visto["cap"] = cap
         r = SyncReport()
         r.fuentes.append("cua:test")

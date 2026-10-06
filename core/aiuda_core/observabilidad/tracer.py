@@ -238,7 +238,7 @@ class RunRecorder:
 
     def cortar(self, motivo: str) -> None:
         """Terminó sin error pero sin hacer el trabajo: se acabó el tope de IA, no hay
-        proveedor, quedó fuera de la ventana de envío. Antes esto se perdía."""
+        proveedor, quedó fuera de la ventana de envío."""
         self._fila.status = "cortado"
         self._fila.error = motivo
 
@@ -254,6 +254,13 @@ def abrir_run(db, tenant, *, ayudante=None, aiudita: str = "", disparo: str = "c
     """
     cfg = ((tenant.config or {}).get("observabilidad") or {})
     guardar = cfg.get("guardar_prompts", "redactado") != "no"
+
+    # Antes de la primera escritura: de aquí en adelante la sesión tiene la base tomada
+    # hasta que el trabajo termine, y un token de ChatGPT renovado ahí adentro no
+    # quedaría en disco si la app se cierra a la mitad.
+    from aiuda_core.engine import chatgpt_auth
+
+    chatgpt_auth.adelantar_renovacion(db, tenant.id)
 
     fila = Run(
         tenant_id=tenant.id,
