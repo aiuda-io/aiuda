@@ -36,7 +36,7 @@ funciona en la terminal funciona en la app, y al revés.
 | `desktop/` | App Tauri: ventana y ciclo de vida del sidecar. Nada de lógica de negocio. |
 | `packaging/` | `aiuda.spec` de PyInstaller: el server y la consola en un ejecutable. |
 | `landing/` | Página pública estática. |
-| `scripts/` | `build-app.sh`, `dev.sh`, `seed.py`, `cua_demo.py`. |
+| `scripts/` | Construir (`build-app.sh`), desarrollar (`dev.sh`, `seed.py`), probar de punta a punta sobre una casa desechable (`prueba-app.sh`, `prueba-ia.sh`, `prueba-banco.sh`, `journey.py`, `flujos.py`) y sacar capturas (`capturas.py`, `og.py`). |
 
 ## Decisiones que definen el diseño
 

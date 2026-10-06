@@ -60,8 +60,8 @@ cd web && npm run lint && npx tsc --noEmit && npm run export
   catálogo en `server/aiuda_server/api/integrations.py`.
 - Estrenar con una cuenta real los conectores que la consola marca "Sin
   estrenar" (`estrenada: False` en el catálogo) y aportar los fixtures. Los
-  cuatro marcados `oculta` (Mercado Pago, Clip, Conekta y WhatsApp Business
-  oficial) no se ofrecen en la consola hasta que alguien los estrene.
+  seis marcados `oculta` (Stripe, Belvo, Mercado Pago, Clip, Conekta y WhatsApp
+  Business oficial) no se ofrecen en la consola hasta que alguien los estrene.
 - Notarización del instalador de macOS.
 
 ## Licencia

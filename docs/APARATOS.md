@@ -21,8 +21,9 @@ Lo demás que conviene saber de una vez:
 - **No hay app para Android.**
 - La computadora tiene que estar prendida y con aiuda abierto.
 - Lo que está probado con pruebas automáticas es el candado: los papeles, el
-  tope, que un invitado no se ascienda solo y que sacar un aparato lo deje fuera
-  de inmediato.
+  tope, que un invitado no pueda meter a nadie más y que sacar un aparato lo deje
+  fuera de inmediato. El papel de un aparato se elige al emparejarlo y no se
+  cambia después: para darle otro, se saca y se vuelve a invitar.
 - Probado en **macOS con chip Apple**. aiuda es solo para Mac.
 
 ## Qué es, en una frase
