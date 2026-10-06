@@ -121,7 +121,7 @@ uv run aiuda doctor                                          # desde el repo
 Ejemplo de salida:
 
 ```
-aiuda doctor (0.1.0)
+aiuda doctor (0.1.0a2)
   [ok] Carpeta de datos: /Users/tu/.aiuda
   [ok] Base de datos: /Users/tu/.aiuda/aiuda.db
   [ok] Llave de cifrado: /Users/tu/.aiuda/key

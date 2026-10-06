@@ -174,7 +174,7 @@ if settings.sentry_dsn:
     except ImportError:
         log.warning("SENTRY_DSN definido pero sentry-sdk no está instalado; sin captura.")
 
-app = FastAPI(title="aiuda API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="aiuda API", version="0.1.0a2", lifespan=lifespan)
 
 from aiuda_server.api.onboarding import router as onboarding_router  # noqa: E402
 from aiuda_server.api.setup import router as setup_router  # noqa: E402

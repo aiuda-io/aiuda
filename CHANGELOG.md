@@ -5,8 +5,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.1.0/). Versionado:
 
 ## [Sin publicar]
 
-Todavía no hay ninguna versión publicada: todo lo de abajo es lo que trae el
-código hoy.
+## [0.1.0-alpha.2] - 2026-10-06
+
+Segundo corte alfa. Todavía no hay ninguna versión publicada ni firmada por
+Apple: todo lo de abajo es lo que trae el código en este corte.
 
 ### Retirado
 
