@@ -34,6 +34,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
+from aiuda_core import __version__
 from aiuda_core.cartera.aging import aging_summary, classify
 from aiuda_core.config import settings
 from aiuda_core.connectors.channel import (
@@ -174,7 +175,7 @@ if settings.sentry_dsn:
     except ImportError:
         log.warning("SENTRY_DSN definido pero sentry-sdk no está instalado; sin captura.")
 
-app = FastAPI(title="aiuda API", version="0.1.0a2", lifespan=lifespan)
+app = FastAPI(title="aiuda API", version=__version__, lifespan=lifespan)
 
 from aiuda_server.api.workspace import router as workspace_router  # noqa: E402
 from aiuda_server.api.setup import router as setup_router  # noqa: E402
@@ -480,8 +481,8 @@ def _tenant_de_instancia(db, instance: str) -> Tenant | None:
 
 
 def _tenant_con_whatsapp(db) -> Tenant:
-    """Routing legado SIN instancia en el payload (poller viejo, self-host de un solo
-    número): exactamente UN tenant con WhatsApp conectado recibe los entrantes; si no
+    """Routing SIN instancia en el payload (instalación de un solo número):
+    exactamente UN tenant con WhatsApp conectado recibe los entrantes; si no
     hay ninguno conectado pero solo existe un tenant, es él. Con más de un candidato
     NO se adivina: entregar la conversación de un cliente al negocio equivocado es
     fuga cross-tenant, así que se rechaza y se pide poller con instancia."""
@@ -514,8 +515,10 @@ async def wacli_webhook(
     """Mensajes entrantes de WhatsApp vía wacli.
 
     Contrato: {"phone": "5215...", "message": "texto", "id": "opcional",
-    "instance": "opcional"}. El daemon de entrada (scripts/wacli_inbound.py) postea
-    aquí cada mensaje recibido; con `instance` el mensaje entra al workspace dueño
+    "instance": "opcional"}. aiuda ya no llama esta ruta: el sondeo corre dentro
+    del proceso (aiuda_server.inbound). Queda para quien sondee desde fuera, y es
+    la puerta por la que las pruebas ejercitan la ingesta. Con `instance` el
+    mensaje entra al workspace dueño
     de esa instancia. Sin ella se resuelve el único número disponible y se rechaza
     si sería ambiguo.
     """
@@ -1086,8 +1089,7 @@ def _update_config(db, tenant: Tenant, **changes) -> None:
 @app.get("/v1/avisos/tope-ia")
 def get_aviso_tope_ia(tenant: Tenant = Depends(get_tenant), db=Depends(get_db)):
     """El aviso de que la IA se pausó por el tope de gasto del mes. Lo deja el worker
-    (`_aviso_tope`) la primera vez que un trabajo se corta; el Centro de mando lo
-    pinta. Se calla solo si el dueño lo descartó, si cambió el mes o si el tope ya
+    (`_aviso_tope`) la primera vez que un trabajo se corta; Hoy lo pinta. Se calla solo si el dueño lo descartó, si cambió el mes o si el tope ya
     no está agotado (lo subió o lo quitó)."""
     from aiuda_server.costs import ia_budget
 
@@ -1128,9 +1130,8 @@ class ContextoBody(BaseModel):
 def get_business_context(tenant: Tenant = Depends(get_tenant)):
     """El contexto del negocio: giro, políticas de pago, datos para depósito.
 
-    Es del NEGOCIO, no de un ayudante: entra al system prompt de todos. Se leía por
-    /v1/agents/mariana/config, o sea colgado de un slug de runtime que el dueño nunca
-    creó; por eso ahora vive con los demás ajustes."""
+    Es del NEGOCIO, no de un ayudante: entra al system prompt de todos, y por eso
+    vive con los demás ajustes."""
     return {"business_context": (tenant.config or {}).get("business_context", "")}
 
 
@@ -2517,7 +2518,7 @@ def list_conversations(tenant: Tenant = Depends(get_tenant), db=Depends(get_db))
     """La bandeja unificada: lista sobre Conversation (lo que llena el webhook, la única
     verdad de entrantes) y clasifica cada hilo cruzándolo con el directorio por match_key:
     identificado (cruza a un cliente), por_identificar (no cruza) o descartado (el dueño
-    lo sacó). Antes esto vivía en dos mundos separados que nunca se cruzaban."""
+    lo sacó)."""
     descartadas = _conversaciones_descartadas(tenant)
     conversations = db.scalars(
         select(Conversation)

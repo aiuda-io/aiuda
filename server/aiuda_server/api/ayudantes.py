@@ -210,8 +210,7 @@ def prompt_preview(
         ayudante_name=a.name,
         persona=(a.instructions or "").strip() or None,
     )
-    # `system` se conserva por compatibilidad con quien ya consuma el endpoint.
-    return {"system": chat, "chat": chat, "corrida": corrida}
+    return {"chat": chat, "corrida": corrida}
 
 
 @router.put("/v1/ayudantes/{ayudante_id}")

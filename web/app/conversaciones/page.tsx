@@ -41,8 +41,7 @@ function Mensajes() {
 
   return (
     // La bandeja va sobre el mismo papel que todo lo demás: una raya fina la separa
-    // del hilo. Antes era una columna gris con la conversación abierta en una ficha
-    // blanca, justo lo que DESIGN.md prohíbe.
+    // del hilo (DESIGN.md: ni columna gris ni ficha blanca encima).
     <div className="flex h-[calc(100dvh-8.5rem)] min-h-[480px] min-w-0">
       <aside
         className={`${enHilo ? "hidden md:flex" : "flex"} w-full min-w-0 flex-col ${

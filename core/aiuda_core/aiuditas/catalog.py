@@ -15,7 +15,7 @@ el motor no finge. Verdad verificada del motor (2026-07-07):
                (CarlosEngine: propone, el humano aprueba).
   - recepcion: consultar_agenda, buscar_cita (solo lectura).
   - conciliacion: consultar_pagos (lectura) y conciliar (engine/reconcile propone el
-               match; el humano confirma en /conciliacion — nunca cierra solo).
+               match; el humano confirma en Cartera, Pagos — nunca cierra solo).
 Un perfil entra a `PERFILES` solo si tiene al menos una aiudita viva: los que no
 tenían ninguna (legal, compras, contenido, prospección) se retiraron.
 """

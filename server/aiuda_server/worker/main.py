@@ -1012,7 +1012,7 @@ def _run_daily_impl(
                         _aviso_tope(session, tenant, ia_budget_message(verdict))
                         report["ia_cortada"] += 1
                         # `cortado`, no `done`: terminó sin error pero sin hacer el
-                        # trabajo. Antes esto se perdía en un contador del reporte.
+                        # trabajo, y la bitácora tiene que decirlo.
                         run.cortar(ia_budget_message(verdict))
                         drafted = []
                     else:

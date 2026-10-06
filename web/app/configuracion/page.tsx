@@ -67,8 +67,8 @@ function Ajustes() {
   );
 }
 
-/** Lo que antes vivía en el marco de la consola (el sello LOCAL, el crédito) y ahora
- *  se dice una vez, al fondo de Ajustes. */
+/** Que aiuda corre en esta computadora, su versión y el crédito: se dice una vez,
+ *  al fondo de Ajustes, y no en el marco de cada pantalla. */
 function PieDeAjustes() {
   const { data } = useApi(() => api.workspace(), []);
   return (

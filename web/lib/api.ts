@@ -1873,10 +1873,9 @@ export const api = {
       body: JSON.stringify(body),
     }),
   // Son DOS prompts porque el interlocutor cambia: `chat` cuando el dueño le
-  // pregunta, `corrida` cuando redacta para un cliente. `system` es alias de `chat`
-  // y se conserva por compatibilidad.
+  // pregunta, `corrida` cuando redacta para un cliente.
   ayudantePrompt: (id: string) =>
-    request<{ system: string; chat: string; corrida: string }>(
+    request<{ chat: string; corrida: string }>(
       `/v1/ayudantes/${id}/prompt`,
     ),
   cuaEstado: () => request<CuaEstado>("/v1/cua/estado"),

@@ -29,7 +29,7 @@ programa; en esta aiuda se presenta como aiuda, y si algún día el flujo exigie
 contrario, se quita igual.
 
 La credencial se resuelve en este orden:
-  1. tenant.config["provider"] (lo que el usuario conectó en el panel /proveedor)
+  1. tenant.config["provider"] (lo que el usuario conectó en Ajustes, Tu IA)
   2. settings.anthropic_api_key (variable de entorno, compat self-host)
 """
 

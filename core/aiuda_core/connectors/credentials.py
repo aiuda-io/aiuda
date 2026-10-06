@@ -247,7 +247,7 @@ PROVIDERS: dict[str, dict] = {
         "gate": "key",
     },
     # Proveedor de IA. NO es un conector de sync (sin ctor): es el secreto del
-    # modelo que el dueño conecta en /proveedor. Vive aquí para CIFRARLO con la
+    # modelo que el dueño conecta en Ajustes, Tu IA. Vive aquí para CIFRARLO con la
     # misma maquinaria por tenant; la resolución a cliente Anthropic sigue en
     # aiuda_core.engine.provider. `legacy=['provider']` lee el texto plano viejo
     # (tenant.config['provider'] = {name, mode, secret}) como fallback de transición.

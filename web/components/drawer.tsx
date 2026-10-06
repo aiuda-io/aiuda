@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { lockScroll } from "@/lib/scroll-lock";
 
 // Panel lateral (derecha) para el detalle de un registro. Es EL gesto de detalle de la
-// consola: preserva el contexto (el tablero/lista se queda detrás) mientras actúas. Acabado
+// consola: preserva el contexto (la lista se queda detrás) mientras actúas. Acabado
 // premium: profundidad por sombra, ancho por contenido (md/lg), entrada con peso y aire.
 export function Drawer({
   open,

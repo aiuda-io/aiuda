@@ -41,7 +41,7 @@ export function Toaster() {
   // antes de que llegue un toast y el lector de pantalla puede anunciarlo. Los toasts
   // de error usan role="alert" (asertivo, se anuncia de inmediato); los demás, polite.
   return (
-    // z-[70]: por encima de TODO lo que se superpone (drawers, tour, asistente de
+    // z-[70]: por encima de TODO lo que se superpone (drawers, asistente de
     // primer arranque en z-[60]). Un aviso que queda tapado es un aviso perdido.
     <div
       aria-live="polite"

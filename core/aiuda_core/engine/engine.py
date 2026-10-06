@@ -157,7 +157,7 @@ class CleoEngine:
             a = session.get(Ayudante, ayudante_id)
             if a is not None and a.tenant_id == tenant.id:
                 self._ayudante = a
-        # Runner del proveedor conectado por el tenant en /proveedor (o el env, self-host).
+        # Runner del proveedor conectado por el tenant en Ajustes, Tu IA (o el env, self-host).
         self.runner = runner or make_runner(
             resolve_credential(session=session, tenant_id=tenant.id),
             usage_callback=self._record_usage,

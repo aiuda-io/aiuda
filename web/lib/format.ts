@@ -1,6 +1,5 @@
-// Formateo canónico es-MX de FECHAS y horas: una sola fuente. Antes vivía
-// disperso (~10 variantes inline, algunas con ISO crudo). Centralizar aquí evita
-// que dos pantallas muestren la misma fecha distinto. (mxn() vive en lib/api.)
+// Formateo canónico es-MX de FECHAS y horas: una sola fuente, para que dos
+// pantallas no muestren la misma fecha distinto. (mxn() vive en lib/api.)
 
 const MX = "es-MX";
 

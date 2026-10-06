@@ -2,7 +2,7 @@
 
 Qué PROPONE Diego (proponer, nunca ejecutar): a qué factura abierta corresponde cada
 depósito detectado, con la razón del match (`engine/reconcile.propose_matches`). La
-conciliación real (marcar la factura pagada) la CONFIRMA el humano en /conciliacion —
+conciliación real (marcar la factura pagada) la CONFIRMA el humano en Cartera, Pagos —
 Diego jamás cierra una factura solo, igual que un dicho del cliente no es un pago.
 
 En el chat, esta herramienta únicamente CONSULTA la bandeja: pagos pendientes y su

@@ -848,8 +848,8 @@ export function ConectarIA({
       )}
 
       <p className="eyebrow">{enUso ? "en uso" : "recomendada para esta Mac"}</p>
-      {/* Sobre el papel, entre dos rayas: antes era una ficha gris con otra lista
-          adentro. La raya de abajo es la de "Otras formas de conectar". */}
+      {/* Sobre el papel, entre dos rayas. La de abajo es la de "Otras formas de
+          conectar". */}
       <section className="mt-3 border-t border-line pt-5">
         <div className="flex items-start gap-4">
           <LogoVia via={principal} grande />

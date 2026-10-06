@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api";
 
 const MONEDA_BASE = "MXN";
 
-/** A dónde se manda al dueño (rutas del contrato del paquete B). */
+/** A dónde se manda al dueño cuando algo se resuelve en otra pantalla. */
 export const RUTA = {
   hoy: "/",
   cartera: "/facturas",

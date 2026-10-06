@@ -128,7 +128,7 @@ def test_instrucciones_persisten_y_entran_al_prompt(client, demo_tenant, demo_lo
     # el detalle las devuelve
     assert client.get(f"/v1/ayudantes/{aid}").json()["instructions"] == instr
     # y la vista previa del prompt REAL las incluye (fuente única de verdad)
-    prompt = client.get(f"/v1/ayudantes/{aid}/prompt").json()["system"]
+    prompt = client.get(f"/v1/ayudantes/{aid}/prompt").json()["chat"]
     assert instr in prompt
     assert "abi" in prompt  # persona + capacidades ensambladas de verdad
     # limpiar con "" borra
